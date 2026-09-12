@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Practical 9.3 · EFS Shared Storage · Handwritten Notes</title>
+
+    <!-- Google Fonts – clear handwriting -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Gloria+Hallelujah&family=Architects+Daughter&family=Reenie+Beanie&display=swap" rel="stylesheet" />
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #f7f0e7;
+            background-image: radial-gradient(circle at 30% 20%, #fcf7f0 0%, #eee7dd 100%);
+            display: flex;
+            justify-content: center;
+            padding: 2.5rem 1.5rem;
+            font-family: 'Patrick Hand', 'Architects Daughter', cursive;
+        }
+
+        .notes-container {
+            max-width: 1100px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 2.8rem;
+            animation: floatUp 0.9s ease-out;
+        }
+
+        .note {
+            background: #fffcf5;
+            padding: 2.5rem 3.5rem;
+            border-radius: 28px 28px 28px 10px;
+            box-shadow: 0 12px 36px rgba(0,0,0,0.06), 0 2px 10px rgba(0,0,0,0.03), inset 0 -2px 0 rgba(0,0,0,0.02);
+            position: relative;
+            transition: transform 0.3s ease, box-shadow 0.35s ease;
+            transform-origin: left center;
+            border-left: 8px solid transparent;
+            animation: notePop 0.6s ease both;
+            animation-delay: calc(var(--i, 0) * 0.025s);
+        }
+
+        .note:nth-child(1) { border-left-color: #f0b8b8; }
+        .note:nth-child(2) { border-left-color: #aad0c4; }
+        .note:nth-child(3) { border-left-color: #f5d4aa; }
+        .note:nth-child(4) { border-left-color: #cfb8e0; }
+        .note:nth-child(5) { border-left-color: #b8cce0; }
+        .note:nth-child(6) { border-left-color: #e8c8b8; }
+        .note:nth-child(7) { border-left-color: #b8d9c8; }
+        .note:nth-child(8) { border-left-color: #f0c8c8; }
+        .note:nth-child(9) { border-left-color: #d4c8e8; }
+        .note:nth-child(10) { border-left-color: #c8dce8; }
+        .note:nth-child(11) { border-left-color: #e8d4b8; }
+
+        .note:hover {
+            transform: rotate(-0.8deg) scale(1.015);
+            box-shadow: 0 24px 48px rgba(0,0,0,0.09), 0 4px 16px rgba(0,0,0,0.05);
+        }
+
+        .note-title {
+            font-family: 'Gloria Hallelujah', 'Patrick Hand', cursive;
+            font-size: 2.2rem;
+            font-weight: 500;
+            color: #2f2216;
+            letter-spacing: 0.8px;
+            margin-bottom: 0.3rem;
+            line-height: 1.25;
+            display: inline-block;
+            position: relative;
+        }
+
+        .note-title::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: -4px;
+            width: 100%;
+            height: 8px;
+            background: repeating-linear-gradient(90deg, transparent, transparent 6px, rgba(240,184,184,0.4) 6px, rgba(240,184,184,0.4) 12px);
+            border-radius: 20px;
+            opacity: 0.8;
+        }
+
+        .note-subtitle {
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.3rem;
+            color: #5a4a3a;
+            margin: -0.1rem 0 1rem 0;
+            font-weight: 400;
+            opacity: 0.85;
+        }
+
+        .note-body {
+            font-family: 'Architects Daughter', 'Patrick Hand', cursive;
+            font-size: 1.35rem;
+            line-height: 1.85;
+            color: #2a1f15;
+            margin: 0.9rem 0 0.4rem 0;
+            font-weight: 400;
+            letter-spacing: 0.4px;
+        }
+
+        .note-body strong {
+            font-weight: 700;
+            color: #a05545;
+            background: rgba(240,184,184,0.15);
+            padding: 0 8px;
+            border-radius: 16px;
+            font-style: normal;
+        }
+
+        .note-body em {
+            color: #5a8a78;
+            font-style: italic;
+            text-decoration: underline wavy #aad0c4 3px;
+            font-weight: 500;
+        }
+
+        .note-body .chip {
+            background: #f0e9e0;
+            padding: 0.1rem 1.2rem;
+            border-radius: 40px;
+            display: inline-block;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.15rem;
+            color: #3d3226;
+            border: 1px dashed #cbb8a8;
+            margin: 2px 0;
+            font-weight: 400;
+        }
+
+        .note-body .chip-blue { background: #dce8f0; border-color: #aac0d0; }
+        .note-body .chip-green { background: #d8ece0; border-color: #a0c8b8; }
+        .note-body .chip-pink { background: #f0dcd8; border-color: #d8b8b0; }
+        .note-body .chip-purple { background: #e4d8ec; border-color: #c8b8d8; }
+        .note-body .chip-gold { background: #f0e8d0; border-color: #d8c8a8; }
+        .note-body .chip-orange { background: #f0dcc8; border-color: #d8b898; }
+        .note-body .chip-teal { background: #c8e8dc; border-color: #88c8b8; }
+
+        .code-block {
+            background: #1e1a16;
+            color: #e8e0d8;
+            padding: 1.2rem 1.8rem;
+            border-radius: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.7rem;
+            line-height: 1.7;
+            margin: 0.8rem 0 1rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            border-left: 4px solid #f0b8b8;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .code-block .comment { color: #7a8a7a; }
+        .code-block .keyword { color: #f0b8b8; }
+        .code-block .string { color: #b8d9c8; }
+        .code-block .function { color: #c8b8e8; }
+        .code-block .tag { color: #f5d4aa; }
+
+        .ascii-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1rem 1.5rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.48rem;
+            line-height: 1.5;
+            color: #2a1f15;
+            border: 1px solid #e0d8ce;
+            margin: 0.8rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .ascii-box .highlight { color: #a05545; font-weight: bold; }
+        .ascii-box .title { color: #2f2216; font-weight: bold; text-decoration: underline; }
+
+        .styled-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.05rem;
+            background: #f8f4ec;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        }
+
+        .styled-table th {
+            background: #2f2216;
+            color: #f5efe8;
+            padding: 0.7rem 1rem;
+            text-align: left;
+            font-weight: 500;
+            font-size: 1rem;
+        }
+
+        .styled-table td {
+            padding: 0.7rem 1rem;
+            border-bottom: 1px solid #e8e0d6;
+            color: #2a1f15;
+        }
+
+        .styled-table tr:last-child td { border-bottom: none; }
+        .styled-table tr:hover td { background: #f0e9e0; }
+
+        .note-body ul, .note-body ol {
+            padding-left: 2rem;
+            margin: 0.5rem 0;
+        }
+        .note-body li { margin-bottom: 0.3rem; }
+
+        .def-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1.2rem 1.8rem;
+            margin: 0.8rem 0;
+            border-left: 6px solid #aad0c4;
+        }
+        .def-box strong { color: #a05545; }
+
+        .warning-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1.2rem 1.8rem;
+            margin: 0.8rem 0;
+            border-left: 6px solid #f0b8b8;
+        }
+        .warning-box strong { color: #a05545; }
+
+        .note-meta {
+            margin-top: 1.5rem;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.05rem;
+            color: #9f8875;
+            display: flex;
+            align-items: center;
+            gap: 1.2rem;
+            flex-wrap: wrap;
+        }
+
+        .note-meta span {
+            background: #f1eae1;
+            padding: 0.3rem 1.4rem;
+            border-radius: 60px;
+            font-size: 1rem;
+            color: #4d3b2b;
+            box-shadow: inset 0 1px 4px rgba(0,0,0,0.02);
+            font-weight: 400;
+            letter-spacing: 0.3px;
+        }
+
+        .note-pin {
+            position: absolute;
+            top: -12px;
+            right: 34px;
+            font-size: 2.6rem;
+            opacity: 0.25;
+            transform: rotate(25deg);
+            filter: drop-shadow(0 3px 6px rgba(0,0,0,0.06));
+            transition: opacity 0.25s;
+        }
+        .note:hover .note-pin { opacity: 0.8; }
+
+        .verification-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.6rem;
+            margin: 0.5rem 0;
+        }
+        .verification-item {
+            background: #f8f4ec;
+            padding: 0.4rem 1rem;
+            border-radius: 10px;
+            border-left: 4px solid #aad0c4;
+            font-size: 1rem;
+        }
+        .verification-item .check { color: #5a8a78; }
+
+        .summary-table td:first-child { font-weight: 600; color: #a05545; }
+
+        @keyframes floatUp {
+            0% { opacity: 0; transform: translateY(50px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes notePop {
+            0% { opacity: 0; transform: scale(0.92) rotate(-3deg); }
+            80% { opacity: 1; transform: scale(1.015) rotate(0.8deg); }
+            100% { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+
+        @media (max-width: 700px) {
+            .note { padding: 1.8rem 1.8rem; }
+            .note-title { font-size: 1.8rem; }
+            .note-body { font-size: 1.15rem; line-height: 1.7; }
+            .note-body .chip { font-size: 1rem; padding: 0 0.8rem; }
+            .code-block { font-size: 0.58rem; padding: 1rem; }
+            .note-pin { font-size: 2rem; top: -8px; right: 18px; }
+            .styled-table { font-size: 0.9rem; }
+            .styled-table th, .styled-table td { padding: 0.5rem 0.7rem; }
+            .notes-container { gap: 2rem; }
+            .ascii-box { font-size: 0.38rem; padding: 0.8rem 1rem; }
+            .verification-grid { grid-template-columns: 1fr; }
+            .def-box { padding: 0.8rem 1.2rem; }
+            .warning-box { padding: 0.8rem 1.2rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="notes-container">
+
+        <!-- ============================================================ -->
+        <!-- NOTE 1: Practical Overview -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:0">
+            <div class="note-pin">📁</div>
+            <h2 class="note-title">Practical 9.3</h2>
+            <div class="note-subtitle">EFS Shared Storage: Create, Mount, and Configure</div>
+            <div class="note-body">
+                <strong>Duration:</strong> 45-60 minutes
+                <br /><br />
+                <strong>Learning Objectives:</strong>
+                <ul>
+                    <li>✅ Create an EFS file system with mount targets in multiple Availability Zones</li>
+                    <li>✅ Mount the EFS file system on two EC2 instances at <span class="chip">/shared</span></li>
+                    <li>✅ Verify shared storage by writing a file from one instance and reading it from the other</li>
+                    <li>✅ Configure an EFS lifecycle policy to automatically move files to Infrequent Access (IA) after 30 days</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>📁 EFS shared storage</span>
+                <span>⏱️ 45-60 min</span>
+                <span>🔄 multi-AZ</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 2: EFS Architecture Theory -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:1">
+            <div class="note-pin">🏗️</div>
+            <h2 class="note-title">EFS Architecture</h2>
+            <div class="note-body">
+                <strong>📖 Complete Theory: EFS Architecture</strong>
+                <br /><br />
+                Amazon EFS is a <strong>regional service</strong> that stores data redundantly across multiple Availability Zones (AZs) by default. To access the file system, you create <strong>mount targets</strong> in the VPC's subnets. Each mount target provides an NFS endpoint that allows EC2 instances in that subnet to connect to the EFS file system.
+                <br /><br />
+                <div class="ascii-box">
+                    <span class="title">EFS WITH MOUNT TARGETS IN MULTIPLE AZs</span>
+                    ┌─────────────────────────────────────────────────────────────────────────────────────┐
+                    │                    EFS WITH MOUNT TARGETS IN MULTIPLE AZs                         │
+                    ├─────────────────────────────────────────────────────────────────────────────────────┤
+                    │                                                                                     │
+                    │  ┌─────────────────────────────────────────────────────────────────────────────────┐│
+                    │  │  AWS Region                                                                   ││
+                    │  │  ┌─────────────────────────────────────────────────────────────────────────┐   ││
+                    │  │  │  EFS FILE SYSTEM (fs-xxxxxxxxxxxxxxxxx)                                 │   ││
+                    │  │  │                                                                          │   ││
+                    │  │  │  ┌────────────────────┐  ┌────────────────────┐                          │   ││
+                    │  │  │  │  Availability Zone  │  │  Availability Zone  │                          │   ││
+                    │  │  │  │   A (us-east-1a)    │  │   B (us-east-1b)    │                          │   ││
+                    │  │  │  │  ┌──────────────┐  │  │  ┌──────────────┐  │                          │   ││
+                    │  │  │  │  │   MOUNT       │  │  │  │   MOUNT       │  │                          │   ││
+                    │  │  │  │  │   TARGET     │  │  │  │   TARGET     │  │                          │   ││
+                    │  │  │  │  └──────────────┘  │  │  └──────────────┘  │                          │   ││
+                    │  │  │  │       │             │  │       │             │                          │   ││
+                    │  │  │  │       ▼             │  │       ▼             │                          │   ││
+                    │  │  │  │  ┌──────────────┐  │  │  ┌──────────────┐  │                          │   ││
+                    │  │  │  │  │  EC2 Instance │  │  │  │  EC2 Instance │  │                          │   ││
+                    │  │  │  │  │  (Instance A) │  │  │  │  (Instance B) │  │                          │   ││
+                    │  │  │  │  │  /shared      │  │  │  │  /shared      │  │                          │   ││
+                    │  │  │  │  └──────────────┘  │  │  └──────────────┘  │                          │   ││
+                    │  │  │  └────────────────────┘  └────────────────────┘                          │   ││
+                    │  │  │                                                                          │   ││
+                    │  │  │  ════════════════════════════ NFS Protocol ═══════════════════════════  │   ││
+                    │  │  │                                                                          │   ││
+                    │  │  │  Shared Data: All instances see the same files!                         │   ││
+                    │  │  └─────────────────────────────────────────────────────────────────────────┘   ││
+                    │  └─────────────────────────────────────────────────────────────────────────────────┘│
+                    │                                                                                     │
+                    └─────────────────────────────────────────────────────────────────────────────────────┘
+                </div>
+                <br />
+                <strong>Key Architecture Points:</strong>
+                <ul>
+                    <li><span class="chip chip-blue">EFS is regional</span> — data is replicated across AZs by default</li>
+                    <li><span class="chip chip-green">Mount targets</span> provide NFS endpoints in each subnet</li>
+                    <li><span class="chip chip-gold">Instances in different AZs</span> can access the same EFS file system</li>
+                    <li><span class="chip chip-purple">NFS protocol</span> enables shared, concurrent access</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>🏗️ architecture</span>
+                <span>🌐 regional</span>
+                <span>🔗 mount targets</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 3: P9.3.1 – Create EFS Filesystem -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:2">
+            <div class="note-pin">📁</div>
+            <h2 class="note-title">P9.3.1 Create EFS Filesystem</h2>
+            <div class="note-subtitle">With Mount Targets in Multiple AZs</div>
+            <div class="note-body">
+                <strong>📖 Theory: EFS File System Creation</strong>
+                <br />
+                EFS is a regional service. By default, a Regional EFS file system is designed to redundantly store data across multiple Availability Zones (AZs) within a Region, protecting it from a single AZ failure.
+                <br /><br />
+                <strong>Step 1: Create Security Groups</strong>
+                <div class="code-block">
+                    <span class="comment"># Security group for EFS mount targets</span>
+                    SG_EFS=$(aws ec2 create-security-group \
+                        --group-name efs-sg \
+                        --description "Security group for EFS mount targets" \
+                        --vpc-id $VPC_ID \
+                        --query 'GroupId' --output text)
+
+                    <span class="comment"># Security group for EC2 instances</span>
+                    SG_INSTANCE=$(aws ec2 create-security-group \
+                        --group-name instance-sg \
+                        --description "Security group for EC2 instances" \
+                        --vpc-id $VPC_ID \
+                        --query 'GroupId' --output text)
+
+                    <span class="comment"># Allow SSH</span>
+                    aws ec2 authorize-security-group-ingress --group-id $SG_INSTANCE --protocol tcp --port 22 --cidr 0.0.0.0/0
+
+                    <span class="comment"># Allow NFS access to EFS</span>
+                    aws ec2 authorize-security-group-ingress \
+                        --group-id $SG_EFS \
+                        --protocol tcp --port 2049 \
+                        --source-group $SG_INSTANCE
+                </div>
+                <br />
+                <strong>Step 2: Create the EFS File System</strong>
+                <div class="code-block">
+                    FS_ID=$(aws efs create-file-system \
+                        --creation-token "shared-data-efs-$(date +%s)" \
+                        --performance-mode generalPurpose \
+                        --throughput-mode elastic \
+                        --tags Key=Name,Value=shared-data-efs \
+                        --query 'FileSystemId' \
+                        --output text)
+
+                    echo "EFS File System ID: $FS_ID"
+                    aws efs wait file-system-available --file-system-id $FS_ID
+                </div>
+                <br />
+                <strong>Step 3: Create Mount Targets</strong>
+                <div class="code-block">
+                    SUBNET_A=$(aws ec2 describe-subnets --filters "Name=tag:Name,Values=public-subnet-a" --query 'Subnets[0].SubnetId' --output text)
+                    SUBNET_B=$(aws ec2 describe-subnets --filters "Name=tag:Name,Values=public-subnet-b" --query 'Subnets[0].SubnetId' --output text)
+
+                    aws efs create-mount-target --file-system-id $FS_ID --subnet-id $SUBNET_A --security-groups $SG_EFS
+                    aws efs create-mount-target --file-system-id $FS_ID --subnet-id $SUBNET_B --security-groups $SG_EFS
+
+                    aws efs wait mount-target-available --file-system-id $FS_ID
+                </div>
+                <br />
+                <strong>✅ Verification Checklist:</strong>
+                <div class="verification-grid">
+                    <div class="verification-item"><span class="check">□</span> EFS file system created</div>
+                    <div class="verification-item"><span class="check">□</span> Mount targets created in two AZs</div>
+                    <div class="verification-item"><span class="check">□</span> Security groups configured for NFS access</div>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>📁 P9.3.1</span>
+                <span>📊 create EFS</span>
+                <span>🔗 mount targets</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 4: P9.3.2 – Mount EFS on Instances -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:3">
+            <div class="note-pin">🔗</div>
+            <h2 class="note-title">P9.3.2 Mount EFS on Two EC2 Instances</h2>
+            <div class="note-subtitle">At /shared</div>
+            <div class="note-body">
+                <strong>📖 Theory: Mounting EFS</strong>
+                <br />
+                To mount an EFS file system, your EC2 instance must have the <strong>NFS client</strong> installed. You can use either the standard NFS mount command or the <strong>EFS mount helper</strong> (<span class="chip">amazon-efs-utils</span>). The EFS mount helper simplifies the mounting process and enables <strong>TLS encryption</strong> for data in transit.
+                <br /><br />
+                <strong>Step 1: Launch Two EC2 Instances</strong>
+                <div class="code-block">
+                    AMI_ID=$(aws ssm get-parameters --names /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64 --query 'Parameters[0].Value' --output text)
+
+                    INSTANCE_A=$(aws ec2 run-instances \
+                        --image-id $AMI_ID \
+                        --instance-type t3.micro \
+                        --subnet-id $SUBNET_A \
+                        --security-group-ids $SG_INSTANCE \
+                        --key-name MyKeyPair \
+                        --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=EFS-Instance-A}]' \
+                        --query 'Instances[0].InstanceId' --output text)
+
+                    INSTANCE_B=$(aws ec2 run-instances \
+                        --image-id $AMI_ID \
+                        --instance-type t3.micro \
+                        --subnet-id $SUBNET_B \
+                        --security-group-ids $SG_INSTANCE \
+                        --key-name MyKeyPair \
+                        --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=EFS-Instance-B}]' \
+                        --query 'Instances[0].InstanceId' --output text)
+
+                    aws ec2 wait instance-running --instance-ids $INSTANCE_A $INSTANCE_B
+                </div>
+                <br />
+                <strong>Step 2: Install the EFS Mount Helper</strong>
+                <div class="code-block">
+                    <span class="comment"># On each instance</span>
+                    sudo dnf install -y amazon-efs-utils
+                    which mount.efs
+                </div>
+                <br />
+                <strong>Step 3: Mount the EFS File System</strong>
+                <div class="code-block">
+                    <span class="comment"># On each instance</span>
+                    sudo mkdir -p /shared
+                    sudo mount -t efs -o tls $FS_ID:/ /shared
+                    df -h /shared
+                </div>
+                <br />
+                <strong>Step 4: Configure Auto-Mount</strong>
+                <div class="code-block">
+                    echo "$FS_ID:/ /shared efs _netdev,noresvport,tls 0 0" | sudo tee -a /etc/fstab
+                </div>
+                <br />
+                <div class="def-box" style="border-left-color:#f5d4aa;">
+                    <strong>💡 Key Options Explained:</strong>
+                    <ul>
+                        <li><span class="chip">_netdev</span> — Mounts after network is available</li>
+                        <li><span class="chip">noresvport</span> — Survives network reconnections</li>
+                        <li><span class="chip">tls</span> — Encrypts data in transit</li>
+                    </ul>
+                </div>
+                <br />
+                <strong>✅ Verification Checklist:</strong>
+                <div class="verification-grid">
+                    <div class="verification-item"><span class="check">□</span> amazon-efs-utils installed on both instances</div>
+                    <div class="verification-item"><span class="check">□</span> EFS mounted at /shared on both instances</div>
+                    <div class="verification-item"><span class="check">□</span> df -h /shared shows the EFS file system</div>
+                    <div class="verification-item"><span class="check">□</span> /etc/fstab configured for auto-mount</div>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🔗 P9.3.2</span>
+                <span>📁 mount EFS</span>
+                <span>🔒 TLS encryption</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 5: P9.3.3 – Shared Storage Verification -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:4">
+            <div class="note-pin">✅</div>
+            <h2 class="note-title">P9.3.3 Write/Read Across Instances</h2>
+            <div class="note-body">
+                <strong>📖 Theory: Shared Storage Verification</strong>
+                <br />
+                EFS is designed to be a <strong>shared file system</strong>. When you write a file from one instance, it should be visible from any other instance that has the same file system mounted. This demonstrates the core value of EFS: <strong>shared, scalable, and accessible</strong> across multiple compute nodes.
+                <br /><br />
+                <strong>Step 1: Write a File from Instance A</strong>
+                <div class="code-block">
+                    <span class="comment"># On Instance A</span>
+                    cd /shared
+                    echo "Hello from Instance A at $(date)" | sudo tee test-file.txt
+                    sudo dd if=/dev/urandom of=random-file.bin bs=1M count=10
+                </div>
+                <br />
+                <strong>Step 2: Read the File from Instance B</strong>
+                <div class="code-block">
+                    <span class="comment"># On Instance B</span>
+                    cd /shared
+                    ls -la
+                    cat test-file.txt
+                    ls -lh random-file.bin
+                </div>
+                <br />
+                <div class="def-box" style="border-left-color:#f5d4aa;">
+                    <strong>💡 Expected Output on Instance B:</strong>
+                    <div class="code-block" style="font-size:0.6rem;">
+                        -rw-r--r-- 1 root root 45 Aug  3 10:30 test-file.txt
+                        -rw-r--r-- 1 root root 10M Aug  3 10:31 random-file.bin
+
+                        Hello from Instance A at Tue Aug  3 10:30:15 UTC 2026
+                    </div>
+                </div>
+                <br />
+                <strong>Step 3: Write from Instance B, Verify from Instance A</strong>
+                <div class="code-block">
+                    <span class="comment"># On Instance B</span>
+                    echo "Hello from Instance B at $(date)" | sudo tee from-instance-b.txt
+
+                    <span class="comment"># On Instance A</span>
+                    ls -la /shared/
+                    cat /shared/from-instance-b.txt
+                </div>
+                <br />
+                <strong>✅ Verification Checklist:</strong>
+                <div class="verification-grid">
+                    <div class="verification-item"><span class="check">□</span> File written from Instance A is readable on Instance B</div>
+                    <div class="verification-item"><span class="check">□</span> File written from Instance B is readable on Instance A</div>
+                    <div class="verification-item"><span class="check">□</span> EFS provides shared, consistent storage across instances</div>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>✅ P9.3.3</span>
+                <span>📊 shared storage</span>
+                <span>🔄 verification</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 6: P9.3.4 – Lifecycle Policy -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:5">
+            <div class="note-pin">🔄</div>
+            <h2 class="note-title">P9.3.4 Set Up EFS Lifecycle Policy</h2>
+            <div class="note-subtitle">Move to IA after 30 days</div>
+            <div class="note-body">
+                <strong>📖 Theory: EFS Lifecycle Policies</strong>
+                <br />
+                EFS Lifecycle Management automates tiering between storage classes. The default recommended configuration is to move files to <strong>EFS Infrequent Access (IA)</strong> after <strong>30 days</strong> of no access. This transition is based on the last time the file was accessed while in the Standard storage class, and metadata operations like <span class="chip">ls</span> do not count as file access.
+                <br /><br />
+                <strong>Step 1: Create a Lifecycle Configuration</strong>
+                <div class="code-block">
+                    aws efs put-lifecycle-configuration \
+                        --file-system-id $FS_ID \
+                        --lifecycle-policies '[
+                            {"TransitionToIA": "AFTER_30_DAYS"}
+                        ]'
+                </div>
+                <br />
+                <strong>Step 2: Verify the Lifecycle Configuration</strong>
+                <div class="code-block">
+                    aws efs describe-lifecycle-configuration --file-system-id $FS_ID
+                </div>
+                <br />
+                <div class="def-box" style="border-left-color:#f5d4aa;">
+                    <strong>💡 Expected Output:</strong>
+                    <div class="code-block" style="font-size:0.6rem;">
+                        {
+                            "LifecyclePolicies": [
+                                {
+                                    "TransitionToIA": "AFTER_30_DAYS"
+                                }
+                            ]
+                        }
+                    </div>
+                </div>
+                <br />
+                <strong>Step 3: (Optional) Add Archive Lifecycle</strong>
+                <div class="code-block">
+                    aws efs put-lifecycle-configuration \
+                        --file-system-id $FS_ID \
+                        --lifecycle-policies '[
+                            {"TransitionToIA": "AFTER_30_DAYS"},
+                            {"TransitionToArchive": "AFTER_90_DAYS"}
+                        ]'
+                </div>
+                <br />
+                <strong>Step 4: (Optional) Enable Intelligent-Tiering</strong>
+                <div class="code-block">
+                    aws efs put-lifecycle-configuration \
+                        --file-system-id $FS_ID \
+                        --lifecycle-policies '[
+                            {"TransitionToIA": "AFTER_30_DAYS"},
+                            {"TransitionToArchive": "AFTER_90_DAYS"},
+                            {"TransitionToPrimaryStorageClass": "AFTER_1_ACCESS"}
+                        ]'
+                </div>
+                <br />
+                <strong>✅ Verification Checklist:</strong>
+                <div class="verification-grid">
+                    <div class="verification-item"><span class="check">□</span> Lifecycle policy configured to move files to IA after 30 days</div>
+                    <div class="verification-item"><span class="check">□</span> Lifecycle policy verified using describe-lifecycle-configuration</div>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🔄 P9.3.4</span>
+                <span>📊 lifecycle policy</span>
+                <span>💰 IA after 30 days</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 7: Practical Summary -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:6">
+            <div class="note-pin">📊</div>
+            <h2 class="note-title">Practical Summary</h2>
+            <div class="note-body">
+                <table class="styled-table">
+                    <thead><tr><th>Task</th><th>Status</th><th>Notes</th></tr></thead>
+                    <tbody>
+                        <tr><td>P9.3.1: Create EFS with Mount Targets</td><td><span class="chip chip-green">☐ Complete</span></td><td>EFS created with multi-AZ mount targets</td></tr>
+                        <tr><td>P9.3.2: Mount EFS on Instances</td><td><span class="chip chip-green">☐ Complete</span></td><td>EFS mounted at /shared on both instances</td></tr>
+                        <tr><td>P9.3.3: Write/Read Across Instances</td><td><span class="chip chip-green">☐ Complete</span></td><td>File sharing verified</td></tr>
+                        <tr><td>P9.3.4: Lifecycle Policy</td><td><span class="chip chip-green">☐ Complete</span></td><td>IA transition configured after 30 days</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="note-meta">
+                <span>📊 summary</span>
+                <span>✅ all tasks</span>
+                <span>📁 complete</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 8: Key Takeaways -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:7">
+            <div class="note-pin">🧠</div>
+            <h2 class="note-title">Key Takeaways</h2>
+            <div class="note-body">
+                <ul>
+                    <li><strong>EFS is a regional service</strong> that can be mounted by instances across multiple Availability Zones.</li>
+                    <br />
+                    <li><strong>Mount targets</strong> provide NFS endpoints for each Availability Zone.</li>
+                    <br />
+                    <li><strong>Security groups</strong> must allow NFS traffic (<span class="chip">port 2049</span>) for EFS mounting.</li>
+                    <br />
+                    <li><strong>amazon-efs-utils</strong> simplifies EFS mounting and enables <strong>TLS encryption</strong> for data in transit.</li>
+                    <br />
+                    <li>Files written from one instance are <strong>immediately visible</strong> from other instances with the same EFS mount.</li>
+                    <br />
+                    <li><strong>Lifecycle policies</strong> automatically tier data to lower-cost storage classes (IA, Archive) based on access patterns.</li>
+                    <br />
+                    <li><span class="chip">_netdev</span> and <span class="chip">noresvport</span> in fstab ensure reliable auto-mounting.</li>
+                    <br />
+                    <li><span class="chip">dd</span> can be used to create large test files for performance testing.</li>
+                    <br />
+                    <li><strong>Intelligent-Tiering</strong> moves files back to Standard when accessed in IA/Archive.</li>
+                    <br />
+                    <li><strong>EFS vs EBS:</strong> EFS is shared, multi-instance storage; EBS is single-instance block storage.</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>🧠 takeaways</span>
+                <span>📁 EFS</span>
+                <span>📊 shared storage</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 9: Cleanup -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:8">
+            <div class="note-pin">🧹</div>
+            <h2 class="note-title">Cleanup</h2>
+            <div class="note-body">
+                <div class="code-block">
+                    <span class="comment"># Delete lifecycle configuration</span>
+                    aws efs put-lifecycle-configuration \
+                        --file-system-id $FS_ID \
+                        --lifecycle-policies '[]'
+
+                    <span class="comment"># Unmount EFS on instances (run on each)</span>
+                    sudo umount /shared
+                    sudo rm -rf /shared
+
+                    <span class="comment"># Terminate instances</span>
+                    aws ec2 terminate-instances --instance-ids $INSTANCE_A $INSTANCE_B
+
+                    <span class="comment"># Delete mount targets</span>
+                    for MT_ID in $(aws efs describe-mount-targets --file-system-id $FS_ID --query 'MountTargets[*].MountTargetId' --output text); do
+                        aws efs delete-mount-target --mount-target-id $MT_ID
+                    done
+
+                    <span class="comment"># Delete the EFS file system</span>
+                    aws efs delete-file-system --file-system-id $FS_ID
+
+                    <span class="comment"># Delete security groups</span>
+                    aws ec2 delete-security-group --group-id $SG_EFS
+                    aws ec2 delete-security-group --group-id $SG_INSTANCE
+                </div>
+                <br />
+                <div class="def-box" style="border-left-color:#f5d4aa;">
+                    <strong>💡 Remember:</strong> You must delete all mount targets before you can delete an EFS file system. Also ensure the file system is empty (or force delete) before deletion.
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🧹 cleanup</span>
+                <span>🗑️ delete resources</span>
+                <span>💰 avoid charges</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 10: Next Steps -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:9">
+            <div class="note-pin">🚀</div>
+            <h2 class="note-title">Next Steps</h2>
+            <div class="note-body">
+                <span style="font-size:2rem;">📖</span> Proceed to the next section:
+                <br /><br />
+                <span class="chip chip-purple" style="font-size:1.4rem;">Practical 9.4: Instance Store — Temporary, High-Performance Local Storage</span>
+                <br /><br />
+                <div class="def-box" style="border-left-color:#f5d4aa;">
+                    <em>"EFS isn't just shared storage — it's the <strong>glue</strong> that connects your distributed applications. From web farms to container clusters, EFS gives you a <strong>single source of truth</strong> for your data, accessible from anywhere in your VPC."</em>
+                    <br />
+                    <span style="opacity:0.7;">— AWS Storage Principles</span>
+                </div>
+                <br />
+                <div style="text-align:center; font-size:2.5rem; opacity:0.3; letter-spacing:10px;">
+                    ❖ ❖ ❖
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🚀 next</span>
+                <span>📖 Practical 9.4</span>
+                <span>⚡ instance store</span>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

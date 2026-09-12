@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Practical 5 · Spot Fleet & Interruption Handling</title>
+
+    <!-- Google Fonts – clear handwriting -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Gloria+Hallelujah&family=Architects+Daughter&family=Reenie+Beanie&display=swap" rel="stylesheet" />
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: #f7f0e7;
+            background-image: radial-gradient(circle at 30% 20%, #fcf7f0 0%, #eee7dd 100%);
+            display: flex;
+            justify-content: center;
+            padding: 2.5rem 1.5rem;
+            font-family: 'Patrick Hand', 'Architects Daughter', cursive;
+        }
+
+        .notes-container {
+            max-width: 1100px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 2.8rem;
+            animation: floatUp 0.9s ease-out;
+        }
+
+        .note {
+            background: #fffcf5;
+            padding: 2.5rem 3.5rem;
+            border-radius: 28px 28px 28px 10px;
+            box-shadow: 0 12px 36px rgba(0,0,0,0.06), 0 2px 10px rgba(0,0,0,0.03), inset 0 -2px 0 rgba(0,0,0,0.02);
+            position: relative;
+            transition: transform 0.3s ease, box-shadow 0.35s ease;
+            transform-origin: left center;
+            border-left: 8px solid transparent;
+            animation: notePop 0.6s ease both;
+            animation-delay: calc(var(--i, 0) * 0.02s);
+        }
+
+        .note:nth-child(1) { border-left-color: #f0b8b8; }
+        .note:nth-child(2) { border-left-color: #aad0c4; }
+        .note:nth-child(3) { border-left-color: #f5d4aa; }
+        .note:nth-child(4) { border-left-color: #cfb8e0; }
+        .note:nth-child(5) { border-left-color: #b8cce0; }
+        .note:nth-child(6) { border-left-color: #e8c8b8; }
+        .note:nth-child(7) { border-left-color: #b8d9c8; }
+        .note:nth-child(8) { border-left-color: #f0c8c8; }
+        .note:nth-child(9) { border-left-color: #d4c8e8; }
+        .note:nth-child(10) { border-left-color: #c8dce8; }
+        .note:nth-child(11) { border-left-color: #e8d4b8; }
+        .note:nth-child(12) { border-left-color: #b8d4d4; }
+        .note:nth-child(13) { border-left-color: #f0d4c8; }
+        .note:nth-child(14) { border-left-color: #c8bcd4; }
+        .note:nth-child(15) { border-left-color: #d4e0b8; }
+
+        .note:hover {
+            transform: rotate(-0.8deg) scale(1.015);
+            box-shadow: 0 24px 48px rgba(0,0,0,0.09), 0 4px 16px rgba(0,0,0,0.05);
+        }
+
+        .note-title {
+            font-family: 'Gloria Hallelujah', 'Patrick Hand', cursive;
+            font-size: 2.2rem;
+            font-weight: 500;
+            color: #2f2216;
+            letter-spacing: 0.8px;
+            margin-bottom: 0.3rem;
+            line-height: 1.25;
+            display: inline-block;
+            position: relative;
+        }
+
+        .note-title::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: -4px;
+            width: 100%;
+            height: 8px;
+            background: repeating-linear-gradient(90deg, transparent, transparent 6px, rgba(240,184,184,0.4) 6px, rgba(240,184,184,0.4) 12px);
+            border-radius: 20px;
+            opacity: 0.8;
+        }
+
+        .note-subtitle {
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.3rem;
+            color: #5a4a3a;
+            margin: -0.1rem 0 1rem 0;
+            font-weight: 400;
+            opacity: 0.85;
+        }
+
+        .note-body {
+            font-family: 'Architects Daughter', 'Patrick Hand', cursive;
+            font-size: 1.35rem;
+            line-height: 1.85;
+            color: #2a1f15;
+            margin: 0.9rem 0 0.4rem 0;
+            font-weight: 400;
+            letter-spacing: 0.4px;
+        }
+
+        .note-body strong {
+            font-weight: 700;
+            color: #a05545;
+            background: rgba(240,184,184,0.15);
+            padding: 0 8px;
+            border-radius: 16px;
+            font-style: normal;
+        }
+
+        .note-body em {
+            color: #5a8a78;
+            font-style: italic;
+            text-decoration: underline wavy #aad0c4 3px;
+            font-weight: 500;
+        }
+
+        .note-body .chip {
+            background: #f0e9e0;
+            padding: 0.1rem 1.2rem;
+            border-radius: 40px;
+            display: inline-block;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.15rem;
+            color: #3d3226;
+            border: 1px dashed #cbb8a8;
+            margin: 2px 0;
+            font-weight: 400;
+        }
+
+        .note-body .chip-blue { background: #dce8f0; border-color: #aac0d0; }
+        .note-body .chip-green { background: #d8ece0; border-color: #a0c8b8; }
+        .note-body .chip-pink { background: #f0dcd8; border-color: #d8b8b0; }
+        .note-body .chip-purple { background: #e4d8ec; border-color: #c8b8d8; }
+        .note-body .chip-gold { background: #f0e8d0; border-color: #d8c8a8; }
+        .note-body .chip-teal { background: #c8e8dc; border-color: #88c8b8; }
+        .note-body .chip-orange { background: #f0dcc8; border-color: #d8b898; }
+        .note-body .chip-red { background: #f0d8d8; border-color: #d8b0b0; }
+
+        .code-block {
+            background: #1e1a16;
+            color: #e8e0d8;
+            padding: 1.2rem 1.8rem;
+            border-radius: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.68rem;
+            line-height: 1.7;
+            margin: 0.8rem 0 1rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            border-left: 4px solid #f0b8b8;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .code-block .comment { color: #7a8a7a; }
+        .code-block .keyword { color: #f0b8b8; }
+        .code-block .string { color: #b8d9c8; }
+        .code-block .function { color: #c8b8e8; }
+        .code-block .tag { color: #f5d4aa; }
+        .code-block .number { color: #f5d4aa; }
+        .code-block .bold { color: #f0e0c8; font-weight: bold; }
+
+        .ascii-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1rem 1.5rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.4rem;
+            line-height: 1.5;
+            color: #2a1f15;
+            border: 1px solid #e0d8ce;
+            margin: 0.8rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .ascii-box .highlight { color: #a05545; font-weight: bold; }
+        .ascii-box .title { color: #2f2216; font-weight: bold; text-decoration: underline; }
+
+        .styled-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 0.72rem;
+            background: #f8f4ec;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        }
+
+        .styled-table th {
+            background: #2f2216;
+            color: #f5efe8;
+            padding: 0.4rem 0.6rem;
+            text-align: left;
+            font-weight: 500;
+            font-size: 0.68rem;
+        }
+
+        .styled-table td {
+            padding: 0.4rem 0.6rem;
+            border-bottom: 1px solid #e8e0d6;
+            color: #2a1f15;
+            font-size: 0.68rem;
+        }
+
+        .styled-table tr:last-child td { border-bottom: none; }
+        .styled-table tr:hover td { background: #f0e9e0; }
+
+        .note-body ul, .note-body ol {
+            padding-left: 2rem;
+            margin: 0.5rem 0;
+        }
+        .note-body li { margin-bottom: 0.3rem; }
+
+        .def-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1.2rem 1.8rem;
+            margin: 0.8rem 0;
+            border-left: 6px solid #aad0c4;
+        }
+        .def-box strong { color: #a05545; }
+
+        .note-meta {
+            margin-top: 1.5rem;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.05rem;
+            color: #9f8875;
+            display: flex;
+            align-items: center;
+            gap: 1.2rem;
+            flex-wrap: wrap;
+        }
+
+        .note-meta span {
+            background: #f1eae1;
+            padding: 0.3rem 1.4rem;
+            border-radius: 60px;
+            font-size: 1rem;
+            color: #4d3b2b;
+            box-shadow: inset 0 1px 4px rgba(0,0,0,0.02);
+            font-weight: 400;
+            letter-spacing: 0.3px;
+        }
+
+        .note-pin {
+            position: absolute;
+            top: -12px;
+            right: 34px;
+            font-size: 2.6rem;
+            opacity: 0.25;
+            transform: rotate(25deg);
+            filter: drop-shadow(0 3px 6px rgba(0,0,0,0.06));
+            transition: opacity 0.25s;
+        }
+        .note:hover .note-pin { opacity: 0.8; }
+
+        .verification-checklist {
+            background: #f8f4ec;
+            border-radius: 12px;
+            padding: 0.8rem 1.2rem;
+            margin: 0.5rem 0;
+            border-left: 4px solid #aad0c4;
+        }
+        .verification-checklist .title { font-weight: 700; color: #a05545; }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.3rem;
+            margin: 0.5rem 0;
+        }
+        .status-item {
+            background: #f8f4ec;
+            padding: 0.3rem 0.5rem;
+            border-radius: 6px;
+            border-left: 3px solid #b8cce0;
+            font-size: 0.7rem;
+        }
+        .status-item .task { font-weight: 700; color: #a05545; }
+        .status-item .status { color: #3d6b5a; }
+
+        .troubleshoot-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.3rem;
+            margin: 0.5rem 0;
+        }
+        .troubleshoot-item {
+            background: #f8f4ec;
+            padding: 0.3rem 0.5rem;
+            border-radius: 6px;
+            border-left: 3px solid #f0b8b8;
+            font-size: 0.7rem;
+        }
+        .troubleshoot-item .issue { font-weight: 700; color: #a05545; }
+        .troubleshoot-item .solution { color: #3d6b5a; }
+
+        .step-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 0.2rem;
+            margin: 0.5rem 0;
+        }
+        .step-item {
+            background: #f8f4ec;
+            padding: 0.3rem 0.4rem;
+            border-radius: 6px;
+            border-top: 3px solid #b8cce0;
+            text-align: center;
+            font-size: 0.6rem;
+        }
+        .step-item .num { font-weight: 700; color: #a05545; }
+        .step-item .label { font-weight: 600; }
+
+        .fleet-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.3rem;
+            margin: 0.5rem 0;
+        }
+        .fleet-item {
+            background: #f8f4ec;
+            padding: 0.3rem 0.5rem;
+            border-radius: 6px;
+            border-left: 3px solid #cfb8e0;
+            font-size: 0.68rem;
+        }
+        .fleet-item .f { font-weight: 700; color: #a05545; }
+
+        @keyframes floatUp {
+            0% { opacity: 0; transform: translateY(50px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes notePop {
+            0% { opacity: 0; transform: scale(0.92) rotate(-3deg); }
+            80% { opacity: 1; transform: scale(1.015) rotate(0.8deg); }
+            100% { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+
+        @media (max-width: 700px) {
+            .note { padding: 1.8rem 1.8rem; }
+            .note-title { font-size: 1.8rem; }
+            .note-body { font-size: 1.15rem; line-height: 1.7; }
+            .note-body .chip { font-size: 1rem; padding: 0 0.8rem; }
+            .code-block { font-size: 0.58rem; padding: 1rem; }
+            .note-pin { font-size: 2rem; top: -8px; right: 18px; }
+            .styled-table { font-size: 0.62rem; }
+            .styled-table th, .styled-table td { padding: 0.3rem 0.4rem; font-size: 0.62rem; }
+            .notes-container { gap: 2rem; }
+            .ascii-box { font-size: 0.34rem; padding: 0.8rem 1rem; }
+            .status-grid { grid-template-columns: 1fr 1fr; }
+            .troubleshoot-grid { grid-template-columns: 1fr; }
+            .step-grid { grid-template-columns: 1fr 1fr; }
+            .fleet-grid { grid-template-columns: 1fr; }
+            .def-box { padding: 0.8rem 1.2rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="notes-container">
+
+        <!-- ============================================================ -->
+        <!-- NOTE 1: Practical Overview -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:0">
+            <div class="note-pin">⚡</div>
+            <h2 class="note-title">Comprehensive Practical 5</h2>
+            <div class="note-subtitle">Spot Instance Fleet & Interruption Handling</div>
+            <div class="note-body">
+                <strong>Duration:</strong> 60-90 minutes
+                <br /><br />
+                <strong>Learning Objectives:</strong>
+                <ul>
+                    <li>✅ Request a <strong>Spot Instance</strong> and understand pricing mechanics</li>
+                    <li>✅ Configure <strong>interruption handling</strong> with termination hooks</li>
+                    <li>✅ Build a <strong>Python script</strong> to poll for Spot interruption warnings</li>
+                    <li>✅ Set up <strong>EventBridge + Lambda</strong> for automatic termination handling</li>
+                    <li>✅ Create a <strong>Spot Fleet</strong> with mixed instance types</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>⚡ Spot</span>
+                <span>🔄 interruption</span>
+                <span>📊 fleet</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 2: Important Note on Spot Pricing -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:1">
+            <div class="note-pin">⚠️</div>
+            <h2 class="note-title">Important Note on Spot Pricing</h2>
+            <div class="note-body">
+                <div class="def-box" style="border-left-color:#f0b8b8;">
+                    <strong>⚠️ AWS does NOT recommend setting a maximum price for Spot Instances.</strong>
+                    <br /><br />
+                    If you do not specify a maximum price, you pay the <strong>current Spot price</strong>. Specifying a maximum price can lead to <strong>increased interruptions</strong> because if the Spot price exceeds your bid (which can happen during demand spikes), your instance will be reclaimed even if capacity is still available.
+                    <br /><br />
+                    <strong>For modern Spot usage:</strong> The recommended approach is <span class="chip chip-green">not to set a maximum price</span> and instead use allocation strategies like <span class="chip">price-capacity-optimized</span> to balance cost and availability.
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>⚠️ pricing</span>
+                <span>🚫 no max price</span>
+                <span>⚡ price-capacity-optimized</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 3: P5.1 Request Spot Instance -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:2">
+            <div class="note-pin">📋</div>
+            <h2 class="note-title">P5.1 Request a Spot Instance</h2>
+            <div class="note-subtitle">Without Maximum Price</div>
+            <div class="note-body">
+                <strong>📖 Theory: Modern Spot Instance Request</strong>
+                <br />
+                In the current AWS model, you request Spot capacity and pay the current Spot price. The "bid" concept is legacy, and <strong>setting a maximum price is discouraged</strong>.
+                <br /><br />
+                <strong>Option 1: Using the AWS Management Console</strong>
+                <ol>
+                    <li>Navigate to <span class="chip">EC2 → Spot Requests</span></li>
+                    <li>Click <span class="chip">Request Spot Instances</span></li>
+                    <li>Configure: AMI (Amazon Linux 2023), Instance type (t3.micro), Key pair, VPC/Subnet</li>
+                    <li><span class="chip chip-pink">Do NOT set a maximum price</span> — leave it blank</li>
+                    <li>Set Interruption behavior to <span class="chip">terminate</span> (or <span class="chip">stop</span>)</li>
+                    <li>Click <span class="chip">Launch</span></li>
+                </ol>
+                <br />
+                <strong>Option 2: Using the AWS CLI (Without Max Price)</strong>
+                <div class="code-block" style="font-size:0.62rem;">
+                    aws ec2 request-spot-instances \
+                        --spot-price "0.005" \
+                        --instance-count 1 \
+                        --type "one-time" \
+                        --launch-specification "{
+                            \"ImageId\": \"ami-0abcdef1234567890\",
+                            \"InstanceType\": \"t3.micro\",
+                            \"KeyName\": \"MyKeyPair\",
+                            \"SubnetId\": \"subnet-08fc749671b2d077c\",
+                            \"SecurityGroupIds\": [\"sg-0b0384b66d7d692f9\"],
+                            \"IamInstanceProfile\": {\"Name\": \"SSM-Role-For-EC2\"}
+                        }"
+                </div>
+                <div class="def-box" style="border-left-color:#f5d4aa;">
+                    <strong>📌 Note on --spot-price:</strong> The spot-price parameter is still supported for backward compatibility, but specifying it can lead to increased interruptions. In practice, AWS recommends <strong>omitting this parameter entirely</strong>.
+                </div>
+                <br />
+                <strong>Verification:</strong>
+                <div class="code-block" style="font-size:0.62rem;">
+                    <span class="comment"># Check Spot request status</span>
+                    aws ec2 describe-spot-instance-requests --query 'SpotInstanceRequests[*].[SpotInstanceRequestId,State,Status.Code]' --output table
+                </div>
+            </div>
+            <div class="verification-checklist">
+                <div class="title">✅ Verification Checklist</div>
+                <ul>
+                    <li>□ Spot request submitted successfully</li>
+                    <li>□ Instance is in <span class="chip">running</span> state</li>
+                    <li>□ No maximum price specified</li>
+                    <li>□ Interruption behavior configured</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>📋 request</span>
+                <span>🚫 no max price</span>
+                <span>⚡ CLI</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 4: P5.2 Termination Hook -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:3">
+            <div class="note-pin">🔔</div>
+            <h2 class="note-title">P5.2 Configure a Termination Notice Hook</h2>
+            <div class="note-body">
+                <strong>📖 Theory: The Termination Notice</strong>
+                <br />
+                When AWS needs to reclaim your Spot Instance, it issues a <span class="chip chip-pink">two-minute interruption notice</span> via:
+                <ul>
+                    <li><span class="chip chip-blue">Instance Metadata Service (IMDSv2)</span> — accessible from within the instance</li>
+                    <li><span class="chip chip-gold">Amazon EventBridge</span> — emits an <span class="chip">EC2 Spot Instance Interruption Warning</span> event</li>
+                </ul>
+                <br />
+                <strong>Step 1: Create a Termination Hook Script</strong>
+                <div class="code-block" style="font-size:0.62rem;">
+                    <span class="comment">#!/bin/bash</span>
+                    <span class="comment"># /opt/scripts/spot-termination-hook.sh</span>
+
+                    <span class="comment"># Set up IMDSv2 token</span>
+                    TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+
+                    <span class="comment"># Check for interruption notice</span>
+                    HTTP_CODE=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s -w %{http_code} -o /dev/null http://169.254.169.254/latest/meta-data/spot/instance-action)
+
+                    if [[ "$HTTP_CODE" -eq 200 ]]; then
+                        echo "⚠️ Spot interruption notice received. Starting graceful shutdown..."
+                        <span class="comment"># Step 1: Stop accepting new work</span>
+                        <span class="comment"># Step 2: Deregister from load balancer</span>
+                        <span class="comment"># Step 3: Save application state</span>
+                        echo "✅ Graceful shutdown complete."
+                    else
+                        echo "No interruption notice. Continuing..."
+                    fi
+                </div>
+                <br />
+                <strong>Step 2: Set Up a Systemd Service</strong>
+                <div class="code-block" style="font-size:0.62rem;">
+                    sudo tee /etc/systemd/system/spot-monitor.service > /dev/null <<'EOF'
+                    [Unit]
+                    Description=Spot Instance Termination Monitor
+                    After=network.target
+
+                    [Service]
+                    Type=simple
+                    ExecStart=/opt/scripts/spot-termination-hook.sh
+                    Restart=always
+                    RestartSec=5
+
+                    [Install]
+                    WantedBy=multi-user.target
+                    EOF
+
+                    sudo systemctl daemon-reload
+                    sudo systemctl enable spot-monitor.service
+                    sudo systemctl start spot-monitor.service
+                </div>
+            </div>
+            <div class="verification-checklist">
+                <div class="title">✅ Verification Checklist</div>
+                <ul>
+                    <li>□ Bash script created in <span class="chip">/opt/scripts/</span></li>
+                    <li>□ Systemd service enabled and running</li>
+                    <li>□ Script detects interruption notices</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>🔔 termination hook</span>
+                <span>🔄 graceful shutdown</span>
+                <span>📋 systemd</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 5: P5.3 Python Polling Script -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:4">
+            <div class="note-pin">🐍</div>
+            <h2 class="note-title">P5.3 Write Python Script to Poll for Interruption Warnings</h2>
+            <div class="note-body">
+                <strong>📖 Theory: Python-Based Polling</strong>
+                <br />
+                A Python script running on the Spot Instance can poll the IMDSv2 endpoint periodically to detect interruption warnings. When a warning is detected, the script triggers a <strong>graceful shutdown</strong> procedure.
+                <br /><br />
+                <strong>Step 1: Create the Python Script</strong>
+                <div class="code-block" style="font-size:0.58rem;">
+                    <span class="comment">#!/usr/bin/env python3</span>
+                    <span class="comment"># /opt/scripts/spot-monitor.py</span>
+
+                    import requests
+                    import time
+                    import subprocess
+                    import json
+                    import logging
+                    import sys
+
+                    logging.basicConfig(
+                        level=logging.INFO,
+                        format='%(asctime)s - %(levelname)s - %(message)s',
+                        handlers=[logging.StreamHandler(sys.stdout)]
+                    )
+                    logger = logging.getLogger("spot-monitor")
+
+                    METADATA_URL = "http://169.254.169.254/latest/meta-data/spot/instance-action"
+                    TOKEN_URL = "http://169.254.169.254/latest/api/token"
+                    POLL_INTERVAL = 5  <span class="comment"># seconds</span>
+
+                    def get_imds_token():
+                        try:
+                            response = requests.put(
+                                TOKEN_URL,
+                                headers={"X-aws-ec2-metadata-token-ttl-seconds": "21600"},
+                                timeout=2
+                            )
+                            response.raise_for_status()
+                            return response.text
+                        except requests.exceptions.RequestException as e:
+                            logger.error(f"Failed to get IMDS token: {e}")
+                            sys.exit(1)
+
+                    def check_for_interruption(token):
+                        try:
+                            response = requests.get(
+                                METADATA_URL,
+                                headers={"X-aws-ec2-metadata-token": token},
+                                timeout=2
+                            )
+                            if response.status_code == 200:
+                                return json.loads(response.text)
+                            return None
+                        except requests.exceptions.RequestException as e:
+                            logger.error(f"Error checking interruption notice: {e}")
+                            return None
+
+                    def graceful_shutdown(action):
+                        logger.warning(f"⚠️ Interruption notice received: {action}")
+                        <span class="comment"># Step 1: Stop accepting new work</span>
+                        <span class="comment"># Step 2: Deregister from load balancer</span>
+                        <span class="comment"># Step 3: Save application state</span>
+                        logger.info("✅ Graceful shutdown complete")
+
+                    def main():
+                        token = get_imds_token()
+                        logger.info("Spot interruption monitor started")
+                        while True:
+                            action = check_for_interruption(token)
+                            if action:
+                                graceful_shutdown(action)
+                                break
+                            time.sleep(POLL_INTERVAL)
+
+                    if __name__ == "__main__":
+                        main()
+                </div>
+                <br />
+                <strong>Step 2: Install Dependencies</strong>
+                <div class="code-block" style="font-size:0.62rem;">
+                    sudo dnf install -y python3 python3-pip
+                    pip3 install requests
+                </div>
+                <br />
+                <strong>Step 3: Test the Script</strong>
+                <div class="code-block" style="font-size:0.62rem;">
+                    <span class="comment"># Make script executable</span>
+                    chmod +x /opt/scripts/spot-monitor.py
+                    sudo python3 /opt/scripts/spot-monitor.py
+                </div>
+            </div>
+            <div class="verification-checklist">
+                <div class="title">✅ Verification Checklist</div>
+                <ul>
+                    <li>□ Python script created</li>
+                    <li>□ Requests library installed</li>
+                    <li>□ Script polls IMDSv2 successfully</li>
+                    <li>□ Graceful shutdown logic implemented</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>🐍 Python</span>
+                <span>📡 IMDSv2</span>
+                <span>🔄 graceful shutdown</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 6: P5.4 EventBridge + Lambda -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:5">
+            <div class="note-pin">📡</div>
+            <h2 class="note-title">P5.4 EventBridge + Lambda</h2>
+            <div class="note-subtitle">Automatic Termination Handling</div>
+            <div class="note-body">
+                <strong>📖 Theory: Event-Driven Handling</strong>
+                <br />
+                Amazon EventBridge can detect <span class="chip">EC2 Spot Instance Interruption Warning</span> events and trigger a Lambda function to handle the interruption, such as deregistering the instance from a load balancer or launching a replacement.
+                <br /><br />
+                <strong>Step 1: Create the Lambda Function</strong>
+                <div class="code-block" style="font-size:0.58rem;">
+                    <span class="comment"># lambda_function.py</span>
+                    import json
+                    import boto3
+                    import logging
+
+                    logger = logging.getLogger()
+                    logger.setLevel(logging.INFO)
+
+                    def lambda_handler(event, context):
+                        logger.info(f"Received event: {json.dumps(event)}")
+
+                        detail = event.get('detail', {})
+                        instance_id = detail.get('instance-id')
+
+                        if not instance_id:
+                            logger.error("No instance-id found")
+                            return {'statusCode': 400}
+
+                        logger.info(f"Processing interruption for instance: {instance_id}")
+
+                        <span class="comment"># Check if instance is tagged for handling</span>
+                        ec2 = boto3.client('ec2')
+                        response = ec2.describe_instances(InstanceIds=[instance_id])
+                        instance = response['Reservations'][0]['Instances'][0]
+
+                        tags = instance.get('Tags', [])
+                        should_handle = any(
+                            tag['Key'] == 'SpotInterruptionHandler' and tag['Value'] == 'enabled'
+                            for tag in tags
+                        )
+
+                        if not should_handle:
+                            logger.info(f"Instance {instance_id} not tagged")
+                            return {'statusCode': 200}
+
+                        <span class="comment"># Detach from Auto Scaling group</span>
+                        asg_name = None
+                        for tag in tags:
+                            if tag['Key'] == 'aws:autoscaling:groupName':
+                                asg_name = tag['Value']
+                                break
+
+                        if asg_name:
+                            autoscaling = boto3.client('autoscaling')
+                            autoscaling.detach_instances(
+                                InstanceIds=[instance_id],
+                                AutoScalingGroupName=asg_name,
+                                ShouldDecrementDesiredCapacity=False
+                            )
+                            logger.info(f"Detached {instance_id} from {asg_name}")
+
+                        return {'statusCode': 200}
+                </div>
+                <br />
+                <strong>Step 2: Create the EventBridge Rule</strong>
+                <div class="code-block" style="font-size:0.62rem;">
+                    <span class="comment"># Create the EventBridge rule</span>
+                    aws events put-rule \
+                        --name spot-interruption-handler \
+                        --event-pattern '{
+                            "source": ["aws.ec2"],
+                            "detail-type": ["EC2 Spot Instance Interruption Warning"]
+                        }'
+
+                    <span class="comment"># Add Lambda as target</span>
+                    aws events put-targets \
+                        --rule spot-interruption-handler \
+                        --targets "Id"="1","Arn"="arn:aws:lambda:us-east-1:123456789012:function:spot-interruption-handler"
+                </div>
+            </div>
+            <div class="verification-checklist">
+                <div class="title">✅ Verification Checklist</div>
+                <ul>
+                    <li>□ Lambda function created</li>
+                    <li>□ EventBridge rule created</li>
+                    <li>□ Lambda triggered by EventBridge</li>
+                    <li>□ Instances tagged with <span class="chip">SpotInterruptionHandler: enabled</span></li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>📡 EventBridge</span>
+                <span>⚡ Lambda</span>
+                <span>🔄 automatic</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 7: P5.5 Spot Fleet -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:6">
+            <div class="note-pin">🚀</div>
+            <h2 class="note-title">P5.5 Spot Fleet with Mixed Instance Types</h2>
+            <div class="note-subtitle">t3.micro + t4g.micro</div>
+            <div class="note-body">
+                <strong>📖 Theory: Mixed Instance Spot Fleet</strong>
+                <br />
+                Spot Fleet allows you to diversify across multiple instance types and Availability Zones, increasing your chances of getting capacity and reducing the impact of interruptions. The <span class="chip">price-capacity-optimized</span> allocation strategy is recommended for most workloads.
+                <br /><br />
+                <strong>Step 1: Create a Launch Template</strong>
+                <div class="code-block" style="font-size:0.58rem;">
+                    aws ec2 create-launch-template \
+                        --launch-template-name spot-launch-template \
+                        --launch-template-data '{
+                            "ImageId": "ami-0abcdef1234567890",
+                            "InstanceType": "t3.micro",
+                            "KeyName": "MyKeyPair",
+                            "SecurityGroupIds": ["sg-0b0384b66d7d692f9"],
+                            "TagSpecifications": [
+                                {
+                                    "ResourceType": "instance",
+                                    "Tags": [
+                                        {"Key": "Name", "Value": "spot-fleet-instance"},
+                                        {"Key": "SpotInterruptionHandler", "Value": "enabled"}
+                                    ]
+                                }
+                            ]
+                        }'
+                </div>
+                <br />
+                <strong>Step 2: Create the Spot Fleet Configuration</strong>
+                <div class="code-block" style="font-size:0.58rem;">
+                    <span class="comment"># spot-fleet-config.json</span>
+                    {
+                        "AllocationStrategy": "priceCapacityOptimized",
+                        "OnDemandAllocationStrategy": "prioritized",
+                        "SpotMaintenanceStrategies": {
+                            "CapacityRebalance": {
+                                "ReplacementStrategy": "launch"
+                            }
+                        },
+                        "LaunchTemplateConfigs": [
+                            {
+                                "LaunchTemplateSpecification": {
+                                    "LaunchTemplateName": "spot-launch-template",
+                                    "Version": "1"
+                                },
+                                "Overrides": [
+                                    {"InstanceType": "t3.micro", "WeightedCapacity": 1.0, "Priority": 2.0},
+                                    {"InstanceType": "t4g.micro", "WeightedCapacity": 1.0, "Priority": 1.0}
+                                ]
+                            }
+                        ],
+                        "TargetCapacity": 4,
+                        "OnDemandTargetCapacity": 1,
+                        "Type": "maintain",
+                        "ReplaceUnhealthyInstances": true
+                    }
+                </div>
+                <br />
+                <strong>Step 3: Create the Spot Fleet</strong>
+                <div class="code-block" style="font-size:0.62rem;">
+                    aws ec2 request-spot-fleet --spot-fleet-request-config file://spot-fleet-config.json
+                </div>
+                <br />
+                <strong>Step 4: Monitor the Fleet</strong>
+                <div class="code-block" style="font-size:0.62rem;">
+                    <span class="comment"># Check Spot Fleet status</span>
+                    aws ec2 describe-spot-fleet-requests --query 'SpotFleetRequestConfigs[*].[SpotFleetRequestId,SpotFleetRequestState]' --output table
+
+                    <span class="comment"># List instances in the fleet</span>
+                    aws ec2 describe-instances --filters "Name=tag:Name,Values=spot-fleet-instance" --query 'Reservations[*].Instances[*].[InstanceId,InstanceType,State.Name]' --output table
+                </div>
+            </div>
+            <div class="verification-checklist">
+                <div class="title">✅ Verification Checklist</div>
+                <ul>
+                    <li>□ Launch template created</li>
+                    <li>□ Spot Fleet configuration created</li>
+                    <li>□ Fleet launched with mixed types (t3.micro + t4g.micro)</li>
+                    <li>□ Capacity Rebalancing enabled</li>
+                    <li>□ Instances tagged with <span class="chip">SpotInterruptionHandler: enabled</span></li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>🚀 Spot Fleet</span>
+                <span>📊 t3.micro + t4g.micro</span>
+                <span>🔄 Capacity Rebalancing</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 8: Practical Summary -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:7">
+            <div class="note-pin">📊</div>
+            <h2 class="note-title">Practical Summary</h2>
+            <div class="note-body">
+                <div class="status-grid">
+                    <div class="status-item" style="border-left-color:#b8cce0;">
+                        <div class="task">P5.1: Request Spot Instance</div>
+                        <div class="status">☐ Complete — No max price</div>
+                    </div>
+                    <div class="status-item" style="border-left-color:#aad0c4;">
+                        <div class="task">P5.2: Termination Hook</div>
+                        <div class="status">☐ Complete — Bash script</div>
+                    </div>
+                    <div class="status-item" style="border-left-color:#f5d4aa;">
+                        <div class="task">P5.3: Python Polling</div>
+                        <div class="status">☐ Complete — IMDSv2 polling</div>
+                    </div>
+                    <div class="status-item" style="border-left-color:#cfb8e0;">
+                        <div class="task">P5.4: EventBridge + Lambda</div>
+                        <div class="status">☐ Complete — Auto-detach</div>
+                    </div>
+                    <div class="status-item" style="border-left-color:#e8c8b8; grid-column: 1 / -1;">
+                        <div class="task">P5.5: Spot Fleet</div>
+                        <div class="status">☐ Complete — t3.micro + t4g.micro</div>
+                    </div>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>📊 summary</span>
+                <span>✅ checklist</span>
+                <span>🎯 complete</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 9: Key Takeaways -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:8">
+            <div class="note-pin">📝</div>
+            <h2 class="note-title">Key Takeaways</h2>
+            <div class="note-body">
+                <ul>
+                    <li><strong>Setting a maximum price for Spot Instances is discouraged</strong> — it can lead to increased interruptions. AWS recommends <span class="chip">paying the current Spot price</span>.</li>
+                    <br />
+                    <li><strong>IMDSv2</strong> provides the most immediate way to detect interruption notices from within the instance, with a <span class="chip chip-pink">two-minute warning</span> before termination.</li>
+                    <br />
+                    <li><strong>EventBridge + Lambda</strong> enables event-driven handling of interruptions, allowing you to <strong>detach instances from Auto Scaling groups</strong> and launch replacements.</li>
+                    <br />
+                    <li><strong>Spot Fleets with mixed instance types</strong> improve capacity availability. Using <span class="chip">t3.micro</span> and <span class="chip">t4g.micro</span> diversifies across Intel/AMD and Graviton architectures.</li>
+                    <br />
+                    <li><strong>Allocation strategies</strong> like <span class="chip">price-capacity-optimized</span> balance cost and availability by selecting the most available pools with the lowest price.</li>
+                    <br />
+                    <li><strong>Capacity Rebalancing</strong> proactively replaces Spot Instances at elevated risk of interruption <strong>before</strong> they are terminated.</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>📝 takeaways</span>
+                <span>⚡ Spot</span>
+                <span>🔄 interruption</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 10: Troubleshooting -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:9">
+            <div class="note-pin">🔧</div>
+            <h2 class="note-title">Troubleshooting</h2>
+            <div class="note-body">
+                <div class="troubleshoot-grid">
+                    <div class="troubleshoot-item">
+                        <div class="issue">Spot request not fulfilled</div>
+                        <div class="solution">Check if the instance type is available in your AZ. Try a different AZ or instance type.</div>
+                    </div>
+                    <div class="troubleshoot-item">
+                        <div class="issue">IMDSv2 returns 401</div>
+                        <div class="solution">Token expired — refresh the token by making a new PUT request.</div>
+                    </div>
+                    <div class="troubleshoot-item">
+                        <div class="issue">Lambda not triggered</div>
+                        <div class="solution">Verify the EventBridge rule's IAM role has permission to invoke the Lambda function.</div>
+                    </div>
+                    <div class="troubleshoot-item">
+                        <div class="issue">Instance not detaching from ASG</div>
+                        <div class="solution">Ensure the instance has the <span class="chip">SpotInterruptionHandler: enabled</span> tag.</div>
+                    </div>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🔧 troubleshooting</span>
+                <span>⚠️ issues</span>
+                <span>💡 solutions</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 11: Next Steps -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:10">
+            <div class="note-pin">🚀</div>
+            <h2 class="note-title">Next Steps</h2>
+            <div class="note-body">
+                <span style="font-size:2rem;">📖</span> With Spot Fleet and interruption handling configured, you have hands-on experience with:
+                <br /><br />
+                <ul>
+                    <li>✅ <strong>Spot Instance</strong> requests and pricing</li>
+                    <li>✅ <strong>Termination hooks</strong> and graceful shutdown</li>
+                    <li>✅ <strong>Python polling</strong> for IMDSv2 interruption warnings</li>
+                    <li>✅ <strong>EventBridge + Lambda</strong> for event-driven handling</li>
+                    <li>✅ <strong>Spot Fleet</strong> with mixed instance types</li>
+                </ul>
+                <br />
+                <div class="def-box" style="border-left-color:#aad0c4;">
+                    <strong>💡 These skills are essential for building <span class="chip">cost-effective, resilient, and scalable</span> EC2-based infrastructure.</strong>
+                </div>
+                <br />
+                <div class="quote-box" style="border-left-color:#aad0c4;">
+                    "Spot Instances are the <strong>ultimate cost-saving</strong> tool for the cloud — but they demand a <strong>different mindset</strong>: embrace <strong>flexibility</strong>, design for <strong>failure</strong>, and let the <strong>savings</strong> follow."
+                    <div class="author">— AWS EC2 Pricing Principles</div>
+                </div>
+                <br />
+                <div style="text-align:center; font-size:2.5rem; opacity:0.3; letter-spacing:10px;">
+                    ❖ ❖ ❖
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🚀 next</span>
+                <span>📖 Chapter 8</span>
+                <span>💾 EBS</span>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EC2 Troubleshooting Chapter 14.1 · Handwritten Notes</title>
+
+    <!-- Google Fonts – clear handwriting -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Gloria+Hallelujah&family=Architects+Daughter&family=Reenie+Beanie&display=swap" rel="stylesheet" />
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #f7f0e7;
+            background-image: radial-gradient(circle at 30% 20%, #fcf7f0 0%, #eee7dd 100%);
+            display: flex;
+            justify-content: center;
+            padding: 2.5rem 1.5rem;
+            font-family: 'Patrick Hand', 'Architects Daughter', cursive;
+        }
+
+        .notes-container {
+            max-width: 1100px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 2.8rem;
+            animation: floatUp 0.9s ease-out;
+        }
+
+        .note {
+            background: #fffcf5;
+            padding: 2.5rem 3.5rem;
+            border-radius: 28px 28px 28px 10px;
+            box-shadow: 0 12px 36px rgba(0,0,0,0.06), 0 2px 10px rgba(0,0,0,0.03), inset 0 -2px 0 rgba(0,0,0,0.02);
+            position: relative;
+            transition: transform 0.3s ease, box-shadow 0.35s ease;
+            transform-origin: left center;
+            border-left: 8px solid transparent;
+            animation: notePop 0.6s ease both;
+            animation-delay: calc(var(--i, 0) * 0.025s);
+        }
+
+        .note:nth-child(1) { border-left-color: #f0b8b8; }
+        .note:nth-child(2) { border-left-color: #aad0c4; }
+        .note:nth-child(3) { border-left-color: #f5d4aa; }
+        .note:nth-child(4) { border-left-color: #cfb8e0; }
+        .note:nth-child(5) { border-left-color: #b8cce0; }
+        .note:nth-child(6) { border-left-color: #e8c8b8; }
+        .note:nth-child(7) { border-left-color: #b8d9c8; }
+        .note:nth-child(8) { border-left-color: #f0c8c8; }
+        .note:nth-child(9) { border-left-color: #d4c8e8; }
+        .note:nth-child(10) { border-left-color: #c8dce8; }
+        .note:nth-child(11) { border-left-color: #e8d4b8; }
+        .note:nth-child(12) { border-left-color: #b8d4d4; }
+        .note:nth-child(13) { border-left-color: #f0d4c8; }
+        .note:nth-child(14) { border-left-color: #c8bcd4; }
+
+        .note:hover {
+            transform: rotate(-0.8deg) scale(1.015);
+            box-shadow: 0 24px 48px rgba(0,0,0,0.09), 0 4px 16px rgba(0,0,0,0.05);
+        }
+
+        .note-title {
+            font-family: 'Gloria Hallelujah', 'Patrick Hand', cursive;
+            font-size: 2.2rem;
+            font-weight: 500;
+            color: #2f2216;
+            letter-spacing: 0.8px;
+            margin-bottom: 0.3rem;
+            line-height: 1.25;
+            display: inline-block;
+            position: relative;
+        }
+
+        .note-title::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: -4px;
+            width: 100%;
+            height: 8px;
+            background: repeating-linear-gradient(90deg, transparent, transparent 6px, rgba(240,184,184,0.4) 6px, rgba(240,184,184,0.4) 12px);
+            border-radius: 20px;
+            opacity: 0.8;
+        }
+
+        .note-subtitle {
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.3rem;
+            color: #5a4a3a;
+            margin: -0.1rem 0 1rem 0;
+            font-weight: 400;
+            opacity: 0.85;
+        }
+
+        .note-body {
+            font-family: 'Architects Daughter', 'Patrick Hand', cursive;
+            font-size: 1.35rem;
+            line-height: 1.85;
+            color: #2a1f15;
+            margin: 0.9rem 0 0.4rem 0;
+            font-weight: 400;
+            letter-spacing: 0.4px;
+        }
+
+        .note-body strong {
+            font-weight: 700;
+            color: #a05545;
+            background: rgba(240,184,184,0.15);
+            padding: 0 8px;
+            border-radius: 16px;
+            font-style: normal;
+        }
+
+        .note-body em {
+            color: #5a8a78;
+            font-style: italic;
+            text-decoration: underline wavy #aad0c4 3px;
+            font-weight: 500;
+        }
+
+        .note-body .chip {
+            background: #f0e9e0;
+            padding: 0.1rem 1.2rem;
+            border-radius: 40px;
+            display: inline-block;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.15rem;
+            color: #3d3226;
+            border: 1px dashed #cbb8a8;
+            margin: 2px 0;
+            font-weight: 400;
+        }
+
+        .note-body .chip-blue { background: #dce8f0; border-color: #aac0d0; }
+        .note-body .chip-green { background: #d8ece0; border-color: #a0c8b8; }
+        .note-body .chip-pink { background: #f0dcd8; border-color: #d8b8b0; }
+        .note-body .chip-purple { background: #e4d8ec; border-color: #c8b8d8; }
+        .note-body .chip-gold { background: #f0e8d0; border-color: #d8c8a8; }
+        .note-body .chip-orange { background: #f0dcc8; border-color: #d8b898; }
+        .note-body .chip-teal { background: #c8e8dc; border-color: #88c8b8; }
+
+        .code-block {
+            background: #1e1a16;
+            color: #e8e0d8;
+            padding: 1.2rem 1.8rem;
+            border-radius: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.7rem;
+            line-height: 1.7;
+            margin: 0.8rem 0 1rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            border-left: 4px solid #f0b8b8;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .code-block .comment { color: #7a8a7a; }
+        .code-block .keyword { color: #f0b8b8; }
+        .code-block .string { color: #b8d9c8; }
+        .code-block .function { color: #c8b8e8; }
+
+        .ascii-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1rem 1.5rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.52rem;
+            line-height: 1.5;
+            color: #2a1f15;
+            border: 1px solid #e0d8ce;
+            margin: 0.8rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .ascii-box .highlight { color: #a05545; font-weight: bold; }
+        .ascii-box .title { color: #2f2216; font-weight: bold; text-decoration: underline; }
+
+        .styled-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.05rem;
+            background: #f8f4ec;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        }
+
+        .styled-table th {
+            background: #2f2216;
+            color: #f5efe8;
+            padding: 0.7rem 1rem;
+            text-align: left;
+            font-weight: 500;
+            font-size: 1rem;
+        }
+
+        .styled-table td {
+            padding: 0.7rem 1rem;
+            border-bottom: 1px solid #e8e0d6;
+            color: #2a1f15;
+        }
+
+        .styled-table tr:last-child td { border-bottom: none; }
+        .styled-table tr:hover td { background: #f0e9e0; }
+
+        .note-body ul, .note-body ol {
+            padding-left: 2rem;
+            margin: 0.5rem 0;
+        }
+        .note-body li { margin-bottom: 0.3rem; }
+
+        .def-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1.2rem 1.8rem;
+            margin: 0.8rem 0;
+            border-left: 6px solid #aad0c4;
+        }
+        .def-box strong { color: #a05545; }
+
+        .warning-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1.2rem 1.8rem;
+            margin: 0.8rem 0;
+            border-left: 6px solid #f0b8b8;
+        }
+        .warning-box strong { color: #a05545; }
+
+        .qa-block {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1.2rem 1.8rem;
+            margin: 0.8rem 0;
+            border-left: 6px solid #cfb8e0;
+        }
+        .qa-block .q { font-weight: 700; color: #a05545; font-size: 1.3rem; }
+        .qa-block .a { color: #2a1f15; margin-top: 0.3rem; }
+        .qa-block .a strong { color: #a05545; background: rgba(240,184,184,0.1); padding: 0 6px; border-radius: 12px; }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin: 0.8rem 0;
+        }
+        .comparison-item {
+            background: #f8f4ec;
+            padding: 0.8rem 1.2rem;
+            border-radius: 12px;
+            border-left: 4px solid #b8cce0;
+            font-size: 1.05rem;
+        }
+        .comparison-item .label { font-weight: 700; color: #a05545; }
+
+        .note-meta {
+            margin-top: 1.5rem;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.05rem;
+            color: #9f8875;
+            display: flex;
+            align-items: center;
+            gap: 1.2rem;
+            flex-wrap: wrap;
+        }
+
+        .note-meta span {
+            background: #f1eae1;
+            padding: 0.3rem 1.4rem;
+            border-radius: 60px;
+            font-size: 1rem;
+            color: #4d3b2b;
+            box-shadow: inset 0 1px 4px rgba(0,0,0,0.02);
+            font-weight: 400;
+            letter-spacing: 0.3px;
+        }
+
+        .note-pin {
+            position: absolute;
+            top: -12px;
+            right: 34px;
+            font-size: 2.6rem;
+            opacity: 0.25;
+            transform: rotate(25deg);
+            filter: drop-shadow(0 3px 6px rgba(0,0,0,0.06));
+            transition: opacity 0.25s;
+        }
+        .note:hover .note-pin { opacity: 0.8; }
+
+        .troubleshoot-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.6rem;
+            margin: 0.5rem 0;
+        }
+        .troubleshoot-item {
+            background: #f8f4ec;
+            padding: 0.5rem 0.8rem;
+            border-radius: 10px;
+            border-left: 4px solid #b8cce0;
+            font-size: 0.9rem;
+        }
+        .troubleshoot-item .name { font-weight: 700; color: #a05545; }
+
+        @keyframes floatUp {
+            0% { opacity: 0; transform: translateY(50px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes notePop {
+            0% { opacity: 0; transform: scale(0.92) rotate(-3deg); }
+            80% { opacity: 1; transform: scale(1.015) rotate(0.8deg); }
+            100% { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+
+        @media (max-width: 700px) {
+            .note { padding: 1.8rem 1.8rem; }
+            .note-title { font-size: 1.8rem; }
+            .note-body { font-size: 1.15rem; line-height: 1.7; }
+            .note-body .chip { font-size: 1rem; padding: 0 0.8rem; }
+            .code-block { font-size: 0.58rem; padding: 1rem; }
+            .note-pin { font-size: 2rem; top: -8px; right: 18px; }
+            .styled-table { font-size: 0.9rem; }
+            .styled-table th, .styled-table td { padding: 0.5rem 0.7rem; }
+            .notes-container { gap: 2rem; }
+            .ascii-box { font-size: 0.42rem; padding: 0.8rem 1rem; }
+            .comparison-grid { grid-template-columns: 1fr; }
+            .troubleshoot-grid { grid-template-columns: 1fr; }
+            .qa-block { padding: 0.8rem 1.2rem; }
+            .def-box { padding: 0.8rem 1.2rem; }
+            .warning-box { padding: 0.8rem 1.2rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="notes-container">
+
+        <!-- ============================================================ -->
+        <!-- NOTE 1: Chapter Title -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:0">
+            <div class="note-pin">🔧</div>
+            <h2 class="note-title">14.1 Common EC2 Issues</h2>
+            <div class="note-body">
+                <span style="font-size:1.8rem;">📖</span> <strong>Complete Theory: Troubleshooting EC2</strong>
+                <br /><br />
+                When an EC2 instance becomes unreachable or fails to boot, it's rarely a single cause. Most issues fall into one of two categories: problems with the <strong>AWS infrastructure</strong> hosting your instance, or problems with the <strong>operating system and configuration</strong> inside your instance. Understanding this distinction is the first step toward effective troubleshooting.
+            </div>
+            <div class="note-meta">
+                <span>🔧 troubleshooting</span>
+                <span>🖥️ EC2 issues</span>
+                <span>🔍 diagnosis</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 2: Two Types of Status Check Failures -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:1">
+            <div class="note-pin">🔍</div>
+            <h2 class="note-title">Two Types of Status Check Failures</h2>
+            <div class="note-body">
+                EC2 runs two independent health checks on every running instance:
+                <br /><br />
+                <table class="styled-table">
+                    <thead><tr><th>Status Check</th><th>What It Verifies</th><th>Who Owns the Problem</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>System Status Check</strong></td><td>AWS infrastructure — physical host hardware, network connectivity at hypervisor level, power</td><td><span class="chip chip-blue">AWS</span> (but you must take action)</td></tr>
+                        <tr><td><strong>Instance Status Check</strong></td><td>Your operating system — boot process, network config, file system integrity, kernel state</td><td><span class="chip chip-pink">You</span></td></tr>
+                    </tbody>
+                </table>
+                <br />
+                <strong>System Status Check Failure:</strong>
+                <br />
+                The hardware your instance runs on has a problem — network issues at the hypervisor, power loss, or physical host degradation. You <strong>cannot</strong> fix the underlying hardware, but you can move your instance to healthy hardware by <strong>stopping and starting</strong> the instance (not rebooting).
+                <br /><br />
+                <strong>Instance Status Check Failure:</strong>
+                <br />
+                Your OS isn't booting properly or is misconfigured. Common causes include:
+                <ul>
+                    <li><span class="chip chip-pink">Kernel panic or failed kernel update</span></li>
+                    <li><span class="chip chip-pink">Corrupted file system</span></li>
+                    <li><span class="chip chip-pink">Bad /etc/fstab entry preventing boot</span></li>
+                    <li><span class="chip chip-pink">Full root volume</span></li>
+                    <li><span class="chip chip-pink">Incorrect network configuration</span></li>
+                    <li><span class="chip chip-pink">Insufficient CPU or memory resources</span></li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>🔍 status checks</span>
+                <span>📊 system vs instance</span>
+                <span>🔧 troubleshooting</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 3: 14.1.1 SSH Connection Failures -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:2">
+            <div class="note-pin">🔌</div>
+            <h2 class="note-title">14.1.1 SSH Connection Failures</h2>
+            <div class="note-subtitle">Timeout, Permission Denied</div>
+            <div class="note-body">
+                <strong>📖 Complete Theory: SSH Connection Failures</strong>
+                <br /><br />
+                SSH connection failures to an EC2 instance typically fall into two main categories: <strong>Connection Timeout</strong> and <strong>Permission Denied (publickey)</strong>. Each indicates a different type of problem with different troubleshooting paths.
+                <br /><br />
+                <strong>🌐 Connection Timeout</strong>
+                <br />
+                A "Connection timed out" error means your SSH packets are not reaching the instance, or the instance's responses are not making it back to you. This is almost always a <strong>networking configuration</strong> issue.
+                <br /><br />
+                <strong>Troubleshooting Checklist:</strong>
+                <ul>
+                    <li><span class="chip chip-blue">Security Group:</span> Verify inbound rules allow SSH (port 22) from your IP address</li>
+                    <li><span class="chip chip-gold">Network ACL:</span> NACLs are stateless — allow traffic in both directions (inbound: port 22, outbound: ephemeral ports 1024-65535)</li>
+                    <li><span class="chip chip-purple">Route Table:</span> Ensure public subnet has route to IGW (0.0.0.0/0 → igw-xxxxxxxx)</li>
+                    <li><span class="chip chip-green">Public IP:</span> Verify instance has a public IP or Elastic IP associated</li>
+                    <li><span class="chip chip-teal">Instance Health:</span> Confirm instance is running and has passed both status checks</li>
+                </ul>
+                <br />
+                <strong>❌ Permission Denied (publickey)</strong>
+                <br />
+                A "Permission denied (publickey)" error means your SSH request reached the instance, but the authentication failed. The instance did not find a matching public key for the private key you presented.
+                <br /><br />
+                <strong>Troubleshooting Checklist:</strong>
+                <ul>
+                    <li><span class="chip chip-blue">Verify the Default Username:</span> Amazon Linux: <span class="chip">ec2-user</span>, Ubuntu: <span class="chip">ubuntu</span>, Debian: <span class="chip">admin</span></li>
+                    <li><span class="chip chip-gold">Correct Key Pair:</span> Check instance details and ensure you're using the matching private key</li>
+                    <li><span class="chip chip-pink">File Permissions:</span> <span class="chip">chmod 400 /path/to/your-key.pem</span></li>
+                    <li><span class="chip chip-purple">Check .ssh/authorized_keys:</span> File permissions should be <span class="chip">700</span> for .ssh and <span class="chip">600</span> for authorized_keys</li>
+                </ul>
+            </div>
+            <div class="note-body">
+                <strong>Recovery Options for Lost Keys:</strong>
+                <ul>
+                    <li><span class="chip chip-blue">EC2 Instance Connect:</span> Browser-based SSH that bypasses key pair requirement</li>
+                    <li><span class="chip chip-green">SSM Session Manager:</span> Access a shell without SSH altogether</li>
+                    <li><span class="chip chip-gold">Rescue Instance:</span> Stop instance, detach root volume, attach to temporary instance, edit authorized_keys</li>
+                </ul>
+                <br />
+                <div class="def-box" style="border-left-color:#f5d4aa;">
+                    <strong>💡 Key Insight:</strong> NACLs are <strong>stateless</strong> — you must allow traffic in <strong>both directions</strong>. For SSH to work, ensure outbound rules permit <strong>ephemeral ports</strong> (1024-65535) for response traffic.
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🔌 14.1.1</span>
+                <span>🌐 SSH timeout</span>
+                <span>❌ permission denied</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 4: 14.1.2 Instance Unreachable -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:3">
+            <div class="note-pin">🚫</div>
+            <h2 class="note-title">14.1.2 Instance Unreachable</h2>
+            <div class="note-body">
+                <strong>📖 Complete Theory: Instance Unreachable</strong>
+                <br /><br />
+                When an EC2 instance is unreachable, it means you cannot connect to it via SSH, RDP, or other standard protocols. This often indicates a <strong>more severe problem</strong> than a simple SSH configuration error, and the instance may fail its Instance Status Check.
+                <br /><br />
+                <div class="warning-box">
+                    <strong>⚠️ Critical Warning: Don't Reboot a Failing Instance</strong>
+                    <br />
+                    If your instance is failing its status checks or is unreachable, do <strong>not</strong> use <span class="chip">aws ec2 reboot-instances</span>. Rebooting a failed instance will keep it on the <strong>same physical host</strong>, and if the host is the problem, it won't resolve the issue. Instead, the correct action is to <strong>stop and start</strong> the instance.
+                </div>
+                <br />
+                <strong>🛠️ Troubleshooting Checklist for Unreachable Instances:</strong>
+                <br /><br />
+                <strong>1. Check Instance Status Checks:</strong>
+                <ul>
+                    <li><span class="chip chip-blue">System Status Check Failure:</span> AWS infrastructure problem — <strong>stop and start</strong> the instance</li>
+                    <li><span class="chip chip-pink">Instance Status Check Failure:</span> OS problem — requires investigation (Serial Console or Rescue Instance)</li>
+                </ul>
+                <br />
+                <strong>2. Recover from System Status Check Failure:</strong>
+                <ul>
+                    <li>Stop the instance → Start the instance</li>
+                    <li>Moves instance to <strong>new underlying hardware</strong></li>
+                    <li>New public IP (unless Elastic IP assigned)</li>
+                    <li>EBS data persists; Instance Store data is <strong>lost</strong></li>
+                </ul>
+                <br />
+                <strong>3. Recover from Instance Status Check Failure:</strong>
+                <ul>
+                    <li><span class="chip chip-blue">EC2 Serial Console:</span> Text-based access even when OS isn't fully booted</li>
+                    <li><span class="chip chip-gold">Rescue Instance:</span> Universal workaround — move root volume to temporary instance</li>
+                </ul>
+            </div>
+            <div class="note-body">
+                <strong>Step-by-Step Rescue Process:</strong>
+                <ol>
+                    <li><strong>Stop</strong> the problem instance</li>
+                    <li><strong>Detach</strong> the root volume</li>
+                    <li><strong>Launch</strong> a temporary rescue instance (same AZ, same AMI family)</li>
+                    <li><strong>Attach</strong> the volume to the rescue instance as a secondary device</li>
+                    <li><strong>Mount</strong> the volume and <strong>fix</strong> the issue (e.g., edit /etc/fstab)</li>
+                    <li><strong>Unmount, detach, reattach</strong> to the original instance</li>
+                    <li><strong>Start</strong> the original instance</li>
+                </ol>
+                <br />
+                <div class="def-box" style="border-left-color:#f5d4aa;">
+                    <strong>💡 The Stop/Start workflow</strong> is the primary recovery method because it forces the instance to move to a <strong>new, healthy physical host</strong>. When you stop and start an EBS-backed instance, AWS releases the physical resources and reallocates them, often resolving issues caused by host-level degradation.
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🚫 14.1.2</span>
+                <span>⚠️ unreachable</span>
+                <span>🔄 stop/start</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 5: 14.1.3 Status Check Failures -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:4">
+            <div class="note-pin">📊</div>
+            <h2 class="note-title">14.1.3 Status Check Failures</h2>
+            <div class="note-subtitle">System vs. Instance</div>
+            <div class="note-body">
+                <strong>📖 Complete Theory: Status Check Failures</strong>
+                <br /><br />
+                Amazon EC2 performs automated, minute-by-minute health checks on every running instance to identify problems. The results determine the overall status: <span class="chip chip-green">OK</span> (all checks pass) or <span class="chip chip-pink">impaired</span> (one or more checks fail).
+                <br /><br />
+                <strong>🖥️ System Status Checks (AWS Infrastructure):</strong>
+                <ul>
+                    <li><span class="chip chip-blue">What They Monitor:</span> Physical host, network, power</li>
+                    <li><span class="chip chip-pink">Who Owns the Problem:</span> <strong>AWS</strong></li>
+                    <li><span class="chip chip-gold">Resolution:</span> <strong>Stop and start</strong> the instance (EBS-backed)</li>
+                    <li><span class="chip chip-purple">CloudWatch Metric:</span> <span class="chip">StatusCheckFailed_System</span></li>
+                </ul>
+                <br />
+                <strong>💻 Instance Status Checks (Your OS and Software):</strong>
+                <ul>
+                    <li><span class="chip chip-blue">What They Monitor:</span> Guest OS, applications, network configuration</li>
+                    <li><span class="chip chip-pink">Who Owns the Problem:</span> <strong>You</strong></li>
+                    <li><span class="chip chip-gold">Resolution:</span> Troubleshoot the OS — Serial Console, Rescue Instance, or EC2Rescue</li>
+                    <li><span class="chip chip-purple">CloudWatch Metric:</span> <span class="chip">StatusCheckFailed_Instance</span></li>
+                </ul>
+                <br />
+                <strong>🔌 Attached EBS Status Checks (Volume Health):</strong>
+                <ul>
+                    <li><span class="chip chip-blue">What They Monitor:</span> EBS volume reachability and I/O operations</li>
+                    <li><span class="chip chip-pink">Who Owns the Problem:</span> <strong>Shared</strong> (AWS & customer)</li>
+                    <li><span class="chip chip-gold">Resolution:</span> Stop and start the instance or replace the EBS volume</li>
+                    <li><span class="chip chip-purple">CloudWatch Metric:</span> <span class="chip">StatusCheckFailed_AttachedEBS</span></li>
+                </ul>
+                <br />
+                <table class="styled-table">
+                    <thead><tr><th>Feature</th><th>System Status Check</th><th>Instance Status Check</th><th>Attached EBS Status Check</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>What It Monitors</strong></td><td>AWS Infrastructure</td><td>Your OS & software</td><td>EBS reachability & I/O</td></tr>
+                        <tr><td><strong>Who Owns the Problem</strong></td><td><span class="chip chip-blue">AWS</span></td><td><span class="chip chip-pink">You</span></td><td>Shared</td></tr>
+                        <tr><td><strong>Primary Resolution</strong></td><td>Stop and start</td><td>Serial Console / Rescue Instance</td><td>Stop and start / Replace volume</td></tr>
+                        <tr><td><strong>CloudWatch Metric</strong></td><td>StatusCheckFailed_System</td><td>StatusCheckFailed_Instance</td><td>StatusCheckFailed_AttachedEBS</td></tr>
+                    </tbody>
+                </table>
+                <br />
+                <div class="def-box" style="border-left-color:#f5d4aa;">
+                    <strong>💡 Why Stop/Start Works (and Reboot Doesn't):</strong>
+                    <br />
+                    A simple <strong>reboot</strong> keeps your instance on the same physical host. If a system status check fails, the issue is with that underlying host, and a reboot will <strong>not</strong> resolve it. When you <strong>stop and start</strong> an EBS-backed instance, AWS releases the physical resources and allocates a new set, often migrating the instance to a <strong>new, healthy host</strong>.
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>📊 14.1.3</span>
+                <span>🔍 system vs instance</span>
+                <span>📋 status checks</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 6: 14.1.4 Boot Failures -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:5">
+            <div class="note-pin">💥</div>
+            <h2 class="note-title">14.1.4 Boot Failures</h2>
+            <div class="note-subtitle">Corrupted OS, Kernel Panic</div>
+            <div class="note-body">
+                <strong>📖 Complete Theory: Boot Failures</strong>
+                <br /><br />
+                Boot failures are among the most critical EC2 issues. When your instance fails to boot, it fails the <strong>Instance Status Check</strong>, rendering it unreachable via SSH or RDP.
+                <br /><br />
+                <strong>🔍 The "Instance Unreachable" Scenario:</strong>
+                <br />
+                The root cause is often a problem at the OS level:
+                <ul>
+                    <li><span class="chip chip-pink">Network or startup configuration errors</span> (e.g., a bad <span class="chip">/etc/fstab</span> entry)</li>
+                    <li><span class="chip chip-pink">File system corruption</span> (e.g., unmountable <span class="chip">/sysroot</span> or XFS metadata errors)</li>
+                    <li><span class="chip chip-pink">Incompatible Kernel or kernel panic</span> (often after a failed update)</li>
+                </ul>
+                <br />
+                <strong>🛠️ The Three Primary Recovery Methods:</strong>
+                <br /><br />
+                <div class="troubleshoot-grid">
+                    <div class="troubleshoot-item" style="border-left-color:#b8cce0;">
+                        <div class="name">1. EC2 Serial Console</div>
+                        <div style="font-size:0.8rem;">Text-based access even when OS isn't fully booted</div>
+                        <div style="font-size:0.75rem; color:#7a8a7a;">Requires Nitro-based instance type</div>
+                        <div style="font-size:0.75rem; color:#3d6b5a;">Fixes: bad fstab, broken SSH config, network issues</div>
+                    </div>
+                    <div class="troubleshoot-item" style="border-left-color:#f5d4aa;">
+                        <div class="name">2. Rescue Instance</div>
+                        <div style="font-size:0.8rem;">Universal workaround — move root volume</div>
+                        <div style="font-size:0.75rem; color:#7a8a7a;">Works for all instance types</div>
+                        <div style="font-size:0.75rem; color:#3d6b5a;">Stop → Detach → Rescue → Fix → Reattach → Start</div>
+                    </div>
+                    <div class="troubleshoot-item" style="border-left-color:#aad0c4;">
+                        <div class="name">3. EC2Rescue</div>
+                        <div style="font-size:0.8rem;">AWS tool automates diagnostics</div>
+                        <div style="font-size:0.75rem; color:#7a8a7a;">Command-line tool</div>
+                        <div style="font-size:0.75rem; color:#3d6b5a;">Automates manual rescue instance steps</div>
+                    </div>
+                </div>
+                <br />
+                <div class="def-box" style="border-left-color:#f5d4aa;">
+                    <strong>💡 Common Fix via Serial Console:</strong>
+                    <br />
+                    <strong>Bad fstab entry:</strong> Boot drops to emergency shell. Log in, remount root as read-write (<span class="chip">mount -o remount,rw /</span>), edit <span class="chip">/etc/fstab</span> to fix the entry, and reboot.
+                </div>
+            </div>
+            <div class="note-body">
+                <strong>🧠 Critical Insights:</strong>
+                <ul>
+                    <li><span class="chip chip-pink">Public IP changes on stop/start:</span> Unless using an Elastic IP</li>
+                    <li><span class="chip chip-blue">Stop/Start vs. Reboot:</span> Stop/start moves to new hardware; reboot keeps same host</li>
+                    <li><span class="chip chip-pink">Instance Store data is lost on stop</span></li>
+                    <li><span class="chip chip-gold">Linux boot process:</span> BIOS/UEFI → Bootloader → Kernel → initramfs → systemd</li>
+                </ul>
+                <br />
+                <strong>🔍 Review Questions</strong>
+                <div class="qa-block">
+                    <div class="q">Q1: What is the main difference between a System Status Check and an Instance Status Check failure?</div>
+                    <div class="a">A <strong>System Status Check</strong> failure indicates a problem with the AWS infrastructure (the physical host), which is an AWS issue, and you should <strong>stop and start</strong> the instance to move it to new hardware. An <strong>Instance Status Check</strong> failure indicates a problem with your operating system, which you are responsible for troubleshooting.</div>
+                </div>
+                <div class="qa-block" style="border-left-color:#aad0c4;">
+                    <div class="q">Q2: What are the three primary methods for troubleshooting an EC2 boot failure?</div>
+                    <div class="a">The three primary methods are: (1) <strong>EC2 Serial Console</strong> — text-based access even when OS isn't fully booted; (2) <strong>Rescue Instance</strong> — stop, detach, attach to temporary instance, fix, reattach; (3) <strong>EC2Rescue</strong> — an AWS tool that automates diagnostics and troubleshooting.</div>
+                </div>
+                <div class="qa-block" style="border-left-color:#f5d4aa;">
+                    <div class="q">Q3: How can you fix a bad fstab entry using a rescue instance?</div>
+                    <div class="a">Stop the problematic instance, detach its root volume, attach it to a rescue instance, and mount it. Then, edit the <span class="chip">/etc/fstab</span> file on the mounted volume and comment out or fix the bad entry (e.g., add the <span class="chip">nofail</span> option).</div>
+                </div>
+                <div class="qa-block" style="border-left-color:#b8d9c8;">
+                    <div class="q">Q4: What happens to the public IP address when you stop and start an EC2 instance?</div>
+                    <div class="a">If the instance has a standard public IP (not an Elastic IP), it will be <strong>released</strong> when the instance is stopped. When the instance is started again, it will receive a <strong>new public IP address</strong>. The private IP address remains the same.</div>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>💥 14.1.4</span>
+                <span>🔄 boot failures</span>
+                <span>🔧 recovery methods</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 7: Key Takeaways -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:6">
+            <div class="note-pin">🧠</div>
+            <h2 class="note-title">Key Takeaways</h2>
+            <div class="note-body">
+                <ul>
+                    <li><strong>Two types of status checks:</strong> System (AWS infrastructure) and Instance (your OS). <strong>Stop/start</strong> fixes System failures; <strong>OS troubleshooting</strong> fixes Instance failures.</li>
+                    <br />
+                    <li><strong>Don't reboot a failing instance:</strong> Reboot keeps you on the same bad host. <strong>Stop and start</strong> moves you to a new, healthy host.</li>
+                    <br />
+                    <li><strong>SSH Connection Timeout:</strong> Check Security Groups, NACLs (stateless — check both directions!), route tables, public IP, and instance health.</li>
+                    <br />
+                    <li><strong>SSH Permission Denied:</strong> Verify username, key pair, file permissions (<span class="chip">chmod 400</span>), and <span class="chip">~/.ssh/authorized_keys</span>.</li>
+                    <br />
+                    <li><strong>NACLs are stateless:</strong> You must allow traffic in <strong>both directions</strong> — inbound SSH (port 22) and outbound ephemeral ports (1024-65535).</li>
+                    <br />
+                    <li><strong>Three recovery methods for boot failures:</strong> <span class="chip">EC2 Serial Console</span> (preferred), <span class="chip">Rescue Instance</span> (universal), <span class="chip">EC2Rescue</span> (automated).</li>
+                    <br />
+                    <li><strong>Public IP changes on stop/start:</strong> Unless you're using an <strong>Elastic IP</strong>, the public IP will change after a stop/start cycle.</li>
+                    <br />
+                    <li><strong>Instance Store data is lost on stop:</strong> Data on Instance Store volumes is <strong>erased permanently</strong> when you stop an instance.</li>
+                    <br />
+                    <li><strong>Recovery options for lost keys:</strong> <span class="chip">EC2 Instance Connect</span>, <span class="chip">SSM Session Manager</span>, or <span class="chip">Rescue Instance</span>.</li>
+                    <br />
+                    <li><strong>Check system logs:</strong> EC2 console → Actions → Monitor and troubleshoot → Get system log. This output can reveal kernel panics, missing boot files, and file system corruption errors.</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>🧠 takeaways</span>
+                <span>🔧 troubleshooting</span>
+                <span>🔄 stop/start</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 8: Next Steps -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:7">
+            <div class="note-pin">🚀</div>
+            <h2 class="note-title">Next Steps</h2>
+            <div class="note-body">
+                <span style="font-size:2rem;">📖</span> Proceed to the next section:
+                <br /><br />
+                <span class="chip chip-purple" style="font-size:1.4rem;">14.2: EBS Troubleshooting — Volume Attachment and Performance</span>
+                <br /><br />
+                <div class="def-box" style="border-left-color:#f5d4aa;">
+                    <em>"Troubleshooting isn't about guessing — it's about <strong>understanding the layers</strong>. From the hypervisor to the kernel, every layer has its own failure modes. The key is knowing <strong>where</strong> to look and <strong>how</strong> to fix it."</em>
+                    <br />
+                    <span style="opacity:0.7;">— AWS Troubleshooting Principles</span>
+                </div>
+                <br />
+                <div style="text-align:center; font-size:2.5rem; opacity:0.3; letter-spacing:10px;">
+                    ❖ ❖ ❖
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🚀 next</span>
+                <span>📖 14.2</span>
+                <span>💾 EBS troubleshooting</span>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

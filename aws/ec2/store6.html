@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Practical 9.2 · Snapshots & DR · Handwritten Notes</title>
+
+    <!-- Google Fonts – clear handwriting -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Gloria+Hallelujah&family=Architects+Daughter&family=Reenie+Beanie&display=swap" rel="stylesheet" />
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #f7f0e7;
+            background-image: radial-gradient(circle at 30% 20%, #fcf7f0 0%, #eee7dd 100%);
+            display: flex;
+            justify-content: center;
+            padding: 2.5rem 1.5rem;
+            font-family: 'Patrick Hand', 'Architects Daughter', cursive;
+        }
+
+        .notes-container {
+            max-width: 1100px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 2.8rem;
+            animation: floatUp 0.9s ease-out;
+        }
+
+        .note {
+            background: #fffcf5;
+            padding: 2.5rem 3.5rem;
+            border-radius: 28px 28px 28px 10px;
+            box-shadow: 0 12px 36px rgba(0,0,0,0.06), 0 2px 10px rgba(0,0,0,0.03), inset 0 -2px 0 rgba(0,0,0,0.02);
+            position: relative;
+            transition: transform 0.3s ease, box-shadow 0.35s ease;
+            transform-origin: left center;
+            border-left: 8px solid transparent;
+            animation: notePop 0.6s ease both;
+            animation-delay: calc(var(--i, 0) * 0.03s);
+        }
+
+        .note:nth-child(1) { border-left-color: #f0b8b8; }
+        .note:nth-child(2) { border-left-color: #aad0c4; }
+        .note:nth-child(3) { border-left-color: #f5d4aa; }
+        .note:nth-child(4) { border-left-color: #cfb8e0; }
+        .note:nth-child(5) { border-left-color: #b8cce0; }
+        .note:nth-child(6) { border-left-color: #e8c8b8; }
+        .note:nth-child(7) { border-left-color: #b8d9c8; }
+        .note:nth-child(8) { border-left-color: #f0c8c8; }
+        .note:nth-child(9) { border-left-color: #d4c8e8; }
+        .note:nth-child(10) { border-left-color: #c8dce8; }
+        .note:nth-child(11) { border-left-color: #e8d4b8; }
+
+        .note:hover {
+            transform: rotate(-0.8deg) scale(1.015);
+            box-shadow: 0 24px 48px rgba(0,0,0,0.09), 0 4px 16px rgba(0,0,0,0.05);
+        }
+
+        .note-title {
+            font-family: 'Gloria Hallelujah', 'Patrick Hand', cursive;
+            font-size: 2.2rem;
+            font-weight: 500;
+            color: #2f2216;
+            letter-spacing: 0.8px;
+            margin-bottom: 0.3rem;
+            line-height: 1.25;
+            display: inline-block;
+            position: relative;
+        }
+
+        .note-title::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: -4px;
+            width: 100%;
+            height: 8px;
+            background: repeating-linear-gradient(90deg, transparent, transparent 6px, rgba(240,184,184,0.4) 6px, rgba(240,184,184,0.4) 12px);
+            border-radius: 20px;
+            opacity: 0.8;
+        }
+
+        .note-subtitle {
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.3rem;
+            color: #5a4a3a;
+            margin: -0.1rem 0 1rem 0;
+            font-weight: 400;
+            opacity: 0.85;
+        }
+
+        .note-body {
+            font-family: 'Architects Daughter', 'Patrick Hand', cursive;
+            font-size: 1.35rem;
+            line-height: 1.85;
+            color: #2a1f15;
+            margin: 0.9rem 0 0.4rem 0;
+            font-weight: 400;
+            letter-spacing: 0.4px;
+        }
+
+        .note-body strong {
+            font-weight: 700;
+            color: #a05545;
+            background: rgba(240,184,184,0.15);
+            padding: 0 8px;
+            border-radius: 16px;
+            font-style: normal;
+        }
+
+        .note-body em {
+            color: #5a8a78;
+            font-style: italic;
+            text-decoration: underline wavy #aad0c4 3px;
+            font-weight: 500;
+        }
+
+        .note-body .chip {
+            background: #f0e9e0;
+            padding: 0.1rem 1.2rem;
+            border-radius: 40px;
+            display: inline-block;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.15rem;
+            color: #3d3226;
+            border: 1px dashed #cbb8a8;
+            margin: 2px 0;
+            font-weight: 400;
+        }
+
+        .note-body .chip-blue { background: #dce8f0; border-color: #aac0d0; }
+        .note-body .chip-green { background: #d8ece0; border-color: #a0c8b8; }
+        .note-body .chip-pink { background: #f0dcd8; border-color: #d8b8b0; }
+        .note-body .chip-purple { background: #e4d8ec; border-color: #c8b8d8; }
+        .note-body .chip-gold { background: #f0e8d0; border-color: #d8c8a8; }
+        .note-body .chip-orange { background: #f0dcc8; border-color: #d8b898; }
+        .note-body .chip-teal { background: #c8e8dc; border-color: #88c8b8; }
+
+        .code-block {
+            background: #1e1a16;
+            color: #e8e0d8;
+            padding: 1.2rem 1.8rem;
+            border-radius: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.72rem;
+            line-height: 1.7;
+            margin: 0.8rem 0 1rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            border-left: 4px solid #f0b8b8;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .code-block .comment { color: #7a8a7a; }
+        .code-block .keyword { color: #f0b8b8; }
+        .code-block .string { color: #b8d9c8; }
+        .code-block .function { color: #c8b8e8; }
+        .code-block .tag { color: #f5d4aa; }
+
+        .ascii-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1rem 1.5rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.52rem;
+            line-height: 1.5;
+            color: #2a1f15;
+            border: 1px solid #e0d8ce;
+            margin: 0.8rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .ascii-box .highlight { color: #a05545; font-weight: bold; }
+        .ascii-box .title { color: #2f2216; font-weight: bold; text-decoration: underline; }
+
+        .styled-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.05rem;
+            background: #f8f4ec;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        }
+
+        .styled-table th {
+            background: #2f2216;
+            color: #f5efe8;
+            padding: 0.7rem 1rem;
+            text-align: left;
+            font-weight: 500;
+            font-size: 1rem;
+        }
+
+        .styled-table td {
+            padding: 0.7rem 1rem;
+            border-bottom: 1px solid #e8e0d6;
+            color: #2a1f15;
+        }
+
+        .styled-table tr:last-child td { border-bottom: none; }
+        .styled-table tr:hover td { background: #f0e9e0; }
+
+        .note-body ul, .note-body ol {
+            padding-left: 2rem;
+            margin: 0.5rem 0;
+        }
+        .note-body li { margin-bottom: 0.3rem; }
+
+        .def-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1.2rem 1.8rem;
+            margin: 0.8rem 0;
+            border-left: 6px solid #aad0c4;
+        }
+        .def-box strong { color: #a05545; }
+
+        .warning-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1.2rem 1.8rem;
+            margin: 0.8rem 0;
+            border-left: 6px solid #f0b8b8;
+        }
+        .warning-box strong { color: #a05545; }
+
+        .note-meta {
+            margin-top: 1.5rem;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.05rem;
+            color: #9f8875;
+            display: flex;
+            align-items: center;
+            gap: 1.2rem;
+            flex-wrap: wrap;
+        }
+
+        .note-meta span {
+            background: #f1eae1;
+            padding: 0.3rem 1.4rem;
+            border-radius: 60px;
+            font-size: 1rem;
+            color: #4d3b2b;
+            box-shadow: inset 0 1px 4px rgba(0,0,0,0.02);
+            font-weight: 400;
+            letter-spacing: 0.3px;
+        }
+
+        .note-pin {
+            position: absolute;
+            top: -12px;
+            right: 34px;
+            font-size: 2.6rem;
+            opacity: 0.25;
+            transform: rotate(25deg);
+            filter: drop-shadow(0 3px 6px rgba(0,0,0,0.06));
+            transition: opacity 0.25s;
+        }
+        .note:hover .note-pin { opacity: 0.8; }
+
+        .verification-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.6rem;
+            margin: 0.5rem 0;
+        }
+        .verification-item {
+            background: #f8f4ec;
+            padding: 0.4rem 1rem;
+            border-radius: 10px;
+            border-left: 4px solid #aad0c4;
+            font-size: 1rem;
+        }
+        .verification-item .check { color: #5a8a78; }
+
+        .summary-table td:first-child { font-weight: 600; color: #a05545; }
+
+        @keyframes floatUp {
+            0% { opacity: 0; transform: translateY(50px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes notePop {
+            0% { opacity: 0; transform: scale(0.92) rotate(-3deg); }
+            80% { opacity: 1; transform: scale(1.015) rotate(0.8deg); }
+            100% { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+
+        @media (max-width: 700px) {
+            .note { padding: 1.8rem 1.8rem; }
+            .note-title { font-size: 1.8rem; }
+            .note-body { font-size: 1.15rem; line-height: 1.7; }
+            .note-body .chip { font-size: 1rem; padding: 0 0.8rem; }
+            .code-block { font-size: 0.6rem; padding: 1rem; }
+            .note-pin { font-size: 2rem; top: -8px; right: 18px; }
+            .styled-table { font-size: 0.9rem; }
+            .styled-table th, .styled-table td { padding: 0.5rem 0.7rem; }
+            .notes-container { gap: 2rem; }
+            .ascii-box { font-size: 0.42rem; padding: 0.8rem 1rem; }
+            .verification-grid { grid-template-columns: 1fr; }
+            .def-box { padding: 0.8rem 1.2rem; }
+            .warning-box { padding: 0.8rem 1.2rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="notes-container">
+
+        <!-- ============================================================ -->
+        <!-- NOTE 1: Practical Overview -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:0">
+            <div class="note-pin">📸</div>
+            <h2 class="note-title">Practical 9.2</h2>
+            <div class="note-subtitle">Snapshots & Disaster Recovery: Boot Volume Recovery</div>
+            <div class="note-body">
+                <strong>Duration:</strong> 30-45 minutes
+                <br /><br />
+                <strong>Learning Objectives:</strong>
+                <ul>
+                    <li>✅ Take a point-in-time snapshot of a boot volume</li>
+                    <li>✅ Simulate a disaster by terminating the original instance</li>
+                    <li>✅ Create a new, bootable AMI from the snapshot</li>
+                    <li>✅ Launch a new instance from the recovered AMI and verify data and configuration integrity</li>
+                    <li>✅ Understand the critical difference between an AMI and an EBS snapshot</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>📸 snapshots</span>
+                <span>⏱️ 30-45 min</span>
+                <span>🔄 disaster recovery</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 2: AMI vs Snapshot Theory -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:1">
+            <div class="note-pin">📖</div>
+            <h2 class="note-title">AMI vs. Snapshot</h2>
+            <div class="note-subtitle">A Critical Distinction</div>
+            <div class="note-body">
+                <strong>📖 Complete Theory: AMI vs. Snapshot</strong>
+                <br /><br />
+                Understanding the difference between an <strong>AMI</strong> and an <strong>EBS snapshot</strong> is crucial for disaster recovery.
+                <br /><br />
+                <div class="ascii-box">
+                    <span class="title">AMI vs SNAPSHOT: A CRITICAL DISTINCTION</span>
+                    ┌─────────────────────────────────────────────────────────────────────────────────────┐
+                    │                    AMI vs SNAPSHOT: A CRITICAL DISTINCTION                        │
+                    ├─────────────────────────────────────────────────────────────────────────────────────┤
+                    │                                                                                     │
+                    │  ┌─────────────────────────────────────────────────────────────────────────────────┐│
+                    │  │  SNAPSHOT (snap-12345)                                                        ││
+                    │  │  └─ Point-in-time backup of a <span class="highlight">SINGLE</span> EBS volume                          ││
+                    │  │  └─ Cannot be used to directly launch an EC2 instance                         ││
+                    │  │  └─ Must be restored to a new volume, then attached to an instance           ││
+                    │  └─────────────────────────────────────────────────────────────────────────────────┘│
+                    │                                                                                     │
+                    │  ┌─────────────────────────────────────────────────────────────────────────────────┐│
+                    │  │  AMI (ami-12345)                                                              ││
+                    │  │  └─ Contains <span class="highlight">ONE OR MORE</span> snapshots + instance metadata                    ││
+                    │  │  └─ Can be used to launch a new EC2 instance <span class="highlight">directly</span>                    ││
+                    │  │  └─ Includes architecture, kernel ID, virtualization type                    ││
+                    │  └─────────────────────────────────────────────────────────────────────────────────┘│
+                    │                                                                                     │
+                    └─────────────────────────────────────────────────────────────────────────────────────┘
+                </div>
+                <br />
+                <strong>Key Differences:</strong>
+                <table class="styled-table">
+                    <thead><tr><th>Aspect</th><th>Snapshot</th><th>AMI</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>What it contains</strong></td><td>Single volume backup</td><td>One or more snapshots + instance metadata</td></tr>
+                        <tr><td><strong>Can launch an instance?</strong></td><td><span class="chip chip-pink">❌ No</span></td><td><span class="chip chip-green">✅ Yes</span></td></tr>
+                        <tr><td><strong>Includes architecture</strong></td><td>❌ No</td><td>✅ Yes</td></tr>
+                        <tr><td><strong>Includes virtualization type</strong></td><td>❌ No</td><td>✅ Yes</td></tr>
+                        <tr><td><strong>Use case</strong></td><td>Backup individual volumes</td><td>Launch full instances</td></tr>
+                    </tbody>
+                </table>
+                <br />
+                <div class="def-box" style="border-left-color:#f5d4aa;">
+                    <strong>💡 Key Insight:</strong> You <strong>cannot</strong> launch an instance directly from a snapshot. You must create an AMI from the snapshot first. This ensures the instance has the correct launchable configuration, including architecture, kernel ID, and virtualization type.
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>📖 AMI vs snapshot</span>
+                <span>📊 comparison</span>
+                <span>🔑 key insight</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 3: P9.2.1 – Take Snapshot -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:2">
+            <div class="note-pin">📸</div>
+            <h2 class="note-title">P9.2.1 Take Snapshot of Boot Volume</h2>
+            <div class="note-body">
+                <strong>📖 Theory: The First Step in Disaster Recovery</strong>
+                <br />
+                Taking a snapshot of the <strong>root volume</strong> is the prerequisite for rebuilding an instance. The root volume contains the operating system, applications, and configurations that define your instance's state.
+                <br /><br />
+                <strong>Step 1: Identify the Root Volume</strong>
+                <div class="code-block">
+                    INSTANCE_ID=$(aws ec2 describe-instances \
+                        --filters "Name=tag:Name,Values=Golden-AMI-Builder" \
+                        --query 'Reservations[0].Instances[0].InstanceId' \
+                        --output text)
+
+                    ROOT_VOLUME_ID=$(aws ec2 describe-instances \
+                        --instance-ids $INSTANCE_ID \
+                        --query 'Reservations[0].Instances[0].BlockDeviceMappings[?DeviceName==`/dev/xvda`].Ebs.VolumeId' \
+                        --output text)
+
+                    echo "Instance ID: $INSTANCE_ID"
+                    echo "Root Volume ID: $ROOT_VOLUME_ID"
+                </div>
+                <br />
+                <strong>Step 2: Create a Snapshot</strong>
+                <div class="code-block">
+                    SNAPSHOT_ID=$(aws ec2 create-snapshot \
+                        --volume-id $ROOT_VOLUME_ID \
+                        --description "Disaster recovery snapshot before terminating instance" \
+                        --tag-specifications 'ResourceType=snapshot,Tags=[{Key=Name,Value=root-volume-backup-pre-disaster}]' \
+                        --query 'SnapshotId' \
+                        --output text)
+
+                    echo "Snapshot ID: $SNAPSHOT_ID"
+                    aws ec2 wait snapshot-completed --snapshot-ids $SNAPSHOT_ID
+                </div>
+                <br />
+                <div class="def-box" style="border-left-color:#f5d4aa;">
+                    <strong>💡 Incremental Snapshots:</strong> Because snapshots are incremental, the first snapshot is a full copy, and subsequent ones only store the changed blocks. This makes them cost-effective for frequent backups.
+                </div>
+                <br />
+                <strong>✅ Verification Checklist:</strong>
+                <div class="verification-grid">
+                    <div class="verification-item"><span class="check">□</span> Snapshot created from the root volume</div>
+                    <div class="verification-item"><span class="check">□</span> Snapshot is in a completed state</div>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>📸 P9.2.1</span>
+                <span>💾 root volume</span>
+                <span>📸 snapshot</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 4: P9.2.2 – Simulate Disaster -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:3">
+            <div class="note-pin">💥</div>
+            <h2 class="note-title">P9.2.2 Delete Original Instance</h2>
+            <div class="note-subtitle">Simulate Disaster</div>
+            <div class="note-body">
+                <strong>📖 Theory: The Disaster Simulation</strong>
+                <br />
+                Terminating the original instance simulates a <strong>catastrophic failure</strong> where the instance is lost. The EBS root volume may be deleted as well, but you have the snapshot you created in the previous step.
+                <br /><br />
+                <div class="warning-box">
+                    <strong>⚠️ If DeleteOnTermination is true</strong> for the root volume, the volume itself will be deleted when the instance is terminated. This is why having a snapshot is critical.
+                </div>
+                <br />
+                <strong>Step 1: Verify the Snapshot Exists</strong>
+                <div class="code-block">
+                    aws ec2 describe-snapshots --snapshot-ids $SNAPSHOT_ID
+                </div>
+                <br />
+                <strong>Step 2: Terminate the Original Instance</strong>
+                <div class="code-block">
+                    aws ec2 terminate-instances --instance-ids $INSTANCE_ID
+                    aws ec2 wait instance-terminated --instance-ids $INSTANCE_ID
+                </div>
+                <br />
+                <strong>✅ Verification Checklist:</strong>
+                <div class="verification-grid">
+                    <div class="verification-item"><span class="check">□</span> Original instance terminated</div>
+                    <div class="verification-item"><span class="check">□</span> Snapshot is still available</div>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>💥 P9.2.2</span>
+                <span>🔥 disaster simulation</span>
+                <span>💾 snapshot survives</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 5: P9.2.3 – Create AMI from Snapshot -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:4">
+            <div class="note-pin">🔄</div>
+            <h2 class="note-title">P9.2.3 Create AMI from Snapshot</h2>
+            <div class="note-subtitle">The Recovery Process</div>
+            <div class="note-body">
+                <strong>📖 Theory: The AMI Recovery Process</strong>
+                <br />
+                You <strong>cannot</strong> launch an instance directly from a snapshot. The proper recovery method is to <strong>create an AMI from the snapshot</strong>, and then launch a new instance from that AMI.
+                <br /><br />
+                <strong>Step 1: Create an AMI from the Snapshot</strong>
+                <div class="code-block">
+                    AMI_ID=$(aws ec2 register-image \
+                        --name "recovered-instance-ami-v1" \
+                        --description "AMI created from snapshot for disaster recovery" \
+                        --architecture x86_64 \
+                        --root-device-name /dev/xvda \
+                        --block-device-mappings "DeviceName=/dev/xvda,Ebs={SnapshotId=$SNAPSHOT_ID,VolumeType=gp3,DeleteOnTermination=true}" \
+                        --virtualization-type hvm \
+                        --query 'ImageId' \
+                        --output text)
+
+                    echo "AMI ID: $AMI_ID"
+                    aws ec2 wait image-available --image-ids $AMI_ID
+                </div>
+                <br />
+                <div class="def-box" style="border-left-color:#f5d4aa;">
+                    <strong>💡 Why Register an AMI?</strong> When registering an AMI from a snapshot, you must specify <strong>architecture</strong>, <strong>root device name</strong>, and <strong>virtualization type</strong>. This metadata is what makes the AMI launchable.
+                </div>
+                <br />
+                <strong>Step 2: Launch a New Instance</strong>
+                <div class="code-block">
+                    NEW_INSTANCE_ID=$(aws ec2 run-instances \
+                        --image-id $AMI_ID \
+                        --instance-type t3.micro \
+                        --key-name MyKeyPair \
+                        --subnet-id $(aws ec2 describe-subnets --filters "Name=tag:Name,Values=public-subnet-a" --query 'Subnets[0].SubnetId' --output text) \
+                        --security-group-ids $(aws ec2 describe-security-groups --filters "Name=group-name,Values=web-server-sg" --query 'SecurityGroups[0].GroupId' --output text) \
+                        --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=Recovered-Instance}]' \
+                        --query 'Instances[0].InstanceId' \
+                        --output text)
+
+                    echo "Recovered Instance ID: $NEW_INSTANCE_ID"
+                    aws ec2 wait instance-running --instance-ids $NEW_INSTANCE_ID
+                </div>
+                <br />
+                <strong>✅ Verification Checklist:</strong>
+                <div class="verification-grid">
+                    <div class="verification-item"><span class="check">□</span> AMI created from snapshot</div>
+                    <div class="verification-item"><span class="check">□</span> AMI is in an available state</div>
+                    <div class="verification-item"><span class="check">□</span> New instance launched from the AMI</div>
+                    <div class="verification-item"><span class="check">□</span> New instance is in a running state</div>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🔄 P9.2.3</span>
+                <span>📋 create AMI</span>
+                <span>🚀 launch instance</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 6: P9.2.4 – Verify Recovery -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:5">
+            <div class="note-pin">✅</div>
+            <h2 class="note-title">P9.2.4 Verify Configuration and Data Recovery</h2>
+            <div class="note-body">
+                <strong>📖 Theory: Post-Recovery Validation</strong>
+                <br />
+                Validation confirms that the recovery was successful. Key checks include <strong>OS version</strong>, <strong>installed applications</strong>, <strong>configuration files</strong>, and any custom data stored on the root volume.
+                <br /><br />
+                <strong>Step 1: Connect to the Recovered Instance</strong>
+                <div class="code-block">
+                    PUBLIC_IP=$(aws ec2 describe-instances \
+                        --instance-ids $NEW_INSTANCE_ID \
+                        --query 'Reservations[0].Instances[0].PublicIpAddress' \
+                        --output text)
+
+                    echo "Recovered Instance Public IP: $PUBLIC_IP"
+                    ssh -i MyKeyPair.pem ec2-user@$PUBLIC_IP
+                </div>
+                <br />
+                <strong>Step 2: Verify OS and Configuration</strong>
+                <div class="code-block">
+                    <span class="comment"># Check OS version</span>
+                    cat /etc/os-release
+
+                    <span class="comment"># Check kernel version</span>
+                    uname -r
+
+                    <span class="comment"># Verify installed packages</span>
+                    rpm -qa | head -20
+
+                    <span class="comment"># Check Apache status</span>
+                    sudo systemctl status httpd
+                </div>
+                <br />
+                <strong>Step 3: Verify Custom Data</strong>
+                <div class="code-block">
+                    ls -la /var/www/html
+                    cat /var/www/html/index.html
+                </div>
+                <br />
+                <div class="def-box" style="border-left-color:#f5d4aa;">
+                    <strong>💡 Key Insight:</strong> The recovered instance should be <strong>identical</strong> to the original instance as of the snapshot creation time. This includes OS version, installed packages, and custom data.
+                </div>
+                <br />
+                <strong>✅ Verification Checklist:</strong>
+                <div class="verification-grid">
+                    <div class="verification-item"><span class="check">□</span> Successfully connected to the recovered instance</div>
+                    <div class="verification-item"><span class="check">□</span> OS version matches the original</div>
+                    <div class="verification-item"><span class="check">□</span> Apache is running</div>
+                    <div class="verification-item"><span class="check">□</span> Custom web page is accessible</div>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>✅ P9.2.4</span>
+                <span>📊 verification</span>
+                <span>🔄 recovery success</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 7: Practical Summary -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:6">
+            <div class="note-pin">📊</div>
+            <h2 class="note-title">Practical Summary</h2>
+            <div class="note-body">
+                <table class="styled-table">
+                    <thead><tr><th>Task</th><th>Status</th><th>Notes</th></tr></thead>
+                    <tbody>
+                        <tr><td>P9.2.1: Take Snapshot of Boot Volume</td><td><span class="chip chip-green">☐ Complete</span></td><td>Root volume snapshot created</td></tr>
+                        <tr><td>P9.2.2: Terminate Original Instance</td><td><span class="chip chip-green">☐ Complete</span></td><td>Disaster simulated</td></tr>
+                        <tr><td>P9.2.3: Create AMI from Snapshot</td><td><span class="chip chip-green">☐ Complete</span></td><td>New AMI registered</td></tr>
+                        <tr><td>P9.2.4: Launch and Verify</td><td><span class="chip chip-green">☐ Complete</span></td><td>Instance recovered successfully</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="note-meta">
+                <span>📊 summary</span>
+                <span>✅ all tasks</span>
+                <span>🔄 complete</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 8: Key Takeaways -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:7">
+            <div class="note-pin">🧠</div>
+            <h2 class="note-title">Key Takeaways</h2>
+            <div class="note-body">
+                <ul>
+                    <li>A <strong>snapshot</strong> is a point-in-time backup of a <strong>single volume</strong>, not a launchable instance.</li>
+                    <br />
+                    <li>You <strong>cannot</strong> launch an instance directly from a snapshot — you must <strong>create an AMI</strong> first.</li>
+                    <br />
+                    <li>When registering an AMI from a snapshot, you must specify <strong>architecture</strong>, <strong>root device name</strong>, and <strong>virtualization type</strong>.</li>
+                    <br />
+                    <li>An <strong>AMI</strong> contains one or more snapshots plus <strong>instance metadata</strong> (architecture, kernel ID, virtualization type).</li>
+                    <br />
+                    <li><strong>Snapshots are incremental</strong> — the first snapshot is a full copy, subsequent ones only store changed blocks.</li>
+                    <br />
+                    <li><span class="chip">DeleteOnTermination</span> determines whether the root volume is deleted when the instance is terminated.</li>
+                    <br />
+                    <li><span class="chip">aws ec2 register-image</span> creates an AMI from a snapshot.</li>
+                    <br />
+                    <li><span class="chip">aws ec2 wait image-available</span> ensures the AMI is ready before launching.</li>
+                    <br />
+                    <li><strong>Post-recovery validation</strong> is essential — verify OS version, installed packages, and custom data.</li>
+                    <br />
+                    <li><strong>Disaster recovery</strong> is not complete until you've tested the recovery process.</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>🧠 takeaways</span>
+                <span>📸 snapshots</span>
+                <span>🔄 disaster recovery</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 9: Cleanup -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:8">
+            <div class="note-pin">🧹</div>
+            <h2 class="note-title">Cleanup</h2>
+            <div class="note-body">
+                <div class="code-block">
+                    <span class="comment"># Terminate the recovered instance</span>
+                    aws ec2 terminate-instances --instance-ids $NEW_INSTANCE_ID
+
+                    <span class="comment"># Deregister the recovered AMI</span>
+                    aws ec2 deregister-image --image-id $AMI_ID
+
+                    <span class="comment"># Delete the snapshot</span>
+                    aws ec2 delete-snapshot --snapshot-id $SNAPSHOT_ID
+                </div>
+                <br />
+                <div class="def-box" style="border-left-color:#f5d4aa;">
+                    <strong>💡 Remember:</strong> Deregistering an AMI does <strong>not</strong> automatically delete the underlying snapshots. You must delete them separately to avoid ongoing storage costs.
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🧹 cleanup</span>
+                <span>🗑️ delete resources</span>
+                <span>💰 avoid charges</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 10: Next Steps -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:9">
+            <div class="note-pin">🚀</div>
+            <h2 class="note-title">Next Steps</h2>
+            <div class="note-body">
+                <span style="font-size:2rem;">📖</span> Proceed to the next section:
+                <br /><br />
+                <span class="chip chip-purple" style="font-size:1.4rem;">Practical 9.3: EBS Multi-Attach — Shared Storage Between Instances</span>
+                <br /><br />
+                <div class="def-box" style="border-left-color:#f5d4aa;">
+                    <em>"A snapshot isn't a backup until you've tested the restore. <strong>Disaster recovery</strong> isn't a plan until you've proven it works. This practical gives you the confidence that when disaster strikes, you can <strong>recover fast</strong>."</em>
+                    <br />
+                    <span style="opacity:0.7;">— AWS Disaster Recovery Principles</span>
+                </div>
+                <br />
+                <div style="text-align:center; font-size:2.5rem; opacity:0.3; letter-spacing:10px;">
+                    ❖ ❖ ❖
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🚀 next</span>
+                <span>📖 Practical 9.3</span>
+                <span>🔗 Multi-Attach</span>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

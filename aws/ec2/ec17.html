@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EC2 Chapter 6.4 · Handwritten Notes</title>
+
+    <!-- Google Fonts – clear handwriting -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Gloria+Hallelujah&family=Architects+Daughter&family=Reenie+Beanie&display=swap" rel="stylesheet" />
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: #f7f0e7;
+            background-image: radial-gradient(circle at 30% 20%, #fcf7f0 0%, #eee7dd 100%);
+            display: flex;
+            justify-content: center;
+            padding: 2.5rem 1.5rem;
+            font-family: 'Patrick Hand', 'Architects Daughter', cursive;
+        }
+
+        .notes-container {
+            max-width: 1100px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 2.8rem;
+            animation: floatUp 0.9s ease-out;
+        }
+
+        .note {
+            background: #fffcf5;
+            padding: 2.5rem 3.5rem;
+            border-radius: 28px 28px 28px 10px;
+            box-shadow: 0 12px 36px rgba(0,0,0,0.06), 0 2px 10px rgba(0,0,0,0.03), inset 0 -2px 0 rgba(0,0,0,0.02);
+            position: relative;
+            transition: transform 0.3s ease, box-shadow 0.35s ease;
+            transform-origin: left center;
+            border-left: 8px solid transparent;
+            animation: notePop 0.6s ease both;
+            animation-delay: calc(var(--i, 0) * 0.025s);
+        }
+
+        .note:nth-child(1) { border-left-color: #f0b8b8; }
+        .note:nth-child(2) { border-left-color: #aad0c4; }
+        .note:nth-child(3) { border-left-color: #f5d4aa; }
+        .note:nth-child(4) { border-left-color: #cfb8e0; }
+        .note:nth-child(5) { border-left-color: #b8cce0; }
+        .note:nth-child(6) { border-left-color: #e8c8b8; }
+        .note:nth-child(7) { border-left-color: #b8d9c8; }
+        .note:nth-child(8) { border-left-color: #f0c8c8; }
+        .note:nth-child(9) { border-left-color: #d4c8e8; }
+        .note:nth-child(10) { border-left-color: #c8dce8; }
+        .note:nth-child(11) { border-left-color: #e8d4b8; }
+
+        .note:hover {
+            transform: rotate(-0.8deg) scale(1.015);
+            box-shadow: 0 24px 48px rgba(0,0,0,0.09), 0 4px 16px rgba(0,0,0,0.05);
+        }
+
+        .note-title {
+            font-family: 'Gloria Hallelujah', 'Patrick Hand', cursive;
+            font-size: 2.2rem;
+            font-weight: 500;
+            color: #2f2216;
+            letter-spacing: 0.8px;
+            margin-bottom: 0.3rem;
+            line-height: 1.25;
+            display: inline-block;
+            position: relative;
+        }
+
+        .note-title::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: -4px;
+            width: 100%;
+            height: 8px;
+            background: repeating-linear-gradient(90deg, transparent, transparent 6px, rgba(240,184,184,0.4) 6px, rgba(240,184,184,0.4) 12px);
+            border-radius: 20px;
+            opacity: 0.8;
+        }
+
+        .note-subtitle {
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.3rem;
+            color: #5a4a3a;
+            margin: -0.1rem 0 1rem 0;
+            font-weight: 400;
+            opacity: 0.85;
+        }
+
+        .note-body {
+            font-family: 'Architects Daughter', 'Patrick Hand', cursive;
+            font-size: 1.35rem;
+            line-height: 1.85;
+            color: #2a1f15;
+            margin: 0.9rem 0 0.4rem 0;
+            font-weight: 400;
+            letter-spacing: 0.4px;
+        }
+
+        .note-body strong {
+            font-weight: 700;
+            color: #a05545;
+            background: rgba(240,184,184,0.15);
+            padding: 0 8px;
+            border-radius: 16px;
+            font-style: normal;
+        }
+
+        .note-body em {
+            color: #5a8a78;
+            font-style: italic;
+            text-decoration: underline wavy #aad0c4 3px;
+            font-weight: 500;
+        }
+
+        .note-body .chip {
+            background: #f0e9e0;
+            padding: 0.1rem 1.2rem;
+            border-radius: 40px;
+            display: inline-block;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.15rem;
+            color: #3d3226;
+            border: 1px dashed #cbb8a8;
+            margin: 2px 0;
+            font-weight: 400;
+        }
+
+        .note-body .chip-blue { background: #dce8f0; border-color: #aac0d0; }
+        .note-body .chip-green { background: #d8ece0; border-color: #a0c8b8; }
+        .note-body .chip-pink { background: #f0dcd8; border-color: #d8b8b0; }
+        .note-body .chip-purple { background: #e4d8ec; border-color: #c8b8d8; }
+        .note-body .chip-gold { background: #f0e8d0; border-color: #d8c8a8; }
+        .note-body .chip-teal { background: #c8e8dc; border-color: #88c8b8; }
+        .note-body .chip-orange { background: #f0dcc8; border-color: #d8b898; }
+        .note-body .chip-red { background: #f0d8d8; border-color: #d8b0b0; }
+
+        .code-block {
+            background: #1e1a16;
+            color: #e8e0d8;
+            padding: 1.2rem 1.8rem;
+            border-radius: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.75rem;
+            line-height: 1.7;
+            margin: 0.8rem 0 1rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            border-left: 4px solid #f0b8b8;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .code-block .comment { color: #7a8a7a; }
+        .code-block .keyword { color: #f0b8b8; }
+        .code-block .string { color: #b8d9c8; }
+        .code-block .function { color: #c8b8e8; }
+        .code-block .tag { color: #f5d4aa; }
+        .code-block .number { color: #f5d4aa; }
+        .code-block .bold { color: #f0e0c8; font-weight: bold; }
+
+        .ascii-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1rem 1.5rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.45rem;
+            line-height: 1.5;
+            color: #2a1f15;
+            border: 1px solid #e0d8ce;
+            margin: 0.8rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .ascii-box .highlight { color: #a05545; font-weight: bold; }
+        .ascii-box .title { color: #2f2216; font-weight: bold; text-decoration: underline; }
+
+        .styled-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 0.8rem;
+            background: #f8f4ec;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        }
+
+        .styled-table th {
+            background: #2f2216;
+            color: #f5efe8;
+            padding: 0.5rem 0.7rem;
+            text-align: left;
+            font-weight: 500;
+            font-size: 0.75rem;
+        }
+
+        .styled-table td {
+            padding: 0.5rem 0.7rem;
+            border-bottom: 1px solid #e8e0d6;
+            color: #2a1f15;
+            font-size: 0.75rem;
+        }
+
+        .styled-table tr:last-child td { border-bottom: none; }
+        .styled-table tr:hover td { background: #f0e9e0; }
+
+        .note-body ul, .note-body ol {
+            padding-left: 2rem;
+            margin: 0.5rem 0;
+        }
+        .note-body li { margin-bottom: 0.3rem; }
+
+        .def-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1.2rem 1.8rem;
+            margin: 0.8rem 0;
+            border-left: 6px solid #aad0c4;
+        }
+        .def-box strong { color: #a05545; }
+
+        .qa-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1rem 1.8rem;
+            margin: 0.8rem 0;
+            border-left: 6px solid #cfb8e0;
+        }
+        .qa-box .q { font-weight: 600; color: #a05545; font-size: 1.2rem; }
+        .qa-box .a { color: #3d6b5a; margin-top: 0.3rem; padding-left: 0.5rem; }
+
+        .note-meta {
+            margin-top: 1.5rem;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.05rem;
+            color: #9f8875;
+            display: flex;
+            align-items: center;
+            gap: 1.2rem;
+            flex-wrap: wrap;
+        }
+
+        .note-meta span {
+            background: #f1eae1;
+            padding: 0.3rem 1.4rem;
+            border-radius: 60px;
+            font-size: 1rem;
+            color: #4d3b2b;
+            box-shadow: inset 0 1px 4px rgba(0,0,0,0.02);
+            font-weight: 400;
+            letter-spacing: 0.3px;
+        }
+
+        .note-pin {
+            position: absolute;
+            top: -12px;
+            right: 34px;
+            font-size: 2.6rem;
+            opacity: 0.25;
+            transform: rotate(25deg);
+            filter: drop-shadow(0 3px 6px rgba(0,0,0,0.06));
+            transition: opacity 0.25s;
+        }
+        .note:hover .note-pin { opacity: 0.8; }
+
+        .op-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 0.3rem;
+            margin: 0.5rem 0;
+        }
+        .op-item {
+            background: #f8f4ec;
+            padding: 0.3rem 0.5rem;
+            border-radius: 6px;
+            border-left: 3px solid #b8cce0;
+            font-size: 0.7rem;
+        }
+        .op-item .o { font-weight: 700; color: #a05545; }
+        .op-item .d { color: #3d6b5a; }
+
+        .comp-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 0.2rem;
+            margin: 0.5rem 0;
+        }
+        .comp-item {
+            background: #f8f4ec;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            border-left: 3px solid #f5d4aa;
+            font-size: 0.6rem;
+            text-align: center;
+        }
+        .comp-item .comp { font-weight: 700; color: #a05545; }
+
+        .compare-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.3rem;
+            margin: 0.5rem 0;
+        }
+        .compare-item {
+            background: #f8f4ec;
+            padding: 0.3rem 0.5rem;
+            border-radius: 6px;
+            border-left: 3px solid #b8cce0;
+            font-size: 0.7rem;
+        }
+        .compare-item .c { font-weight: 700; color: #a05545; }
+
+        @keyframes floatUp {
+            0% { opacity: 0; transform: translateY(50px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes notePop {
+            0% { opacity: 0; transform: scale(0.92) rotate(-3deg); }
+            80% { opacity: 1; transform: scale(1.015) rotate(0.8deg); }
+            100% { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+
+        @media (max-width: 700px) {
+            .note { padding: 1.8rem 1.8rem; }
+            .note-title { font-size: 1.8rem; }
+            .note-body { font-size: 1.15rem; line-height: 1.7; }
+            .note-body .chip { font-size: 1rem; padding: 0 0.8rem; }
+            .code-block { font-size: 0.65rem; padding: 1rem; }
+            .note-pin { font-size: 2rem; top: -8px; right: 18px; }
+            .styled-table { font-size: 0.7rem; }
+            .styled-table th, .styled-table td { padding: 0.4rem 0.5rem; font-size: 0.7rem; }
+            .notes-container { gap: 2rem; }
+            .ascii-box { font-size: 0.38rem; padding: 0.8rem 1rem; }
+            .qa-box { padding: 0.8rem 1.2rem; }
+            .def-box { padding: 0.8rem 1.2rem; }
+            .op-grid { grid-template-columns: 1fr 1fr; }
+            .comp-grid { grid-template-columns: 1fr 1fr; }
+            .compare-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="notes-container">
+
+        <!-- ============================================================ -->
+        <!-- NOTE 1: Chapter Title -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:0">
+            <div class="note-pin">📊</div>
+            <h2 class="note-title">6.4 Managing Instance States</h2>
+            <div class="note-body">
+                Managing EC2 instance states is a <strong>core operational task</strong> that involves controlling the lifecycle of your virtual servers. Understanding how to properly start, stop, reboot, and terminate instances is essential for <strong>cost management</strong>, <strong>maintenance</strong>, and ensuring <strong>high availability</strong>.
+                <br /><br />
+                This chapter covers the four primary instance management operations and their implications.
+            </div>
+            <div class="note-meta">
+                <span>📊 management</span>
+                <span>🔄 states</span>
+                <span>⚡ EC2</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 2: The Four Operations -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:1">
+            <div class="note-pin">📋</div>
+            <h2 class="note-title">The Four Primary Operations</h2>
+            <div class="note-body">
+                <div class="op-grid">
+                    <div class="op-item" style="border-left-color:#b8cce0;">
+                        <div class="o">▶️ Start</div>
+                        <div class="d">Powers on a stopped instance</div>
+                        <div style="font-size:0.6rem;">Resume work → Billing resumes</div>
+                    </div>
+                    <div class="op-item" style="border-left-color:#aad0c4;">
+                        <div class="o">⏸️ Stop</div>
+                        <div class="d">Powers off a running instance</div>
+                        <div style="font-size:0.6rem;">Cost savings → Billing stops (compute)</div>
+                    </div>
+                    <div class="op-item" style="border-left-color:#f5d4aa;">
+                        <div class="o">🔄 Reboot</div>
+                        <div class="d">Restarts without changing state</div>
+                        <div style="font-size:0.6rem;">OS updates → Billing continues</div>
+                    </div>
+                    <div class="op-item" style="border-left-color:#f0b8b8;">
+                        <div class="o">🗑️ Terminate</div>
+                        <div class="d">Permanently deletes the instance</div>
+                        <div style="font-size:0.6rem;">Remove resources → Billing stops permanently</div>
+                    </div>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>📋 operations</span>
+                <span>▶️ start</span>
+                <span>⏸️ stop</span>
+                <span>🔄 reboot</span>
+                <span>🗑️ terminate</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 3: Stop Instance -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:2">
+            <div class="note-pin">⏸️</div>
+            <h2 class="note-title">Operation 1: Stop Instance</h2>
+            <div class="note-body">
+                <strong>📖 Theory</strong>
+                <br />
+                Stopping an instance powers it down and releases the underlying physical resources (vCPUs, memory). The instance's EBS volumes remain intact, and the instance ID, private IP, and Elastic IP (if attached) are preserved.
+                <br /><br />
+                <strong>What Happens During Stop:</strong>
+                <div class="comp-grid">
+                    <div class="comp-item" style="border-left-color:#b8cce0;">
+                        <div class="comp">Compute Resources</div>
+                        <div style="font-size:0.55rem;">Released (vCPU, memory)</div>
+                    </div>
+                    <div class="comp-item" style="border-left-color:#aad0c4;">
+                        <div class="comp">EBS Volumes</div>
+                        <div style="font-size:0.55rem;">✅ Preserved (data persists)</div>
+                    </div>
+                    <div class="comp-item" style="border-left-color:#f0b8b8;">
+                        <div class="comp">Instance Store</div>
+                        <div style="font-size:0.55rem;">❌ Data is lost</div>
+                    </div>
+                    <div class="comp-item" style="border-left-color:#f5d4aa;">
+                        <div class="comp">Public IP</div>
+                        <div style="font-size:0.55rem;">Released (unless Elastic IP)</div>
+                    </div>
+                    <div class="comp-item" style="border-left-color:#cfb8e0;">
+                        <div class="comp">Private IP</div>
+                        <div style="font-size:0.55rem;">✅ Preserved</div>
+                    </div>
+                    <div class="comp-item" style="border-left-color:#e8c8b8;">
+                        <div class="comp">Instance ID</div>
+                        <div style="font-size:0.55rem;">✅ Preserved</div>
+                    </div>
+                    <div class="comp-item" style="border-left-color:#b8d9c8;">
+                        <div class="comp">Billing</div>
+                        <div style="font-size:0.55rem;">⏸️ Stops for compute</div>
+                    </div>
+                </div>
+                <br />
+                <strong>When to Stop:</strong>
+                <ul>
+                    <li><span class="chip chip-blue">💰 Cost Optimization:</span> Save costs during off-hours</li>
+                    <li><span class="chip chip-green">🔧 Maintenance:</span> OS updates or configuration changes</li>
+                    <li><span class="chip chip-gold">📊 Instance Type Change:</span> Change the instance type</li>
+                    <li><span class="chip chip-purple">💾 Data Preservation:</span> Pause work while keeping data intact</li>
+                </ul>
+            </div>
+            <div class="ascii-box">
+                <span class="title">STOP INSTANCE - CONSOLE WORKFLOW</span>
+                ┌─────────────────────────────────────────────────────────────────────────────────────┐
+                │                    STOP INSTANCE - CONSOLE WORKFLOW                                │
+                ├─────────────────────────────────────────────────────────────────────────────────────┤
+                │                                                                                     │
+                │  EC2 Dashboard → Instances                                                         │
+                │  ┌─────────────────────────────────────────────────────────────────────────────────┐ │
+                │  │  ☐ Name          │ Instance ID  │ Instance State │ Public IP                   │ │
+                │  │  ├─ ☑ My-Web-Server │ i-12345    │ Running        │ 54.123.45.67              │ │
+                │  │  └─ ☐ My-DB-Server  │ i-67890    │ Stopped        │ -                         │ │
+                │  └─────────────────────────────────────────────────────────────────────────────────┘ │
+                │                                                                                     │
+                │  Instance State ▼                                                                  │
+                │  ┌─────────────────────────────────────────────────────────────────────────────────┐ │
+                │  │  Start instance                                                                 │ │
+                │  │  Stop instance                   ◄─── Select this                              │ │
+                │  │  Reboot instance                                                                │ │
+                │  │  Terminate (delete) instance                                                   │ │
+                │  └─────────────────────────────────────────────────────────────────────────────────┘ │
+                │                                                                                     │
+                └─────────────────────────────────────────────────────────────────────────────────────┘
+            </div>
+            <div class="note-body">
+                <strong>Using the AWS CLI:</strong>
+                <div class="code-block">
+                    <span class="comment"># Stop a single instance</span>
+                    aws ec2 stop-instances --instance-ids i-1234567890abcdef0
+
+                    <span class="comment"># Force stop (if the instance is hung)</span>
+                    aws ec2 stop-instances --instance-ids i-1234567890abcdef0 --force
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>⏸️ stop</span>
+                <span>💾 EBS preserved</span>
+                <span>💰 cost savings</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 4: Start Instance -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:3">
+            <div class="note-pin">▶️</div>
+            <h2 class="note-title">Operation 2: Start Instance</h2>
+            <div class="note-body">
+                <strong>📖 Theory</strong>
+                <br />
+                Starting an instance powers it on and allocates the required physical resources (vCPUs, memory). The instance boots from its EBS root volume and resumes operations.
+                <br /><br />
+                <strong>What Happens During Start:</strong>
+                <div class="comp-grid">
+                    <div class="comp-item" style="border-left-color:#b8cce0;">
+                        <div class="comp">Compute Resources</div>
+                        <div style="font-size:0.55rem;">Allocated on physical host</div>
+                    </div>
+                    <div class="comp-item" style="border-left-color:#aad0c4;">
+                        <div class="comp">EBS Volumes</div>
+                        <div style="font-size:0.55rem;">✅ Reattached and preserved</div>
+                    </div>
+                    <div class="comp-item" style="border-left-color:#f0b8b8;">
+                        <div class="comp">Instance Store</div>
+                        <div style="font-size:0.55rem;">New empty instance store</div>
+                    </div>
+                    <div class="comp-item" style="border-left-color:#f5d4aa;">
+                        <div class="comp">Public IP</div>
+                        <div style="font-size:0.55rem;">New public IP assigned</div>
+                    </div>
+                    <div class="comp-item" style="border-left-color:#cfb8e0;">
+                        <div class="comp">Private IP</div>
+                        <div style="font-size:0.55rem;">✅ Preserved</div>
+                    </div>
+                    <div class="comp-item" style="border-left-color:#e8c8b8;">
+                        <div class="comp">Instance ID</div>
+                        <div style="font-size:0.55rem;">✅ Preserved</div>
+                    </div>
+                    <div class="comp-item" style="border-left-color:#b8d9c8;">
+                        <div class="comp">Billing</div>
+                        <div style="font-size:0.55rem;">▶️ Resumes for compute</div>
+                    </div>
+                </div>
+                <br />
+                <strong>When to Start:</strong>
+                <ul>
+                    <li><span class="chip chip-blue">🔄 Resume Workloads:</span> After maintenance or cost-saving pause</li>
+                    <li><span class="chip chip-green">📊 Auto Scaling:</span> ASG automatically starts instances</li>
+                    <li><span class="chip chip-gold">🔄 Recovery:</span> Recover after a system check failure</li>
+                </ul>
+                <br />
+                <strong>Using the AWS CLI:</strong>
+                <div class="code-block">
+                    aws ec2 start-instances --instance-ids i-1234567890abcdef0
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>▶️ start</span>
+                <span>🔁 resume</span>
+                <span>💰 billing resumes</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 5: Reboot Instance -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:4">
+            <div class="note-pin">🔄</div>
+            <h2 class="note-title">Operation 3: Reboot Instance</h2>
+            <div class="note-body">
+                <strong>📖 Theory</strong>
+                <br />
+                A reboot restarts the instance's operating system without changing its underlying resources. Unlike stop/start, a reboot preserves the instance's IP addresses, instance store data, and does not move the instance to a different host.
+                <br /><br />
+                <strong>What Happens During Reboot:</strong>
+                <ul>
+                    <li><span class="chip chip-green">✅ Physical Host:</span> Unchanged</li>
+                    <li><span class="chip chip-green">✅ Compute Resources:</span> Unchanged</li>
+                    <li><span class="chip chip-green">✅ EBS Volumes:</span> Persist (data intact)</li>
+                    <li><span class="chip chip-green">✅ Instance Store:</span> Persists (data intact)</li>
+                    <li><span class="chip chip-green">✅ Public IP:</span> Unchanged</li>
+                    <li><span class="chip chip-green">✅ Private IP:</span> Unchanged</li>
+                    <li><span class="chip chip-green">✅ Billing:</span> Continues uninterrupted</li>
+                </ul>
+                <br />
+                <strong>When to Reboot:</strong>
+                <ul>
+                    <li><span class="chip chip-blue">🔄 OS Updates:</span> Apply kernel or OS updates</li>
+                    <li><span class="chip chip-green">🧹 Application Issues:</span> Clear memory leaks</li>
+                    <li><span class="chip chip-gold">⚡ Performance:</span> Resolve degradation from long uptime</li>
+                </ul>
+                <br />
+                <strong>Using the AWS CLI:</strong>
+                <div class="code-block">
+                    aws ec2 reboot-instances --instance-ids i-1234567890abcdef0
+                </div>
+            </div>
+            <div class="compare-grid">
+                <div class="compare-item" style="border-left-color:#b8cce0;">
+                    <div class="c">🔄 Reboot</div>
+                    <div style="font-size:0.65rem;">• Downtime: 2-5 minutes<br/>• Physical Host: Unchanged<br/>• Instance Store: Preserved<br/>• IP Addresses: Unchanged<br/>• Billing: Continuous</div>
+                </div>
+                <div class="compare-item" style="border-left-color:#f5d4aa;">
+                    <div class="c">⏸️ Stop/Start</div>
+                    <div style="font-size:0.65rem;">• Downtime: 5-15 minutes<br/>• Physical Host: May change<br/>• Instance Store: Lost<br/>• IP Addresses: Public IP changes<br/>• Billing: Pauses during stop</div>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🔄 reboot</span>
+                <span>⚡ fast</span>
+                <span>💵 billing continues</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 6: Terminate Instance -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:5">
+            <div class="note-pin">🗑️</div>
+            <h2 class="note-title">Operation 4: Terminate Instance</h2>
+            <div class="note-body">
+                <div class="def-box" style="border-left-color:#f0b8b8;">
+                    <strong>⚠️ WARNING: Termination is Permanent and Irreversible</strong>
+                    <br />
+                    Terminating an instance permanently deletes it and typically deletes its associated EBS root volume (unless <span class="chip">DeleteOnTermination=false</span>). Terminated instances <strong>cannot be recovered</strong>.
+                </div>
+                <br />
+                <strong>📖 Theory</strong>
+                <br />
+                Termination is the final operation in an instance's lifecycle. It permanently deletes the instance, releases all resources, and removes the instance ID from your account.
+                <br /><br />
+                <strong>What Happens During Termination:</strong>
+                <ul>
+                    <li><span class="chip chip-pink">❌ Compute Resources:</span> Released permanently</li>
+                    <li><span class="chip chip-pink">❌ EBS Root Volume:</span> Deleted (unless DeleteOnTermination=false)</li>
+                    <li><span class="chip chip-green">✅ EBS Data Volumes:</span> Preserved if DeleteOnTermination=false</li>
+                    <li><span class="chip chip-pink">❌ Instance Store:</span> Data lost</li>
+                    <li><span class="chip chip-pink">❌ Public IP:</span> Released</li>
+                    <li><span class="chip chip-pink">❌ Private IP:</span> Released</li>
+                    <li><span class="chip chip-pink">❌ Instance ID:</span> Permanently deleted</li>
+                    <li><span class="chip chip-pink">❌ Billing:</span> Stops permanently</li>
+                </ul>
+                <br />
+                <strong>When to Terminate:</strong>
+                <ul>
+                    <li><span class="chip chip-blue">🧹 Resource Cleanup:</span> Remove unused instances</li>
+                    <li><span class="chip chip-green">💰 Cost Control:</span> Eliminate all charges</li>
+                    <li><span class="chip chip-gold">📊 Auto Scaling:</span> ASG automatically terminates instances</li>
+                </ul>
+            </div>
+            <div class="ascii-box">
+                <span class="title">TERMINATE INSTANCE - CONFIRMATION DIALOG</span>
+                ┌─────────────────────────────────────────────────────────────────────────────────────┐
+                │                    TERMINATE INSTANCE - CONFIRMATION DIALOG                       │
+                ├─────────────────────────────────────────────────────────────────────────────────────┤
+                │                                                                                     │
+                │  ⚠️ WARNING: Terminate Instance                                                   │
+                │                                                                                     │
+                │  You are about to terminate an EC2 instance. This action is permanent and        │
+                │  cannot be undone.                                                                │
+                │                                                                                     │
+                │  Instance: i-1234567890abcdef0                                                    │
+                │  Name: My-Web-Server                                                               │
+                │                                                                                     │
+                │  ✅ I understand that this instance will be permanently deleted.                 │
+                │                                                                                     │
+                │  [Cancel]                                 [Terminate]                             │
+                │                                                                                     │
+                └─────────────────────────────────────────────────────────────────────────────────────┘
+            </div>
+            <div class="note-body">
+                <strong>Using the AWS CLI:</strong>
+                <div class="code-block">
+                    aws ec2 terminate-instances --instance-ids i-1234567890abcdef0
+                </div>
+                <br />
+                <strong>🛡️ Preventing Accidental Termination:</strong>
+                <div class="code-block">
+                    <span class="comment"># Enable termination protection</span>
+                    aws ec2 modify-instance-attribute \
+                        --instance-id i-1234567890abcdef0 \
+                        --disable-api-termination
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🗑️ terminate</span>
+                <span>⚠️ permanent</span>
+                <span>🛡️ protection</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 7: Summary Comparison -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:6">
+            <div class="note-pin">📊</div>
+            <h2 class="note-title">Operation Summary Comparison</h2>
+            <div class="note-body">
+                <table class="styled-table">
+                    <thead><tr><th>Operation</th><th>State Transition</th><th>Data Persistence</th><th>Billing Impact</th><th>Use Case</th></tr></thead>
+                    <tbody>
+                        <tr><td><span class="chip chip-blue">Start</span></td><td>Stopped → Pending → Running</td><td>EBS preserved</td><td>▶️ Resumes</td><td>Resume paused workloads</td></tr>
+                        <tr><td><span class="chip chip-gold">Stop</span></td><td>Running → Stopping → Stopped</td><td>EBS preserved</td><td>⏸️ Stops (compute)</td><td>Cost savings, maintenance</td></tr>
+                        <tr><td><span class="chip chip-purple">Reboot</span></td><td>Running → Running (after reboot)</td><td>All data preserved</td><td>🔄 Continues</td><td>OS updates, app issues</td></tr>
+                        <tr><td><span class="chip chip-pink">Terminate</span></td><td>Running/Stopped → Terminating → Terminated</td><td>EBS deleted (unless protected)</td><td>⏹️ Stops permanently</td><td>Remove unused resources</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="note-meta">
+                <span>📊 comparison</span>
+                <span>🔄 states</span>
+                <span>💰 billing</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 8: Key Takeaways -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:7">
+            <div class="note-pin">📝</div>
+            <h2 class="note-title">Key Takeaways</h2>
+            <div class="note-body">
+                <ul>
+                    <li><strong>Stop</strong> an instance to save costs while preserving EBS data. The instance can be started again later.</li>
+                    <br />
+                    <li><strong>Start</strong> an instance to resume operations after it has been stopped. A <span class="chip">new public IP</span> is assigned (unless an Elastic IP is attached).</li>
+                    <br />
+                    <li><strong>Reboot</strong> an instance for OS updates or to resolve application issues. It preserves all data, IP addresses, and instance store data, and billing is <span class="chip chip-green">uninterrupted</span>.</li>
+                    <br />
+                    <li><strong>Terminate</strong> an instance to permanently delete it and stop all charges. This action is <span class="chip chip-pink">irreversible</span>.</li>
+                    <br />
+                    <li>Use <strong>termination protection</strong> on critical instances to prevent accidental deletion.</li>
+                    <br />
+                    <li><strong>Monitor instance state</strong> using the console, CLI, or CloudWatch to ensure your operations are successful.</li>
+                    <br />
+                    <li><strong>Auto Scaling Groups</strong> automatically manage start, stop, and terminate operations based on your configuration.</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>📝 takeaways</span>
+                <span>🔄 management</span>
+                <span>💰 cost</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 9: Review Questions -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:8">
+            <div class="note-pin">❓</div>
+            <h2 class="note-title">Review Questions</h2>
+            <div class="note-body">
+
+                <div class="qa-box">
+                    <div class="q">Q1: What is the difference between stopping and terminating an EC2 instance?</div>
+                    <div class="a"><strong>Answer:</strong> <strong>Stopping</strong> powers down the instance while preserving EBS volumes, instance ID, private IP, and Elastic IP. The instance can be <strong>started again</strong>. <strong>Terminating</strong> permanently deletes the instance and typically deletes the EBS root volume. Terminated instances <strong>cannot be recovered</strong>.</div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#f5d4aa;">
+                    <div class="q">Q2: What happens to the data on an EBS volume when you stop an instance?</div>
+                    <div class="a"><strong>Answer:</strong> Data on EBS volumes is <strong>preserved</strong> when you stop an instance. The EBS volumes remain intact and can be accessed again when the instance is restarted.</div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#b8cce0;">
+                    <div class="q">Q3: Why would you choose to reboot an instance instead of stopping and starting it?</div>
+                    <div class="a"><strong>Answer:</strong> Rebooting is <strong>faster</strong> (2-5 minutes vs. 5-15 minutes), preserves the <strong>instance store</strong>, IP addresses, and does not move the instance to a different physical host. It is ideal for applying OS updates or clearing application issues without <strong>disrupting billing</strong>.</div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#cfb8e0;">
+                    <div class="q">Q4: How can you prevent an instance from being accidentally terminated?</div>
+                    <div class="a"><strong>Answer:</strong> Enable <strong>termination protection</strong> on the instance. This can be done in the console under <span class="chip">Instance Settings → Change termination protection</span>, or via the CLI using <span class="chip">aws ec2 modify-instance-attribute --disable-api-termination</span>. With termination protection enabled, you must <strong>disable it</strong> before terminating.</div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#aad0c4;">
+                    <div class="q">Q5: What happens to a public IP address (non-Elastic) when you stop an instance?</div>
+                    <div class="a"><strong>Answer:</strong> When you stop an instance, its public IP address (non-Elastic) is <strong>released</strong>. When you start the instance again, it receives a <strong>new public IP address</strong>. If an Elastic IP is attached, it remains attached to the instance.</div>
+                </div>
+
+            </div>
+            <div class="note-meta">
+                <span>❓ Q&A</span>
+                <span>📝 review</span>
+                <span>🧠 learning</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 10: Next Steps -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:9">
+            <div class="note-pin">🚀</div>
+            <h2 class="note-title">Next Steps</h2>
+            <div class="note-body">
+                <span style="font-size:2rem;">📖</span> Proceed to the next section:
+                <br /><br />
+                <span class="chip chip-purple" style="font-size:1.4rem;">6.5: EC2 Instance Monitoring</span>
+                <br /><br />
+                <div class="quote-box" style="border-left-color:#aad0c4;">
+                    "Mastering instance states is the <strong>key</strong> to controlling costs and managing infrastructure — know when to <strong>stop</strong>, when to <strong>start</strong>, and when to <strong>let go</strong>."
+                    <div class="author">— AWS EC2 Principles</div>
+                </div>
+                <br />
+                <div style="text-align:center; font-size:2.5rem; opacity:0.3; letter-spacing:10px;">
+                    ❖ ❖ ❖
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🚀 next</span>
+                <span>📖 6.5</span>
+                <span>📊 monitoring</span>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DynamoDB</title>
+    <meta name="description" content="Discover our fully managed Relational Database Service (RDS) with high scalability, security, and performance. Perfect for web applications and enterprises.">
+    <meta name="keywords" content="RDS, Relational Database Service, Database Hosting, Cloud Database, Scalable Database">
+    <meta name="author" content="Braj Bhushan kumar">
+
+  <link rel="icon" href="data:image/svg+xml,
+  <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>
+    <path fill='black' d='M4 5h16v4H4zM4 10h16v4H4zM4 15h16v4H4z'/>
+  </svg>">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-yellow-50">
+
+
+  
+
+<section class="bg-yellow-100 p-8 rounded-2xl shadow-md max-w-6xl mx-auto">
+  <h1 class="text-3xl font-bold text-teal-700 mb-4">What is DynamoDB?</h1>
+  <p class="text-lg text-gray-700 mb-4">
+    Amazon DynamoDB is a fully managed NoSQL database service that delivers fast and predictable performance
+    with seamless scalability. It uses a key-value and document data model, automatically replicates across
+    multiple Availability Zones, and offers both on-demand and provisioned capacity modes.
+  </p>
+
+  <h2 class="text-2xl font-semibold text-teal-700 mb-3">Core Characteristics</h2>
+  <ul class="list-disc list-inside space-y-2 text-gray-700">
+    <li>Single-digit millisecond latency for reads and writes.</li>
+    <li>Fully managed with automatic scaling and replication.</li>
+    <li>Flexible primary keys (partition key or partition + sort key).</li>
+    <li>Secondary indexes (GSI and LSI) for additional query flexibility.</li>
+    <li>DynamoDB Streams for change-data capture and event-driven triggers.</li>
+  </ul>
+
+  <h2 class="text-2xl font-semibold text-teal-700 mt-6 mb-3">Use Cases</h2>
+  <p class="text-gray-700">
+    DynamoDB is widely used for building applications such as e-commerce product catalogs, user session stores,
+    IoT telemetry ingestion, gaming leaderboards, and serverless backends integrated with AWS Lambda and API Gateway.
+  </p>
+</section>
+
+
+<section class="bg-yellow-100 p-8 rounded-2xl shadow-md max-w-6xl mx-auto space-y-6">
+  <h1 class="text-3xl font-bold text-teal-700">Data Organization</h1>
+
+  <div>
+    <h2 class="text-2xl font-semibold text-teal-700 mb-2">1. Partitions (Physical Storage)</h2>
+    <p class="text-gray-700">DynamoDB stores data across multiple partitions (distributed storage nodes).</p>
+    <p class="text-gray-700">The Partition Key decides which partition holds your data.</p>
+    <p class="text-gray-700">Good partition key choice = data spread evenly = consistent performance.</p>
+    <p class="text-gray-700">Bad partition key choice = hot partition (too many reads/writes on a single partition).</p>
+  </div>
+
+  <div>
+    <h2 class="text-2xl font-semibold text-teal-700 mb-2">2. Sort Key (for Composite Keys)</h2>
+    <p class="text-gray-700">If you use a composite primary key (Partition Key + Sort Key):</p>
+    <p class="text-gray-700">Partition Key groups related items together.</p>
+    <p class="text-gray-700">Sort Key orders them (lexicographically).</p>
+    <p class="text-gray-700">This enables range queries: e.g., fetch all orders for a user between two dates.</p>
+  </div>
+
+  <div>
+    <h2 class="text-2xl font-semibold text-teal-700 mb-2">3. Item Collection</h2>
+    <p class="text-gray-700">All items with the same partition key value form an item collection.</p>
+    <p class="text-gray-700">This is where LSIs (Local Secondary Indexes) operate.</p>
+  </div>
+
+  <div>
+    <h2 class="text-2xl font-semibold text-teal-700 mb-4">🔹 Indexes in Depth</h2>
+
+    <h3 class="text-xl font-semibold text-teal-700 mb-2">Local Secondary Index (LSI)</h3>
+    <ul class="list-disc list-inside text-gray-700 space-y-1">
+      <li>Same partition key as the main table, but a different sort key.</li>
+      <li>Created only at table creation.</li>
+      <li>Limited to 5 LSIs per table.</li>
+      <li>Good when you want multiple views on the same group of items.</li>
+    </ul>
+
+    <h3 class="text-xl font-semibold text-teal-700 mt-4 mb-2">Global Secondary Index (GSI)</h3>
+    <ul class="list-disc list-inside text-gray-700 space-y-1">
+      <li>Different partition key (and optional sort key) than the main table.</li>
+      <li>Can be created anytime.</li>
+      <li>Up to 20 GSIs per table.</li>
+      <li>Ideal for queries that don’t fit your base table’s primary key.</li>
+    </ul>
+  </div>
+
+  <div>
+    <h2 class="text-2xl font-semibold text-teal-700 mb-4">🔹 Query vs Scan (Important!)</h2>
+
+    <h3 class="text-xl font-semibold text-teal-700 mb-2">Query</h3>
+    <ul class="list-disc list-inside text-gray-700 space-y-1">
+      <li>Retrieves items based on partition key (and optional sort key conditions).</li>
+      <li>Very efficient, uses indexes.</li>
+      <li>Example: Get all messages for <code>chatId = 123</code> sorted by timestamp.</li>
+    </ul>
+
+    <h3 class="text-xl font-semibold text-teal-700 mt-4 mb-2">Scan</h3>
+    <ul class="list-disc list-inside text-gray-700 space-y-1">
+      <li>Reads the entire table item by item.</li>
+      <li>Much slower, more expensive.</li>
+      <li>Should be avoided for production use unless necessary.</li>
+    </ul>
+  </div>
+
+  <div>
+    <h2 class="text-2xl font-semibold text-teal-700 mb-4">🔹 Capacity & Performance Deep Dive</h2>
+
+    <h3 class="text-xl font-semibold text-teal-700 mb-2">Read Capacity Units (RCU)</h3>
+    <ul class="list-disc list-inside text-gray-700 space-y-1">
+      <li>1 RCU = 1 strongly consistent read/sec of up to 4 KB.</li>
+      <li>Or 2 eventually consistent reads/sec of up to 4 KB.</li>
+    </ul>
+
+    <h3 class="text-xl font-semibold text-teal-700 mt-4 mb-2">Write Capacity Units (WCU)</h3>
+    <ul class="list-disc list-inside text-gray-700 space-y-1">
+      <li>1 WCU = 1 write/sec of up to 1 KB.</li>
+    </ul>
+
+    <h3 class="text-xl font-semibold text-teal-700 mt-4 mb-2">On-Demand Mode</h3>
+    <ul class="list-disc list-inside text-gray-700 space-y-1">
+      <li>Scales automatically.</li>
+      <li>Pay-per-request.</li>
+      <li>Useful for unpredictable traffic.</li>
+    </ul>
+
+    <h3 class="text-xl font-semibold text-teal-700 mt-4 mb-2">Provisioned Mode</h3>
+    <ul class="list-disc list-inside text-gray-700 space-y-1">
+      <li>You set RCUs and WCUs.</li>
+      <li>Cheaper if traffic is predictable.</li>
+      <li>Can enable Auto Scaling to adjust units as traffic changes.</li>
+    </ul>
+  </div>
+</section>
+
+
+
+
+<section class="bg-yellow-100 p-8 rounded-2xl shadow-md max-w-6xl mx-auto space-y-6">
+  <h1 class="text-3xl font-bold text-teal-700">📌 Primary Key in DynamoDB (Detailed Explanation)</h1>
+  <p class="text-gray-700">
+    A Primary Key in DynamoDB uniquely identifies each item in a table. Unlike SQL databases where you can have multiple unique constraints,
+    DynamoDB requires exactly one primary key per table, and every item must have a unique value for it.
+  </p>
+
+  <div>
+    <h2 class="text-2xl font-semibold text-teal-700 mb-2">1. Types of Primary Keys</h2>
+
+    <h3 class="text-xl font-semibold text-teal-700 mb-2">🔹 Simple Primary Key (Partition Key Only)</h3>
+    <p class="text-gray-700">Consists of a single attribute called the Partition Key.</p>
+    <p class="text-gray-700">DynamoDB uses the Partition Key value to determine which physical partition stores the item.</p>
+    <p class="text-gray-700">Every item must have a unique partition key value in this model.</p>
+
+    <p class="text-gray-700 font-medium mt-2">👉 Example:</p>
+    <pre class="bg-yellow-200 p-4 rounded text-gray-700 text-sm overflow-x-auto">
+Table: Users
+Partition Key: userId
+Item:
+{
+  "userId": "101",
+  "name": "Alice",
+  "email": "alice@example.com"
+}
+    </pre>
+    <p class="text-gray-700">Here, userId uniquely identifies each user.</p>
+    <p class="text-gray-700 font-medium">📌 Best suited when:</p>
+    <p class="text-gray-700">You only need to look up items by one unique ID (like UserID, ProductID).</p>
+
+    <h3 class="text-xl font-semibold text-teal-700 mt-6 mb-2">🔹 Composite Primary Key (Partition Key + Sort Key)</h3>
+    <p class="text-gray-700">Consists of two attributes:</p>
+    <ul class="list-disc list-inside text-gray-700 space-y-1">
+      <li><span class="font-medium">Partition Key:</span> Groups related items together.</li>
+      <li><span class="font-medium">Sort Key:</span> Orders items within the same partition.</li>
+    </ul>
+    <p class="text-gray-700">Multiple items can have the same partition key, but each must have a different sort key.</p>
+    <p class="text-gray-700">Together, (Partition Key, Sort Key) must be unique.</p>
+
+    <p class="text-gray-700 font-medium mt-2">👉 Example:</p>
+    <pre class="bg-yellow-200 p-4 rounded text-gray-700 text-sm overflow-x-auto">
+Table: Orders
+Partition Key: userId
+Sort Key: orderDate
+Items:
+{
+  "userId": "101",
+  "orderDate": "2025-01-01",
+  "amount": 150
+}
+{
+  "userId": "101",
+  "orderDate": "2025-02-10",
+  "amount": 200
+}
+    </pre>
+    <p class="text-gray-700">Both items have the same userId but different orderDate.</p>
+    <p class="text-gray-700 font-medium">📌 Benefits:</p>
+    <p class="text-gray-700">Enables range queries on the Sort Key.</p>
+    <p class="text-gray-700">Example: Get all orders for userId=101 where orderDate is between 2025-01-01 and 2025-03-01.</p>
+  </div>
+
+  <div>
+    <h2 class="text-2xl font-semibold text-teal-700 mb-2">2. How Partition Key Works</h2>
+    <p class="text-gray-700">The Partition Key value is passed through a hashing function.</p>
+    <p class="text-gray-700">The hash decides which physical partition (storage node) stores the item.</p>
+    <p class="text-gray-700">If too many items share the same partition key, this causes a hot partition (performance bottleneck).</p>
+
+    <p class="text-gray-700 font-medium mt-2">👉 Example of Good vs Bad Partition Key:</p>
+    <ul class="list-disc list-inside text-gray-700 space-y-1">
+      <li><span class="font-medium">Good:</span> userId for a large user base (millions of users → data spreads well).</li>
+      <li><span class="font-medium">Bad:</span> countryCode (if 90% users are from one country, all requests hit the same partition).</li>
+    </ul>
+  </div>
+
+  <div>
+    <h2 class="text-2xl font-semibold text-teal-700 mb-2">3. Why Sort Key Matters</h2>
+    <p class="text-gray-700">Without Sort Key → You can only retrieve a single item by Partition Key.</p>
+    <p class="text-gray-700">With Sort Key → You can retrieve multiple items sharing the same Partition Key, ordered lexicographically.</p>
+
+    <p class="text-gray-700 font-medium mt-2">👉 Example query:</p>
+    <p class="text-gray-700">Get all Orders for userId=101 sorted by orderDate.</p>
+  </div>
+
+  <div>
+    <h2 class="text-2xl font-semibold text-teal-700 mb-2">4. Real-World Examples</h2>
+    <div class="overflow-x-auto">
+      <table class="table-auto border-collapse border border-teal-700 text-gray-700">
+        <thead class="bg-yellow-200">
+          <tr>
+            <th class="border border-teal-700 px-4 py-2">Table</th>
+            <th class="border border-teal-700 px-4 py-2">Partition Key</th>
+            <th class="border border-teal-700 px-4 py-2">Sort Key</th>
+            <th class="border border-teal-700 px-4 py-2">Use Case</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="border border-teal-700 px-4 py-2">Users</td>
+            <td class="border border-teal-700 px-4 py-2">userId</td>
+            <td class="border border-teal-700 px-4 py-2">—</td>
+            <td class="border border-teal-700 px-4 py-2">Lookup users by ID</td>
+          </tr>
+          <tr>
+            <td class="border border-teal-700 px-4 py-2">Orders</td>
+            <td class="border border-teal-700 px-4 py-2">userId</td>
+            <td class="border border-teal-700 px-4 py-2">orderDate</td>
+            <td class="border border-teal-700 px-4 py-2">Fetch user orders in order</td>
+          </tr>
+          <tr>
+            <td class="border border-teal-700 px-4 py-2">Messages</td>
+            <td class="border border-teal-700 px-4 py-2">chatId</td>
+            <td class="border border-teal-700 px-4 py-2">timestamp</td>
+            <td class="border border-teal-700 px-4 py-2">Get messages in a chat by time</td>
+          </tr>
+          <tr>
+            <td class="border border-teal-700 px-4 py-2">Products</td>
+            <td class="border border-teal-700 px-4 py-2">category</td>
+            <td class="border border-teal-700 px-4 py-2">productId</td>
+            <td class="border border-teal-700 px-4 py-2">Fetch all products in a category</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div>
+    <h2 class="text-2xl font-semibold text-teal-700 mb-2">5. Key Design Principles</h2>
+    <ul class="list-disc list-inside text-gray-700 space-y-1">
+      <li>Choose a partition key with high cardinality (many distinct values).</li>
+      <li>Distribute traffic evenly across partitions.</li>
+      <li>Use composite keys when you need to model 1-to-many relationships.</li>
+      <li>Consider access patterns first before designing primary keys (DynamoDB schema design is query-driven).</li>
+    </ul>
+  </div>
+
+  <div>
+    <h2 class="text-2xl font-semibold text-teal-700 mb-2">✅ In short:</h2>
+    <p class="text-gray-700"><span class="font-medium">Simple Primary Key →</span> Unique item lookup.</p>
+    <p class="text-gray-700"><span class="font-medium">Composite Primary Key →</span> Grouping + ordering of items.</p>
+  </div>
+</section>
+'
+
+
+
+
+
+<section class="bg-yellow-100 p-8 rounded-2xl shadow-md max-w-6xl mx-auto space-y-6">
+  <div class="max-w-6xl mx-auto">
+    <h1 class="text-3xl font-bold text-teal-700 mb-6">High Availability & Durability in DynamoDB</h1>
+    <p class="text-lg text-teal-700 mb-6">DynamoDB is designed to provide continuous uptime and data safety, even in the face of hardware failures, AZ (Availability Zone) outages, or sudden spikes in traffic.</p>
+    
+    <h2 class="text-2xl font-semibold text-teal-700 mb-3">1. Multi-AZ Data Replication (Built-In Redundancy)</h2>
+    <p class="text-teal-700 mb-4">DynamoDB is a regional service. When you write data to a DynamoDB table, it is automatically synchronously replicated across multiple Availability Zones (AZs) within the same AWS Region.</p>
+    <ul class="list-disc list-inside text-teal-700 mb-4">
+      <li>If one AZ goes down, your table is still available in another AZ.</li>
+      <li>No need for you to manage replication manually.</li>
+    </ul>
+    <p class="text-teal-700 mb-6">📌 Analogy: Imagine you save a document — DynamoDB makes 3 copies of it in different “buildings” (AZs) instantly.</p>
+    
+    <h2 class="text-2xl font-semibold text-teal-700 mb-3">2. Automatic Failover</h2>
+    <p class="text-teal-700 mb-6">Because the data is spread across multiple AZs: If one AZ experiences hardware/network issues, DynamoDB automatically routes traffic to healthy replicas. This ensures high availability with no downtime for your application.</p>
+    
+    <h2 class="text-2xl font-semibold text-teal-700 mb-3">3. Durability through Replication</h2>
+    <p class="text-teal-700 mb-4">Data durability means your data won’t get lost even if hardware fails. DynamoDB achieves durability by:</p>
+    <ul class="list-disc list-inside text-teal-700 mb-6">
+      <li>Writing multiple copies of each item across AZs.</li>
+      <li>Using a quorum-based write mechanism (write acknowledged only after data is safely stored in multiple replicas).</li>
+    </ul>
+    
+    <h2 class="text-2xl font-semibold text-teal-700 mb-3">4. Consistency Models</h2>
+    <p class="text-teal-700 mb-4">To balance availability and performance, DynamoDB offers two read models:</p>
+    <ul class="list-disc list-inside text-teal-700 mb-6">
+      <li><strong>Eventually Consistent Reads (default):</strong> Reads might not reflect the latest write instantly, but replicas will synchronize quickly. Provides higher availability with lower latency.</li>
+      <li><strong>Strongly Consistent Reads:</strong> Guarantees you always read the latest committed value. Reads from the leader replica. Slightly higher latency.</li>
+    </ul>
+    
+    <h2 class="text-2xl font-semibold text-teal-700 mb-3">5. Backup & Restore</h2>
+    <ul class="list-disc list-inside text-teal-700 mb-6">
+      <li><strong>Point-in-Time Recovery (PITR):</strong> DynamoDB can restore your table to any second within the last 35 days.</li>
+      <li><strong>On-Demand Backups:</strong> Create full table backups at any time without affecting performance.</li>
+    </ul>
+    <p class="text-teal-700 mb-6">These features ensure long-term durability against accidental deletion or corruption.</p>
+    
+    <h2 class="text-2xl font-semibold text-teal-700 mb-3">6. Global Tables (Cross-Region Replication)</h2>
+    <p class="text-teal-700 mb-4">DynamoDB Global Tables replicate your data across multiple AWS Regions.</p>
+    <ul class="list-disc list-inside text-teal-700 mb-6">
+      <li>Disaster recovery (if an entire region goes down).</li>
+      <li>Low-latency reads/writes for globally distributed applications.</li>
+      <li>Provides multi-active replication (you can write in any region, and DynamoDB syncs changes).</li>
+    </ul>
+    
+    <h2 class="text-2xl font-semibold text-teal-700 mb-3">7. Auto Scaling & On-Demand Mode</h2>
+    <p class="text-teal-700 mb-6">DynamoDB automatically scales capacity (RCUs/WCUs) up and down based on traffic. This prevents service outages due to unexpected spikes, keeping your application always available.</p>
+    
+    <h2 class="text-2xl font-semibold text-teal-700 mb-3">8. SLA (Service Level Agreement)</h2>
+    <p class="text-teal-700 mb-4">AWS provides a 99.999% availability SLA for DynamoDB Global Tables and 99.99% availability for standard DynamoDB tables. This level of uptime is achieved through:</p>
+    <ul class="list-disc list-inside text-teal-700 mb-6">
+      <li>Redundancy</li>
+      <li>Automated failover</li>
+      <li>Continuous monitoring</li>
+    </ul>
+    
+    <h2 class="text-2xl font-semibold text-teal-700 mb-3">✅ Summary</h2>
+    <p class="text-teal-700">DynamoDB ensures high availability and durability through:</p>
+    <ul class="list-disc list-inside text-teal-700">
+      <li>Multi-AZ replication within a region.</li>
+      <li>Automatic failover to healthy replicas.</li>
+      <li>Quorum-based writes and replication for durability.</li>
+      <li>Configurable consistency models (eventual vs strong).</li>
+      <li>Point-in-time recovery and backups.</li>
+      <li>Global Tables for cross-region disaster recovery and low-latency access.</li>
+      <li>Auto scaling to handle traffic bursts.</li>
+    </ul>
+  </div>
+</section>
+
+
+
+
+
+
+
+<section class="bg-yellow-100 p-8 rounded-2xl shadow-md max-w-6xl mx-auto space-y-6">
+  <div class="max-w-6xl mx-auto">
+    <h1 class="text-3xl font-bold text-teal-700 mb-6">Indexes in DynamoDB (Detailed Explanation)</h1>
+    <p class="text-lg text-teal-700 mb-6">DynamoDB indexes are data structures that let you query the table using alternative keys (attributes other than your primary key). There are two types: <strong>Local Secondary Index (LSI)</strong> and <strong>Global Secondary Index (GSI)</strong>.</p>
+    
+    <h2 class="text-2xl font-semibold text-teal-700 mb-3">1. Local Secondary Index (LSI)</h2>
+    <h3 class="text-xl font-semibold text-teal-700 mb-2">🔹 Definition</h3>
+    <ul class="list-disc list-inside text-teal-700 mb-4">
+      <li>LSI shares the same Partition Key as the base table.</li>
+      <li>Uses a different Sort Key to provide alternate views of the same partition.</li>
+      <li>You must define LSIs at table creation time (cannot add later).</li>
+      <li>Limited to 5 LSIs per table.</li>
+    </ul>
+    
+    <h3 class="text-xl font-semibold text-teal-700 mb-2">🔹 How It Works</h3>
+    <p class="text-teal-700 mb-4">Example:</p>
+    <ul class="list-disc list-inside text-teal-700 mb-4">
+      <li>Partition Key: <code>userId</code></li>
+      <li>Sort Key: <code>orderDate</code></li>
+    </ul>
+    <p class="text-teal-700 mb-4">Add an LSI with:</p>
+    <ul class="list-disc list-inside text-teal-700 mb-4">
+      <li>Partition Key: <code>userId</code> (same as base table)</li>
+      <li>Sort Key: <code>orderAmount</code></li>
+    </ul>
+    <p class="text-teal-700 mb-6">Now you can query all orders for a user, but sorted by amount instead of date.</p>
+    
+    <h3 class="text-xl font-semibold text-teal-700 mb-2">🔹 Storage</h3>
+    <ul class="list-disc list-inside text-teal-700 mb-4">
+      <li>LSIs use the same storage as the base table.</li>
+      <li>Updates to the base table also update LSIs.</li>
+      <li>They count towards the item size limit (400 KB) of the table.</li>
+    </ul>
+    
+    <h3 class="text-xl font-semibold text-teal-700 mb-2">🔹 Use Cases</h3>
+    <p class="text-teal-700 mb-6">Multiple ways to query items within the same partition:</p>
+    <ul class="list-disc list-inside text-teal-700 mb-6">
+      <li>Orders by date</li>
+      <li>Orders by price</li>
+      <li>Orders by status</li>
+    </ul>
+    
+    <h2 class="text-2xl font-semibold text-teal-700 mb-3">2. Global Secondary Index (GSI)</h2>
+    <h3 class="text-xl font-semibold text-teal-700 mb-2">🔹 Definition</h3>
+    <ul class="list-disc list-inside text-teal-700 mb-4">
+      <li>GSI can have a different Partition Key and an optional Sort Key from the base table.</li>
+      <li>You can create GSIs anytime (not limited to table creation).</li>
+      <li>Each table can have up to 20 GSIs.</li>
+    </ul>
+    
+    <h3 class="text-xl font-semibold text-teal-700 mb-2">🔹 How It Works</h3>
+    <p class="text-teal-700 mb-4">Base Table:</p>
+    <ul class="list-disc list-inside text-teal-700 mb-4">
+      <li>Partition Key: <code>userId</code></li>
+      <li>Sort Key: <code>orderDate</code></li>
+    </ul>
+    <p class="text-teal-700 mb-4">Add GSI:</p>
+    <ul class="list-disc list-inside text-teal-700 mb-6">
+      <li>Partition Key: <code>productId</code></li>
+      <li>Sort Key: <code>orderDate</code></li>
+    </ul>
+    <p class="text-teal-700 mb-6">Now you can fetch all orders for a product across users.</p>
+    
+    <h3 class="text-xl font-semibold text-teal-700 mb-2">🔹 Storage</h3>
+    <ul class="list-disc list-inside text-teal-700 mb-4">
+      <li>GSIs use separate storage.</li>
+      <li>They maintain their own RCUs (Read Capacity Units) and WCUs (Write Capacity Units).</li>
+      <li>Updates in the base table are automatically propagated to GSIs asynchronously.</li>
+    </ul>
+    
+    <h3 class="text-xl font-semibold text-teal-700 mb-2">🔹 Use Cases</h3>
+    <ul class="list-disc list-inside text-teal-700 mb-6">
+      <li>Find all orders by productId.</li>
+      <li>Fetch items by status.</li>
+      <li>Enable many-to-many relationships.</li>
+    </ul>
+    
+    <h2 class="text-2xl font-semibold text-teal-700 mb-3">3. Key Differences Between LSI and GSI</h2>
+    <div class="overflow-x-auto mb-6">
+      <table class="table-auto border-collapse border border-teal-700 text-teal-700 w-full">
+        <thead>
+          <tr class="bg-teal-200">
+            <th class="border border-teal-700 px-4 py-2 text-left">Feature</th>
+            <th class="border border-teal-700 px-4 py-2 text-left">LSI</th>
+            <th class="border border-teal-700 px-4 py-2 text-left">GSI</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="border border-teal-700 px-4 py-2">Partition Key</td>
+            <td class="border border-teal-700 px-4 py-2">Same as base table</td>
+            <td class="border border-teal-700 px-4 py-2">Different from base table</td>
+          </tr>
+          <tr>
+            <td class="border border-teal-700 px-4 py-2">Sort Key</td>
+            <td class="border border-teal-700 px-4 py-2">Different from base table</td>
+            <td class="border border-teal-700 px-4 py-2">Optional (can have or not)</td>
+          </tr>
+          <tr>
+            <td class="border border-teal-700 px-4 py-2">Creation Time</td>
+            <td class="border border-teal-700 px-4 py-2">Only at table creation</td>
+            <td class="border border-teal-700 px-4 py-2">Anytime</td>
+          </tr>
+          <tr>
+            <td class="border border-teal-700 px-4 py-2">Storage</td>
+            <td class="border border-teal-700 px-4 py-2">Shares storage with base table</td>
+            <td class="border border-teal-700 px-4 py-2">Separate storage</td>
+          </tr>
+          <tr>
+            <td class="border border-teal-700 px-4 py-2">Item Size Limit</td>
+            <td class="border border-teal-700 px-4 py-2">400 KB (same as base table)</td>
+            <td class="border border-teal-700 px-4 py-2">Each GSI item also limited to 400 KB</td>
+          </tr>
+          <tr>
+            <td class="border border-teal-700 px-4 py-2">Consistency</td>
+            <td class="border border-teal-700 px-4 py-2">Supports strongly consistent reads</td>
+            <td class="border border-teal-700 px-4 py-2">Only eventually consistent reads</td>
+          </tr>
+          <tr>
+            <td class="border border-teal-700 px-4 py-2">Max per Table</td>
+            <td class="border border-teal-700 px-4 py-2">5 LSIs</td>
+            <td class="border border-teal-700 px-4 py-2">20 GSIs</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <h2 class="text-2xl font-semibold text-teal-700 mb-3">4. Real-World Example</h2>
+    <p class="text-teal-700 mb-4">Table: <strong>Orders</strong></p>
+    <ul class="list-disc list-inside text-teal-700 mb-4">
+      <li>Partition Key: <code>userId</code></li>
+      <li>Sort Key: <code>orderDate</code></li>
+    </ul>
+    <p class="text-teal-700 mb-4">LSI:</p>
+    <ul class="list-disc list-inside text-teal-700 mb-4">
+      <li>Partition Key: <code>userId</code></li>
+      <li>Sort Key: <code>orderAmount</code></li>
+    </ul>
+    <p class="text-teal-700 mb-6">Query → Get all orders for a user sorted by amount.</p>
+    <p class="text-teal-700 mb-4">GSI:</p>
+    <ul class="list-disc list-inside text-teal-700 mb-4">
+      <li>Partition Key: <code>productId</code></li>
+      <li>Sort Key: <code>orderDate</code></li>
+    </ul>
+    <p class="text-teal-700 mb-6">Query → Get all orders for a product across all users.</p>
+    
+    <h2 class="text-2xl font-semibold text-teal-700 mb-3">5. Best Practices</h2>
+    <p class="text-teal-700 mb-4">Use LSI when:</p>
+    <ul class="list-disc list-inside text-teal-700 mb-4">
+      <li>You need multiple query patterns for the same partition.</li>
+      <li>Strongly consistent reads are important.</li>
+    </ul>
+    <p class="text-teal-700 mb-4">Use GSI when:</p>
+    <ul class="list-disc list-inside text-teal-700 mb-6">
+      <li>You need to query data using completely different attributes.</li>
+      <li>You want more flexibility (since they can be added later).</li>
+    </ul>
+    
+    <h2 class="text-2xl font-semibold text-teal-700 mb-3">✅ In Summary</h2>
+    <ul class="list-disc list-inside text-teal-700">
+      <li><strong>LSI →</strong> Same Partition Key, different Sort Key, multiple views of the same partition.</li>
+      <li><strong>GSI →</strong> Different Partition Key (and optional Sort Key), enables completely new query patterns.</li>
+    </ul>
+  </div>
+</section>
+
+
+
+<section class="bg-yellow-100 p-8 rounded-2xl shadow-md max-w-6xl mx-auto space-y-6">
+  <div class="max-w-6xl mx-auto">
+    <h1 class="text-3xl font-bold text-teal-700 mb-6">CRUD Operations in DynamoDB (Real-World Example)</h1>
+
+    <h2 class="text-2xl font-semibold text-teal-700 mb-3">Table: Users</h2>
+    <div class="overflow-x-auto mb-6">
+      <table class="table-auto border-collapse border border-teal-700 text-teal-700 w-full">
+        <thead>
+          <tr class="bg-teal-200">
+            <th class="border border-teal-700 px-4 py-2">userId (PK)</th>
+            <th class="border border-teal-700 px-4 py-2">name</th>
+            <th class="border border-teal-700 px-4 py-2">email</th>
+            <th class="border border-teal-700 px-4 py-2">age</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="border border-teal-700 px-4 py-2">101</td>
+            <td class="border border-teal-700 px-4 py-2">Alice Doe</td>
+            <td class="border border-teal-700 px-4 py-2">alice@example.com</td>
+            <td class="border border-teal-700 px-4 py-2">25</td>
+          </tr>
+          <tr>
+            <td class="border border-teal-700 px-4 py-2">102</td>
+            <td class="border border-teal-700 px-4 py-2">Bob Smith</td>
+            <td class="border border-teal-700 px-4 py-2">bob@example.com</td>
+            <td class="border border-teal-700 px-4 py-2">30</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 class="text-2xl font-semibold text-teal-700 mb-3">1. Create (PutItem)</h2>
+    <pre class="bg-teal-50 p-4 rounded-lg text-sm text-teal-700 mb-3 overflow-x-auto">
+{
+  "TableName": "Users",
+  "Item": {
+    "userId": { "N": "103" },
+    "name": { "S": "Charlie Brown" },
+    "email": { "S": "charlie@example.com" },
+    "age": { "N": "28" }
+  }
+}
+    </pre>
+    <p class="text-teal-700 mb-6">👉 Inserts a new record for Charlie. If userId=103 already exists, it overwrites unless you add a <code>ConditionExpression</code> like <code>attribute_not_exists(userId)</code>.</p>
+
+    <h2 class="text-2xl font-semibold text-teal-700 mb-3">2. Read</h2>
+    <h3 class="text-xl font-semibold text-teal-700 mb-2">a) GetItem – Fetch user by ID</h3>
+    <pre class="bg-teal-50 p-4 rounded-lg text-sm text-teal-700 mb-3 overflow-x-auto">
+{
+  "TableName": "Users",
+  "Key": {
+    "userId": { "N": "101" }
+  }
+}
+    </pre>
+    <p class="text-teal-700 mb-4">👉 Returns Alice’s full record.</p>
+
+    <h3 class="text-xl font-semibold text-teal-700 mb-2">b) Query – Example with Sort Key</h3>
+    <p class="text-teal-700 mb-4">Find all users with <code>ID &gt; 100</code> or query ranges if a Sort Key exists (e.g., <code>createdDate BETWEEN 2023-01-01 AND 2023-12-31</code>).</p>
+
+    <h3 class="text-xl font-semibold text-teal-700 mb-2">c) Scan – Fetch all users</h3>
+    <pre class="bg-teal-50 p-4 rounded-lg text-sm text-teal-700 mb-3 overflow-x-auto">
+{
+  "TableName": "Users"
+}
+    </pre>
+    <p class="text-teal-700 mb-6">👉 Returns every record (Alice, Bob, Charlie, etc.) – but slower & costly.</p>
+
+    <h2 class="text-2xl font-semibold text-teal-700 mb-3">3. Update (UpdateItem)</h2>
+    <pre class="bg-teal-50 p-4 rounded-lg text-sm text-teal-700 mb-3 overflow-x-auto">
+{
+  "TableName": "Users",
+  "Key": {
+    "userId": { "N": "101" }
+  },
+  "UpdateExpression": "SET age = :newAge",
+  "ExpressionAttributeValues": {
+    ":newAge": { "N": "26" }
+  }
+}
+    </pre>
+    <p class="text-teal-700 mb-6">👉 Updates Alice’s age from 25 → 26. Other fields remain unchanged.</p>
+
+    <h2 class="text-2xl font-semibold text-teal-700 mb-3">4. Delete (DeleteItem)</h2>
+    <pre class="bg-teal-50 p-4 rounded-lg text-sm text-teal-700 mb-3 overflow-x-auto">
+{
+  "TableName": "Users",
+  "Key": {
+    "userId": { "N": "102" }
+  }
+}
+    </pre>
+    <p class="text-teal-700 mb-6">👉 Deletes Bob’s record. Optionally, add a condition (e.g., delete only if age=30).</p>
+
+    <h2 class="text-2xl font-semibold text-teal-700 mb-3">5. Batch Operations</h2>
+    <ul class="list-disc list-inside text-teal-700 mb-6">
+      <li><strong>BatchWriteItem:</strong> Insert Charlie + Delete Bob in one request.</li>
+      <li><strong>BatchGetItem:</strong> Retrieve Alice + Charlie in one request.</li>
+    </ul>
+
+    <h2 class="text-2xl font-semibold text-teal-700 mb-3">⚡ Summary</h2>
+    <ul class="list-disc list-inside text-teal-700">
+      <li><strong>Create (PutItem):</strong> Add Charlie.</li>
+      <li><strong>Read (GetItem/Query/Scan):</strong> Fetch Alice or all users.</li>
+      <li><strong>Update (UpdateItem):</strong> Update Alice’s age.</li>
+      <li><strong>Delete (DeleteItem):</strong> Delete Bob.</li>
+      <li><strong>Batch:</strong> Perform multiple actions at once.</li>
+    </ul>
+  </div>
+</section>
+
+
+<section class="bg-yellow-100 p-8 rounded-2xl shadow-md max-w-6xl mx-auto space-y-6">
+  <div class="max-w-6xl mx-auto">
+    <h1 class="text-3xl font-bold text-teal-700 mb-6">DynamoDB CRUD Operations via AWS CLI</h1>
+
+    <h2 class="text-2xl font-semibold text-teal-700 mb-3">1. Create (PutItem) – Add Charlie</h2>
+    <pre class="bg-teal-50 p-4 rounded-lg text-sm text-teal-700 mb-6 overflow-x-auto">
+aws dynamodb put-item \
+  --table-name Users \
+  --item '{
+    "userId": {"N": "103"},
+    "name": {"S": "Charlie Brown"},
+    "email": {"S": "charlie@example.com"},
+    "age": {"N": "28"}
+  }'
+    </pre>
+
+    <h2 class="text-2xl font-semibold text-teal-700 mb-3">2. Read</h2>
+    <h3 class="text-xl font-semibold text-teal-700 mb-2">a) GetItem – Fetch Alice (userId=101)</h3>
+    <pre class="bg-teal-50 p-4 rounded-lg text-sm text-teal-700 mb-4 overflow-x-auto">
+aws dynamodb get-item \
+  --table-name Users \
+  --key '{
+    "userId": {"N": "101"}
+  }'
+    </pre>
+
+    <h3 class="text-xl font-semibold text-teal-700 mb-2">b) Scan – Fetch all users</h3>
+    <pre class="bg-teal-50 p-4 rounded-lg text-sm text-teal-700 mb-6 overflow-x-auto">
+aws dynamodb scan --table-name Users
+    </pre>
+
+    <h2 class="text-2xl font-semibold text-teal-700 mb-3">3. Update (UpdateItem) – Update Alice’s age to 26</h2>
+    <pre class="bg-teal-50 p-4 rounded-lg text-sm text-teal-700 mb-6 overflow-x-auto">
+aws dynamodb update-item \
+  --table-name Users \
+  --key '{
+    "userId": {"N": "101"}
+  }' \
+  --update-expression "SET age = :newAge" \
+  --expression-attribute-values '{
+    ":newAge": {"N": "26"}
+  }'
+    </pre>
+
+    <h2 class="text-2xl font-semibold text-teal-700 mb-3">4. Delete (DeleteItem) – Remove Bob (userId=102)</h2>
+    <pre class="bg-teal-50 p-4 rounded-lg text-sm text-teal-700 mb-6 overflow-x-auto">
+aws dynamodb delete-item \
+  --table-name Users \
+  --key '{
+    "userId": {"N": "102"}
+  }'
+    </pre>
+
+    <h2 class="text-2xl font-semibold text-teal-700 mb-3">5. Batch Operations</h2>
+    <h3 class="text-xl font-semibold text-teal-700 mb-2">a) BatchWriteItem – Insert Charlie + Delete Bob</h3>
+    <pre class="bg-teal-50 p-4 rounded-lg text-sm text-teal-700 mb-6 overflow-x-auto">
+aws dynamodb batch-write-item \
+  --request-items '{
+    "Users": [
+      {
+        "PutRequest": {
+          "Item": {
+            "userId": {"N": "103"},
+            "name": {"S": "Charlie Brown"},
+            "email": {"S": "charlie@example.com"},
+            "age": {"N": "28"}
+          }
+        }
+      },
+      {
+        "DeleteRequest": {
+          "Key": {
+            "userId": {"N": "102"}
+          }
+        }
+      }
+    ]
+  }'
+    </pre>
+
+    <p class="text-teal-700">⚡ With these exact AWS CLI commands, you can directly test CRUD operations in DynamoDB.</p>
+  </div>
+</section>
+
+
+<section class="bg-yellow-100 p-8 rounded-2xl shadow-md max-w-6xl mx-auto space-y-6">
+  <div class="max-w-6xl mx-auto">
+    <h1 class="text-3xl font-bold text-teal-700 mb-6">Advanced DynamoDB AWS CLI Commands</h1>
+
+    <h2 class="text-2xl font-semibold text-teal-700 mb-3">1. Query Items by Partition Key</h2>
+    <pre class="bg-teal-50 p-4 rounded-lg text-sm text-teal-700 mb-3 overflow-x-auto">
+aws dynamodb query \
+  --table-name Users \
+  --key-condition-expression "userId = :uid" \
+  --expression-attribute-values '{":uid":{"N":"101"}}'
+    </pre>
+    <p class="text-teal-700 mb-3">✅ Fetches all items with userId=101.</p>
+    <pre class="bg-teal-50 p-4 rounded-lg text-sm text-teal-700 mb-6 overflow-x-auto">
+aws dynamodb query \
+  --table-name Orders \
+  --key-condition-expression "userId = :uid AND orderDate BETWEEN :start AND :end" \
+  --expression-attribute-values '{":uid":{"N":"101"}, ":start":{"S":"2025-01-01"}, ":end":{"S":"2025-12-31"}}'
+    </pre>
+
+    <h2 class="text-2xl font-semibold text-teal-700 mb-3">2. Scan with Filter Expression</h2>
+    <pre class="bg-teal-50 p-4 rounded-lg text-sm text-teal-700 mb-6 overflow-x-auto">
+aws dynamodb scan \
+  --table-name Users \
+  --filter-expression "age > :minAge" \
+  --expression-attribute-values '{":minAge":{"N":"25"}}'
+    </pre>
+    <p class="text-teal-700 mb-6">Returns users older than 25. Useful for ad-hoc queries when keys are unknown.</p>
+
+    <h2 class="text-2xl font-semibold text-teal-700 mb-3">3. Conditional PutItem (Prevent Overwrite)</h2>
+    <pre class="bg-teal-50 p-4 rounded-lg text-sm text-teal-700 mb-6 overflow-x-auto">
+aws dynamodb put-item \
+  --table-name Users \
+  --item '{
+    "userId": {"N": "104"},
+    "name": {"S": "David Johnson"},
+    "email": {"S": "david@example.com"},
+    "age": {"N": "29"}
+  }' \
+  --condition-expression "attribute_not_exists(userId)"
+    </pre>
+    <p class="text-teal-700 mb-6">Fails if userId=104 already exists.</p>
+
+    <h2 class="text-2xl font-semibold text-teal-700 mb-3">4. Update with Conditional Expression</h2>
+    <pre class="bg-teal-50 p-4 rounded-lg text-sm text-teal-700 mb-6 overflow-x-auto">
+aws dynamodb update-item \
+  --table-name Users \
+  --key '{"userId":{"N":"103"}}' \
+  --update-expression "SET age = :newAge" \
+  --condition-expression "age < :maxAge" \
+  --expression-attribute-values '{":newAge":{"N":"30"}, ":maxAge":{"N":"30"}}'
+    </pre>
+
+    <h2 class="text-2xl font-semibold text-teal-700 mb-3">5. BatchGetItem</h2>
+    <pre class="bg-teal-50 p-4 rounded-lg text-sm text-teal-700 mb-6 overflow-x-auto">
+aws dynamodb batch-get-item \
+  --request-items '{
+    "Users": {
+      "Keys": [
+        {"userId":{"N":"101"}},
+        {"userId":{"N":"103"}}
+      ]
+    }
+  }'
+    </pre>
+
+    <h2 class="text-2xl font-semibold text-teal-700 mb-3">6. BatchWriteItem</h2>
+    <pre class="bg-teal-50 p-4 rounded-lg text-sm text-teal-700 mb-6 overflow-x-auto">
+aws dynamodb batch-write-item \
+  --request-items '{
+    "Users": [
+      {
+        "PutRequest": {
+          "Item": {
+            "userId":{"N":"105"},
+            "name":{"S":"Eve Adams"},
+            "email":{"S":"eve@example.com"},
+            "age":{"N":"27"}
+          }
+        }
+      },
+      {
+        "DeleteRequest": {
+          "Key": {
+            "userId":{"N":"103"}
+          }
+        }
+      }
+    ]
+  }'
+    </pre>
+
+    <h2 class="text-2xl font-semibold text-teal-700 mb-3">7. Create a Global Secondary Index (GSI)</h2>
+    <pre class="bg-teal-50 p-4 rounded-lg text-sm text-teal-700 mb-3 overflow-x-auto">
+aws dynamodb update-table \
+  --table-name Users \
+  --attribute-definitions AttributeName=email,AttributeType=S \
+  --global-secondary-index-updates '[
+    {
+      "Create": {
+        "IndexName": "EmailIndex",
+        "KeySchema":[
+          {"AttributeName":"email","KeyType":"HASH"}
+        ],
+        "Projection":{"ProjectionType":"ALL"},
+        "ProvisionedThroughput":{"ReadCapacityUnits":5,"WriteCapacityUnits":5}
+      }
+    }
+  ]'
+    </pre>
+    <p class="text-teal-700 mb-3">Now you can query users by email:</p>
+    <pre class="bg-teal-50 p-4 rounded-lg text-sm text-teal-700 mb-6 overflow-x-auto">
+aws dynamodb query \
+  --table-name Users \
+  --index-name EmailIndex \
+  --key-condition-expression "email = :email" \
+  --expression-attribute-values '{":email":{"S":"alice@example.com"}}'
+    </pre>
+
+    <h2 class="text-2xl font-semibold text-teal-700 mb-3">8. Update Table Capacity (Provisioned Mode)</h2>
+    <pre class="bg-teal-50 p-4 rounded-lg text-sm text-teal-700 mb-6 overflow-x-auto">
+aws dynamodb update-table \
+  --table-name Users \
+  --provisioned-throughput ReadCapacityUnits=10,WriteCapacityUnits=5
+    </pre>
+
+    <h2 class="text-2xl font-semibold text-teal-700 mb-3">✅ Summary of Useful Commands</h2>
+    <ul class="list-disc list-inside text-teal-700">
+      <li><strong>put-item:</strong> Insert / create items (with conditional expressions)</li>
+      <li><strong>get-item:</strong> Read single item by key</li>
+      <li><strong>query:</strong> Efficient multi-item read by Partition + Sort Key</li>
+      <li><strong>scan:</strong> Read entire table with filters</li>
+      <li><strong>update-item:</strong> Update attributes (with optional conditions)</li>
+      <li><strong>delete-item:</strong> Remove items</li>
+      <li><strong>batch-get-item:</strong> Fetch multiple items at once</li>
+      <li><strong>batch-write-item:</strong> Insert/Delete multiple items</li>
+      <li><strong>update-table:</strong> Modify table capacity or add GSI/LSI</li>
+    </ul>
+  </div>
+</section>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+'
+
+
+
+
+</body>
+</html>

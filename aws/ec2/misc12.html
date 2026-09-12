@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EC2 Troubleshooting Tools Chapter 14.2 · Handwritten Notes</title>
+
+    <!-- Google Fonts – clear handwriting -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Gloria+Hallelujah&family=Architects+Daughter&family=Reenie+Beanie&display=swap" rel="stylesheet" />
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #f7f0e7;
+            background-image: radial-gradient(circle at 30% 20%, #fcf7f0 0%, #eee7dd 100%);
+            display: flex;
+            justify-content: center;
+            padding: 2.5rem 1.5rem;
+            font-family: 'Patrick Hand', 'Architects Daughter', cursive;
+        }
+
+        .notes-container {
+            max-width: 1100px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 2.8rem;
+            animation: floatUp 0.9s ease-out;
+        }
+
+        .note {
+            background: #fffcf5;
+            padding: 2.5rem 3.5rem;
+            border-radius: 28px 28px 28px 10px;
+            box-shadow: 0 12px 36px rgba(0,0,0,0.06), 0 2px 10px rgba(0,0,0,0.03), inset 0 -2px 0 rgba(0,0,0,0.02);
+            position: relative;
+            transition: transform 0.3s ease, box-shadow 0.35s ease;
+            transform-origin: left center;
+            border-left: 8px solid transparent;
+            animation: notePop 0.6s ease both;
+            animation-delay: calc(var(--i, 0) * 0.025s);
+        }
+
+        .note:nth-child(1) { border-left-color: #f0b8b8; }
+        .note:nth-child(2) { border-left-color: #aad0c4; }
+        .note:nth-child(3) { border-left-color: #f5d4aa; }
+        .note:nth-child(4) { border-left-color: #cfb8e0; }
+        .note:nth-child(5) { border-left-color: #b8cce0; }
+        .note:nth-child(6) { border-left-color: #e8c8b8; }
+        .note:nth-child(7) { border-left-color: #b8d9c8; }
+        .note:nth-child(8) { border-left-color: #f0c8c8; }
+        .note:nth-child(9) { border-left-color: #d4c8e8; }
+        .note:nth-child(10) { border-left-color: #c8dce8; }
+        .note:nth-child(11) { border-left-color: #e8d4b8; }
+        .note:nth-child(12) { border-left-color: #b8d4d4; }
+        .note:nth-child(13) { border-left-color: #f0d4c8; }
+        .note:nth-child(14) { border-left-color: #c8bcd4; }
+
+        .note:hover {
+            transform: rotate(-0.8deg) scale(1.015);
+            box-shadow: 0 24px 48px rgba(0,0,0,0.09), 0 4px 16px rgba(0,0,0,0.05);
+        }
+
+        .note-title {
+            font-family: 'Gloria Hallelujah', 'Patrick Hand', cursive;
+            font-size: 2.2rem;
+            font-weight: 500;
+            color: #2f2216;
+            letter-spacing: 0.8px;
+            margin-bottom: 0.3rem;
+            line-height: 1.25;
+            display: inline-block;
+            position: relative;
+        }
+
+        .note-title::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: -4px;
+            width: 100%;
+            height: 8px;
+            background: repeating-linear-gradient(90deg, transparent, transparent 6px, rgba(240,184,184,0.4) 6px, rgba(240,184,184,0.4) 12px);
+            border-radius: 20px;
+            opacity: 0.8;
+        }
+
+        .note-subtitle {
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.3rem;
+            color: #5a4a3a;
+            margin: -0.1rem 0 1rem 0;
+            font-weight: 400;
+            opacity: 0.85;
+        }
+
+        .note-body {
+            font-family: 'Architects Daughter', 'Patrick Hand', cursive;
+            font-size: 1.35rem;
+            line-height: 1.85;
+            color: #2a1f15;
+            margin: 0.9rem 0 0.4rem 0;
+            font-weight: 400;
+            letter-spacing: 0.4px;
+        }
+
+        .note-body strong {
+            font-weight: 700;
+            color: #a05545;
+            background: rgba(240,184,184,0.15);
+            padding: 0 8px;
+            border-radius: 16px;
+            font-style: normal;
+        }
+
+        .note-body em {
+            color: #5a8a78;
+            font-style: italic;
+            text-decoration: underline wavy #aad0c4 3px;
+            font-weight: 500;
+        }
+
+        .note-body .chip {
+            background: #f0e9e0;
+            padding: 0.1rem 1.2rem;
+            border-radius: 40px;
+            display: inline-block;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.15rem;
+            color: #3d3226;
+            border: 1px dashed #cbb8a8;
+            margin: 2px 0;
+            font-weight: 400;
+        }
+
+        .note-body .chip-blue { background: #dce8f0; border-color: #aac0d0; }
+        .note-body .chip-green { background: #d8ece0; border-color: #a0c8b8; }
+        .note-body .chip-pink { background: #f0dcd8; border-color: #d8b8b0; }
+        .note-body .chip-purple { background: #e4d8ec; border-color: #c8b8d8; }
+        .note-body .chip-gold { background: #f0e8d0; border-color: #d8c8a8; }
+        .note-body .chip-orange { background: #f0dcc8; border-color: #d8b898; }
+        .note-body .chip-teal { background: #c8e8dc; border-color: #88c8b8; }
+
+        .code-block {
+            background: #1e1a16;
+            color: #e8e0d8;
+            padding: 1.2rem 1.8rem;
+            border-radius: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.7rem;
+            line-height: 1.7;
+            margin: 0.8rem 0 1rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            border-left: 4px solid #f0b8b8;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .code-block .comment { color: #7a8a7a; }
+        .code-block .keyword { color: #f0b8b8; }
+        .code-block .string { color: #b8d9c8; }
+        .code-block .function { color: #c8b8e8; }
+
+        .ascii-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1rem 1.5rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.5rem;
+            line-height: 1.5;
+            color: #2a1f15;
+            border: 1px solid #e0d8ce;
+            margin: 0.8rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .ascii-box .highlight { color: #a05545; font-weight: bold; }
+        .ascii-box .title { color: #2f2216; font-weight: bold; text-decoration: underline; }
+
+        .styled-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.05rem;
+            background: #f8f4ec;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        }
+
+        .styled-table th {
+            background: #2f2216;
+            color: #f5efe8;
+            padding: 0.7rem 1rem;
+            text-align: left;
+            font-weight: 500;
+            font-size: 1rem;
+        }
+
+        .styled-table td {
+            padding: 0.7rem 1rem;
+            border-bottom: 1px solid #e8e0d6;
+            color: #2a1f15;
+        }
+
+        .styled-table tr:last-child td { border-bottom: none; }
+        .styled-table tr:hover td { background: #f0e9e0; }
+
+        .note-body ul, .note-body ol {
+            padding-left: 2rem;
+            margin: 0.5rem 0;
+        }
+        .note-body li { margin-bottom: 0.3rem; }
+
+        .def-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1.2rem 1.8rem;
+            margin: 0.8rem 0;
+            border-left: 6px solid #aad0c4;
+        }
+        .def-box strong { color: #a05545; }
+
+        .warning-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1.2rem 1.8rem;
+            margin: 0.8rem 0;
+            border-left: 6px solid #f0b8b8;
+        }
+        .warning-box strong { color: #a05545; }
+
+        .qa-block {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1.2rem 1.8rem;
+            margin: 0.8rem 0;
+            border-left: 6px solid #cfb8e0;
+        }
+        .qa-block .q { font-weight: 700; color: #a05545; font-size: 1.3rem; }
+        .qa-block .a { color: #2a1f15; margin-top: 0.3rem; }
+        .qa-block .a strong { color: #a05545; background: rgba(240,184,184,0.1); padding: 0 6px; border-radius: 12px; }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin: 0.8rem 0;
+        }
+        .comparison-item {
+            background: #f8f4ec;
+            padding: 0.8rem 1.2rem;
+            border-radius: 12px;
+            border-left: 4px solid #b8cce0;
+            font-size: 1.05rem;
+        }
+        .comparison-item .label { font-weight: 700; color: #a05545; }
+
+        .note-meta {
+            margin-top: 1.5rem;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.05rem;
+            color: #9f8875;
+            display: flex;
+            align-items: center;
+            gap: 1.2rem;
+            flex-wrap: wrap;
+        }
+
+        .note-meta span {
+            background: #f1eae1;
+            padding: 0.3rem 1.4rem;
+            border-radius: 60px;
+            font-size: 1rem;
+            color: #4d3b2b;
+            box-shadow: inset 0 1px 4px rgba(0,0,0,0.02);
+            font-weight: 400;
+            letter-spacing: 0.3px;
+        }
+
+        .note-pin {
+            position: absolute;
+            top: -12px;
+            right: 34px;
+            font-size: 2.6rem;
+            opacity: 0.25;
+            transform: rotate(25deg);
+            filter: drop-shadow(0 3px 6px rgba(0,0,0,0.06));
+            transition: opacity 0.25s;
+        }
+        .note:hover .note-pin { opacity: 0.8; }
+
+        .tools-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.8rem;
+            margin: 0.5rem 0;
+        }
+        .tools-item {
+            background: #f8f4ec;
+            padding: 0.6rem 1rem;
+            border-radius: 10px;
+            border-left: 4px solid #b8cce0;
+            font-size: 0.95rem;
+        }
+        .tools-item .name { font-weight: 700; color: #a05545; }
+
+        .runbook-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.6rem;
+            margin: 0.5rem 0;
+        }
+        .runbook-item {
+            background: #f8f4ec;
+            padding: 0.4rem 0.8rem;
+            border-radius: 8px;
+            border-left: 4px solid #f5d4aa;
+            font-size: 0.85rem;
+        }
+        .runbook-item .name { font-weight: 700; color: #a05545; }
+
+        @keyframes floatUp {
+            0% { opacity: 0; transform: translateY(50px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes notePop {
+            0% { opacity: 0; transform: scale(0.92) rotate(-3deg); }
+            80% { opacity: 1; transform: scale(1.015) rotate(0.8deg); }
+            100% { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+
+        @media (max-width: 700px) {
+            .note { padding: 1.8rem 1.8rem; }
+            .note-title { font-size: 1.8rem; }
+            .note-body { font-size: 1.15rem; line-height: 1.7; }
+            .note-body .chip { font-size: 1rem; padding: 0 0.8rem; }
+            .code-block { font-size: 0.58rem; padding: 1rem; }
+            .note-pin { font-size: 2rem; top: -8px; right: 18px; }
+            .styled-table { font-size: 0.9rem; }
+            .styled-table th, .styled-table td { padding: 0.5rem 0.7rem; }
+            .notes-container { gap: 2rem; }
+            .ascii-box { font-size: 0.4rem; padding: 0.8rem 1rem; }
+            .comparison-grid { grid-template-columns: 1fr; }
+            .tools-grid { grid-template-columns: 1fr; }
+            .runbook-grid { grid-template-columns: 1fr; }
+            .qa-block { padding: 0.8rem 1.2rem; }
+            .def-box { padding: 0.8rem 1.2rem; }
+            .warning-box { padding: 0.8rem 1.2rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="notes-container">
+
+        <!-- ============================================================ -->
+        <!-- NOTE 1: Chapter Title -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:0">
+            <div class="note-pin">🔧</div>
+            <h2 class="note-title">14.2 Troubleshooting Tools</h2>
+            <div class="note-body">
+                <span style="font-size:1.8rem;">📖</span> <strong>Complete Theory: Diagnostic Tools for EC2</strong>
+                <br /><br />
+                When an EC2 instance becomes unreachable or exhibits problematic behavior, a set of specialized AWS tools can help you diagnose and resolve the issue. These tools range from built-in diagnostic services to automated remediation workflows.
+                <br /><br />
+                <div class="tools-grid">
+                    <div class="tools-item" style="border-left-color:#b8cce0;">
+                        <div class="name">🖥️ EC2 Console Output</div>
+                        <div style="font-size:0.85rem;">System logs — first place to look for boot failures</div>
+                    </div>
+                    <div class="tools-item" style="border-left-color:#f5d4aa;">
+                        <div class="name">🔧 EC2Rescue</div>
+                        <div style="font-size:0.85rem;">Open-source diagnostic and remediation tool</div>
+                    </div>
+                    <div class="tools-item" style="border-left-color:#aad0c4;">
+                        <div class="name">⚙️ SAW Runbooks</div>
+                        <div style="font-size:0.85rem;">Curated Systems Manager automation workflows</div>
+                    </div>
+                    <div class="tools-item" style="border-left-color:#d4c8e8;">
+                        <div class="name">🔗 SSM Session Manager</div>
+                        <div style="font-size:0.85rem;">Access without open inbound ports or SSH keys</div>
+                    </div>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🔧 troubleshooting tools</span>
+                <span>🖥️ diagnostics</span>
+                <span>🔍 remediation</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 2: Tool Overview -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:1">
+            <div class="note-pin">📋</div>
+            <h2 class="note-title">Tool Overview</h2>
+            <div class="note-body">
+                <table class="styled-table">
+                    <thead><tr><th>Tool</th><th>Purpose</th><th>Key Capability</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>EC2 Console Output</strong></td><td>View boot logs and system messages</td><td>Diagnose boot failures, kernel panics, cloud-init execution</td></tr>
+                        <tr><td><strong>EC2 Serial Console</strong></td><td>BIOS-level text access</td><td>Interact with bootloader, emergency shell, fix fstab</td></tr>
+                        <tr><td><strong>EC2Rescue</strong></td><td>Automated diagnosis and remediation</td><td>100+ modules for SSH, boot, kernel issues</td></tr>
+                        <tr><td><strong>SAW Runbooks</strong></td><td>Self-service automation</td><td>AWSSupport-TroubleshootSSH, ResetAccess, ExecuteEC2Rescue</td></tr>
+                        <tr><td><strong>SSM Session Manager</strong></td><td>Secure remote access</td><td>Connect without SSH, public IP, or inbound ports</td></tr>
+                        <tr><td><strong>CloudWatch Metrics</strong></td><td>Performance monitoring</td><td>CPU, disk, network, status check metrics</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="note-meta">
+                <span>📋 tool overview</span>
+                <span>🔍 diagnostics</span>
+                <span>🔧 remediation</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 3: 14.2.1 EC2 System Log -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:2">
+            <div class="note-pin">🖥️</div>
+            <h2 class="note-title">14.2.1 EC2 System Log</h2>
+            <div class="note-subtitle">Console Output</div>
+            <div class="note-body">
+                <strong>📖 Complete Theory: What Is the EC2 System Log?</strong>
+                <br /><br />
+                The EC2 System Log, also known as <strong>console output</strong>, is a diagnostic tool that displays the text output that would normally appear on a physical monitor attached to a computer's display port. It provides visibility into your instance's boot process and system-level operations <strong>without requiring direct access to the instance itself</strong>.
+                <br /><br />
+                <div class="ascii-box">
+                    <span class="title">EC2 SYSTEM LOG (CONSOLE OUTPUT)</span>
+                    ┌─────────────────────────────────────────────────────────────────────────────────────┐
+                    │                    EC2 SYSTEM LOG (CONSOLE OUTPUT)                                 │
+                    ├─────────────────────────────────────────────────────────────────────────────────────┤
+                    │                                                                                     │
+                    │  ┌─────────────────────────────────────────────────────────────────────────────────┐│
+                    │  │  Linux Instances                                                              ││
+                    │  │  ┌─────────────────────────────────────────────────────────────────────────┐   ││
+                    │  │  │  • System boot messages                                                │   ││
+                    │  │  │  • Kernel logs and kernel version                                      │   ││
+                    │  │  │  • File system information                                             │   ││
+                    │  │  │  • cloud-init logs (bootstrap scripts execution)                       │   ││
+                    │  │  │  • Command line parameters                                             │   ││
+                    │  │  │  • SSH host key fingerprints                                           │   ││
+                    │  │  └─────────────────────────────────────────────────────────────────────────┘   ││
+                    │  └─────────────────────────────────────────────────────────────────────────────────┘│
+                    │                                                                                     │
+                    │  ┌─────────────────────────────────────────────────────────────────────────────────┐│
+                    │  │  Windows Instances                                                            ││
+                    │  │  ┌─────────────────────────────────────────────────────────────────────────┐   ││
+                    │  │  │  • Last three system event log errors                                  │   ││
+                    │  │  │  • System initialization status                                        │   ││
+                    │  │  └─────────────────────────────────────────────────────────────────────────┘   ││
+                    │  └─────────────────────────────────────────────────────────────────────────────────┘│
+                    │                                                                                     │
+                    └─────────────────────────────────────────────────────────────────────────────────────┘
+                </div>
+                <br />
+                <strong>🛠️ How to Access:</strong>
+                <div class="code-block">
+                    <span class="comment"># AWS Management Console</span>
+                    <span class="comment"># EC2 → Instances → Select instance → Actions → Monitor and troubleshoot → Get System Log</span>
+
+                    <span class="comment"># AWS CLI</span>
+                    aws ec2 get-console-output --instance-id i-1234567890abcdef0
+
+                    <span class="comment"># Get latest output (truncated)</span>
+                    aws ec2 get-console-output --instance-id i-1234567890abcdef0 --latest --output text
+
+                    <span class="comment"># Boto3 (Python SDK)</span>
+                    import boto3
+                    ec2 = boto3.client('ec2')
+                    response = ec2.get_console_output(InstanceId='i-1234567890abcdef0', Latest=True)
+                    print(response['Output'])
+                </div>
+                <br />
+                <div class="def-box" style="border-left-color:#f5d4aa;">
+                    <strong>💡 Key Insight:</strong> The console output is generated at the <strong>infrastructure level</strong>, independent of your instance's network configuration. It works even when SSH is broken or the instance is unreachable.
+                </div>
+            </div>
+            <div class="note-body">
+                <strong>📝 Review Questions</strong>
+                <div class="qa-block">
+                    <div class="q">Q1: What is the EC2 System Log and why is it important?</div>
+                    <div class="a">The EC2 System Log (console output) is a diagnostic record of the instance's boot process. It is important because it provides visibility into what happens when an instance starts, making it invaluable for troubleshooting <strong>boot failures, kernel panics, and OS-level issues</strong>.</div>
+                </div>
+                <div class="qa-block" style="border-left-color:#aad0c4;">
+                    <div class="q">Q2: How can you access the EC2 System Log using the CLI?</div>
+                    <div class="a">Use <span class="chip">aws ec2 get-console-output --instance-id &lt;instance-id&gt;</span>. Add the <span class="chip">--latest</span> flag to retrieve the most recent output, and <span class="chip">--output text</span> to view the decoded output directly in your terminal.</div>
+                </div>
+                <div class="qa-block" style="border-left-color:#f5d4aa;">
+                    <div class="q">Q3: What information does the console output include for Windows instances?</div>
+                    <div class="a">For Windows instances, the console output includes the <strong>last three system event log errors</strong>, which help diagnose system-level issues.</div>
+                </div>
+                <div class="qa-block" style="border-left-color:#b8d9c8;">
+                    <div class="q">Q4: Can the EC2 System Log help verify the execution of user data scripts?</div>
+                    <div class="a"><strong>Yes</strong>, the console output includes <span class="chip">cloud-init</span> logs, which show the execution of user data scripts. You can view these logs in the system log to confirm that your bootstrap scripts were executed correctly.</div>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🖥️ 14.2.1</span>
+                <span>📋 console output</span>
+                <span>🔍 boot logs</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 4: 14.2.2 EC2 Serial Console -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:3">
+            <div class="note-pin">🔌</div>
+            <h2 class="note-title">14.2.2 EC2 Serial Console</h2>
+            <div class="note-subtitle">BIOS-level Access</div>
+            <div class="note-body">
+                <strong>📖 Complete Theory: The Last Resort for Troubleshooting</strong>
+                <br /><br />
+                The EC2 Serial Console is a powerful troubleshooting feature that provides <strong>text-based, BIOS-level access</strong> to your EC2 instance. Unlike SSH, which relies on a functioning operating system and network stack, the Serial Console connects to the instance's serial port <strong>before the operating system boots</strong>.
+                <br /><br />
+                <div class="ascii-box">
+                    <span class="title">EC2 SERIAL CONSOLE ARCHITECTURE</span>
+                    ┌─────────────────────────────────────────────────────────────────────────────────────┐
+                    │                    EC2 SERIAL CONSOLE ARCHITECTURE                                 │
+                    ├─────────────────────────────────────────────────────────────────────────────────────┤
+                    │                                                                                     │
+                    │  ┌─────────────────────────────────────────────────────────────────────────────────┐│
+                    │  │  YOUR LAPTOP                                                                   ││
+                    │  │  └─ AWS Management Console or CLI                                             ││
+                    │  └─────────────────────────────────────────────────────────────────────────────────┘│
+                    │                                    │                                                │
+                    │                                    ▼ (HTTPS / TLS)                                 │
+                    │  ┌─────────────────────────────────────────────────────────────────────────────────┐│
+                    │  │  AWS SYSTEMS MANAGER SERVICE                                                   ││
+                    │  │  └─ Acts as a proxy for serial communication                                 ││
+                    │  └─────────────────────────────────────────────────────────────────────────────────┘│
+                    │                                    │                                                │
+                    │                                    ▼ (Outbound HTTPS)                              │
+                    │  ┌─────────────────────────────────────────────────────────────────────────────────┐│
+                    │  │  EC2 INSTANCE (Nitro-based)                                                    ││
+                    │  │  ┌─────────────────────────────────────────────────────────────────────────┐   ││
+                    │  │  │  BIOS / UEFI Boot (Serial Console)                                      │   ││
+                    │  │  │  └─ Pre-OS bootloader: GRUB or systemd-boot                          │   ││
+                    │  │  │  └─ Kernel boot messages                                                  │   ││
+                    │  │  │  └─ Emergency shell / recovery mode (if the OS fails to boot)          │   ││
+                    │  │  └─────────────────────────────────────────────────────────────────────────┘   ││
+                    │  └─────────────────────────────────────────────────────────────────────────────────┘│
+                    │                                                                                     │
+                    └─────────────────────────────────────────────────────────────────────────────────────┘
+                </div>
+                <br />
+                <strong>🏗️ Key Characteristics:</strong>
+                <ul>
+                    <li><span class="chip chip-blue">Instance Types:</span> Primarily available on <strong>Nitro-based</strong> instance types</li>
+                    <li><span class="chip chip-gold">Architecture:</span> x86_64 and ARM (Graviton) supported</li>
+                    <li><span class="chip chip-purple">Access:</span> Through AWS Management Console or CLI via SSM</li>
+                    <li><span class="chip chip-green">Use Cases:</span> Boot failures, kernel panics, lost root password, broken SSH config</li>
+                </ul>
+            </div>
+            <div class="note-body">
+                <strong>🛠️ Common Fixes via Serial Console:</strong>
+                <br /><br />
+                <strong>Fixing a Bad /etc/fstab Entry:</strong>
+                <div class="code-block">
+                    <span class="comment"># In emergency shell</span>
+                    mount -o remount,rw /
+                    vi /etc/fstab
+                    <span class="comment"># Add '#' at the start of the bad line</span>
+                    reboot
+                </div>
+                <br />
+                <strong>Resetting a Lost Root Password:</strong>
+                <div class="code-block">
+                    <span class="comment"># Interrupt boot → GRUB → single-user mode</span>
+                    mount -o remount,rw /
+                    passwd
+                    reboot
+                </div>
+                <br />
+                <div class="def-box" style="border-left-color:#f5d4aa;">
+                    <strong>💡 Key Insight:</strong> The Serial Console works at the <strong>BIOS/UEFI level</strong>, providing access before the operating system boots. It is the <strong>ultimate troubleshooting tool</strong> for instances that are completely unreachable via SSH or RDP.
+                </div>
+                <br />
+                <strong>📝 Review Questions</strong>
+                <div class="qa-block">
+                    <div class="q">Q1: What is the EC2 Serial Console and why is it useful?</div>
+                    <div class="a">The EC2 Serial Console provides <strong>BIOS-level, text-based access</strong> to your instance, enabling you to troubleshoot issues even when the OS isn't fully booted or networking is down. It is essential for diagnosing <strong>boot failures, kernel panics, and other OS-level problems</strong>.</div>
+                </div>
+                <div class="qa-block" style="border-left-color:#aad0c4;">
+                    <div class="q">Q2: What are the prerequisites for using the EC2 Serial Console?</div>
+                    <div class="a">The prerequisites are: a compatible <strong>Nitro-based instance type</strong>; the Serial Console must be <strong>enabled at the account level</strong> in the specific Region; and you must have <strong>IAM permissions</strong> to access the serial console.</div>
+                </div>
+                <div class="qa-block" style="border-left-color:#f5d4aa;">
+                    <div class="q">Q3: How can you fix a bad /etc/fstab entry using the Serial Console?</div>
+                    <div class="a">Access the instance via the Serial Console, and when the boot drops to an emergency shell, remount the root as read-write (<span class="chip">mount -o remount,rw /</span>), edit <span class="chip">/etc/fstab</span> to comment out or fix the problematic entry, and then reboot the instance.</div>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🔌 14.2.2</span>
+                <span>🔍 BIOS-level</span>
+                <span>🔄 serial console</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 5: 14.2.3 EC2Rescue -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:4">
+            <div class="note-pin">🔧</div>
+            <h2 class="note-title">14.2.3 EC2Rescue</h2>
+            <div class="note-subtitle">Recovery Tool</div>
+            <div class="note-body">
+                <strong>📖 Complete Theory: EC2Rescue</strong>
+                <br /><br />
+                EC2Rescue is an <strong>open-source diagnostic and troubleshooting tool</strong> that helps you identify and remediate common issues on EC2 Linux and Windows instances. It is available for Linux as a Python-based framework <span class="chip">ec2rl</span> and for Windows Server.
+                <br /><br />
+                <strong>🧠 What is EC2Rescue?</strong>
+                <br />
+                EC2Rescue serves as a diagnostic framework for executing modular scripts to analyze and fix issues on EC2 instances. The Linux version contains <strong>over 100 modules</strong> — YAML files containing either a BASH or Python script with associated metadata.
+                <br /><br />
+                <strong>🔍 Common Use Cases:</strong>
+                <table class="styled-table">
+                    <thead><tr><th>Use Case</th><th>Description</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Diagnosing SSH failures</strong></td><td>Identifies and fixes OpenSSH configuration issues</td></tr>
+                        <tr><td><strong>Gathering system logs</strong></td><td>Collects syslog, package manager logs, and boot logs</td></tr>
+                        <tr><td><strong>Diagnosing kernel parameters</strong></td><td>Identifies problematic kernel parameters</td></tr>
+                        <tr><td><strong>Repairing boot issues</strong></td><td>Fixes fstab entries, kernel panics, and GRUB misconfigurations</td></tr>
+                        <tr><td><strong>Windows password reset</strong></td><td>Regenerates Windows Administrator passwords via SSM</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="note-body">
+                <strong>🛠️ Running EC2Rescue:</strong>
+                <div class="code-block">
+                    <span class="comment"># Manual: On a Running Instance</span>
+                    ./ec2rl run                    <span class="comment"># Run all modules</span>
+                    sudo ./ec2rl run               <span class="comment"># With root privileges</span>
+                    ./ec2rl run --only-modules=dig  <span class="comment"># Run specific module</span>
+                    sudo ./ec2rl run --remediate   <span class="comment"># Auto-fix identified issues</span>
+                    ./ec2rl list                   <span class="comment"># View available modules</span>
+
+                    <span class="comment"># View results</span>
+                    cat /var/tmp/ec2rl/{timestamp}/mod_out/run/dig.log
+                </div>
+                <br />
+                <strong>📋 Three Ways to Run EC2Rescue:</strong>
+                <ol>
+                    <li><span class="chip chip-blue">Manual (Running Instance):</span> Install and run directly on a running instance</li>
+                    <li><span class="chip chip-gold">Rescue Instance (Offline Volume):</span> Attach root volume to a helper instance</li>
+                    <li><span class="chip chip-purple">Automated via SSM Runbook:</span> <span class="chip">AWSSupport-ExecuteEC2Rescue</span></li>
+                </ol>
+                <br />
+                <div class="warning-box">
+                    <strong>⚠️ Limitations of AWSSupport-ExecuteEC2Rescue:</strong>
+                    <ul>
+                        <li>Does <strong>not</strong> support instances with <strong>encrypted root volumes</strong></li>
+                        <li>Requires a VPC available to create a temporary environment</li>
+                    </ul>
+                </div>
+                <br />
+                <strong>📝 Review Questions</strong>
+                <div class="qa-block">
+                    <div class="q">Q1: What is EC2Rescue and what problem does it solve?</div>
+                    <div class="a">EC2Rescue is an <strong>open-source tool</strong> that automates the diagnosis and remediation of common EC2 issues, such as SSH connectivity, boot failures, kernel parameters, and resource utilization.</div>
+                </div>
+                <div class="qa-block" style="border-left-color:#aad0c4;">
+                    <div class="q">Q2: What are the two main ways to run EC2Rescue?</div>
+                    <div class="a">Manually from the command line (e.g., <span class="chip">./ec2rl run</span> or via a helper instance) or <strong>automatically via Systems Manager Automation</strong> using the <span class="chip">AWSSupport-ExecuteEC2Rescue</span> runbook.</div>
+                </div>
+                <div class="qa-block" style="border-left-color:#f5d4aa;">
+                    <div class="q">Q3: What is the limitation of the AWSSupport-ExecuteEC2Rescue runbook?</div>
+                    <div class="a">It does <strong>not</strong> support instances with <strong>encrypted root volumes</strong>.</div>
+                </div>
+                <div class="qa-block" style="border-left-color:#b8d9c8;">
+                    <div class="q">Q4: How do you view the results of an EC2Rescue module?</div>
+                    <div class="a">Results are saved in <span class="chip">/var/tmp/ec2rl/</span> (e.g., <span class="chip">/var/tmp/ec2rl/{timestamp}/mod_out/run/dig.log</span>).</div>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🔧 14.2.3</span>
+                <span>🔍 EC2Rescue</span>
+                <span>🔄 automated recovery</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 6: SAW Runbooks & CloudWatch -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:5">
+            <div class="note-pin">⚙️</div>
+            <h2 class="note-title">SAW Runbooks & CloudWatch</h2>
+            <div class="note-body">
+                <strong>⚙️ AWS Support Automation Workflows (SAW):</strong>
+                <br /><br />
+                SAW are curated Systems Manager automation runbooks that provide <strong>self-service diagnosis and remediation</strong>. They leverage AWS's experience from resolving recurring customer issues.
+                <br /><br />
+                <div class="runbook-grid">
+                    <div class="runbook-item" style="border-left-color:#b8cce0;">
+                        <div class="name">AWSSupport-TroubleshootSSH</div>
+                        <div style="font-size:0.8rem;">Installs EC2Rescue and fixes SSH issues, even if SSM Agent is not installed</div>
+                    </div>
+                    <div class="runbook-item" style="border-left-color:#f5d4aa;">
+                        <div class="name">AWSSupport-ResetAccess</div>
+                        <div style="font-size:0.8rem;">Generates and adds a new SSH key pair (Linux) or enables password decryption (Windows)</div>
+                    </div>
+                    <div class="runbook-item" style="border-left-color:#aad0c4;">
+                        <div class="name">AWSPremiumSupport-TroubleshootEC2DiskUsage</div>
+                        <div style="font-size:0.8rem;">Analyzes EBS volume usage and automates extension of partitions and file systems</div>
+                    </div>
+                    <div class="runbook-item" style="border-left-color:#d4c8e8;">
+                        <div class="name">AWSSupport-ExecuteEC2Rescue</div>
+                        <div style="font-size:0.8rem;">Automates the entire rescue instance workflow</div>
+                    </div>
+                </div>
+                <br />
+                <strong>🔗 AWS Systems Manager (SSM) Session Manager:</strong>
+                <br /><br />
+                While primarily an access tool, Session Manager is a critical troubleshooting tool because it allows you to connect to instances <strong>without open inbound ports, SSH keys, or a public IP address</strong>.
+                <br /><br />
+                <ul>
+                    <li><span class="chip chip-blue">Access Without Network:</span> Connect to instances unreachable via SSH/RDP</li>
+                    <li><span class="chip chip-green">One-Click Access:</span> Start a session directly from the console</li>
+                    <li><span class="chip chip-gold">Port Forwarding:</span> Debug application-level issues</li>
+                    <li><span class="chip chip-purple">Logging:</span> Sessions logged to S3 or CloudWatch</li>
+                </ul>
+                <br />
+                <strong>📊 CloudWatch Metrics:</strong>
+                <table class="styled-table">
+                    <thead><tr><th>Metric</th><th>Potential Issue</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>CPUUtilization</strong></td><td>CPU bottleneck if >80% for long periods</td></tr>
+                        <tr><td><strong>DiskReadOps / DiskWriteOps</strong></td><td>I/O bottlenecks or EBS performance issues</td></tr>
+                        <tr><td><strong>NetworkIn / NetworkOut</strong></td><td>Bandwidth saturation</td></tr>
+                        <tr><td><strong>StatusCheckFailed</strong></td><td>Hardware or OS-level instance health issues</td></tr>
+                    </tbody>
+                </table>
+                <br />
+                <div class="def-box" style="border-left-color:#f5d4aa;">
+                    <strong>💡 Best Practice:</strong> Enable <strong>detailed monitoring</strong> (1-minute granularity) for faster detection of issues. Install the <strong>CloudWatch Agent</strong> to push memory and disk metrics to CloudWatch.
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>⚙️ SAW runbooks</span>
+                <span>📊 CloudWatch</span>
+                <span>🔗 Session Manager</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 7: Key Takeaways -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:6">
+            <div class="note-pin">🧠</div>
+            <h2 class="note-title">Key Takeaways</h2>
+            <div class="note-body">
+                <ul>
+                    <li><strong>EC2 Console Output</strong> is the "black box" of your instance — always check it first when troubleshooting boot issues. It works even when SSH is broken.</li>
+                    <br />
+                    <li><strong>EC2 Serial Console</strong> provides <strong>BIOS-level access</strong> before the OS boots. Use it to fix bad fstab entries, reset passwords, and observe kernel panics.</li>
+                    <br />
+                    <li><strong>EC2Rescue</strong> is an <strong>open-source automated recovery tool</strong> with over 100 diagnostic modules. Run it manually (<span class="chip">./ec2rl run</span>) or via SSM Automation.</li>
+                    <br />
+                    <li><strong>SAW Runbooks</strong> (AWSSupport-*) are curated Systems Manager automations for common issues like SSH connectivity, disk usage, and access recovery.</li>
+                    <br />
+                    <li><strong>SSM Session Manager</strong> provides secure access <strong>without SSH keys, inbound ports, or public IPs</strong> — essential for troubleshooting unreachable instances.</li>
+                    <br />
+                    <li><strong>CloudWatch Metrics</strong> provide system-level visibility even when you can't log in. Enable <strong>detailed monitoring</strong> and install the <strong>CloudWatch Agent</strong>.</li>
+                    <br />
+                    <li><strong>AWSSupport-ExecuteEC2Rescue</strong> automates the entire rescue workflow but <strong>does not support encrypted root volumes</strong>.</li>
+                    <br />
+                    <li>The <strong>Serial Console</strong> must be <strong>enabled at the account level</strong> per Region before use.</li>
+                    <br />
+                    <li>The console output is <strong>base64-encoded</strong> — command-line tools decode it automatically.</li>
+                    <br />
+                    <li><strong>EC2Rescue modules</strong> are YAML files containing BASH or Python scripts stored in <span class="chip">/var/tmp/ec2rl/</span>.</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>🧠 takeaways</span>
+                <span>🔧 troubleshooting tools</span>
+                <span>🔍 diagnostics</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 8: Next Steps -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:7">
+            <div class="note-pin">🚀</div>
+            <h2 class="note-title">Next Steps</h2>
+            <div class="note-body">
+                <span style="font-size:2rem;">📖</span> Proceed to the next section:
+                <br /><br />
+                <span class="chip chip-purple" style="font-size:1.4rem;">14.3: Networking Troubleshooting — VPC, Security Groups, NACLs</span>
+                <br /><br />
+                <div class="def-box" style="border-left-color:#f5d4aa;">
+                    <em>"Troubleshooting isn't about guessing — it's about <strong>using the right tool at the right time</strong>. From the Serial Console to EC2Rescue, each tool in your toolkit serves a specific purpose. The key is knowing <strong>which one to use</strong> and <strong>how to use it</strong> effectively."</em>
+                    <br />
+                    <span style="opacity:0.7;">— AWS Troubleshooting Principles</span>
+                </div>
+                <br />
+                <div style="text-align:center; font-size:2.5rem; opacity:0.3; letter-spacing:10px;">
+                    ❖ ❖ ❖
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🚀 next</span>
+                <span>📖 14.3</span>
+                <span>🌐 networking</span>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

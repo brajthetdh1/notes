@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Practical 7 · Multi-NIC & Advanced Routing · Handwritten Notes</title>
+
+    <!-- Google Fonts – clear handwriting -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Gloria+Hallelujah&family=Architects+Daughter&family=Reenie+Beanie&display=swap" rel="stylesheet" />
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #f7f0e7;
+            background-image: radial-gradient(circle at 30% 20%, #fcf7f0 0%, #eee7dd 100%);
+            display: flex;
+            justify-content: center;
+            padding: 2.5rem 1.5rem;
+            font-family: 'Patrick Hand', 'Architects Daughter', cursive;
+        }
+
+        .notes-container {
+            max-width: 1100px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 2.8rem;
+            animation: floatUp 0.9s ease-out;
+        }
+
+        .note {
+            background: #fffcf5;
+            padding: 2.5rem 3.5rem;
+            border-radius: 28px 28px 28px 10px;
+            box-shadow: 0 12px 36px rgba(0,0,0,0.06), 0 2px 10px rgba(0,0,0,0.03), inset 0 -2px 0 rgba(0,0,0,0.02);
+            position: relative;
+            transition: transform 0.3s ease, box-shadow 0.35s ease;
+            transform-origin: left center;
+            border-left: 8px solid transparent;
+            animation: notePop 0.6s ease both;
+            animation-delay: calc(var(--i, 0) * 0.025s);
+        }
+
+        .note:nth-child(1) { border-left-color: #f0b8b8; }
+        .note:nth-child(2) { border-left-color: #aad0c4; }
+        .note:nth-child(3) { border-left-color: #f5d4aa; }
+        .note:nth-child(4) { border-left-color: #cfb8e0; }
+        .note:nth-child(5) { border-left-color: #b8cce0; }
+        .note:nth-child(6) { border-left-color: #e8c8b8; }
+        .note:nth-child(7) { border-left-color: #b8d9c8; }
+        .note:nth-child(8) { border-left-color: #f0c8c8; }
+        .note:nth-child(9) { border-left-color: #d4c8e8; }
+        .note:nth-child(10) { border-left-color: #c8dce8; }
+        .note:nth-child(11) { border-left-color: #e8d4b8; }
+        .note:nth-child(12) { border-left-color: #b8d4d4; }
+        .note:nth-child(13) { border-left-color: #f0d4c8; }
+        .note:nth-child(14) { border-left-color: #c8bcd4; }
+        .note:nth-child(15) { border-left-color: #d4e0b8; }
+
+        .note:hover {
+            transform: rotate(-0.8deg) scale(1.015);
+            box-shadow: 0 24px 48px rgba(0,0,0,0.09), 0 4px 16px rgba(0,0,0,0.05);
+        }
+
+        .note-title {
+            font-family: 'Gloria Hallelujah', 'Patrick Hand', cursive;
+            font-size: 2.2rem;
+            font-weight: 500;
+            color: #2f2216;
+            letter-spacing: 0.8px;
+            margin-bottom: 0.3rem;
+            line-height: 1.25;
+            display: inline-block;
+            position: relative;
+        }
+
+        .note-title::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: -4px;
+            width: 100%;
+            height: 8px;
+            background: repeating-linear-gradient(90deg, transparent, transparent 6px, rgba(240,184,184,0.4) 6px, rgba(240,184,184,0.4) 12px);
+            border-radius: 20px;
+            opacity: 0.8;
+        }
+
+        .note-subtitle {
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.3rem;
+            color: #5a4a3a;
+            margin: -0.1rem 0 1rem 0;
+            font-weight: 400;
+            opacity: 0.85;
+        }
+
+        .note-body {
+            font-family: 'Architects Daughter', 'Patrick Hand', cursive;
+            font-size: 1.35rem;
+            line-height: 1.85;
+            color: #2a1f15;
+            margin: 0.9rem 0 0.4rem 0;
+            font-weight: 400;
+            letter-spacing: 0.4px;
+        }
+
+        .note-body strong {
+            font-weight: 700;
+            color: #a05545;
+            background: rgba(240,184,184,0.15);
+            padding: 0 8px;
+            border-radius: 16px;
+            font-style: normal;
+        }
+
+        .note-body em {
+            color: #5a8a78;
+            font-style: italic;
+            text-decoration: underline wavy #aad0c4 3px;
+            font-weight: 500;
+        }
+
+        .note-body .chip {
+            background: #f0e9e0;
+            padding: 0.1rem 1.2rem;
+            border-radius: 40px;
+            display: inline-block;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.15rem;
+            color: #3d3226;
+            border: 1px dashed #cbb8a8;
+            margin: 2px 0;
+            font-weight: 400;
+        }
+
+        .note-body .chip-blue { background: #dce8f0; border-color: #aac0d0; }
+        .note-body .chip-green { background: #d8ece0; border-color: #a0c8b8; }
+        .note-body .chip-pink { background: #f0dcd8; border-color: #d8b8b0; }
+        .note-body .chip-purple { background: #e4d8ec; border-color: #c8b8d8; }
+        .note-body .chip-gold { background: #f0e8d0; border-color: #d8c8a8; }
+        .note-body .chip-orange { background: #f0dcc8; border-color: #d8b898; }
+        .note-body .chip-teal { background: #c8e8dc; border-color: #88c8b8; }
+
+        .code-block {
+            background: #1e1a16;
+            color: #e8e0d8;
+            padding: 1.2rem 1.8rem;
+            border-radius: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.75rem;
+            line-height: 1.7;
+            margin: 0.8rem 0 1rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            border-left: 4px solid #f0b8b8;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .code-block .comment { color: #7a8a7a; }
+        .code-block .keyword { color: #f0b8b8; }
+        .code-block .string { color: #b8d9c8; }
+        .code-block .function { color: #c8b8e8; }
+        .code-block .tag { color: #f5d4aa; }
+        .code-block .number { color: #f5d4aa; }
+
+        .ascii-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1rem 1.5rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.58rem;
+            line-height: 1.5;
+            color: #2a1f15;
+            border: 1px solid #e0d8ce;
+            margin: 0.8rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .ascii-box .highlight { color: #a05545; font-weight: bold; }
+        .ascii-box .title { color: #2f2216; font-weight: bold; text-decoration: underline; }
+
+        .styled-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.05rem;
+            background: #f8f4ec;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        }
+
+        .styled-table th {
+            background: #2f2216;
+            color: #f5efe8;
+            padding: 0.7rem 1rem;
+            text-align: left;
+            font-weight: 500;
+            font-size: 1rem;
+        }
+
+        .styled-table td {
+            padding: 0.7rem 1rem;
+            border-bottom: 1px solid #e8e0d6;
+            color: #2a1f15;
+        }
+
+        .styled-table tr:last-child td { border-bottom: none; }
+        .styled-table tr:hover td { background: #f0e9e0; }
+
+        .note-body ul, .note-body ol {
+            padding-left: 2rem;
+            margin: 0.5rem 0;
+        }
+        .note-body li { margin-bottom: 0.3rem; }
+
+        .def-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1.2rem 1.8rem;
+            margin: 0.8rem 0;
+            border-left: 6px solid #aad0c4;
+        }
+        .def-box strong { color: #a05545; }
+
+        .warning-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1.2rem 1.8rem;
+            margin: 0.8rem 0;
+            border-left: 6px solid #f0b8b8;
+        }
+        .warning-box strong { color: #a05545; }
+
+        .summary-table td:first-child { font-weight: 600; color: #a05545; }
+
+        .note-meta {
+            margin-top: 1.5rem;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.05rem;
+            color: #9f8875;
+            display: flex;
+            align-items: center;
+            gap: 1.2rem;
+            flex-wrap: wrap;
+        }
+
+        .note-meta span {
+            background: #f1eae1;
+            padding: 0.3rem 1.4rem;
+            border-radius: 60px;
+            font-size: 1rem;
+            color: #4d3b2b;
+            box-shadow: inset 0 1px 4px rgba(0,0,0,0.02);
+            font-weight: 400;
+            letter-spacing: 0.3px;
+        }
+
+        .note-pin {
+            position: absolute;
+            top: -12px;
+            right: 34px;
+            font-size: 2.6rem;
+            opacity: 0.25;
+            transform: rotate(25deg);
+            filter: drop-shadow(0 3px 6px rgba(0,0,0,0.06));
+            transition: opacity 0.25s;
+        }
+        .note:hover .note-pin { opacity: 0.8; }
+
+        .verification-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.6rem;
+            margin: 0.5rem 0;
+        }
+        .verification-item {
+            background: #f8f4ec;
+            padding: 0.4rem 1rem;
+            border-radius: 10px;
+            border-left: 4px solid #aad0c4;
+            font-size: 1rem;
+        }
+        .verification-item .check { color: #5a8a78; }
+
+        @keyframes floatUp {
+            0% { opacity: 0; transform: translateY(50px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes notePop {
+            0% { opacity: 0; transform: scale(0.92) rotate(-3deg); }
+            80% { opacity: 1; transform: scale(1.015) rotate(0.8deg); }
+            100% { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+
+        @media (max-width: 700px) {
+            .note { padding: 1.8rem 1.8rem; }
+            .note-title { font-size: 1.8rem; }
+            .note-body { font-size: 1.15rem; line-height: 1.7; }
+            .note-body .chip { font-size: 1rem; padding: 0 0.8rem; }
+            .code-block { font-size: 0.6rem; padding: 1rem; }
+            .note-pin { font-size: 2rem; top: -8px; right: 18px; }
+            .styled-table { font-size: 0.9rem; }
+            .styled-table th, .styled-table td { padding: 0.5rem 0.7rem; }
+            .notes-container { gap: 2rem; }
+            .ascii-box { font-size: 0.45rem; padding: 0.8rem 1rem; }
+            .verification-grid { grid-template-columns: 1fr; }
+            .def-box { padding: 0.8rem 1.2rem; }
+            .warning-box { padding: 0.8rem 1.2rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="notes-container">
+
+        <!-- ============================================================ -->
+        <!-- NOTE 1: Practical Overview -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:0">
+            <div class="note-pin">🎯</div>
+            <h2 class="note-title">Comprehensive Practical 7</h2>
+            <div class="note-subtitle">Multi-NIC & Advanced Routing</div>
+            <div class="note-body">
+                <strong>Duration:</strong> 60-90 minutes
+                <br /><br />
+                <strong>Learning Objectives:</strong>
+                <ul>
+                    <li>✅ Create three subnets (DMZ, App, DB) in a custom VPC</li>
+                    <li>✅ Create three Elastic Network Interfaces (ENIs) in different subnets</li>
+                    <li>✅ Attach all three ENIs to a single EC2 instance</li>
+                    <li>✅ Configure policy-based routing inside the instance</li>
+                    <li>✅ Test connectivity from each interface</li>
+                    <li>✅ Perform live migration of an ENI to another instance</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>🎯 practical</span>
+                <span>⏱️ 60-90 min</span>
+                <span>🔌 multi-NIC</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 2: Architecture Overview -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:1">
+            <div class="note-pin">🏗️</div>
+            <h2 class="note-title">Architecture Overview</h2>
+            <div class="ascii-box">
+                <span class="title">MULTI-NIC ARCHITECTURE</span>
+                ┌─────────────────────────────────────────────────────────────────────────────────────┐
+                │                    MULTI-NIC ARCHITECTURE                                           │
+                ├─────────────────────────────────────────────────────────────────────────────────────┤
+                │                                                                                     │
+                │  ┌─────────────────────────────────────────────────────────────────────────────────┐│
+                │  │  VPC: 10.0.0.0/16                                                             ││
+                │  │                                                                                 ││
+                │  │  ┌─────────────────────────────────────────────────────────────────────────┐   ││
+                │  │  │  Subnet: DMZ (10.0.1.0/24)                                              │   ││
+                │  │  │  └─ ENI: eth0 (Primary) - 10.0.1.10                                    │   ││
+                │  │  │     └─ Route Table 1: 0.0.0.0/0 → IGW                                 │   ││
+                │  │  └─────────────────────────────────────────────────────────────────────────┘   ││
+                │  │                                                                                 ││
+                │  │  ┌─────────────────────────────────────────────────────────────────────────┐   ││
+                │  │  │  Subnet: App (10.0.2.0/24)                                              │   ││
+                │  │  │  └─ ENI: eth1 (Secondary) - 10.0.2.10                                  │   ││
+                │  │  │     └─ Route Table 2: 10.0.0.0/16 → Local                              │   ││
+                │  │  └─────────────────────────────────────────────────────────────────────────┘   ││
+                │  │                                                                                 ││
+                │  │  ┌─────────────────────────────────────────────────────────────────────────┐   ││
+                │  │  │  Subnet: DB (10.0.3.0/24)                                               │   ││
+                │  │  │  └─ ENI: eth2 (Secondary) - 10.0.3.10                                  │   ││
+                │  │  │     └─ Route Table 3: 10.0.0.0/16 → Local                              │   ││
+                │  │  └─────────────────────────────────────────────────────────────────────────┘   ││
+                │  │                                                                                 ││
+                │  │  ┌─────────────────────────────────────────────────────────────────────────┐   ││
+                │  │  │  EC2 Instance (t3.medium)                                               │   ││
+                │  │  │  ├─ eth0 (10.0.1.10)  ← DMZ                                            │   ││
+                │  │  │  ├─ eth1 (10.0.2.10)  ← App                                            │   ││
+                │  │  │  └─ eth2 (10.0.3.10)  ← DB                                             │   ││
+                │  │  └─────────────────────────────────────────────────────────────────────────┘   ││
+                │  │                                                                                 ││
+                │  └─────────────────────────────────────────────────────────────────────────────────┘│
+                │                                                                                     │
+                └─────────────────────────────────────────────────────────────────────────────────────┘
+            </div>
+            <div class="note-body">
+                <strong>Network Segmentation:</strong>
+                <ul>
+                    <li><span class="chip chip-blue">DMZ Subnet (10.0.1.0/24):</span> Public-facing resources — has route to IGW</li>
+                    <li><span class="chip chip-green">App Subnet (10.0.2.0/24):</span> Application servers — private, no internet route</li>
+                    <li><span class="chip chip-gold">DB Subnet (10.0.3.0/24):</span> Database tier — most restricted, private</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>🏗️ architecture</span>
+                <span>🌐 VPC</span>
+                <span>🔌 multi-NIC</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 3: P7.1 – Create Three Subnets -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:2">
+            <div class="note-pin">🌐</div>
+            <h2 class="note-title">P7.1 Create Three Subnets</h2>
+            <div class="note-subtitle">DMZ, App, DB</div>
+            <div class="note-body">
+                <strong>📖 Theory: Subnet Segmentation</strong>
+                <br />
+                Creating multiple subnets allows you to segment your network for different purposes:
+                <ul>
+                    <li><span class="chip chip-blue">DMZ (Demilitarized Zone):</span> Public-facing resources (load balancers, bastion hosts)</li>
+                    <li><span class="chip chip-green">App:</span> Application servers (internal communication)</li>
+                    <li><span class="chip chip-gold">DB:</span> Database tier (most restricted)</li>
+                </ul>
+                <br />
+                <strong>Step 1: Create the VPC</strong>
+                <div class="code-block">
+                    <span class="comment"># Create VPC</span>
+                    VPC_ID=$(aws ec2 create-vpc \
+                        --cidr-block 10.0.0.0/16 \
+                        --tag-specifications 'ResourceType=vpc,Tags=[{Key=Name,Value=multi-nic-vpc}]' \
+                        --query 'Vpc.VpcId' --output text)
+                    echo "VPC ID: $VPC_ID"
+
+                    <span class="comment"># Enable DNS hostnames</span>
+                    aws ec2 modify-vpc-attribute --vpc-id $VPC_ID --enable-dns-hostnames
+                </div>
+                <br />
+                <strong>Step 2: Create Internet Gateway</strong>
+                <div class="code-block">
+                    IGW_ID=$(aws ec2 create-internet-gateway \
+                        --tag-specifications 'ResourceType=internet-gateway,Tags=[{Key=Name,Value=multi-nic-igw}]' \
+                        --query 'InternetGateway.InternetGatewayId' --output text)
+
+                    aws ec2 attach-internet-gateway --internet-gateway-id $IGW_ID --vpc-id $VPC_ID
+                </div>
+                <br />
+                <strong>Step 3: Create the Three Subnets</strong>
+                <div class="code-block">
+                    <span class="comment"># DMZ Subnet (Public)</span>
+                    SUBNET_DMZ=$(aws ec2 create-subnet \
+                        --vpc-id $VPC_ID \
+                        --cidr-block 10.0.1.0/24 \
+                        --availability-zone us-east-1a \
+                        --tag-specifications 'ResourceType=subnet,Tags=[{Key=Name,Value=dmz-subnet}]' \
+                        --query 'Subnet.SubnetId' --output text)
+
+                    <span class="comment"># App Subnet (Private)</span>
+                    SUBNET_APP=$(aws ec2 create-subnet \
+                        --vpc-id $VPC_ID \
+                        --cidr-block 10.0.2.0/24 \
+                        --availability-zone us-east-1a \
+                        --tag-specifications 'ResourceType=subnet,Tags=[{Key=Name,Value=app-subnet}]' \
+                        --query 'Subnet.SubnetId' --output text)
+
+                    <span class="comment"># DB Subnet (Private)</span>
+                    SUBNET_DB=$(aws ec2 create-subnet \
+                        --vpc-id $VPC_ID \
+                        --cidr-block 10.0.3.0/24 \
+                        --availability-zone us-east-1a \
+                        --tag-specifications 'ResourceType=subnet,Tags=[{Key=Name,Value=db-subnet}]' \
+                        --query 'Subnet.SubnetId' --output text)
+                </div>
+                <br />
+                <strong>Step 4: Create Route Tables</strong>
+                <div class="code-block">
+                    <span class="comment"># DMZ Route Table (Public)</span>
+                    RT_DMZ=$(aws ec2 create-route-table \
+                        --vpc-id $VPC_ID \
+                        --tag-specifications 'ResourceType=route-table,Tags=[{Key=Name,Value=rt-dmz}]' \
+                        --query 'RouteTable.RouteTableId' --output text)
+                    aws ec2 create-route --route-table-id $RT_DMZ --destination-cidr-block 0.0.0.0/0 --gateway-id $IGW_ID
+
+                    <span class="comment"># App Route Table (Private)</span>
+                    RT_APP=$(aws ec2 create-route-table --vpc-id $VPC_ID --tag-specifications 'ResourceType=route-table,Tags=[{Key=Name,Value=rt-app}]' --query 'RouteTable.RouteTableId' --output text)
+
+                    <span class="comment"># DB Route Table (Private)</span>
+                    RT_DB=$(aws ec2 create-route-table --vpc-id $VPC_ID --tag-specifications 'ResourceType=route-table,Tags=[{Key=Name,Value=rt-db}]' --query 'RouteTable.RouteTableId' --output text)
+                </div>
+                <br />
+                <strong>Step 5: Associate Subnets with Route Tables</strong>
+                <div class="code-block">
+                    aws ec2 associate-route-table --route-table-id $RT_DMZ --subnet-id $SUBNET_DMZ
+                    aws ec2 associate-route-table --route-table-id $RT_APP --subnet-id $SUBNET_APP
+                    aws ec2 associate-route-table --route-table-id $RT_DB --subnet-id $SUBNET_DB
+
+                    <span class="comment"># Enable auto-assign public IP for DMZ subnet only</span>
+                    aws ec2 modify-subnet-attribute --subnet-id $SUBNET_DMZ --map-public-ip-on-launch
+                </div>
+            </div>
+            <div class="note-body">
+                <strong>✅ Verification Checklist:</strong>
+                <div class="verification-grid">
+                    <div class="verification-item"><span class="check">□</span> VPC created with CIDR 10.0.0.0/16</div>
+                    <div class="verification-item"><span class="check">□</span> 3 subnets created (DMZ, App, DB)</div>
+                    <div class="verification-item"><span class="check">□</span> Internet Gateway created and attached</div>
+                    <div class="verification-item"><span class="check">□</span> Route tables created and associated</div>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🌐 P7.1</span>
+                <span>🧱 subnets</span>
+                <span>📊 DMZ/App/DB</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 4: P7.2 – Create Three ENIs -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:3">
+            <div class="note-pin">🔌</div>
+            <h2 class="note-title">P7.2 Create Three ENIs</h2>
+            <div class="note-subtitle">In Different Subnets</div>
+            <div class="note-body">
+                <strong>📖 Theory: Elastic Network Interfaces</strong>
+                <br />
+                ENIs decouple network configuration from compute instances. Each ENI gets its own IP address, security group, and can be independently attached/detached from instances.
+                <br /><br />
+                <strong>Step 1: Create Security Group</strong>
+                <div class="code-block">
+                    SG_ID=$(aws ec2 create-security-group \
+                        --group-name multi-nic-sg \
+                        --description "Security group for multi-NIC instance" \
+                        --vpc-id $VPC_ID \
+                        --tag-specifications 'ResourceType=security-group,Tags=[{Key=Name,Value=multi-nic-sg}]' \
+                        --query 'GroupId' --output text)
+
+                    <span class="comment"># Allow SSH from anywhere</span>
+                    aws ec2 authorize-security-group-ingress --group-id $SG_ID --protocol tcp --port 22 --cidr 0.0.0.0/0
+
+                    <span class="comment"># Allow all traffic within the security group</span>
+                    aws ec2 authorize-security-group-ingress --group-id $SG_ID --protocol all --source-group $SG_ID
+                </div>
+                <br />
+                <strong>Step 2: Create Three ENIs</strong>
+                <div class="code-block">
+                    <span class="comment"># ENI 1: DMZ Subnet</span>
+                    ENI_DMZ=$(aws ec2 create-network-interface \
+                        --subnet-id $SUBNET_DMZ \
+                        --description "DMZ ENI" \
+                        --groups $SG_ID \
+                        --private-ip-address 10.0.1.10 \
+                        --tag-specifications 'ResourceType=network-interface,Tags=[{Key=Name,Value=eni-dmz}]' \
+                        --query 'NetworkInterface.NetworkInterfaceId' --output text)
+
+                    <span class="comment"># ENI 2: App Subnet</span>
+                    ENI_APP=$(aws ec2 create-network-interface \
+                        --subnet-id $SUBNET_APP \
+                        --description "App ENI" \
+                        --groups $SG_ID \
+                        --private-ip-address 10.0.2.10 \
+                        --tag-specifications 'ResourceType=network-interface,Tags=[{Key=Name,Value=eni-app}]' \
+                        --query 'NetworkInterface.NetworkInterfaceId' --output text)
+
+                    <span class="comment"># ENI 3: DB Subnet</span>
+                    ENI_DB=$(aws ec2 create-network-interface \
+                        --subnet-id $SUBNET_DB \
+                        --description "DB ENI" \
+                        --groups $SG_ID \
+                        --private-ip-address 10.0.3.10 \
+                        --tag-specifications 'ResourceType=network-interface,Tags=[{Key=Name,Value=eni-db}]' \
+                        --query 'NetworkInterface.NetworkInterfaceId' --output text)
+                </div>
+                <br />
+                <strong>✅ Verification Checklist:</strong>
+                <div class="verification-grid">
+                    <div class="verification-item"><span class="check">□</span> Security group created with SSH access</div>
+                    <div class="verification-item"><span class="check">□</span> 3 ENIs created in different subnets</div>
+                    <div class="verification-item"><span class="check">□</span> Each ENI has a static private IP address</div>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🔌 P7.2</span>
+                <span>📦 ENIs</span>
+                <span>🔒 security group</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 5: P7.3 – Attach ENIs to Instance -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:4">
+            <div class="note-pin">🔗</div>
+            <h2 class="note-title">P7.3 Attach All Three ENIs</h2>
+            <div class="note-subtitle">To a Single Instance</div>
+            <div class="note-body">
+                <strong>📖 Theory: ENI Attachment</strong>
+                <br />
+                An EC2 instance can have multiple ENIs, but the number is limited by the instance type. The primary ENI (eth0) is attached at launch; secondary ENIs can be attached to running or stopped instances.
+                <br /><br />
+                <strong>Step 1: Launch the Instance</strong>
+                <div class="code-block">
+                    INSTANCE_ID=$(aws ec2 run-instances \
+                        --image-id ami-0abcdef1234567890 \
+                        --instance-type t3.medium \
+                        --key-name MyKeyPair \
+                        --network-interfaces "DeviceIndex=0,NetworkInterfaceId=$ENI_DMZ" \
+                        --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=multi-nic-instance}]' \
+                        --query 'Instances[0].InstanceId' --output text)
+
+                    aws ec2 wait instance-running --instance-ids $INSTANCE_ID
+                </div>
+                <br />
+                <strong>Step 2: Attach Secondary ENIs</strong>
+                <div class="code-block">
+                    <span class="comment"># Attach App ENI (device index 1)</span>
+                    aws ec2 attach-network-interface \
+                        --network-interface-id $ENI_APP \
+                        --instance-id $INSTANCE_ID \
+                        --device-index 1
+
+                    <span class="comment"># Attach DB ENI (device index 2)</span>
+                    aws ec2 attach-network-interface \
+                        --network-interface-id $ENI_DB \
+                        --instance-id $INSTANCE_ID \
+                        --device-index 2
+                </div>
+                <br />
+                <strong>Step 3: Verify Attachment</strong>
+                <div class="code-block">
+                    aws ec2 describe-instances \
+                        --instance-ids $INSTANCE_ID \
+                        --query 'Reservations[0].Instances[0].NetworkInterfaces[*].[NetworkInterfaceId,PrivateIpAddress,Status]' \
+                        --output table
+                </div>
+                <br />
+                <strong>✅ Verification Checklist:</strong>
+                <div class="verification-grid">
+                    <div class="verification-item"><span class="check">□</span> Instance launched with DMZ ENI as primary</div>
+                    <div class="verification-item"><span class="check">□</span> App and DB ENIs attached as secondary interfaces</div>
+                    <div class="verification-item"><span class="check">□</span> All three ENIs show "in-use" status</div>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🔗 P7.3</span>
+                <span>🖥️ t3.medium</span>
+                <span>🔌 3 ENIs</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 6: P7.4 – Policy-Based Routing -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:5">
+            <div class="note-pin">🗺️</div>
+            <h2 class="note-title">P7.4 Configure Policy-Based Routing</h2>
+            <div class="note-subtitle">Inside the Instance</div>
+            <div class="note-body">
+                <strong>📖 Theory: Policy-Based Routing</strong>
+                <br />
+                When an instance has multiple ENIs, the Linux kernel uses the <strong>source IP address</strong> to determine which route table to use for outgoing traffic. This is called policy-based routing and requires creating separate routing tables for each interface.
+                <br /><br />
+                <strong>Step 1: Connect to the Instance</strong>
+                <div class="code-block">
+                    PUBLIC_IP=$(aws ec2 describe-instances --instance-ids $INSTANCE_ID --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)
+                    ssh -i MyKeyPair.pem ec2-user@$PUBLIC_IP
+                </div>
+                <br />
+                <strong>Step 2: Identify Network Interfaces</strong>
+                <div class="code-block">
+                    ip addr
+                    <span class="comment"># Expected: eth0: 10.0.1.10, eth1: 10.0.2.10, eth2: 10.0.3.10</span>
+                </div>
+                <br />
+                <strong>Step 3: Create Custom Route Tables</strong>
+                <div class="code-block">
+                    echo "100 dmz-table" | sudo tee -a /etc/iproute2/rt_tables
+                    echo "200 app-table" | sudo tee -a /etc/iproute2/rt_tables
+                    echo "300 db-table" | sudo tee -a /etc/iproute2/rt_tables
+                </div>
+                <br />
+                <strong>Step 4: Add Routes to Each Table</strong>
+                <div class="code-block">
+                    <span class="comment"># DMZ routes</span>
+                    sudo ip route add default via 10.0.1.1 dev eth0 table dmz-table
+                    sudo ip route add 10.0.0.0/16 dev eth0 table dmz-table
+
+                    <span class="comment"># App routes</span>
+                    sudo ip route add default via 10.0.2.1 dev eth1 table app-table
+                    sudo ip route add 10.0.0.0/16 dev eth1 table app-table
+
+                    <span class="comment"># DB routes</span>
+                    sudo ip route add default via 10.0.3.1 dev eth2 table db-table
+                    sudo ip route add 10.0.0.0/16 dev eth2 table db-table
+                </div>
+                <br />
+                <strong>Step 5: Add Source-Based Routing Rules</strong>
+                <div class="code-block">
+                    sudo ip rule add from 10.0.1.10 table dmz-table
+                    sudo ip rule add from 10.0.2.10 table app-table
+                    sudo ip rule add from 10.0.3.10 table db-table
+                </div>
+                <br />
+                <strong>Step 6: Configure ARP Filtering</strong>
+                <div class="code-block">
+                    echo "net.ipv4.conf.all.arp_filter = 0" | sudo tee -a /etc/sysctl.conf
+                    echo "net.ipv4.conf.all.arp_announce = 2" | sudo tee -a /etc/sysctl.conf
+                    sudo sysctl -p
+                </div>
+                <br />
+                <div class="warning-box">
+                    <strong>⚠️ Important:</strong> ARP filtering must be configured correctly to ensure proper ARP responses for all interfaces. The primary ENI cannot be detached — only secondary ENIs can be migrated.
+                </div>
+            </div>
+            <div class="note-body">
+                <strong>✅ Verification Checklist:</strong>
+                <div class="verification-grid">
+                    <div class="verification-item"><span class="check">□</span> Custom route tables created</div>
+                    <div class="verification-item"><span class="check">□</span> Routes added for each interface</div>
+                    <div class="verification-item"><span class="check">□</span> Rules configured for source-based routing</div>
+                    <div class="verification-item"><span class="check">□</span> ARP filtering configured</div>
+                    <div class="verification-item"><span class="check">□</span> Persistence script created</div>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🗺️ P7.4</span>
+                <span>🔄 policy routing</span>
+                <span>📊 source-based</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 7: P7.5 – Test Connectivity -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:6">
+            <div class="note-pin">📡</div>
+            <h2 class="note-title">P7.5 Test Connectivity</h2>
+            <div class="note-subtitle">From Each Interface</div>
+            <div class="note-body">
+                <strong>📖 Theory: Testing Multi-NIC Connectivity</strong>
+                <br />
+                To verify that traffic from each interface follows the correct routing path, use <span class="chip">curl</span> with the <span class="chip">--interface</span> option to bind to a specific source IP.
+                <br /><br />
+                <strong>Step 1: Test DMZ Interface (eth0)</strong>
+                <div class="code-block">
+                    curl --interface 10.0.1.10 https://api.ipify.org -w "\n"
+                    ip route get 8.8.8.8 from 10.0.1.10
+                </div>
+                <br />
+                <strong>Step 2: Test App Interface (eth1)</strong>
+                <div class="code-block">
+                    curl --interface 10.0.2.10 https://api.ipify.org -w "\n" --connect-timeout 5
+                    ip route get 8.8.8.8 from 10.0.2.10
+                </div>
+                <br />
+                <strong>Step 3: Test DB Interface (eth2)</strong>
+                <div class="code-block">
+                    curl --interface 10.0.3.10 https://api.ipify.org -w "\n" --connect-timeout 5
+                    ip route get 8.8.8.8 from 10.0.3.10
+                </div>
+                <br />
+                <strong>Step 4: View Routing Tables</strong>
+                <div class="code-block">
+                    ip rule show
+                    ip route show table dmz-table
+                    ip route show table app-table
+                    ip route show table db-table
+                </div>
+                <br />
+                <strong>Step 5: Test Internal Connectivity</strong>
+                <div class="code-block">
+                    ping -I eth0 -c 2 10.0.1.1
+                    ping -I eth1 -c 2 10.0.2.1
+                    ping -I eth2 -c 2 10.0.3.1
+                </div>
+                <br />
+                <strong>✅ Verification Checklist:</strong>
+                <div class="verification-grid">
+                    <div class="verification-item"><span class="check">□</span> DMZ interface (eth0) can reach the internet</div>
+                    <div class="verification-item"><span class="check">□</span> App interface (eth1) can reach the internet (if NAT configured)</div>
+                    <div class="verification-item"><span class="check">□</span> DB interface (eth2) can reach the internet (if NAT configured)</div>
+                    <div class="verification-item"><span class="check">□</span> All interfaces can ping their gateways</div>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>📡 P7.5</span>
+                <span>🌐 connectivity</span>
+                <span>📊 testing</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 8: P7.6 – Live Migration -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:7">
+            <div class="note-pin">🔄</div>
+            <h2 class="note-title">P7.6 Live ENI Migration</h2>
+            <div class="note-subtitle">Detach and Attach to Another Instance</div>
+            <div class="note-body">
+                <strong>📖 Theory: Live ENI Migration</strong>
+                <br />
+                ENI migration is the process of detaching a secondary ENI from one instance and attaching it to another. Because the ENI carries its <strong>IP address, security groups, and MAC address</strong> with it, traffic is automatically redirected to the new instance without DNS changes.
+                <br /><br />
+                <strong>Step 1: Create a Second Instance</strong>
+                <div class="code-block">
+                    INSTANCE_2=$(aws ec2 run-instances \
+                        --image-id ami-0abcdef1234567890 \
+                        --instance-type t3.medium \
+                        --key-name MyKeyPair \
+                        --subnet-id $SUBNET_DMZ \
+                        --associate-public-ip-address \
+                        --security-group-ids $SG_ID \
+                        --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=migration-target}]' \
+                        --query 'Instances[0].InstanceId' --output text)
+
+                    aws ec2 wait instance-running --instance-ids $INSTANCE_2
+                </div>
+                <br />
+                <strong>Step 2: Identify the Attachment ID</strong>
+                <div class="code-block">
+                    ATTACHMENT_ID=$(aws ec2 describe-network-interfaces \
+                        --network-interface-ids $ENI_APP \
+                        --query 'NetworkInterfaces[0].Attachment.AttachmentId' --output text)
+                </div>
+                <br />
+                <strong>Step 3: Detach the ENI</strong>
+                <div class="code-block">
+                    aws ec2 detach-network-interface --attachment-id $ATTACHMENT_ID
+                    aws ec2 wait network-interface-available --network-interface-ids $ENI_APP
+                </div>
+                <br />
+                <strong>Step 4: Attach to the Second Instance</strong>
+                <div class="code-block">
+                    aws ec2 attach-network-interface \
+                        --network-interface-id $ENI_APP \
+                        --instance-id $INSTANCE_2 \
+                        --device-index 1
+                </div>
+                <br />
+                <strong>Step 5: Verify the Migration</strong>
+                <div class="code-block">
+                    aws ec2 describe-network-interfaces \
+                        --network-interface-ids $ENI_APP \
+                        --query 'NetworkInterfaces[0].[NetworkInterfaceId,PrivateIpAddress,Status,Attachment.InstanceId]' \
+                        --output table
+
+                    PUBLIC_IP_2=$(aws ec2 describe-instances --instance-ids $INSTANCE_2 --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)
+                    echo "Second Instance Public IP: $PUBLIC_IP_2"
+                </div>
+                <br />
+                <div class="def-box" style="border-left-color:#f5d4aa;">
+                    <strong>💡 Key Insight:</strong> The primary ENI (eth0) <strong>cannot</strong> be detached — only secondary ENIs can be migrated. Both instances must be in the <strong>same Availability Zone</strong> and <strong>same VPC</strong> as the ENI.
+                </div>
+            </div>
+            <div class="note-body">
+                <strong>✅ Verification Checklist:</strong>
+                <div class="verification-grid">
+                    <div class="verification-item"><span class="check">□</span> Second instance launched successfully</div>
+                    <div class="verification-item"><span class="check">□</span> ENI detached from first instance</div>
+                    <div class="verification-item"><span class="check">□</span> ENI attached to second instance</div>
+                    <div class="verification-item"><span class="check">□</span> IP address and configuration preserved</div>
+                    <div class="verification-item"><span class="check">□</span> Connectivity verified after migration</div>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🔄 P7.6</span>
+                <span>🔀 live migration</span>
+                <span>⚡ high availability</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 9: Cleanup -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:8">
+            <div class="note-pin">🧹</div>
+            <h2 class="note-title">Cleanup</h2>
+            <div class="note-body">
+                <div class="code-block">
+                    <span class="comment"># Detach and terminate instances</span>
+                    aws ec2 terminate-instances --instance-ids $INSTANCE_ID $INSTANCE_2
+
+                    <span class="comment"># Delete ENIs</span>
+                    aws ec2 delete-network-interface --network-interface-id $ENI_DMZ
+                    aws ec2 delete-network-interface --network-interface-id $ENI_APP
+                    aws ec2 delete-network-interface --network-interface-id $ENI_DB
+
+                    <span class="comment"># Delete security group</span>
+                    aws ec2 delete-security-group --group-id $SG_ID
+
+                    <span class="comment"># Delete subnets</span>
+                    aws ec2 delete-subnet --subnet-id $SUBNET_DMZ
+                    aws ec2 delete-subnet --subnet-id $SUBNET_APP
+                    aws ec2 delete-subnet --subnet-id $SUBNET_DB
+
+                    <span class="comment"># Delete route tables</span>
+                    aws ec2 delete-route-table --route-table-id $RT_DMZ
+                    aws ec2 delete-route-table --route-table-id $RT_APP
+                    aws ec2 delete-route-table --route-table-id $RT_DB
+
+                    <span class="comment"># Detach and delete Internet Gateway</span>
+                    aws ec2 detach-internet-gateway --internet-gateway-id $IGW_ID --vpc-id $VPC_ID
+                    aws ec2 delete-internet-gateway --internet-gateway-id $IGW_ID
+
+                    <span class="comment"># Delete VPC</span>
+                    aws ec2 delete-vpc --vpc-id $VPC_ID
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🧹 cleanup</span>
+                <span>🗑️ delete resources</span>
+                <span>💰 avoid charges</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 10: Practical Summary -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:9">
+            <div class="note-pin">📊</div>
+            <h2 class="note-title">Practical Summary</h2>
+            <div class="note-body">
+                <table class="styled-table">
+                    <thead><tr><th>Task</th><th>Status</th><th>Notes</th></tr></thead>
+                    <tbody>
+                        <tr><td>P7.1: Create Three Subnets</td><td><span class="chip chip-green">☐ Complete</span></td><td>DMZ, App, DB subnets created</td></tr>
+                        <tr><td>P7.2: Create Three ENIs</td><td><span class="chip chip-green">☐ Complete</span></td><td>ENIs in different subnets</td></tr>
+                        <tr><td>P7.3: Attach ENIs to Instance</td><td><span class="chip chip-green">☐ Complete</span></td><td>All three ENIs attached</td></tr>
+                        <tr><td>P7.4: Policy-Based Routing</td><td><span class="chip chip-green">☐ Complete</span></td><td>Source-based routing configured</td></tr>
+                        <tr><td>P7.5: Test Connectivity</td><td><span class="chip chip-green">☐ Complete</span></td><td>Each interface tested</td></tr>
+                        <tr><td>P7.6: Live Migration</td><td><span class="chip chip-green">☐ Complete</span></td><td>ENI migrated to second instance</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="note-meta">
+                <span>📊 summary</span>
+                <span>✅ all tasks</span>
+                <span>🔄 complete</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 11: Key Takeaways -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:10">
+            <div class="note-pin">🧠</div>
+            <h2 class="note-title">Key Takeaways</h2>
+            <div class="note-body">
+                <ul>
+                    <li><strong>ENIs decouple networking from compute</strong> — you can move network configurations between instances without changing IP addresses.</li>
+                    <br />
+                    <li><strong>Policy-based routing</strong> uses <strong>source IP addresses</strong> to determine which route table to use, enabling traffic from different ENIs to use different paths.</li>
+                    <br />
+                    <li><strong>Live migration of ENIs</strong> allows for high availability without DNS changes or route table updates.</li>
+                    <br />
+                    <li><strong>ARP filtering</strong> must be configured correctly to ensure proper ARP responses for all interfaces.</li>
+                    <br />
+                    <li><strong>Security groups</strong> can be applied per ENI, providing <strong>fine-grained access control</strong>.</li>
+                    <br />
+                    <li><strong>ENI limits</strong> depend on the instance type; larger instances support more ENIs.</li>
+                    <br />
+                    <li>The <strong>primary ENI cannot be detached</strong> — only secondary ENIs can be migrated.</li>
+                    <br />
+                    <li><strong>Both instances</strong> must be in the <strong>same Availability Zone</strong> and <strong>same VPC</strong> for ENI migration.</li>
+                    <br />
+                    <li><strong>Source/destination check</strong> must be disabled for NAT, routing, and firewall instances.</li>
+                    <br />
+                    <li><strong>Automation:</strong> ENI migration can be automated within ASG lifecycle hooks for zero-downtime deployments.</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>🧠 takeaways</span>
+                <span>🔌 ENI</span>
+                <span>🔄 migration</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 12: Next Steps -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:11">
+            <div class="note-pin">🚀</div>
+            <h2 class="note-title">Next Steps</h2>
+            <div class="note-body">
+                <span style="font-size:2rem;">📖</span> Proceed to the next section:
+                <br /><br />
+                <span class="chip chip-purple" style="font-size:1.4rem;">Practical 8: VPC Peering and Transit Gateway</span>
+                <br /><br />
+                <div class="def-box" style="border-left-color:#f5d4aa;">
+                    <em>"Multi-NIC architectures aren't just about having more network cards — they're about <strong>building resilient, secure, and flexible</strong> network designs that can adapt to any application requirement."</em>
+                    <br />
+                    <span style="opacity:0.7;">— AWS Networking Principles</span>
+                </div>
+                <br />
+                <div style="text-align:center; font-size:2.5rem; opacity:0.3; letter-spacing:10px;">
+                    ❖ ❖ ❖
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🚀 next</span>
+                <span>📖 Practical 8</span>
+                <span>🌐 VPC Peering</span>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

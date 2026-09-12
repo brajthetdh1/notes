@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EC2 Chapter 6.3 · Handwritten Notes</title>
+
+    <!-- Google Fonts – clear handwriting -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Gloria+Hallelujah&family=Architects+Daughter&family=Reenie+Beanie&display=swap" rel="stylesheet" />
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: #f7f0e7;
+            background-image: radial-gradient(circle at 30% 20%, #fcf7f0 0%, #eee7dd 100%);
+            display: flex;
+            justify-content: center;
+            padding: 2.5rem 1.5rem;
+            font-family: 'Patrick Hand', 'Architects Daughter', cursive;
+        }
+
+        .notes-container {
+            max-width: 1100px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 2.8rem;
+            animation: floatUp 0.9s ease-out;
+        }
+
+        .note {
+            background: #fffcf5;
+            padding: 2.5rem 3.5rem;
+            border-radius: 28px 28px 28px 10px;
+            box-shadow: 0 12px 36px rgba(0,0,0,0.06), 0 2px 10px rgba(0,0,0,0.03), inset 0 -2px 0 rgba(0,0,0,0.02);
+            position: relative;
+            transition: transform 0.3s ease, box-shadow 0.35s ease;
+            transform-origin: left center;
+            border-left: 8px solid transparent;
+            animation: notePop 0.6s ease both;
+            animation-delay: calc(var(--i, 0) * 0.025s);
+        }
+
+        .note:nth-child(1) { border-left-color: #f0b8b8; }
+        .note:nth-child(2) { border-left-color: #aad0c4; }
+        .note:nth-child(3) { border-left-color: #f5d4aa; }
+        .note:nth-child(4) { border-left-color: #cfb8e0; }
+        .note:nth-child(5) { border-left-color: #b8cce0; }
+        .note:nth-child(6) { border-left-color: #e8c8b8; }
+        .note:nth-child(7) { border-left-color: #b8d9c8; }
+        .note:nth-child(8) { border-left-color: #f0c8c8; }
+        .note:nth-child(9) { border-left-color: #d4c8e8; }
+        .note:nth-child(10) { border-left-color: #c8dce8; }
+        .note:nth-child(11) { border-left-color: #e8d4b8; }
+
+        .note:hover {
+            transform: rotate(-0.8deg) scale(1.015);
+            box-shadow: 0 24px 48px rgba(0,0,0,0.09), 0 4px 16px rgba(0,0,0,0.05);
+        }
+
+        .note-title {
+            font-family: 'Gloria Hallelujah', 'Patrick Hand', cursive;
+            font-size: 2.2rem;
+            font-weight: 500;
+            color: #2f2216;
+            letter-spacing: 0.8px;
+            margin-bottom: 0.3rem;
+            line-height: 1.25;
+            display: inline-block;
+            position: relative;
+        }
+
+        .note-title::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: -4px;
+            width: 100%;
+            height: 8px;
+            background: repeating-linear-gradient(90deg, transparent, transparent 6px, rgba(240,184,184,0.4) 6px, rgba(240,184,184,0.4) 12px);
+            border-radius: 20px;
+            opacity: 0.8;
+        }
+
+        .note-subtitle {
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.3rem;
+            color: #5a4a3a;
+            margin: -0.1rem 0 1rem 0;
+            font-weight: 400;
+            opacity: 0.85;
+        }
+
+        .note-body {
+            font-family: 'Architects Daughter', 'Patrick Hand', cursive;
+            font-size: 1.35rem;
+            line-height: 1.85;
+            color: #2a1f15;
+            margin: 0.9rem 0 0.4rem 0;
+            font-weight: 400;
+            letter-spacing: 0.4px;
+        }
+
+        .note-body strong {
+            font-weight: 700;
+            color: #a05545;
+            background: rgba(240,184,184,0.15);
+            padding: 0 8px;
+            border-radius: 16px;
+            font-style: normal;
+        }
+
+        .note-body em {
+            color: #5a8a78;
+            font-style: italic;
+            text-decoration: underline wavy #aad0c4 3px;
+            font-weight: 500;
+        }
+
+        .note-body .chip {
+            background: #f0e9e0;
+            padding: 0.1rem 1.2rem;
+            border-radius: 40px;
+            display: inline-block;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.15rem;
+            color: #3d3226;
+            border: 1px dashed #cbb8a8;
+            margin: 2px 0;
+            font-weight: 400;
+        }
+
+        .note-body .chip-blue { background: #dce8f0; border-color: #aac0d0; }
+        .note-body .chip-green { background: #d8ece0; border-color: #a0c8b8; }
+        .note-body .chip-pink { background: #f0dcd8; border-color: #d8b8b0; }
+        .note-body .chip-purple { background: #e4d8ec; border-color: #c8b8d8; }
+        .note-body .chip-gold { background: #f0e8d0; border-color: #d8c8a8; }
+        .note-body .chip-teal { background: #c8e8dc; border-color: #88c8b8; }
+        .note-body .chip-orange { background: #f0dcc8; border-color: #d8b898; }
+        .note-body .chip-red { background: #f0d8d8; border-color: #d8b0b0; }
+
+        .code-block {
+            background: #1e1a16;
+            color: #e8e0d8;
+            padding: 1.2rem 1.8rem;
+            border-radius: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.75rem;
+            line-height: 1.7;
+            margin: 0.8rem 0 1rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            border-left: 4px solid #f0b8b8;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .code-block .comment { color: #7a8a7a; }
+        .code-block .keyword { color: #f0b8b8; }
+        .code-block .string { color: #b8d9c8; }
+        .code-block .function { color: #c8b8e8; }
+        .code-block .tag { color: #f5d4aa; }
+        .code-block .number { color: #f5d4aa; }
+        .code-block .bold { color: #f0e0c8; font-weight: bold; }
+
+        .ascii-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1rem 1.5rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.45rem;
+            line-height: 1.5;
+            color: #2a1f15;
+            border: 1px solid #e0d8ce;
+            margin: 0.8rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .ascii-box .highlight { color: #a05545; font-weight: bold; }
+        .ascii-box .title { color: #2f2216; font-weight: bold; text-decoration: underline; }
+
+        .styled-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 0.8rem;
+            background: #f8f4ec;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        }
+
+        .styled-table th {
+            background: #2f2216;
+            color: #f5efe8;
+            padding: 0.5rem 0.7rem;
+            text-align: left;
+            font-weight: 500;
+            font-size: 0.75rem;
+        }
+
+        .styled-table td {
+            padding: 0.5rem 0.7rem;
+            border-bottom: 1px solid #e8e0d6;
+            color: #2a1f15;
+            font-size: 0.75rem;
+        }
+
+        .styled-table tr:last-child td { border-bottom: none; }
+        .styled-table tr:hover td { background: #f0e9e0; }
+
+        .note-body ul, .note-body ol {
+            padding-left: 2rem;
+            margin: 0.5rem 0;
+        }
+        .note-body li { margin-bottom: 0.3rem; }
+
+        .def-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1.2rem 1.8rem;
+            margin: 0.8rem 0;
+            border-left: 6px solid #aad0c4;
+        }
+        .def-box strong { color: #a05545; }
+
+        .qa-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1rem 1.8rem;
+            margin: 0.8rem 0;
+            border-left: 6px solid #cfb8e0;
+        }
+        .qa-box .q { font-weight: 600; color: #a05545; font-size: 1.2rem; }
+        .qa-box .a { color: #3d6b5a; margin-top: 0.3rem; padding-left: 0.5rem; }
+
+        .note-meta {
+            margin-top: 1.5rem;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.05rem;
+            color: #9f8875;
+            display: flex;
+            align-items: center;
+            gap: 1.2rem;
+            flex-wrap: wrap;
+        }
+
+        .note-meta span {
+            background: #f1eae1;
+            padding: 0.3rem 1.4rem;
+            border-radius: 60px;
+            font-size: 1rem;
+            color: #4d3b2b;
+            box-shadow: inset 0 1px 4px rgba(0,0,0,0.02);
+            font-weight: 400;
+            letter-spacing: 0.3px;
+        }
+
+        .note-pin {
+            position: absolute;
+            top: -12px;
+            right: 34px;
+            font-size: 2.6rem;
+            opacity: 0.25;
+            transform: rotate(25deg);
+            filter: drop-shadow(0 3px 6px rgba(0,0,0,0.06));
+            transition: opacity 0.25s;
+        }
+        .note:hover .note-pin { opacity: 0.8; }
+
+        .method-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 0.3rem;
+            margin: 0.5rem 0;
+        }
+        .method-item {
+            background: #f8f4ec;
+            padding: 0.3rem 0.5rem;
+            border-radius: 6px;
+            border-left: 3px solid #b8cce0;
+            font-size: 0.7rem;
+        }
+        .method-item .m { font-weight: 700; color: #a05545; }
+        .method-item .d { color: #3d6b5a; }
+
+        .username-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.2rem;
+            margin: 0.5rem 0;
+        }
+        .username-item {
+            background: #f8f4ec;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            border-left: 3px solid #f5d4aa;
+            font-size: 0.65rem;
+        }
+        .username-item .u { font-weight: 700; color: #a05545; }
+
+        .sm-arch {
+            font-family: 'Courier New', monospace;
+            font-size: 0.55rem;
+            line-height: 1.4;
+            background: #f8f4ec;
+            padding: 0.5rem 0.8rem;
+            border-radius: 8px;
+            margin: 0.5rem 0;
+            border: 1px solid #e0d8ce;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+
+        .security-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.3rem;
+            margin: 0.5rem 0;
+        }
+        .security-item {
+            background: #f8f4ec;
+            padding: 0.3rem 0.5rem;
+            border-radius: 6px;
+            border-left: 3px solid #f0b8b8;
+            font-size: 0.7rem;
+        }
+        .security-item .s { font-weight: 700; color: #a05545; }
+
+        .vs-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.3rem;
+            margin: 0.5rem 0;
+        }
+        .vs-item {
+            background: #f8f4ec;
+            padding: 0.3rem 0.5rem;
+            border-radius: 6px;
+            border-left: 3px solid #b8cce0;
+            font-size: 0.7rem;
+        }
+        .vs-item .v { font-weight: 700; color: #a05545; }
+
+        @keyframes floatUp {
+            0% { opacity: 0; transform: translateY(50px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes notePop {
+            0% { opacity: 0; transform: scale(0.92) rotate(-3deg); }
+            80% { opacity: 1; transform: scale(1.015) rotate(0.8deg); }
+            100% { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+
+        @media (max-width: 700px) {
+            .note { padding: 1.8rem 1.8rem; }
+            .note-title { font-size: 1.8rem; }
+            .note-body { font-size: 1.15rem; line-height: 1.7; }
+            .note-body .chip { font-size: 1rem; padding: 0 0.8rem; }
+            .code-block { font-size: 0.65rem; padding: 1rem; }
+            .note-pin { font-size: 2rem; top: -8px; right: 18px; }
+            .styled-table { font-size: 0.7rem; }
+            .styled-table th, .styled-table td { padding: 0.4rem 0.5rem; font-size: 0.7rem; }
+            .notes-container { gap: 2rem; }
+            .ascii-box { font-size: 0.38rem; padding: 0.8rem 1rem; }
+            .qa-box { padding: 0.8rem 1.2rem; }
+            .def-box { padding: 0.8rem 1.2rem; }
+            .method-grid { grid-template-columns: 1fr 1fr; }
+            .username-grid { grid-template-columns: 1fr 1fr; }
+            .security-grid { grid-template-columns: 1fr; }
+            .vs-grid { grid-template-columns: 1fr; }
+            .sm-arch { font-size: 0.45rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="notes-container">
+
+        <!-- ============================================================ -->
+        <!-- NOTE 1: Chapter Title -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:0">
+            <div class="note-pin">🔌</div>
+            <h2 class="note-title">6.3 Connecting to EC2 Instances</h2>
+            <div class="note-body">
+                Connecting to your EC2 instances is a <strong>fundamental skill</strong> for managing your cloud infrastructure. AWS provides several methods to establish secure connections, ranging from traditional SSH clients to modern, browser-based solutions. This chapter covers the most common connection methods for Linux instances.
+            </div>
+            <div class="note-meta">
+                <span>🔌 connecting</span>
+                <span>🔑 SSH</span>
+                <span>🖥️ EC2</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 2: Connection Options -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:1">
+            <div class="note-pin">📋</div>
+            <h2 class="note-title">Understanding Your Connection Options</h2>
+            <div class="note-body">
+                AWS offers multiple ways to connect to EC2 instances, each designed for different use cases, operating systems, and security requirements.
+                <br /><br />
+                <div class="method-grid">
+                    <div class="method-item" style="border-left-color:#b8cce0;">
+                        <div class="m">SSH (Linux/macOS)</div>
+                        <div class="d">Native terminal-based, uses .pem key pair</div>
+                        <div style="font-size:0.6rem;">Direct command-line access</div>
+                    </div>
+                    <div class="method-item" style="border-left-color:#aad0c4;">
+                        <div class="m">PuTTY (Windows)</div>
+                        <div class="d">Free SSH client, requires .ppk key conversion</div>
+                        <div style="font-size:0.6rem;">Windows users needing SSH access</div>
+                    </div>
+                    <div class="method-item" style="border-left-color:#f5d4aa;">
+                        <div class="m">EC2 Instance Connect</div>
+                        <div class="d">Browser-based, temporary key injection</div>
+                        <div style="font-size:0.6rem;">Quick, web-based access</div>
+                    </div>
+                    <div class="method-item" style="border-left-color:#cfb8e0;">
+                        <div class="m">Session Manager</div>
+                        <div class="d">No public IP/SSH key required, IAM-based</div>
+                        <div style="font-size:0.6rem;">Secure, auditable access to private instances</div>
+                    </div>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>📋 options</span>
+                <span>🔑 SSH</span>
+                <span>🪟 PuTTY</span>
+                <span>🌐 EC2 Connect</span>
+                <span>🔐 Session Manager</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 3: SSH (Linux/macOS) -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:2">
+            <div class="note-pin">💻</div>
+            <h2 class="note-title">6.3.1 SSH (Linux/macOS)</h2>
+            <div class="note-body">
+                <strong>📖 Complete Theory</strong>
+                <br />
+                SSH (Secure Shell) is the <strong>standard protocol</strong> for securely connecting to Linux instances. For Linux and macOS users, SSH is built directly into the terminal, providing a native, powerful command-line interface for managing EC2 instances.
+                <br /><br />
+                <strong>Prerequisites:</strong>
+                <ul>
+                    <li>EC2 instance must have a <strong>public IP address</strong> and be reachable from the internet.</li>
+                    <li>Security group must allow inbound SSH on <span class="chip">port 22</span> from your IP address.</li>
+                    <li>You must have access to the <span class="chip">private key (.pem file)</span> used to launch the instance.</li>
+                </ul>
+                <br />
+                <strong>The SSH Command Structure:</strong>
+                <div class="code-block">
+                    ssh -i /path/to/your-key-pair.pem username@instance-public-dns-name
+                </div>
+                <br />
+                <strong>Default Usernames for Common AMIs:</strong>
+                <div class="username-grid">
+                    <div class="username-item" style="border-left-color:#b8cce0;">
+                        <div class="u">Amazon Linux 2023/2</div>
+                        <div style="font-size:0.55rem;">ec2-user</div>
+                    </div>
+                    <div class="username-item" style="border-left-color:#aad0c4;">
+                        <div class="u">Ubuntu</div>
+                        <div style="font-size:0.55rem;">ubuntu</div>
+                    </div>
+                    <div class="username-item" style="border-left-color:#f5d4aa;">
+                        <div class="u">RHEL</div>
+                        <div style="font-size:0.55rem;">ec2-user or root</div>
+                    </div>
+                    <div class="username-item" style="border-left-color:#cfb8e0;">
+                        <div class="u">CentOS</div>
+                        <div style="font-size:0.55rem;">centos or ec2-user</div>
+                    </div>
+                    <div class="username-item" style="border-left-color:#e8c8b8;">
+                        <div class="u">Debian</div>
+                        <div style="font-size:0.55rem;">admin or ec2-user</div>
+                    </div>
+                    <div class="username-item" style="border-left-color:#b8d9c8;">
+                        <div class="u">SUSE Linux</div>
+                        <div style="font-size:0.55rem;">ec2-user</div>
+                    </div>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>💻 SSH</span>
+                <span>🔑 .pem</span>
+                <span>🐧 Linux/macOS</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 4: SSH Step-by-Step -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:3">
+            <div class="note-pin">🛠️</div>
+            <h2 class="note-title">SSH Step-by-Step</h2>
+            <div class="note-body">
+                <strong>Step 1: Locate Your Private Key File</strong>
+                <br />
+                Your private key file (.pem) was downloaded when you created your key pair. <span class="chip chip-pink">AWS does not retain a copy.</span>
+                <br /><br />
+                <strong>Step 2: Set the Correct Permissions (Critical)</strong>
+                <div class="code-block">
+                    chmod 400 your-key-pair.pem
+                </div>
+                <div class="def-box" style="border-left-color:#f0b8b8;">
+                    <strong>⚠️ Without this step, you will receive:</strong>
+                    <div class="code-block" style="color:#f0b8b8; font-size:0.7rem;">
+                        "Permissions are too open" error
+                    </div>
+                </div>
+                <br />
+                <strong>Step 3: Find Your Instance's Public DNS</strong>
+                <br />
+                Copy the <span class="chip">Public IPv4 DNS</span> or <span class="chip">Public IPv4 address</span> from the instance details pane.
+                <br /><br />
+                <strong>Step 4: Connect to the Instance</strong>
+                <div class="code-block">
+                    ssh -i ~/Downloads/my-key-pair.pem ec2-user@ec2-54-123-45-67.compute-1.amazonaws.com
+                </div>
+                <br />
+                <strong>Step 5: Accept the Host Key</strong>
+                <div class="code-block" style="color:#b8d9c8; font-size:0.7rem;">
+                    The authenticity of host '...' can't be established.
+                    Are you sure you want to continue connecting (yes/no/[fingerprint])?
+                </div>
+                Type <span class="chip">yes</span> to continue.
+                <br /><br />
+                <strong>Step 6: Verify the Connection</strong>
+                <div class="code-block" style="color:#b8d9c8; font-size:0.7rem;">
+                    [ec2-user@ip-10-0-1-123 ~]$
+                </div>
+                You are now inside your EC2 instance!
+            </div>
+            <div class="note-meta">
+                <span>🛠️ step-by-step</span>
+                <span>🔑 chmod 400</span>
+                <span>✅ connect</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 5: SSH Security -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:4">
+            <div class="note-pin">🔒</div>
+            <h2 class="note-title">SSH Security Considerations</h2>
+            <div class="note-body">
+                <div class="security-grid">
+                    <div class="security-item" style="border-left-color:#b8cce0;">
+                        <div class="s">🔐 chmod 400 on .pem</div>
+                        <div style="font-size:0.65rem;">Prevents other users from reading your private key</div>
+                    </div>
+                    <div class="security-item" style="border-left-color:#aad0c4;">
+                        <div class="s">📍 Restrict SSH Source IP</div>
+                        <div style="font-size:0.65rem;">Reduce attack surface; only allow specific IPs in Security Groups</div>
+                    </div>
+                    <div class="security-item" style="border-left-color:#f0b8b8;">
+                        <div class="s">🚫 Never share .pem file</div>
+                        <div style="font-size:0.65rem;">Anyone with the key can access your instance</div>
+                    </div>
+                    <div class="security-item" style="border-left-color:#cfb8e0;">
+                        <div class="s">🔐 Use Session Manager instead</div>
+                        <div style="font-size:0.65rem;">Better security posture; no SSH key management needed</div>
+                    </div>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🔒 security</span>
+                <span>🔑 private key</span>
+                <span>🛡️ best practices</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 6: PuTTY (Windows) -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:5">
+            <div class="note-pin">🪟</div>
+            <h2 class="note-title">6.3.2 PuTTY (Windows)</h2>
+            <div class="note-body">
+                <strong>📖 Complete Theory</strong>
+                <br />
+                PuTTY is a <strong>free, open-source SSH client</strong> for Windows that provides secure connections to Linux EC2 instances. Unlike Linux/macOS, Windows does not have a native SSH client installed by default.
+                <br /><br />
+                <strong>Key Step:</strong> Convert the .pem key file to PuTTY's <span class="chip">.ppk</span> format using the <span class="chip">PuTTY Key Generator</span>.
+                <br /><br />
+                <strong>🛠️ Step-by-Step Instructions:</strong>
+                <ol>
+                    <li><strong>Download and Install PuTTY</strong> from the official website.</li>
+                    <li><strong>Convert .pem to .ppk:</strong>
+                        <ul>
+                            <li>Open <span class="chip">puttygen.exe</span></li>
+                            <li>Click <span class="chip">Load</span> → select your .pem file</li>
+                            <li>Click <span class="chip">Save private key</span> → name the file with <span class="chip">.ppk</span> extension</li>
+                        </ul>
+                    </li>
+                    <li><strong>Configure PuTTY:</strong>
+                        <ul>
+                            <li>Host Name: <span class="chip">username@instance-public-dns</span></li>
+                            <li>Port: <span class="chip">22</span></li>
+                            <li>Connection → SSH → Auth → Browse → select .ppk file</li>
+                        </ul>
+                    </li>
+                    <li><strong>Click Open</strong> and accept the host key.</li>
+                </ol>
+                <br />
+                <strong>Key Differences from SSH on Linux/macOS:</strong>
+                <table class="styled-table">
+                    <thead><tr><th>Aspect</th><th>Linux/macOS</th><th>PuTTY (Windows)</th></tr></thead>
+                    <tbody>
+                        <tr><td>Key Format</td><td>.pem</td><td>.ppk</td></tr>
+                        <tr><td>Key Generation</td><td>Built-in or ssh-keygen</td><td>puttygen.exe</td></tr>
+                        <tr><td>Client</td><td>Built-in</td><td>Must download and install</td></tr>
+                        <tr><td>Command Format</td><td>ssh -i key.pem user@host</td><td>GUI-based configuration</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="note-meta">
+                <span>🪟 PuTTY</span>
+                <span>🔑 .ppk</span>
+                <span>🛠️ puttygen</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 7: EC2 Instance Connect -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:6">
+            <div class="note-pin">🌐</div>
+            <h2 class="note-title">6.3.3 EC2 Instance Connect</h2>
+            <div class="note-body">
+                <strong>📖 Complete Theory</strong>
+                <br />
+                EC2 Instance Connect is a <strong>browser-based SSH client</strong> that allows you to connect directly to your Linux instances from the AWS Management Console. Instead of using a permanent key pair, Instance Connect uses a <strong>temporary, single-use SSH key</strong> that is automatically injected into the instance's <span class="chip">~/.ssh/authorized_keys</span> file.
+                <br /><br />
+                <strong>Key Benefits:</strong>
+                <ul>
+                    <li><span class="chip chip-green">✅ No Local SSH Client</span> — Connects directly from your browser</li>
+                    <li><span class="chip chip-green">✅ No Key Management</span> — AWS handles temporary keys</li>
+                    <li><span class="chip chip-green">✅ Simple Access</span> — Just a few clicks from the EC2 console</li>
+                    <li><span class="chip chip-green">✅ Secure</span> — Keys are short-lived and session-specific</li>
+                </ul>
+                <br />
+                <strong>Prerequisites:</strong>
+                <ul>
+                    <li>Instance must have <span class="chip">public IP</span> or be reachable via EC2 Instance Connect Endpoint</li>
+                    <li>Security group must allow inbound SSH (port 22) from EC2 Instance Connect service IP ranges</li>
+                    <li>Instance must have the <span class="chip">EC2 Instance Connect package</span> installed (default on newer Amazon Linux 2 and Ubuntu AMIs)</li>
+                    <li>IAM permissions for <span class="chip">ec2-instance-connect:SendSSHPublicKey</span></li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>🌐 EC2 Connect</span>
+                <span>🔑 temporary key</span>
+                <span>🖥️ browser-based</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 8: Session Manager -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:7">
+            <div class="note-pin">🔐</div>
+            <h2 class="note-title">6.3.4 AWS Systems Manager Session Manager</h2>
+            <div class="note-body">
+                <strong>📖 Complete Theory</strong>
+                <br />
+                AWS Systems Manager Session Manager is a <strong>fully managed service</strong> that provides secure, browser-based or CLI-based shell access to your EC2 instances. It is the <strong>modern, security-first alternative</strong> to SSH that does not require a public IP address, an open inbound port, or management of SSH keys.
+                <br /><br />
+                <strong>Core Advantages:</strong>
+                <table class="styled-table">
+                    <thead><tr><th>Feature</th><th>Benefit</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>No Public IP Required</strong></td><td>Instances in private subnets become accessible</td></tr>
+                        <tr><td><strong>No Open Inbound Ports</strong></td><td>Eliminates SSH-related attack surface</td></tr>
+                        <tr><td><strong>No SSH Key Management</strong></td><td>Authentication via IAM</td></tr>
+                        <tr><td><strong>Auditable Sessions</strong></td><td>All commands logged in CloudTrail and optionally in S3 or CloudWatch Logs</td></tr>
+                        <tr><td><strong>Session Recording</strong></td><td>Capability to log entire sessions for compliance</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="sm-arch">
+                <span class="highlight">SESSION MANAGER ARCHITECTURE</span>
+                ┌─────────────────────────────────────────────────────────────────────┐
+                │                    SESSION MANAGER ARCHITECTURE                    │
+                ├─────────────────────────────────────────────────────────────────────┤
+                │                                                                     │
+                │  ┌─────────────────┐              ┌─────────────────────────────┐  │
+                │  │    YOUR         │              │         AWS CLOUD           │  │
+                │  │    LAPTOP       │              │                             │  │
+                │  │                 │              │  ┌─────────────────────┐   │  │
+                │  │  AWS Console    │              │  │   AWS Systems       │   │  │
+                │  │  or CLI         │───HTTPS─────►│  │   Manager Session   │   │  │
+                │  │                 │              │  │   Manager           │   │  │
+                │  └─────────────────┘              │  └─────────────────────┘   │  │
+                │                                   │            ▲               │  │
+                │                                   │            │ (Outbound)    │  │
+                │                                   │  ┌─────────┴──────────┐    │  │
+                │                                   │  │       VPC          │    │  │
+                │                                   │  │  ┌───────────────┐  │    │  │
+                │                                   │  │  │  EC2 Instance │  │    │  │
+                │                                   │  │  │ (Private)     │  │    │  │
+                │                                   │  │  │ ┌──────────┐  │  │    │  │
+                │                                   │  │  │ │SSM Agent │──┘  │    │  │
+                │                                   │  │  │ └──────────┘  │  │    │  │
+                │                                   │  │  └───────────────┘  │    │  │
+                │                                   │  └─────────────────────┘    │  │
+                │                                   └─────────────────────────────┘  │
+            </div>
+            <div class="note-body">
+                <strong>🛠️ Step-by-Step Instructions:</strong>
+                <ol>
+                    <li><strong>Ensure SSM Agent is installed</strong> (pre-installed on Amazon Linux 2/2023).</li>
+                    <li><strong>Attach IAM Role</strong> with <span class="chip">AmazonSSMManagedInstanceCore</span> policy.</li>
+                    <li><strong>Connect via Console:</strong> EC2 → Select Instance → Connect → Session Manager tab → Click Connect.</li>
+                    <li><strong>Connect via CLI:</strong> <span class="chip">aws ssm start-session --target i-1234567890abcdef0</span></li>
+                </ol>
+                <br />
+                <div class="def-box" style="border-left-color:#b8cce0;">
+                    <strong>💡 VPC Endpoints:</strong> For private instances, create VPC endpoints for <span class="chip">ssm</span>, <span class="chip">ssmmessages</span>, and <span class="chip">ec2messages</span>.
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🔐 Session Manager</span>
+                <span>🔑 no SSH keys</span>
+                <span>📋 auditable</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 9: Key Takeaways -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:8">
+            <div class="note-pin">📝</div>
+            <h2 class="note-title">Key Takeaways</h2>
+            <div class="note-body">
+                <ul>
+                    <li><strong>Choose the right connection method</strong> — SSH for direct CLI access, PuTTY for Windows, Instance Connect for browser convenience, or Session Manager for secure, private instances.</li>
+                    <br />
+                    <li>For <strong>Windows users</strong>, PuTTY is a proven SSH client. Remember to use <span class="chip">puttygen.exe</span> to convert your <span class="chip">.pem</span> file to <span class="chip">.ppk</span>.</li>
+                    <br />
+                    <li><strong>EC2 Instance Connect</strong> provides a browser-based SSH experience without the need for a local client or SSH key management.</li>
+                    <br />
+                    <li><strong>Session Manager</strong> is the <span class="chip chip-green">security-first</span> approach — no public IP, no open ports, no SSH keys, and built-in auditing.</li>
+                    <br />
+                    <li><strong>VPC Endpoints</strong> enable private instances to use Session Manager without public IPs.</li>
+                    <br />
+                    <li><strong>Always restrict SSH source IP</strong> in Security Groups to reduce attack surface.</li>
+                    <br />
+                    <li><strong>Never share your .pem file</strong> — anyone with the key can access your instance.</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>📝 takeaways</span>
+                <span>🔌 connecting</span>
+                <span>🔐 security</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 10: Review Questions -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:9">
+            <div class="note-pin">❓</div>
+            <h2 class="note-title">Review Questions</h2>
+            <div class="note-body">
+
+                <div class="qa-box">
+                    <div class="q">Q1: What are the key differences between connecting via SSH and Session Manager?</div>
+                    <div class="a"><strong>Answer:</strong> SSH requires a <strong>public IP address</strong>, an open inbound port 22, and management of SSH key pairs. <strong>Session Manager</strong> works without a public IP, requires <strong>no open inbound ports</strong>, and authenticates via IAM without SSH keys. Session Manager also provides <strong>built-in session logging and auditing</strong> capabilities.</div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#f5d4aa;">
+                    <div class="q">Q2: Why do you need to set the correct permissions (chmod 400) on a .pem file for SSH?</div>
+                    <div class="a"><strong>Answer:</strong> SSH requires the private key file to have <strong>restricted permissions</strong> (read-only for the owner) to prevent unauthorized access. If permissions are too permissive, SSH rejects the key as a <strong>security measure</strong> to protect the private key from being read by other users.</div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#b8cce0;">
+                    <div class="q">Q3: What is the purpose of converting a .pem file to .ppk for PuTTY?</div>
+                    <div class="a"><strong>Answer:</strong> PuTTY uses its own private key format (<span class="chip">.ppk</span>) and does not natively support the .pem format. The <span class="chip">PuTTY Key Generator (puttygen.exe)</span> is used to convert the .pem key into the .ppk format required by PuTTY.</div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#cfb8e0;">
+                    <div class="q">Q4: How does EC2 Instance Connect handle authentication?</div>
+                    <div class="a"><strong>Answer:</strong> EC2 Instance Connect uses a <strong>temporary, single-use SSH key</strong> that is automatically injected into the instance's <span class="chip">~/.ssh/authorized_keys</span> file for the duration of the session. This eliminates the need for users to store permanent SSH keys on their local machine. The service uses <strong>IAM</strong> to verify permissions and initiate the connection.</div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#aad0c4;">
+                    <div class="q">Q5: What are the prerequisites for using Session Manager to connect to an EC2 instance in a private subnet?</div>
+                    <div class="a"><strong>Answer:</strong> The prerequisites are: the <span class="chip">SSM Agent</span> must be installed and running on the instance, the instance must have an <span class="chip">IAM role</span> with the <span class="chip">AmazonSSMManagedInstanceCore</span> policy attached, and the instance must be able to communicate with the Systems Manager service (via <span class="chip">VPC endpoints</span> for ssm, ssmmessages, and ec2messages or via a NAT gateway).</div>
+                </div>
+
+            </div>
+            <div class="note-meta">
+                <span>❓ Q&A</span>
+                <span>📝 review</span>
+                <span>🧠 learning</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 11: Next Steps -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:10">
+            <div class="note-pin">🚀</div>
+            <h2 class="note-title">Next Steps</h2>
+            <div class="note-body">
+                <span style="font-size:2rem;">📖</span> Proceed to the next section:
+                <br /><br />
+                <span class="chip chip-purple" style="font-size:1.4rem;">6.4: EC2 Instance Management</span>
+                <br /><br />
+                <div class="quote-box" style="border-left-color:#aad0c4;">
+                    "Connecting to your EC2 instances is the <strong>bridge</strong> between the console and your infrastructure — master these methods, and you <strong>control</strong> your cloud environment."
+                    <div class="author">— AWS EC2 Principles</div>
+                </div>
+                <br />
+                <div style="text-align:center; font-size:2.5rem; opacity:0.3; letter-spacing:10px;">
+                    ❖ ❖ ❖
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🚀 next</span>
+                <span>📖 6.4</span>
+                <span>📊 management</span>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

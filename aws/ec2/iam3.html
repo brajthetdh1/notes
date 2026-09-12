@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EC2 Chapter 3.2.2 · Handwritten Notes</title>
+
+    <!-- Google Fonts – clear handwriting -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Gloria+Hallelujah&family=Architects+Daughter&family=Reenie+Beanie&display=swap" rel="stylesheet" />
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: #f7f0e7;
+            background-image: radial-gradient(circle at 30% 20%, #fcf7f0 0%, #eee7dd 100%);
+            display: flex;
+            justify-content: center;
+            padding: 2.5rem 1.5rem;
+            font-family: 'Patrick Hand', 'Architects Daughter', cursive;
+        }
+
+        .notes-container {
+            max-width: 1100px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 2.8rem;
+            animation: floatUp 0.9s ease-out;
+        }
+
+        .note {
+            background: #fffcf5;
+            padding: 2.5rem 3.5rem;
+            border-radius: 28px 28px 28px 10px;
+            box-shadow: 0 12px 36px rgba(0,0,0,0.06), 0 2px 10px rgba(0,0,0,0.03), inset 0 -2px 0 rgba(0,0,0,0.02);
+            position: relative;
+            transition: transform 0.3s ease, box-shadow 0.35s ease;
+            transform-origin: left center;
+            border-left: 8px solid transparent;
+            animation: notePop 0.6s ease both;
+            animation-delay: calc(var(--i, 0) * 0.03s);
+        }
+
+        .note:nth-child(1) { border-left-color: #f0b8b8; }
+        .note:nth-child(2) { border-left-color: #aad0c4; }
+        .note:nth-child(3) { border-left-color: #f5d4aa; }
+        .note:nth-child(4) { border-left-color: #cfb8e0; }
+        .note:nth-child(5) { border-left-color: #b8cce0; }
+        .note:nth-child(6) { border-left-color: #e8c8b8; }
+        .note:nth-child(7) { border-left-color: #b8d9c8; }
+        .note:nth-child(8) { border-left-color: #f0c8c8; }
+        .note:nth-child(9) { border-left-color: #d4c8e8; }
+        .note:nth-child(10) { border-left-color: #c8dce8; }
+        .note:nth-child(11) { border-left-color: #e8d4b8; }
+
+        .note:hover {
+            transform: rotate(-0.8deg) scale(1.015);
+            box-shadow: 0 24px 48px rgba(0,0,0,0.09), 0 4px 16px rgba(0,0,0,0.05);
+        }
+
+        .note-title {
+            font-family: 'Gloria Hallelujah', 'Patrick Hand', cursive;
+            font-size: 2.2rem;
+            font-weight: 500;
+            color: #2f2216;
+            letter-spacing: 0.8px;
+            margin-bottom: 0.3rem;
+            line-height: 1.25;
+            display: inline-block;
+            position: relative;
+        }
+
+        .note-title::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: -4px;
+            width: 100%;
+            height: 8px;
+            background: repeating-linear-gradient(90deg, transparent, transparent 6px, rgba(240,184,184,0.4) 6px, rgba(240,184,184,0.4) 12px);
+            border-radius: 20px;
+            opacity: 0.8;
+        }
+
+        .note-subtitle {
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.3rem;
+            color: #5a4a3a;
+            margin: -0.1rem 0 1rem 0;
+            font-weight: 400;
+            opacity: 0.85;
+        }
+
+        .note-body {
+            font-family: 'Architects Daughter', 'Patrick Hand', cursive;
+            font-size: 1.35rem;
+            line-height: 1.85;
+            color: #2a1f15;
+            margin: 0.9rem 0 0.4rem 0;
+            font-weight: 400;
+            letter-spacing: 0.4px;
+        }
+
+        .note-body strong {
+            font-weight: 700;
+            color: #a05545;
+            background: rgba(240,184,184,0.15);
+            padding: 0 8px;
+            border-radius: 16px;
+            font-style: normal;
+        }
+
+        .note-body em {
+            color: #5a8a78;
+            font-style: italic;
+            text-decoration: underline wavy #aad0c4 3px;
+            font-weight: 500;
+        }
+
+        .note-body .chip {
+            background: #f0e9e0;
+            padding: 0.1rem 1.2rem;
+            border-radius: 40px;
+            display: inline-block;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.15rem;
+            color: #3d3226;
+            border: 1px dashed #cbb8a8;
+            margin: 2px 0;
+            font-weight: 400;
+        }
+
+        .note-body .chip-blue { background: #dce8f0; border-color: #aac0d0; }
+        .note-body .chip-green { background: #d8ece0; border-color: #a0c8b8; }
+        .note-body .chip-pink { background: #f0dcd8; border-color: #d8b8b0; }
+        .note-body .chip-purple { background: #e4d8ec; border-color: #c8b8d8; }
+        .note-body .chip-gold { background: #f0e8d0; border-color: #d8c8a8; }
+        .note-body .chip-teal { background: #c8e8dc; border-color: #88c8b8; }
+        .note-body .chip-orange { background: #f0dcc8; border-color: #d8b898; }
+        .note-body .chip-red { background: #f0d8d8; border-color: #d8b0b0; }
+
+        .code-block {
+            background: #1e1a16;
+            color: #e8e0d8;
+            padding: 1.2rem 1.8rem;
+            border-radius: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.82rem;
+            line-height: 1.7;
+            margin: 0.8rem 0 1rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            border-left: 4px solid #f0b8b8;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .code-block .comment { color: #7a8a7a; }
+        .code-block .keyword { color: #f0b8b8; }
+        .code-block .string { color: #b8d9c8; }
+        .code-block .function { color: #c8b8e8; }
+        .code-block .tag { color: #f5d4aa; }
+        .code-block .number { color: #f5d4aa; }
+        .code-block .bold { color: #f0e0c8; font-weight: bold; }
+
+        .ascii-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1rem 1.5rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.62rem;
+            line-height: 1.5;
+            color: #2a1f15;
+            border: 1px solid #e0d8ce;
+            margin: 0.8rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .ascii-box .highlight { color: #a05545; font-weight: bold; }
+        .ascii-box .title { color: #2f2216; font-weight: bold; text-decoration: underline; }
+
+        .styled-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 0.92rem;
+            background: #f8f4ec;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        }
+
+        .styled-table th {
+            background: #2f2216;
+            color: #f5efe8;
+            padding: 0.7rem 1rem;
+            text-align: left;
+            font-weight: 500;
+            font-size: 0.88rem;
+        }
+
+        .styled-table td {
+            padding: 0.7rem 1rem;
+            border-bottom: 1px solid #e8e0d6;
+            color: #2a1f15;
+        }
+
+        .styled-table tr:last-child td { border-bottom: none; }
+        .styled-table tr:hover td { background: #f0e9e0; }
+
+        .note-body ul, .note-body ol {
+            padding-left: 2rem;
+            margin: 0.5rem 0;
+        }
+        .note-body li { margin-bottom: 0.3rem; }
+
+        .def-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1.2rem 1.8rem;
+            margin: 0.8rem 0;
+            border-left: 6px solid #aad0c4;
+        }
+        .def-box strong { color: #a05545; }
+
+        .policy-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.8rem;
+            margin: 0.8rem 0;
+        }
+        .policy-card {
+            background: #f8f4ec;
+            padding: 0.8rem 1rem;
+            border-radius: 12px;
+            border-left: 4px solid #b8cce0;
+        }
+        .policy-card .name { font-weight: 700; color: #a05545; font-size: 1.1rem; }
+        .policy-card .desc { font-size: 0.9rem; color: #3d6b5a; }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 0.5rem;
+            margin: 0.8rem 0;
+            font-size: 0.85rem;
+        }
+        .comparison-item {
+            background: #f8f4ec;
+            padding: 0.5rem 0.8rem;
+            border-radius: 8px;
+            border-top: 3px solid #b8cce0;
+            text-align: center;
+        }
+        .comparison-item .label { font-weight: 700; color: #a05545; }
+
+        .eval-flow {
+            background: #f8f4ec;
+            border-radius: 12px;
+            padding: 0.8rem 1.2rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.7rem;
+            line-height: 1.6;
+            margin: 0.5rem 0;
+            border: 1px solid #e0d8ce;
+        }
+
+        @keyframes floatUp {
+            0% { opacity: 0; transform: translateY(50px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes notePop {
+            0% { opacity: 0; transform: scale(0.92) rotate(-3deg); }
+            80% { opacity: 1; transform: scale(1.015) rotate(0.8deg); }
+            100% { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+
+        @media (max-width: 700px) {
+            .note { padding: 1.8rem 1.8rem; }
+            .note-title { font-size: 1.8rem; }
+            .note-body { font-size: 1.15rem; line-height: 1.7; }
+            .note-body .chip { font-size: 1rem; padding: 0 0.8rem; }
+            .code-block { font-size: 0.7rem; padding: 1rem; }
+            .note-pin { font-size: 2rem; top: -8px; right: 18px; }
+            .styled-table { font-size: 0.8rem; }
+            .styled-table th, .styled-table td { padding: 0.5rem 0.7rem; }
+            .notes-container { gap: 2rem; }
+            .ascii-box { font-size: 0.48rem; padding: 0.8rem 1rem; }
+            .def-box { padding: 0.8rem 1.2rem; }
+            .policy-grid { grid-template-columns: 1fr; }
+            .comparison-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="notes-container">
+
+        <!-- ============================================================ -->
+        <!-- NOTE 1: Chapter Title -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:0">
+            <div class="note-pin">📜</div>
+            <h2 class="note-title">3.2.2 IAM Policies and Permissions</h2>
+            <div class="note-body">
+                IAM policies are the <strong>foundation</strong> of access control in AWS. They define who can do what on which resources and under what conditions. Understanding how policies work is essential for implementing <strong>secure, least-privilege access</strong> in your AWS environment.
+            </div>
+            <div class="note-meta">
+                <span>📜 policies</span>
+                <span>🔐 permissions</span>
+                <span>🛡️ access control</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 2: What is an IAM Policy? -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:1">
+            <div class="note-pin">📖</div>
+            <h2 class="note-title">What is an IAM Policy?</h2>
+            <div class="note-body">
+                An IAM policy is a <strong>JSON (or YAML) document</strong> that defines permissions. When attached to an identity (user, group, or role) or a resource, it specifies what actions are allowed or denied.
+                <br /><br />
+                Policies are the mechanism through which you grant or restrict access. By default, all requests are <strong>implicitly denied</strong> — you must explicitly allow access through a policy.
+                <br /><br />
+                <strong>Policy Structure:</strong>
+                <div class="code-block">
+                    {
+                      <span class="string">"Version"</span>: <span class="string">"2012-10-17"</span>,
+                      <span class="string">"Statement"</span>: [
+                        {
+                          <span class="string">"Sid"</span>: <span class="string">"AllowS3ReadOnly"</span>,
+                          <span class="string">"Effect"</span>: <span class="string">"Allow"</span>,
+                          <span class="string">"Action"</span>: [
+                            <span class="string">"s3:GetObject"</span>,
+                            <span class="string">"s3:ListBucket"</span>
+                          ],
+                          <span class="string">"Resource"</span>: [
+                            <span class="string">"arn:aws:s3:::my-bucket"</span>,
+                            <span class="string">"arn:aws:s3:::my-bucket/*"</span>
+                          ],
+                          <span class="string">"Condition"</span>: {
+                            <span class="string">"IpAddress"</span>: {
+                              <span class="string">"aws:SourceIp"</span>: <span class="string">"203.0.113.0/24"</span>
+                            }
+                          }
+                        }
+                      ]
+                    }
+                </div>
+                <table class="styled-table">
+                    <thead><tr><th>Element</th><th>Description</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Version</strong></td><td>The policy language version. Always use <span class="chip">"2012-10-17"</span>.</td></tr>
+                        <tr><td><strong>Statement</strong></td><td>The main block containing one or more permission statements.</td></tr>
+                        <tr><td><strong>Sid</strong></td><td>A statement ID for identifying the statement (optional).</td></tr>
+                        <tr><td><strong>Effect</strong></td><td>Either <span class="chip chip-green">"Allow"</span> or <span class="chip chip-pink">"Deny"</span>.</td></tr>
+                        <tr><td><strong>Action</strong></td><td>The API actions being permitted or denied (e.g., <span class="chip">s3:GetObject</span>, <span class="chip">ec2:RunInstances</span>).</td></tr>
+                        <tr><td><strong>Resource</strong></td><td>The AWS resources affected (using ARNs).</td></tr>
+                        <tr><td><strong>Condition</strong></td><td>Conditions under which the policy applies (optional).</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="note-meta">
+                <span>📖 definition</span>
+                <span>📋 JSON</span>
+                <span>🔐 permissions</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 3: Types of IAM Policies -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:2">
+            <div class="note-pin">🏷️</div>
+            <h2 class="note-title">Types of IAM Policies</h2>
+            <div class="note-body">
+                IAM policies fall into two broad categories: <strong>Identity-based policies</strong> and <strong>Resource-based policies</strong>.
+                <br /><br />
+                <div class="ascii-box">
+                    <span class="title">IDENTITY-BASED POLICIES</span>
+                    ┌─────────────────────────────────────────────────────────────┐
+                    │                 IDENTITY-BASED POLICIES                     │
+                    ├─────────────────────────────────────────────────────────────┤
+                    │                                                             │
+                    │  ┌─────────────────────────────────────────────────────┐   │
+                    │  │              IAM IDENTITY (User/Group/Role)         │   │
+                    │  │                                                    │   │
+                    │  │  ┌─────────────┐  ┌─────────────┐  ┌───────────┐  │   │
+                    │  │  │   AWS       │  │  Customer   │  │  Inline   │  │   │
+                    │  │  │   Managed   │  │  Managed    │  │  Policy   │  │   │
+                    │  │  │   Policy    │  │  Policy     │  │           │  │   │
+                    │  │  └─────────────┘  └─────────────┘  └───────────┘  │   │
+                    │  │        (AWS)          (You)           (You)       │   │
+                    │  │                                                    │   │
+                    │  └─────────────────────────────────────────────────────┘   │
+                    │                                                             │
+                    └─────────────────────────────────────────────────────────────┘
+                </div>
+                <br />
+                <div class="policy-grid">
+                    <div class="policy-card" style="border-left-color:#b8cce0;">
+                        <div class="name">📦 AWS Managed Policy</div>
+                        <div class="desc">Predefined, maintained by AWS. Updated automatically when new services launch. <span class="chip chip-green">Reusable</span></div>
+                    </div>
+                    <div class="policy-card" style="border-left-color:#f5d4aa;">
+                        <div class="name">✏️ Customer Managed Policy</div>
+                        <div class="desc">Created and managed by you. Full control over content. <span class="chip chip-green">Reusable</span></div>
+                    </div>
+                    <div class="policy-card" style="border-left-color:#cfb8e0;">
+                        <div class="name">📎 Inline Policy</div>
+                        <div class="desc">Embedded directly into a single identity. One-to-one relationship. <span class="chip chip-pink">Not reusable</span></div>
+                    </div>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🏷️ policy types</span>
+                <span>📦 AWS managed</span>
+                <span>✏️ customer managed</span>
+                <span>📎 inline</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 4: Managed vs Inline Comparison -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:3">
+            <div class="note-pin">📋</div>
+            <h2 class="note-title">Managed vs. Inline Policies</h2>
+            <div class="note-body">
+                <table class="styled-table">
+                    <thead><tr><th>Policy Type</th><th>Description</th><th>Who Manages?</th><th>Reusable?</th><th>Best For</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>AWS Managed</strong></td><td>Predefined, maintained by AWS. Updated automatically.</td><td>AWS</td><td>✅ Yes</td><td>Common use cases, job functions</td></tr>
+                        <tr><td><strong>Customer Managed</strong></td><td>Created and managed by you. Can be updated.</td><td>You</td><td>✅ Yes</td><td>Tailored permissions, custom use cases</td></tr>
+                        <tr><td><strong>Inline</strong></td><td>Embedded directly into a single identity. One-to-one.</td><td>You</td><td>❌ No</td><td>One-off exceptions, tightly scoped</td></tr>
+                    </tbody>
+                </table>
+                <br />
+                <div class="def-box" style="border-left-color:#b8cce0;">
+                    <strong>💡 Recommendation:</strong> In most cases, AWS recommends using <strong>managed policies</strong> instead of inline policies because they are <strong>easier to manage and audit</strong>.
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>📋 comparison</span>
+                <span>📦 managed</span>
+                <span>📎 inline</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 5: AWS Managed Policies Categories -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:4">
+            <div class="note-pin">📂</div>
+            <h2 class="note-title">AWS Managed Policies</h2>
+            <div class="note-body">
+                AWS managed policies are standalone policies created and maintained by AWS. They make it convenient to assign appropriate permissions without writing policies yourself.
+                <br /><br />
+                <strong>Key Characteristics:</strong>
+                <ul>
+                    <li>You <strong>cannot modify</strong> the permissions defined in an AWS managed policy</li>
+                    <li>When AWS launches new services or APIs, these policies are <strong>automatically updated</strong></li>
+                    <li>Updates affect <strong>all entities</strong> attached to the policy</li>
+                </ul>
+                <br />
+                <strong>Categories:</strong>
+                <table class="styled-table">
+                    <thead><tr><th>Category</th><th>Description</th><th>Examples</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Job Function</strong></td><td>Align with common IT job roles</td><td>AdministratorAccess, PowerUserAccess, ReadOnlyAccess</td></tr>
+                        <tr><td><strong>Full Access</strong></td><td>Grant complete access to a specific service</td><td>AmazonS3FullAccess, AmazonEC2FullAccess</td></tr>
+                        <tr><td><strong>Partial Access</strong></td><td>Grant specific levels of access to a service</td><td>AmazonEC2ReadOnlyAccess</td></tr>
+                        <tr><td><strong>Power User</strong></td><td>Full access except user/group management</td><td>AWSCodeCommitPowerUser</td></tr>
+                    </tbody>
+                </table>
+                <br />
+                <div class="def-box" style="border-left-color:#f5d4aa;">
+                    <strong>📌 Recommendation:</strong> If you are new to AWS, start by using <span class="chip">AWS managed policies</span> for common use cases.
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>📂 AWS managed</span>
+                <span>🔐 job functions</span>
+                <span>📋 categories</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 6: Customer Managed & Inline Examples -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:5">
+            <div class="note-pin">✏️</div>
+            <h2 class="note-title">Customer Managed Policies</h2>
+            <div class="note-body">
+                Customer managed policies give you <strong>precise control</strong>. You create, edit, and manage them.
+                <br /><br />
+                <strong>Example: Custom Policy for EC2 Management</strong>
+                <div class="code-block">
+                    {
+                      <span class="string">"Version"</span>: <span class="string">"2012-10-17"</span>,
+                      <span class="string">"Statement"</span>: [
+                        {
+                          <span class="string">"Effect"</span>: <span class="string">"Allow"</span>,
+                          <span class="string">"Action"</span>: [
+                            <span class="string">"ec2:StartInstances"</span>,
+                            <span class="string">"ec2:StopInstances"</span>,
+                            <span class="string">"ec2:DescribeInstances"</span>
+                          ],
+                          <span class="string">"Resource"</span>: <span class="string">"arn:aws:ec2:us-east-1:123456789012:instance/*"</span>,
+                          <span class="string">"Condition"</span>: {
+                            <span class="string">"StringEquals"</span>: {
+                              <span class="string">"ec2:ResourceTag/Environment"</span>: <span class="string">"Development"</span>
+                            }
+                          }
+                        }
+                      ]
+                    }
+                </div>
+                <br />
+                <strong>When to Use Inline Policies:</strong>
+                <ul>
+                    <li>A specific user needs a <strong>temporary permission</strong></li>
+                    <li>A custom role requires a <strong>unique set of permissions</strong></li>
+                    <li>You need to enforce a <strong>strict, one-off policy</strong></li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>✏️ custom policies</span>
+                <span>📎 inline</span>
+                <span>🔐 least privilege</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 7: Resource-Based Policies -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:6">
+            <div class="note-pin">🏛️</div>
+            <h2 class="note-title">Resource-Based Policies</h2>
+            <div class="note-body">
+                Resource-based policies are attached <strong>directly to an AWS resource</strong> (such as an S3 bucket, SQS queue, or KMS key), rather than an IAM identity.
+                <br /><br />
+                <div class="ascii-box">
+                    <span class="title">RESOURCE-BASED POLICIES</span>
+                    ┌─────────────────────────────────────────────────────────────┐
+                    │                 RESOURCE-BASED POLICIES                      │
+                    ├─────────────────────────────────────────────────────────────┤
+                    │                                                             │
+                    │  ┌─────────────────────────────────────────────────────┐   │
+                    │  │                AWS RESOURCE                         │   │
+                    │  │                                                     │   │
+                    │  │  ┌─────────────────────────────────────────────┐   │   │
+                    │  │  │         RESOURCE-BASED POLICY                │   │   │
+                    │  │  │                                             │   │   │
+                    │  │  │  Defines: WHO can access and WHAT actions   │   │   │
+                    │  │  │  Example: S3 bucket policy                  │   │   │
+                    │  │  └─────────────────────────────────────────────┘   │   │
+                    │  │                                                     │   │
+                    │  └─────────────────────────────────────────────────────┘   │
+                    │                                                             │
+                    │  Services supporting resource-based policies:              │
+                    │  • Amazon S3 (bucket policies)                             │
+                    │  • IAM Roles (trust policies)                              │
+                    │  • AWS KMS (key policies)                                  │
+                    │  • Amazon SQS (queue policies)                             │
+                    └─────────────────────────────────────────────────────────────┘
+                </div>
+                <br />
+                <strong>Key Difference:</strong>
+                <ul>
+                    <li><span class="chip chip-blue">Identity-based policies:</span> "What can this user/role do?"</li>
+                    <li><span class="chip chip-green">Resource-based policies:</span> "Who can access this resource?"</li>
+                </ul>
+                <br />
+                <strong>Example: S3 Bucket Policy (Cross-Account Access)</strong>
+                <div class="code-block">
+                    {
+                      <span class="string">"Version"</span>: <span class="string">"2012-10-17"</span>,
+                      <span class="string">"Statement"</span>: [
+                        {
+                          <span class="string">"Effect"</span>: <span class="string">"Allow"</span>,
+                          <span class="string">"Principal"</span>: {
+                            <span class="string">"AWS"</span>: <span class="string">"arn:aws:iam::222222222222:role/CrossAccountRole"</span>
+                          },
+                          <span class="string">"Action"</span>: <span class="string">"s3:GetObject"</span>,
+                          <span class="string">"Resource"</span>: <span class="string">"arn:aws:s3:::shared-bucket/*"</span>
+                        }
+                      ]
+                    }
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🏛️ resource-based</span>
+                <span>📦 S3 policies</span>
+                <span>🔐 trust policies</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 8: Policy Evaluation Logic -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:7">
+            <div class="note-pin">⚖️</div>
+            <h2 class="note-title">IAM Policy Evaluation Logic</h2>
+            <div class="note-body">
+                AWS evaluates policies in a specific order to determine whether to allow or deny a request.
+                <br /><br />
+                <div class="ascii-box">
+                    <span class="title">IAM POLICY EVALUATION HIERARCHY</span>
+                    ┌─────────────────────────────────────────────────────────────────────────────┐
+                    │                    IAM POLICY EVALUATION HIERARCHY                          │
+                    ├─────────────────────────────────────────────────────────────────────────────┤
+                    │                                                                             │
+                    │  ┌─────────────────────────────────────────────────────────────────────┐   │
+                    │  │  1. EXPLICIT DENY (Override Everything)                           │   │
+                    │  │  └─ If any policy explicitly denies the action → DENY             │   │
+                    │  └─────────────────────────────────────────────────────────────────────┘   │
+                    │                                    │                                        │
+                    │                                    ▼                                        │
+                    │  ┌─────────────────────────────────────────────────────────────────────┐   │
+                    │  │  2. ORGANIZATIONS SCPs & RCPs                                     │   │
+                    │  │  └─ If SCP/RCP denies → DENY; If allows → Continue to Resource   │   │
+                    │  └─────────────────────────────────────────────────────────────────────┘   │
+                    │                                    │                                        │
+                    │                                    ▼                                        │
+                    │  ┌─────────────────────────────────────────────────────────────────────┐   │
+                    │  │  3. RESOURCE-BASED POLICIES                                       │   │
+                    │  │  └─ If resource policy denies → DENY; If allows → Continue       │   │
+                    │  └─────────────────────────────────────────────────────────────────────┘   │
+                    │                                    │                                        │
+                    │                                    ▼                                        │
+                    │  ┌─────────────────────────────────────────────────────────────────────┐   │
+                    │  │  4. IDENTITY-BASED POLICIES                                       │   │
+                    │  │  └─ If identity policy allows → ALLOW (unless boundary limits)   │   │
+                    │  └─────────────────────────────────────────────────────────────────────┘   │
+                    │                                    │                                        │
+                    │                                    ▼                                        │
+                    │  ┌─────────────────────────────────────────────────────────────────────┐   │
+                    │  │  5. PERMISSION BOUNDARIES & SESSION POLICIES                       │   │
+                    │  │  └─ Implicit deny if permissions exceed boundary                  │   │
+                    │  └─────────────────────────────────────────────────────────────────────┘   │
+                    │                                                                             │
+                    └─────────────────────────────────────────────────────────────────────────────┘
+                </div>
+                <br />
+                <strong>Core Principles:</strong>
+                <ul>
+                    <li><span class="chip chip-pink">Deny by Default:</span> All requests are implicitly denied unless explicitly allowed</li>
+                    <li><span class="chip chip-pink">Explicit Deny Overrides All:</span> An explicit deny in any policy overrides all allows</li>
+                    <li><span class="chip chip-green">Multiple Policies Combine:</span> Effective permissions = union of allowed actions minus any explicit denies</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>⚖️ evaluation</span>
+                <span>🔄 hierarchy</span>
+                <span>🔐 deny by default</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 9: Policy Conditions -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:8">
+            <div class="note-pin">🔍</div>
+            <h2 class="note-title">Policy Conditions</h2>
+            <div class="note-body">
+                Conditions allow you to <strong>restrict permissions</strong> based on context:
+                <br /><br />
+                <table class="styled-table">
+                    <thead><tr><th>Condition Type</th><th>Example Use Case</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Source IP</strong></td><td>Allow access only from corporate VPN</td></tr>
+                        <tr><td><strong>MFA</strong></td><td>Require MFA for sensitive actions</td></tr>
+                        <tr><td><strong>Time</strong></td><td>Allow access only during business hours</td></tr>
+                        <tr><td><strong>Resource Tags</strong></td><td>Only allow tagging resources with specific keys</td></tr>
+                        <tr><td><strong>Request Context</strong></td><td>Restrict based on the caller's user agent</td></tr>
+                    </tbody>
+                </table>
+                <br />
+                <strong>Example: Requiring MFA for Sensitive Actions</strong>
+                <div class="code-block">
+                    {
+                      <span class="string">"Version"</span>: <span class="string">"2012-10-17"</span>,
+                      <span class="string">"Statement"</span>: [
+                        {
+                          <span class="string">"Effect"</span>: <span class="string">"Deny"</span>,
+                          <span class="string">"Action"</span>: <span class="string">"ec2:TerminateInstances"</span>,
+                          <span class="string">"Resource"</span>: <span class="string">"*"</span>,
+                          <span class="string">"Condition"</span>: {
+                            <span class="string">"BoolIfExists"</span>: {
+                              <span class="string">"aws:MultiFactorAuthPresent"</span>: <span class="string">"false"</span>
+                            }
+                          }
+                        }
+                      ]
+                    }
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🔍 conditions</span>
+                <span>🔐 MFA</span>
+                <span>📍 IP restrictions</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 10: Best Practices -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:9">
+            <div class="note-pin">✅</div>
+            <h2 class="note-title">Best Practices for IAM Policies</h2>
+            <div class="note-body">
+                <ul>
+                    <li><span class="chip chip-blue">📦 Use AWS Managed Policies</span> for common use cases and job functions</li>
+                    <br />
+                    <li><span class="chip chip-purple">✏️ Create Customer Managed Policies</span> for custom, reusable permissions</li>
+                    <br />
+                    <li><span class="chip chip-pink">📎 Avoid Inline Policies</span> unless you have a specific, one-off use case</li>
+                    <br />
+                    <li><span class="chip chip-green">🔐 Grant Least Privilege</span> — only the minimum permissions needed</li>
+                    <br />
+                    <li><span class="chip chip-gold">🔍 Use Conditions</span> to add context-based restrictions (IP, MFA, time)</li>
+                    <br />
+                    <li><span class="chip chip-teal">🧪 Validate Policies</span> using the IAM policy simulator before applying</li>
+                    <br />
+                    <li><span class="chip chip-orange">📊 Audit Regularly</span> using AWS Access Analyzer and IAM Credential Reports</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>✅ best practices</span>
+                <span>🔐 least privilege</span>
+                <span>📊 audit</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 11: Quick Comparison -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:10">
+            <div class="note-pin">🧠</div>
+            <h2 class="note-title">Quick Comparison: Policy Types</h2>
+            <div class="note-body">
+                <table class="styled-table">
+                    <thead><tr><th>Aspect</th><th>AWS Managed</th><th>Customer Managed</th><th>Inline</th><th>Resource-Based</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Who manages?</strong></td><td>AWS</td><td>You</td><td>You</td><td>You</td></tr>
+                        <tr><td><strong>Reusable?</strong></td><td>✅ Yes</td><td>✅ Yes</td><td>❌ No</td><td>✅ Yes (for the resource)</td></tr>
+                        <tr><td><strong>Modifiable?</strong></td><td>No (AWS updates)</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+                        <tr><td><strong>Scope</strong></td><td>Multiple accounts</td><td>One account</td><td>One identity</td><td>One resource</td></tr>
+                        <tr><td><strong>Best for</strong></td><td>Common use cases</td><td>Custom permissions</td><td>One-off exceptions</td><td>Resource-level access</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="note-meta">
+                <span>🧠 quick reference</span>
+                <span>📋 comparison</span>
+                <span>🔐 policy types</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 12: Key Takeaways -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:11">
+            <div class="note-pin">📝</div>
+            <h2 class="note-title">Key Takeaways</h2>
+            <div class="note-body">
+                <ul>
+                    <li><strong>Policies are JSON documents</strong> that define who can access what resources and under what conditions.</li>
+                    <br />
+                    <li><strong>Explicit deny overrides all allows</strong> — this is the most fundamental rule of IAM authorization.</li>
+                    <br />
+                    <li><strong>AWS managed policies</strong> are pre-built by AWS, updated automatically, and cannot be modified.</li>
+                    <br />
+                    <li><strong>Customer managed policies</strong> give you full control and are reusable across multiple entities.</li>
+                    <br />
+                    <li><strong>Inline policies</strong> are embedded in a single identity and deleted with it — <span class="chip chip-pink">use sparingly</span>.</li>
+                    <br />
+                    <li><strong>Resource-based policies</strong> attach directly to resources and define who can access them.</li>
+                    <br />
+                    <li><strong>SCPs and RCPs</strong> add organization-level guardrails that override identity-based permissions.</li>
+                    <br />
+                    <li><strong>Least privilege is a journey</strong> — start with broader permissions and progressively restrict over time.</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>📝 takeaways</span>
+                <span>🔐 policies</span>
+                <span>🛡️ IAM</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 13: Next Steps -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:12">
+            <div class="note-pin">🚀</div>
+            <h2 class="note-title">Next Steps</h2>
+            <div class="note-body">
+                <span style="font-size:2rem;">📖</span> Proceed to the next section:
+                <br /><br />
+                <span class="chip chip-purple" style="font-size:1.4rem;">3.2.3: IAM Roles and Trust Policies</span>
+                <br /><br />
+                <div class="quote-box" style="border-left-color:#aad0c4;">
+                    "IAM policies are the <strong>language of security</strong> in AWS. Mastering them is the <strong>key</strong> to building a <strong>secure, compliant</strong> cloud environment."
+                    <div class="author">— AWS Security Best Practices</div>
+                </div>
+                <br />
+                <div style="text-align:center; font-size:2.5rem; opacity:0.3; letter-spacing:10px;">
+                    ❖ ❖ ❖
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🚀 next</span>
+                <span>📖 3.2.3</span>
+                <span>🎭 IAM Roles</span>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EC2 Chapter 6.4.2 · Handwritten Notes</title>
+
+    <!-- Google Fonts – clear handwriting -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Gloria+Hallelujah&family=Architects+Daughter&family=Reenie+Beanie&display=swap" rel="stylesheet" />
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: #f7f0e7;
+            background-image: radial-gradient(circle at 30% 20%, #fcf7f0 0%, #eee7dd 100%);
+            display: flex;
+            justify-content: center;
+            padding: 2.5rem 1.5rem;
+            font-family: 'Patrick Hand', 'Architects Daughter', cursive;
+        }
+
+        .notes-container {
+            max-width: 1100px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 2.8rem;
+            animation: floatUp 0.9s ease-out;
+        }
+
+        .note {
+            background: #fffcf5;
+            padding: 2.5rem 3.5rem;
+            border-radius: 28px 28px 28px 10px;
+            box-shadow: 0 12px 36px rgba(0,0,0,0.06), 0 2px 10px rgba(0,0,0,0.03), inset 0 -2px 0 rgba(0,0,0,0.02);
+            position: relative;
+            transition: transform 0.3s ease, box-shadow 0.35s ease;
+            transform-origin: left center;
+            border-left: 8px solid transparent;
+            animation: notePop 0.6s ease both;
+            animation-delay: calc(var(--i, 0) * 0.03s);
+        }
+
+        .note:nth-child(1) { border-left-color: #f0b8b8; }
+        .note:nth-child(2) { border-left-color: #aad0c4; }
+        .note:nth-child(3) { border-left-color: #f5d4aa; }
+        .note:nth-child(4) { border-left-color: #cfb8e0; }
+        .note:nth-child(5) { border-left-color: #b8cce0; }
+        .note:nth-child(6) { border-left-color: #e8c8b8; }
+        .note:nth-child(7) { border-left-color: #b8d9c8; }
+        .note:nth-child(8) { border-left-color: #f0c8c8; }
+        .note:nth-child(9) { border-left-color: #d4c8e8; }
+        .note:nth-child(10) { border-left-color: #c8dce8; }
+
+        .note:hover {
+            transform: rotate(-0.8deg) scale(1.015);
+            box-shadow: 0 24px 48px rgba(0,0,0,0.09), 0 4px 16px rgba(0,0,0,0.05);
+        }
+
+        .note-title {
+            font-family: 'Gloria Hallelujah', 'Patrick Hand', cursive;
+            font-size: 2.2rem;
+            font-weight: 500;
+            color: #2f2216;
+            letter-spacing: 0.8px;
+            margin-bottom: 0.3rem;
+            line-height: 1.25;
+            display: inline-block;
+            position: relative;
+        }
+
+        .note-title::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: -4px;
+            width: 100%;
+            height: 8px;
+            background: repeating-linear-gradient(90deg, transparent, transparent 6px, rgba(240,184,184,0.4) 6px, rgba(240,184,184,0.4) 12px);
+            border-radius: 20px;
+            opacity: 0.8;
+        }
+
+        .note-subtitle {
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.3rem;
+            color: #5a4a3a;
+            margin: -0.1rem 0 1rem 0;
+            font-weight: 400;
+            opacity: 0.85;
+        }
+
+        .note-body {
+            font-family: 'Architects Daughter', 'Patrick Hand', cursive;
+            font-size: 1.35rem;
+            line-height: 1.85;
+            color: #2a1f15;
+            margin: 0.9rem 0 0.4rem 0;
+            font-weight: 400;
+            letter-spacing: 0.4px;
+        }
+
+        .note-body strong {
+            font-weight: 700;
+            color: #a05545;
+            background: rgba(240,184,184,0.15);
+            padding: 0 8px;
+            border-radius: 16px;
+            font-style: normal;
+        }
+
+        .note-body em {
+            color: #5a8a78;
+            font-style: italic;
+            text-decoration: underline wavy #aad0c4 3px;
+            font-weight: 500;
+        }
+
+        .note-body .chip {
+            background: #f0e9e0;
+            padding: 0.1rem 1.2rem;
+            border-radius: 40px;
+            display: inline-block;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.15rem;
+            color: #3d3226;
+            border: 1px dashed #cbb8a8;
+            margin: 2px 0;
+            font-weight: 400;
+        }
+
+        .note-body .chip-blue { background: #dce8f0; border-color: #aac0d0; }
+        .note-body .chip-green { background: #d8ece0; border-color: #a0c8b8; }
+        .note-body .chip-pink { background: #f0dcd8; border-color: #d8b8b0; }
+        .note-body .chip-purple { background: #e4d8ec; border-color: #c8b8d8; }
+        .note-body .chip-gold { background: #f0e8d0; border-color: #d8c8a8; }
+        .note-body .chip-teal { background: #c8e8dc; border-color: #88c8b8; }
+        .note-body .chip-orange { background: #f0dcc8; border-color: #d8b898; }
+        .note-body .chip-red { background: #f0d8d8; border-color: #d8b0b0; }
+
+        .code-block {
+            background: #1e1a16;
+            color: #e8e0d8;
+            padding: 1.2rem 1.8rem;
+            border-radius: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.75rem;
+            line-height: 1.7;
+            margin: 0.8rem 0 1rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            border-left: 4px solid #f0b8b8;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .code-block .comment { color: #7a8a7a; }
+        .code-block .keyword { color: #f0b8b8; }
+        .code-block .string { color: #b8d9c8; }
+        .code-block .function { color: #c8b8e8; }
+        .code-block .tag { color: #f5d4aa; }
+        .code-block .number { color: #f5d4aa; }
+        .code-block .bold { color: #f0e0c8; font-weight: bold; }
+
+        .ascii-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1rem 1.5rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.45rem;
+            line-height: 1.5;
+            color: #2a1f15;
+            border: 1px solid #e0d8ce;
+            margin: 0.8rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .ascii-box .highlight { color: #a05545; font-weight: bold; }
+        .ascii-box .title { color: #2f2216; font-weight: bold; text-decoration: underline; }
+
+        .styled-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 0.75rem;
+            background: #f8f4ec;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        }
+
+        .styled-table th {
+            background: #2f2216;
+            color: #f5efe8;
+            padding: 0.4rem 0.6rem;
+            text-align: left;
+            font-weight: 500;
+            font-size: 0.7rem;
+        }
+
+        .styled-table td {
+            padding: 0.4rem 0.6rem;
+            border-bottom: 1px solid #e8e0d6;
+            color: #2a1f15;
+            font-size: 0.7rem;
+        }
+
+        .styled-table tr:last-child td { border-bottom: none; }
+        .styled-table tr:hover td { background: #f0e9e0; }
+
+        .note-body ul, .note-body ol {
+            padding-left: 2rem;
+            margin: 0.5rem 0;
+        }
+        .note-body li { margin-bottom: 0.3rem; }
+
+        .def-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1.2rem 1.8rem;
+            margin: 0.8rem 0;
+            border-left: 6px solid #aad0c4;
+        }
+        .def-box strong { color: #a05545; }
+
+        .qa-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1rem 1.8rem;
+            margin: 0.8rem 0;
+            border-left: 6px solid #cfb8e0;
+        }
+        .qa-box .q { font-weight: 600; color: #a05545; font-size: 1.2rem; }
+        .qa-box .a { color: #3d6b5a; margin-top: 0.3rem; padding-left: 0.5rem; }
+
+        .note-meta {
+            margin-top: 1.5rem;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.05rem;
+            color: #9f8875;
+            display: flex;
+            align-items: center;
+            gap: 1.2rem;
+            flex-wrap: wrap;
+        }
+
+        .note-meta span {
+            background: #f1eae1;
+            padding: 0.3rem 1.4rem;
+            border-radius: 60px;
+            font-size: 1rem;
+            color: #4d3b2b;
+            box-shadow: inset 0 1px 4px rgba(0,0,0,0.02);
+            font-weight: 400;
+            letter-spacing: 0.3px;
+        }
+
+        .note-pin {
+            position: absolute;
+            top: -12px;
+            right: 34px;
+            font-size: 2.6rem;
+            opacity: 0.25;
+            transform: rotate(25deg);
+            filter: drop-shadow(0 3px 6px rgba(0,0,0,0.06));
+            transition: opacity 0.25s;
+        }
+        .note:hover .note-pin { opacity: 0.8; }
+
+        .compat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.3rem;
+            margin: 0.5rem 0;
+        }
+        .compat-item {
+            background: #f8f4ec;
+            padding: 0.3rem 0.5rem;
+            border-radius: 6px;
+            border-left: 3px solid #b8cce0;
+            font-size: 0.7rem;
+        }
+        .compat-item .factor { font-weight: 700; color: #a05545; }
+        .compat-item .req { color: #3d6b5a; }
+
+        .flow-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.3rem;
+            margin: 0.5rem 0;
+        }
+        .flow-item {
+            background: #f8f4ec;
+            padding: 0.3rem 0.5rem;
+            border-radius: 6px;
+            border-top: 3px solid #b8cce0;
+            text-align: center;
+            font-size: 0.7rem;
+        }
+        .flow-item .num { font-weight: 700; color: #a05545; }
+        .flow-item .label { font-weight: 600; }
+
+        .consider-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.3rem;
+            margin: 0.5rem 0;
+        }
+        .consider-item {
+            background: #f8f4ec;
+            padding: 0.3rem 0.5rem;
+            border-radius: 6px;
+            border-left: 3px solid #f5d4aa;
+            font-size: 0.7rem;
+        }
+        .consider-item .c { font-weight: 700; color: #a05545; }
+        .consider-item .d { color: #3d6b5a; }
+
+        @keyframes floatUp {
+            0% { opacity: 0; transform: translateY(50px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes notePop {
+            0% { opacity: 0; transform: scale(0.92) rotate(-3deg); }
+            80% { opacity: 1; transform: scale(1.015) rotate(0.8deg); }
+            100% { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+
+        @media (max-width: 700px) {
+            .note { padding: 1.8rem 1.8rem; }
+            .note-title { font-size: 1.8rem; }
+            .note-body { font-size: 1.15rem; line-height: 1.7; }
+            .note-body .chip { font-size: 1rem; padding: 0 0.8rem; }
+            .code-block { font-size: 0.65rem; padding: 1rem; }
+            .note-pin { font-size: 2rem; top: -8px; right: 18px; }
+            .styled-table { font-size: 0.65rem; }
+            .styled-table th, .styled-table td { padding: 0.3rem 0.4rem; font-size: 0.65rem; }
+            .notes-container { gap: 2rem; }
+            .ascii-box { font-size: 0.38rem; padding: 0.8rem 1rem; }
+            .qa-box { padding: 0.8rem 1.2rem; }
+            .def-box { padding: 0.8rem 1.2rem; }
+            .compat-grid { grid-template-columns: 1fr; }
+            .flow-grid { grid-template-columns: 1fr; }
+            .consider-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="notes-container">
+
+        <!-- ============================================================ -->
+        <!-- NOTE 1: Chapter Title -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:0">
+            <div class="note-pin">📊</div>
+            <h2 class="note-title">6.4.2 Changing Instance Type</h2>
+            <div class="note-subtitle">Stop → Change → Start</div>
+            <div class="note-body">
+                Changing the instance type of an EC2 instance is a <strong>common operation</strong> for scaling your infrastructure up or down to meet changing performance or cost requirements. This process is known as <strong>"resizing"</strong> an instance and allows you to adjust the compute resources (vCPUs and memory) available to your application without losing your data or configuration.
+            </div>
+            <div class="note-meta">
+                <span>📊 resize</span>
+                <span>🔄 stop → change → start</span>
+                <span>⚡ scaling</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 2: Core Prerequisite -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:1">
+            <div class="note-pin">📖</div>
+            <h2 class="note-title">The Core Prerequisite</h2>
+            <div class="note-body">
+                <strong>You must stop your EBS-backed instance before you can change its instance type.</strong>
+                <br /><br />
+                <div class="def-box" style="border-left-color:#f0b8b8;">
+                    <strong>⚠️ Hard Requirement:</strong> The option to change the instance type is <span class="chip chip-pink">grayed out in the console</span> while the instance is running. This downtime is necessary to detach the instance from its underlying hardware and reattach it to a new configuration.
+                </div>
+                <br />
+                <div class="flow-grid">
+                    <div class="flow-item" style="border-top-color:#b8cce0;">
+                        <div class="num">1</div>
+                        <div class="label">⏸️ Stop</div>
+                        <div style="font-size:0.6rem;">Instance must be stopped</div>
+                    </div>
+                    <div class="flow-item" style="border-top-color:#f5d4aa;">
+                        <div class="num">2</div>
+                        <div class="label">🔧 Change</div>
+                        <div style="font-size:0.6rem;">Select new instance type</div>
+                    </div>
+                    <div class="flow-item" style="border-top-color:#aad0c4;">
+                        <div class="num">3</div>
+                        <div class="label">▶️ Start</div>
+                        <div style="font-size:0.6rem;">Instance resumes with new type</div>
+                    </div>
+                </div>
+                <br />
+                <div class="def-box" style="border-left-color:#aad0c4;">
+                    <strong>💡 Key Benefit:</strong> Your EBS volumes and data are <strong>preserved</strong> throughout this process. However, your public IP will change unless an <span class="chip">Elastic IP</span> is attached.
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>📖 prerequisite</span>
+                <span>⏸️ stop required</span>
+                <span>💾 EBS preserved</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 3: Compatibility -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:2">
+            <div class="note-pin">🔍</div>
+            <h2 class="note-title">Compatibility: Before You Change</h2>
+            <div class="note-body">
+                Before you proceed, it is <strong>critical</strong> to verify that your desired new instance type is compatible with your current instance's configuration. If they are not compatible, the change request will <strong>fail</strong>, or the instance may not start correctly.
+                <br /><br />
+                <div class="compat-grid">
+                    <div class="compat-item" style="border-left-color:#b8cce0;">
+                        <div class="factor">🏗️ Architecture</div>
+                        <div class="req">Must match processor architecture (x86 → x86, ARM → ARM)</div>
+                        <div style="font-size:0.6rem; color:#f0b8b8;">⚠️ Cannot switch between Intel and Graviton</div>
+                    </div>
+                    <div class="compat-item" style="border-left-color:#aad0c4;">
+                        <div class="factor">🔄 Virtualization Type</div>
+                        <div class="req">Must match (PV or HVM)</div>
+                        <div style="font-size:0.6rem; color:#f0b8b8;">⚠️ Cannot change from PV to HVM</div>
+                    </div>
+                    <div class="compat-item" style="border-left-color:#f5d4aa;">
+                        <div class="factor">💾 EBS Volume Limit</div>
+                        <div class="req">New type must support same number of attached EBS volumes</div>
+                    </div>
+                    <div class="compat-item" style="border-left-color:#cfb8e0;">
+                        <div class="factor">🌐 Enhanced Networking</div>
+                        <div class="req">Drivers (ENA) must be installed</div>
+                        <div style="font-size:0.6rem; color:#f0b8b8;">⚠️ If missing, change will fail</div>
+                    </div>
+                    <div class="compat-item" style="border-left-color:#e8c8b8;">
+                        <div class="factor">💿 NVMe Support</div>
+                        <div class="req">OS must support NVMe for Nitro instances</div>
+                        <div style="font-size:0.6rem;">Use UUIDs, not device names</div>
+                    </div>
+                    <div class="compat-item" style="border-left-color:#b8d9c8;">
+                        <div class="factor">🔐 NitroTPM</div>
+                        <div class="req">Target must also support NitroTPM</div>
+                    </div>
+                </div>
+                <br />
+                <div class="def-box" style="border-left-color:#f5d4aa;">
+                    <strong>💡 Best Practice:</strong> Before changing, <strong>take a snapshot</strong> of your EBS volumes or create an AMI as a precaution.
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🔍 compatibility</span>
+                <span>🏗️ architecture</span>
+                <span>🌐 ENA drivers</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 4: Step-by-Step – Console -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:3">
+            <div class="note-pin">🖥️</div>
+            <h2 class="note-title">Step-by-Step: Console</h2>
+            <div class="note-body">
+                <strong>Method 1: Using the AWS Management Console</strong>
+                <br /><br />
+                <ol>
+                    <li><strong>Back Up Your Data (Optional but Recommended):</strong> Take a snapshot of your EBS volumes or create an AMI as a precaution.</li>
+                    <br />
+                    <li><strong>Stop the Instance:</strong> Open the Instances page → Select your instance → <span class="chip">Instance state → Stop instance</span>. Confirm. Wait for the instance to stop.</li>
+                    <br />
+                    <li><strong>Change the Instance Type:</strong> With the instance selected, go to <span class="chip">Actions → Instance settings → Change instance type</span>.</li>
+                    <br />
+                    <li><strong>Select the New Type:</strong> Choose your desired instance type from the dropdown. Click <span class="chip">Apply</span>.</li>
+                    <br />
+                    <li><strong>Start the Instance:</strong> Once the change is applied, start the instance again by choosing <span class="chip">Instance state → Start instance</span>.</li>
+                </ol>
+                <br />
+                <div class="ascii-box">
+                    <span class="title">CONSOLE WORKFLOW</span>
+                    ┌─────────────────────────────────────────────────────────────────────────────────────┐
+                    │                    CHANGE INSTANCE TYPE - CONSOLE                                  │
+                    ├─────────────────────────────────────────────────────────────────────────────────────┤
+                    │                                                                                     │
+                    │  1. Stop Instance                                                                  │
+                    │     ┌─────────────────────────────────────────────────────────────────────────┐   │
+                    │     │  Instances → Select → Instance State → Stop instance                    │   │
+                    │     └─────────────────────────────────────────────────────────────────────────┘   │
+                    │                                    │                                                │
+                    │                                    ▼                                                │
+                    │  2. Change Instance Type                                                           │
+                    │     ┌─────────────────────────────────────────────────────────────────────────┐   │
+                    │     │  Actions → Instance settings → Change instance type                    │   │
+                    │     │  ┌─────────────────────────────────────────────────────────────────┐   │   │
+                    │     │  │  New instance type: [t3.small ▼]                              │   │   │
+                    │     │  │  [Apply]                                                       │   │   │
+                    │     │  └─────────────────────────────────────────────────────────────────┘   │   │
+                    │     └─────────────────────────────────────────────────────────────────────────┘   │
+                    │                                    │                                                │
+                    │                                    ▼                                                │
+                    │  3. Start Instance                                                                │
+                    │     ┌─────────────────────────────────────────────────────────────────────────┐   │
+                    │     │  Instances → Select → Instance State → Start instance                  │   │
+                    │     └─────────────────────────────────────────────────────────────────────────┘   │
+                    │                                                                                     │
+                    └─────────────────────────────────────────────────────────────────────────────────────┘
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🖥️ console</span>
+                <span>📋 step-by-step</span>
+                <span>🔄 stop → change → start</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 5: Step-by-Step – CLI -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:4">
+            <div class="note-pin">💻</div>
+            <h2 class="note-title">Step-by-Step: CLI</h2>
+            <div class="note-body">
+                <strong>Method 2: Using the AWS CLI</strong>
+                <br />
+                The CLI approach allows you to <strong>script</strong> this process for automation.
+                <br /><br />
+                <strong>Step 1: Stop the instance</strong>
+                <div class="code-block">
+                    aws ec2 stop-instances --instance-ids i-1234567890abcdef0
+                </div>
+                <br />
+                <strong>Step 2: Confirm the instance is stopped</strong>
+                <div class="code-block">
+                    aws ec2 describe-instances --instance-ids i-1234567890abcdef0 --query 'Reservations[0].Instances[0].State.Name'
+                </div>
+                <div class="def-box" style="border-left-color:#aad0c4;">
+                    <strong>✅ Expected output:</strong> <span class="chip">"stopped"</span>
+                </div>
+                <br />
+                <strong>Step 3: Change the instance type</strong>
+                <div class="code-block">
+                    aws ec2 modify-instance-attribute \
+                        --instance-id i-1234567890abcdef0 \
+                        --instance-type "{\"Value\": \"t3.small\"}"
+                </div>
+                <div class="def-box" style="border-left-color:#f5d4aa;">
+                    <strong>💡 Note:</strong> This command produces <span class="chip">no output</span> if successful.
+                </div>
+                <br />
+                <strong>Step 4: Start the instance</strong>
+                <div class="code-block">
+                    aws ec2 start-instances --instance-ids i-1234567890abcdef0
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>💻 CLI</span>
+                <span>⚙️ modify-instance-attribute</span>
+                <span>🤖 automation</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 6: Important Considerations -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:5">
+            <div class="note-pin">⚠️</div>
+            <h2 class="note-title">Important Considerations</h2>
+            <div class="note-body">
+                <div class="consider-grid">
+                    <div class="consider-item" style="border-left-color:#f0b8b8;">
+                        <div class="c">⏱️ Downtime</div>
+                        <div class="d">Instance unavailable during stop, change, and restart process</div>
+                    </div>
+                    <div class="consider-item" style="border-left-color:#f5d4aa;">
+                        <div class="c">🌐 Public IP</div>
+                        <div class="d">Public IP released on stop; new IP assigned on start (unless Elastic IP)</div>
+                    </div>
+                    <div class="consider-item" style="border-left-color:#cfb8e0;">
+                        <div class="c">💾 Instance Store</div>
+                        <div class="d">Data on instance store volumes is <span class="chip chip-pink">LOST</span> when stopped</div>
+                    </div>
+                    <div class="consider-item" style="border-left-color:#b8cce0;">
+                        <div class="c">📊 Auto Scaling Groups</div>
+                        <div class="d">Stopping an instance in an ASG may mark it unhealthy and trigger termination. <span class="chip">Suspend scaling processes</span> first.</div>
+                    </div>
+                    <div class="consider-item" style="border-left-color:#e8c8b8; grid-column: 1 / -1;">
+                        <div class="c">⚡ Spot Instances</div>
+                        <div class="d"><span class="chip chip-pink">Cannot</span> change the instance type of a Spot Instance</div>
+                    </div>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>⚠️ considerations</span>
+                <span>⏱️ downtime</span>
+                <span>💾 instance store</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 7: Key Takeaways -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:6">
+            <div class="note-pin">📝</div>
+            <h2 class="note-title">Key Takeaways</h2>
+            <div class="note-body">
+                <ul>
+                    <li>Changing the instance type is a <strong>Stop → Change → Start</strong> process. The instance <strong>must be stopped</strong> first.</li>
+                    <br />
+                    <li><strong>EBS volumes and data are preserved</strong> throughout the process.</li>
+                    <br />
+                    <li><strong>Public IP</strong> is released on stop; a new one is assigned on start (unless <span class="chip">Elastic IP</span> is attached).</li>
+                    <br />
+                    <li><strong>Instance store data</strong> is <span class="chip chip-pink">lost</span> when the instance is stopped.</li>
+                    <br />
+                    <li><strong>Check compatibility</strong> before changing: architecture, virtualization type, drivers, NVMe support, and EBS volume limits.</li>
+                    <br />
+                    <li>For instances in <strong>Auto Scaling Groups</strong>, suspend scaling processes before stopping to prevent termination.</li>
+                    <br />
+                    <li><span class="chip chip-pink">Spot Instances</span> cannot have their instance type changed.</li>
+                    <br />
+                    <li><strong>Always back up</strong> (snapshot or AMI) before making changes.</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>📝 takeaways</span>
+                <span>🔄 stop → change → start</span>
+                <span>⚡ scaling</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 8: Review Questions -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:7">
+            <div class="note-pin">❓</div>
+            <h2 class="note-title">Review Questions</h2>
+            <div class="note-body">
+
+                <div class="qa-box">
+                    <div class="q">Q1: Is it possible to change an EC2 instance type without terminating the instance?</div>
+                    <div class="a"><strong>Answer:</strong> <strong>Yes</strong>, it is possible to change the instance type of an EBS-backed instance without terminating it. The process is a <span class="chip">Stop → Change → Start</span> sequence. You must stop the instance, change its type, and then start it again. This preserves your data and configurations.</div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#f5d4aa;">
+                    <div class="q">Q2: What is the most important prerequisite before changing an EC2 instance type?</div>
+                    <div class="a"><strong>Answer:</strong> The most critical prerequisite is to <span class="chip chip-pink">stop the instance</span>. You cannot change the instance type of a running instance. Additionally, you must ensure the new instance type is <strong>compatible</strong> with your current instance configuration, including architecture, virtualization type, and drivers.</div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#b8cce0;">
+                    <div class="q">Q3: What happens to my EBS volumes and data when I change the instance type?</div>
+                    <div class="a"><strong>Answer:</strong> Your EBS volumes and the data on them are <strong>preserved</strong>. The process only changes the compute resources (vCPUs and memory). The EBS volume sizes and configurations remain unaffected. The EBS volumes are detached from the old hardware and reattached to the new hardware.</div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#cfb8e0;">
+                    <div class="q">Q4: My instance currently uses a public IP address. What will happen to it when I change the instance type?</div>
+                    <div class="a"><strong>Answer:</strong> If your instance has a public IPv4 address that is <strong>not</strong> an Elastic IP, it will be <span class="chip chip-pink">released</span> when you stop the instance. When you start the instance again, it will be assigned a <strong>new public IPv4 address</strong>. If you need to retain the same public IP, you must attach an <span class="chip">Elastic IP</span> to the instance.</div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#aad0c4;">
+                    <div class="q">Q5: What should you do to ensure an instance in an Auto Scaling Group is not terminated during a type change?</div>
+                    <div class="a"><strong>Answer:</strong> You should <span class="chip">suspend the scaling processes</span> for the Auto Scaling Group before stopping the instance. The service might mark the stopped instance as <strong>unhealthy</strong> and terminate it to launch a replacement. Suspending the processes prevents this and allows you to complete the type change safely.</div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#e8c8b8;">
+                    <div class="q">Q6: Can I change the instance type of a Spot Instance?</div>
+                    <div class="a"><strong>Answer:</strong> <strong>No</strong>, you cannot change the instance type of a Spot Instance. This operation is <span class="chip chip-pink">not supported</span> for Spot Instances.</div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#b8d9c8;">
+                    <div class="q">Q7: What are the key compatibility factors to check before changing the instance type?</div>
+                    <div class="a"><strong>Answer:</strong> Key factors include:
+                        <ul>
+                            <li><strong>CPU Architecture:</strong> x86 vs ARM (cannot switch)</li>
+                            <li><strong>Virtualization Type:</strong> PV vs HVM</li>
+                            <li><strong>Enhanced Networking Drivers:</strong> ENA/ixgbevf must be installed</li>
+                            <li><strong>NVMe Support:</strong> Required for Nitro instances</li>
+                            <li><strong>EBS Volume Limit:</strong> New type must support the same number of volumes</li>
+                            <li><strong>NitroTPM:</strong> Target must also support this feature</li>
+                        </ul>
+                    </div>
+                </div>
+
+            </div>
+            <div class="note-meta">
+                <span>❓ Q&A</span>
+                <span>📝 review</span>
+                <span>🧠 learning</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 9: Next Steps -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:8">
+            <div class="note-pin">🚀</div>
+            <h2 class="note-title">Next Steps</h2>
+            <div class="note-body">
+                <span style="font-size:2rem;">📖</span> Proceed to the next section:
+                <br /><br />
+                <span class="chip chip-purple" style="font-size:1.4rem;">6.5: EC2 Instance Monitoring</span>
+                <br /><br />
+                <div class="quote-box" style="border-left-color:#aad0c4;">
+                    "Changing instance types is the <strong>art</strong> of right-sizing — know when to scale <strong>up</strong> for performance and when to scale <strong>down</strong> for cost."
+                    <div class="author">— AWS EC2 Best Practices</div>
+                </div>
+                <br />
+                <div style="text-align:center; font-size:2.5rem; opacity:0.3; letter-spacing:10px;">
+                    ❖ ❖ ❖
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🚀 next</span>
+                <span>📖 6.5</span>
+                <span>📊 monitoring</span>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EC2 Chapter 3.4.2 · Handwritten Notes</title>
+
+    <!-- Google Fonts – clear handwriting -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Gloria+Hallelujah&family=Architects+Daughter&family=Reenie+Beanie&display=swap" rel="stylesheet" />
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: #f7f0e7;
+            background-image: radial-gradient(circle at 30% 20%, #fcf7f0 0%, #eee7dd 100%);
+            display: flex;
+            justify-content: center;
+            padding: 2.5rem 1.5rem;
+            font-family: 'Patrick Hand', 'Architects Daughter', cursive;
+        }
+
+        .notes-container {
+            max-width: 1100px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 2.8rem;
+            animation: floatUp 0.9s ease-out;
+        }
+
+        .note {
+            background: #fffcf5;
+            padding: 2.5rem 3.5rem;
+            border-radius: 28px 28px 28px 10px;
+            box-shadow: 0 12px 36px rgba(0,0,0,0.06), 0 2px 10px rgba(0,0,0,0.03), inset 0 -2px 0 rgba(0,0,0,0.02);
+            position: relative;
+            transition: transform 0.3s ease, box-shadow 0.35s ease;
+            transform-origin: left center;
+            border-left: 8px solid transparent;
+            animation: notePop 0.6s ease both;
+            animation-delay: calc(var(--i, 0) * 0.035s);
+        }
+
+        .note:nth-child(1) { border-left-color: #f0b8b8; }
+        .note:nth-child(2) { border-left-color: #aad0c4; }
+        .note:nth-child(3) { border-left-color: #f5d4aa; }
+        .note:nth-child(4) { border-left-color: #cfb8e0; }
+        .note:nth-child(5) { border-left-color: #b8cce0; }
+        .note:nth-child(6) { border-left-color: #e8c8b8; }
+        .note:nth-child(7) { border-left-color: #b8d9c8; }
+        .note:nth-child(8) { border-left-color: #f0c8c8; }
+        .note:nth-child(9) { border-left-color: #d4c8e8; }
+        .note:nth-child(10) { border-left-color: #c8dce8; }
+        .note:nth-child(11) { border-left-color: #e8d4b8; }
+
+        .note:hover {
+            transform: rotate(-0.8deg) scale(1.015);
+            box-shadow: 0 24px 48px rgba(0,0,0,0.09), 0 4px 16px rgba(0,0,0,0.05);
+        }
+
+        .note-title {
+            font-family: 'Gloria Hallelujah', 'Patrick Hand', cursive;
+            font-size: 2.2rem;
+            font-weight: 500;
+            color: #2f2216;
+            letter-spacing: 0.8px;
+            margin-bottom: 0.3rem;
+            line-height: 1.25;
+            display: inline-block;
+            position: relative;
+        }
+
+        .note-title::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: -4px;
+            width: 100%;
+            height: 8px;
+            background: repeating-linear-gradient(90deg, transparent, transparent 6px, rgba(240,184,184,0.4) 6px, rgba(240,184,184,0.4) 12px);
+            border-radius: 20px;
+            opacity: 0.8;
+        }
+
+        .note-subtitle {
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.3rem;
+            color: #5a4a3a;
+            margin: -0.1rem 0 1rem 0;
+            font-weight: 400;
+            opacity: 0.85;
+        }
+
+        .note-body {
+            font-family: 'Architects Daughter', 'Patrick Hand', cursive;
+            font-size: 1.35rem;
+            line-height: 1.85;
+            color: #2a1f15;
+            margin: 0.9rem 0 0.4rem 0;
+            font-weight: 400;
+            letter-spacing: 0.4px;
+        }
+
+        .note-body strong {
+            font-weight: 700;
+            color: #a05545;
+            background: rgba(240,184,184,0.15);
+            padding: 0 8px;
+            border-radius: 16px;
+            font-style: normal;
+        }
+
+        .note-body em {
+            color: #5a8a78;
+            font-style: italic;
+            text-decoration: underline wavy #aad0c4 3px;
+            font-weight: 500;
+        }
+
+        .note-body .chip {
+            background: #f0e9e0;
+            padding: 0.1rem 1.2rem;
+            border-radius: 40px;
+            display: inline-block;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.15rem;
+            color: #3d3226;
+            border: 1px dashed #cbb8a8;
+            margin: 2px 0;
+            font-weight: 400;
+        }
+
+        .note-body .chip-blue { background: #dce8f0; border-color: #aac0d0; }
+        .note-body .chip-green { background: #d8ece0; border-color: #a0c8b8; }
+        .note-body .chip-pink { background: #f0dcd8; border-color: #d8b8b0; }
+        .note-body .chip-purple { background: #e4d8ec; border-color: #c8b8d8; }
+        .note-body .chip-gold { background: #f0e8d0; border-color: #d8c8a8; }
+        .note-body .chip-teal { background: #c8e8dc; border-color: #88c8b8; }
+        .note-body .chip-orange { background: #f0dcc8; border-color: #d8b898; }
+        .note-body .chip-red { background: #f0d8d8; border-color: #d8b0b0; }
+
+        .code-block {
+            background: #1e1a16;
+            color: #e8e0d8;
+            padding: 1.2rem 1.8rem;
+            border-radius: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.82rem;
+            line-height: 1.7;
+            margin: 0.8rem 0 1rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            border-left: 4px solid #f0b8b8;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .code-block .comment { color: #7a8a7a; }
+        .code-block .keyword { color: #f0b8b8; }
+        .code-block .string { color: #b8d9c8; }
+        .code-block .function { color: #c8b8e8; }
+        .code-block .tag { color: #f5d4aa; }
+        .code-block .number { color: #f5d4aa; }
+        .code-block .bold { color: #f0e0c8; font-weight: bold; }
+
+        .ascii-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1rem 1.5rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.55rem;
+            line-height: 1.5;
+            color: #2a1f15;
+            border: 1px solid #e0d8ce;
+            margin: 0.8rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .ascii-box .highlight { color: #a05545; font-weight: bold; }
+        .ascii-box .title { color: #2f2216; font-weight: bold; text-decoration: underline; }
+
+        .styled-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 0.92rem;
+            background: #f8f4ec;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        }
+
+        .styled-table th {
+            background: #2f2216;
+            color: #f5efe8;
+            padding: 0.7rem 1rem;
+            text-align: left;
+            font-weight: 500;
+            font-size: 0.88rem;
+        }
+
+        .styled-table td {
+            padding: 0.7rem 1rem;
+            border-bottom: 1px solid #e8e0d6;
+            color: #2a1f15;
+        }
+
+        .styled-table tr:last-child td { border-bottom: none; }
+        .styled-table tr:hover td { background: #f0e9e0; }
+
+        .note-body ul, .note-body ol {
+            padding-left: 2rem;
+            margin: 0.5rem 0;
+        }
+        .note-body li { margin-bottom: 0.3rem; }
+
+        .def-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1.2rem 1.8rem;
+            margin: 0.8rem 0;
+            border-left: 6px solid #aad0c4;
+        }
+        .def-box strong { color: #a05545; }
+
+        .qa-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1rem 1.8rem;
+            margin: 0.8rem 0;
+            border-left: 6px solid #cfb8e0;
+        }
+        .qa-box .q { font-weight: 600; color: #a05545; font-size: 1.2rem; }
+        .qa-box .a { color: #3d6b5a; margin-top: 0.3rem; padding-left: 0.5rem; }
+
+        .note-meta {
+            margin-top: 1.5rem;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.05rem;
+            color: #9f8875;
+            display: flex;
+            align-items: center;
+            gap: 1.2rem;
+            flex-wrap: wrap;
+        }
+
+        .note-meta span {
+            background: #f1eae1;
+            padding: 0.3rem 1.4rem;
+            border-radius: 60px;
+            font-size: 1rem;
+            color: #4d3b2b;
+            box-shadow: inset 0 1px 4px rgba(0,0,0,0.02);
+            font-weight: 400;
+            letter-spacing: 0.3px;
+        }
+
+        .note-pin {
+            position: absolute;
+            top: -12px;
+            right: 34px;
+            font-size: 2.6rem;
+            opacity: 0.25;
+            transform: rotate(25deg);
+            filter: drop-shadow(0 3px 6px rgba(0,0,0,0.06));
+            transition: opacity 0.25s;
+        }
+        .note:hover .note-pin { opacity: 0.8; }
+
+        .section-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.5rem;
+            margin: 0.5rem 0;
+        }
+        .section-card {
+            background: #f8f4ec;
+            padding: 0.5rem 0.8rem;
+            border-radius: 8px;
+            border-left: 3px solid #b8cce0;
+            font-size: 0.82rem;
+        }
+        .section-card .name { font-weight: 700; color: #a05545; }
+        .section-card .items { font-size: 0.72rem; color: #3d6b5a; }
+
+        .quick-actions-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.4rem;
+            margin: 0.5rem 0;
+        }
+        .quick-action {
+            background: #f8f4ec;
+            padding: 0.3rem 0.6rem;
+            border-radius: 6px;
+            border-left: 3px solid #f5d4aa;
+            font-size: 0.8rem;
+        }
+        .quick-action .action { font-weight: 700; color: #a05545; }
+
+        .resource-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.4rem;
+            margin: 0.5rem 0;
+        }
+        .resource-item {
+            background: #f8f4ec;
+            padding: 0.3rem 0.6rem;
+            border-radius: 6px;
+            border-left: 3px solid #aad0c4;
+            font-size: 0.8rem;
+        }
+        .resource-item .res { font-weight: 700; color: #a05545; }
+
+        @keyframes floatUp {
+            0% { opacity: 0; transform: translateY(50px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes notePop {
+            0% { opacity: 0; transform: scale(0.92) rotate(-3deg); }
+            80% { opacity: 1; transform: scale(1.015) rotate(0.8deg); }
+            100% { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+
+        @media (max-width: 700px) {
+            .note { padding: 1.8rem 1.8rem; }
+            .note-title { font-size: 1.8rem; }
+            .note-body { font-size: 1.15rem; line-height: 1.7; }
+            .note-body .chip { font-size: 1rem; padding: 0 0.8rem; }
+            .code-block { font-size: 0.7rem; padding: 1rem; }
+            .note-pin { font-size: 2rem; top: -8px; right: 18px; }
+            .styled-table { font-size: 0.8rem; }
+            .styled-table th, .styled-table td { padding: 0.5rem 0.7rem; }
+            .notes-container { gap: 2rem; }
+            .ascii-box { font-size: 0.45rem; padding: 0.8rem 1rem; }
+            .qa-box { padding: 0.8rem 1.2rem; }
+            .def-box { padding: 0.8rem 1.2rem; }
+            .section-grid { grid-template-columns: 1fr 1fr; }
+            .quick-actions-grid { grid-template-columns: 1fr 1fr; }
+            .resource-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="notes-container">
+
+        <!-- ============================================================ -->
+        <!-- NOTE 1: Chapter Title -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:0">
+            <div class="note-pin">📊</div>
+            <h2 class="note-title">3.4.2 Using the EC2 Dashboard</h2>
+            <div class="note-body">
+                The EC2 Dashboard is your <strong>mission control center</strong> for managing all aspects of your virtual servers and related infrastructure in the cloud. It provides a comprehensive, at-a-glance view of your EC2 resources and serves as the <strong>primary entry point</strong> for performing management tasks.
+            </div>
+            <div class="note-meta">
+                <span>📊 dashboard</span>
+                <span>🚀 EC2</span>
+                <span>🎯 control center</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 2: Dashboard Layout -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:1">
+            <div class="note-pin">📋</div>
+            <h2 class="note-title">Understanding the EC2 Dashboard Layout</h2>
+            <div class="note-body">
+                When you select EC2 from the AWS Management Console or search for it, you are taken to the <strong>EC2 Dashboard</strong>. It is designed to give you a quick overview of your environment in the current AWS Region.
+                <br /><br />
+                <strong>Key Sections of the Dashboard:</strong>
+                <ul>
+                    <li><span class="chip chip-blue">📊 Resource Summary:</span> A quick snapshot of your key EC2 resources in the current region.</li>
+                    <li><span class="chip chip-green">✅ Service Health:</span> Status of EC2 services in the current region.</li>
+                    <li><span class="chip chip-gold">⚡ Quick Launch Section:</span> Quick access to launching an instance and other common actions.</li>
+                    <li><span class="chip chip-purple">📋 Recent Events:</span> Recent activity and events related to your EC2 resources.</li>
+                    <li><span class="chip chip-teal">📂 Left Navigation Pane:</span> The primary tool for drilling down into specific management tasks.</li>
+                </ul>
+            </div>
+            <div class="ascii-box">
+                <span class="title">EC2 DASHBOARD LAYOUT</span>
+                +-------------------------------------------------------------------------------+
+                |                           EC2 Dashboard                                       |
+                +-------------------------------------------------------------------------------+
+                |  ☰ Services  |  [Search...]                           |  us-east-1  |  @User |
+                +-------------------------------------------------------------------------------+
+                |                                                                               |
+                |  +----------------------------------------+  +----------------------------+   |
+                |  |  RESOURCES (in us-east-1)              |  |  QUICK ACTIONS             |   |
+                |  |  ┌────────────────────────────────────┐ |  |  [Launch Instance]        |   |
+                |  |  │ Running Instances   :  2           │ |  |  [Create AMI]             |   |
+                |  |  │ Stopped Instances   :  1           │ |  |  [Create Volume]          |   |
+                |  |  │ Elastic IPs         :  1           │ |  |  [Create Key Pair]        |   |
+                |  |  │ Volumes             :  5           │ |  |  [Create Security Group]  |   |
+                |  |  │ AMIs                :  3           │ |  +----------------------------+   |
+                |  |  │ Security Groups     :  8           │ |                                    |
+                |  |  │ Load Balancers      :  1           │ |  +----------------------------+   |
+                |  |  │ Auto Scaling Groups :  2           │ |  |  SERVICE HEALTH           |   |
+                |  |  └────────────────────────────────────┘ |  |  [All services normal]     |   |
+                |  +----------------------------------------+  +----------------------------+   |
+                |                                                                               |
+                |  +----------------------------------------+  +----------------------------+   |
+                |  |  RECENT EVENTS                          |  |  ADDITIONAL INFORMATION   |   |
+                |  |  - Instance launched: i-1234567890     |  |  - EC2 Documentation      |   |
+                |  |  - Instance stopped: i-abcdef1234      |  |  - EC2 Pricing            |   |
+                |  |  - Volume created: vol-9876543210      |  |  - AWS Support            |   |
+                |  +----------------------------------------+  +----------------------------+   |
+                |                                                                               |
+                +-------------------------------------------------------------------------------+
+            </div>
+            <div class="note-meta">
+                <span>📋 layout</span>
+                <span>📊 resource summary</span>
+                <span>⚡ quick actions</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 3: Resource Summary -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:2">
+            <div class="note-pin">📊</div>
+            <h2 class="note-title">Resource Summary Section</h2>
+            <div class="note-body">
+                The resource summary provides a <strong>quick count</strong> of your key resources in the current region. Clicking on any resource type takes you directly to the detailed management page for that resource type.
+                <br /><br />
+                <div class="resource-grid">
+                    <div class="resource-item" style="border-left-color:#b8cce0;">
+                        <span class="res">Running Instances</span>
+                        <div style="font-size:0.7rem; color:#7a8a7a;">EC2 instances in the running state</div>
+                    </div>
+                    <div class="resource-item" style="border-left-color:#aad0c4;">
+                        <span class="res">Stopped Instances</span>
+                        <div style="font-size:0.7rem; color:#7a8a7a;">EC2 instances in the stopped state</div>
+                    </div>
+                    <div class="resource-item" style="border-left-color:#f5d4aa;">
+                        <span class="res">Volumes</span>
+                        <div style="font-size:0.7rem; color:#7a8a7a;">All EBS volumes attached and unattached</div>
+                    </div>
+                    <div class="resource-item" style="border-left-color:#cfb8e0;">
+                        <span class="res">Snapshots</span>
+                        <div style="font-size:0.7rem; color:#7a8a7a;">All EBS snapshots you own</div>
+                    </div>
+                    <div class="resource-item" style="border-left-color:#e8c8b8;">
+                        <span class="res">AMIs</span>
+                        <div style="font-size:0.7rem; color:#7a8a7a;">All Amazon Machine Images you own</div>
+                    </div>
+                    <div class="resource-item" style="border-left-color:#b8d9c8;">
+                        <span class="res">Elastic IPs</span>
+                        <div style="font-size:0.7rem; color:#7a8a7a;">All Elastic IP addresses allocated</div>
+                    </div>
+                    <div class="resource-item" style="border-left-color:#d4c8e8;">
+                        <span class="res">Security Groups</span>
+                        <div style="font-size:0.7rem; color:#7a8a7a;">All Security Groups</div>
+                    </div>
+                    <div class="resource-item" style="border-left-color:#f0dcc8;">
+                        <span class="res">Key Pairs</span>
+                        <div style="font-size:0.7rem; color:#7a8a7a;">All key pairs you have created</div>
+                    </div>
+                    <div class="resource-item" style="border-left-color:#c8dce8;">
+                        <span class="res">Load Balancers</span>
+                        <div style="font-size:0.7rem; color:#7a8a7a;">All load balancers (ALB, NLB, CLB)</div>
+                    </div>
+                </div>
+                <br />
+                <div class="def-box" style="border-left-color:#f0b8b8;">
+                    <strong>⚠️ Important:</strong> The Resource Summary is <strong>region-specific</strong>. If you have resources in multiple regions, you will only see the count for the region currently selected in the <span class="chip">Region Selector</span> at the top-right.
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>📊 resources</span>
+                <span>🌍 region-specific</span>
+                <span>📋 counts</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 4: Quick Actions -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:3">
+            <div class="note-pin">⚡</div>
+            <h2 class="note-title">Quick Actions Section</h2>
+            <div class="note-body">
+                The Quick Actions section provides <strong>one-click access</strong> to the most common EC2 tasks:
+                <br /><br />
+                <div class="quick-actions-grid">
+                    <div class="quick-action" style="border-left-color:#b8cce0;">
+                        <span class="action">🚀 Launch Instance</span>
+                        <div style="font-size:0.7rem; color:#7a8a7a;">Opens the step-by-step wizard to create a new EC2 instance</div>
+                    </div>
+                    <div class="quick-action" style="border-left-color:#aad0c4;">
+                        <span class="action">📦 Create AMI</span>
+                        <div style="font-size:0.7rem; color:#7a8a7a;">Creates an AMI from a running or stopped instance</div>
+                    </div>
+                    <div class="quick-action" style="border-left-color:#f5d4aa;">
+                        <span class="action">💾 Create Volume</span>
+                        <div style="font-size:0.7rem; color:#7a8a7a;">Creates a new EBS volume</div>
+                    </div>
+                    <div class="quick-action" style="border-left-color:#cfb8e0;">
+                        <span class="action">🔑 Create Key Pair</span>
+                        <div style="font-size:0.7rem; color:#7a8a7a;">Creates an SSH/RDP key pair for secure access</div>
+                    </div>
+                    <div class="quick-action" style="border-left-color:#e8c8b8;">
+                        <span class="action">🛡️ Create Security Group</span>
+                        <div style="font-size:0.7rem; color:#7a8a7a;">Creates a new security group for firewall rules</div>
+                    </div>
+                    <div class="quick-action" style="border-left-color:#b8d9c8;">
+                        <span class="action">📸 Create Snapshot</span>
+                        <div style="font-size:0.7rem; color:#7a8a7a;">Creates a snapshot of an EBS volume</div>
+                    </div>
+                </div>
+                <br />
+                <div class="def-box" style="border-left-color:#f5d4aa;">
+                    <strong>💡 Pro Tip:</strong> The Quick Actions section is the <strong>fastest way</strong> to start common EC2 tasks without navigating through menus.
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>⚡ quick actions</span>
+                <span>🚀 launch</span>
+                <span>🔑 key pair</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 5: Left Navigation Pane -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:4">
+            <div class="note-pin">📂</div>
+            <h2 class="note-title">The Left Navigation Pane</h2>
+            <div class="note-subtitle">Your EC2 Control Center</div>
+            <div class="note-body">
+                The left navigation pane is the <strong>most important part</strong> of the EC2 Dashboard. It provides organized access to every feature and management capability available in EC2.
+                <br /><br />
+                <div class="section-grid">
+                    <div class="section-card" style="border-left-color:#b8cce0;">
+                        <div class="name">🚀 INSTANCES</div>
+                        <div class="items">Instances, Launch Templates, Spot Requests, Savings Plans, Dedicated Hosts, Capacity Reservations</div>
+                    </div>
+                    <div class="section-card" style="border-left-color:#aad0c4;">
+                        <div class="name">💾 IMAGES</div>
+                        <div class="items">AMIs, AMI Catalog</div>
+                    </div>
+                    <div class="section-card" style="border-left-color:#f5d4aa;">
+                        <div class="name">📦 STORAGE</div>
+                        <div class="items">Volumes, Snapshots, Lifecycle Manager, Recycle Bin</div>
+                    </div>
+                    <div class="section-card" style="border-left-color:#cfb8e0;">
+                        <div class="name">🌐 NETWORK &amp; SECURITY</div>
+                        <div class="items">Security Groups, Elastic IPs, Network Interfaces, Network ACLs, Placement Groups</div>
+                    </div>
+                    <div class="section-card" style="border-left-color:#e8c8b8;">
+                        <div class="name">⚖️ LOAD BALANCING</div>
+                        <div class="items">Load Balancers, Target Groups</div>
+                    </div>
+                    <div class="section-card" style="border-left-color:#b8d9c8;">
+                        <div class="name">💻 AUTO SCALING</div>
+                        <div class="items">Auto Scaling Groups, Launch Configurations</div>
+                    </div>
+                    <div class="section-card" style="border-left-color:#d4c8e8; grid-column: 1 / -1;">
+                        <div class="name">📊 MONITORING</div>
+                        <div class="items">CloudWatch Metrics, CloudWatch Alarms</div>
+                    </div>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>📂 navigation</span>
+                <span>📊 categories</span>
+                <span>🎯 control center</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 6: Common Tasks -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:5">
+            <div class="note-pin">🛠️</div>
+            <h2 class="note-title">Performing Common EC2 Tasks</h2>
+            <div class="note-body">
+                <strong>1. Launching a New EC2 Instance</strong>
+                <ul>
+                    <li>Click <span class="chip chip-orange">Launch Instance</span> from Quick Actions</li>
+                    <li>Enter a name for your instance</li>
+                    <li>Choose an <span class="chip">AMI</span> (Quick Start, Marketplace, or custom)</li>
+                    <li>Choose an <span class="chip">Instance Type</span> (e.g., t3.micro, m5.large)</li>
+                    <li>Create or select a <span class="chip">Key Pair</span> for SSH/RDP access</li>
+                    <li>Configure <span class="chip">Network Settings</span> (VPC, subnet, security groups)</li>
+                    <li>Configure <span class="chip">Storage</span> (root and additional EBS volumes)</li>
+                    <li>Click <span class="chip chip-green">Launch Instance</span></li>
+                </ul>
+                <br />
+                <strong>2. Connecting to an EC2 Instance</strong>
+                <ul>
+                    <li>From the <span class="chip">Instances</span> page, select your instance</li>
+                    <li>Click <span class="chip">Connect</span> at the top</li>
+                    <li>Choose a connection method:
+                        <ul>
+                            <li><span class="chip chip-blue">EC2 Instance Connect</span> — Browser-based SSH (Linux)</li>
+                            <li><span class="chip chip-green">Session Manager</span> — Browser-based SSH via Systems Manager</li>
+                            <li><span class="chip chip-gold">SSH Client</span> — Terminal + key pair</li>
+                            <li><span class="chip chip-purple">RDP Client</span> — Connect to a Windows instance</li>
+                        </ul>
+                    </li>
+                </ul>
+                <br />
+                <strong>3. Managing Instance State</strong>
+                <ul>
+                    <li>From the <span class="chip">Instances</span> page, select one or more instances</li>
+                    <li>Click the <span class="chip">Instance State</span> dropdown</li>
+                    <li>Choose an action:
+                        <ul>
+                            <li><span class="chip chip-green">Start</span> — Start a stopped instance (billing resumes)</li>
+                            <li><span class="chip chip-gold">Stop</span> — Stop a running instance (billing stops for compute)</li>
+                            <li><span class="chip chip-blue">Reboot</span> — Reboot the instance (preserves data)</li>
+                            <li><span class="chip chip-pink">Terminate</span> — Permanently delete the instance (use with caution)</li>
+                        </ul>
+                    </li>
+                </ul>
+                <br />
+                <strong>4. Creating an AMI from an Instance</strong>
+                <ul>
+                    <li>From the <span class="chip">Instances</span> page, select a running instance</li>
+                    <li>Click <span class="chip">Actions → Image → Create Image</span></li>
+                    <li>Enter a name and description</li>
+                    <li>Click <span class="chip">Create Image</span></li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>🛠️ tasks</span>
+                <span>🚀 launch</span>
+                <span>🔌 connect</span>
+                <span>⚡ manage state</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 7: Customizing the Dashboard -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:6">
+            <div class="note-pin">🏷️</div>
+            <h2 class="note-title">Customizing the EC2 Dashboard Experience</h2>
+            <div class="note-body">
+                <strong>Creating Custom Dashboards with CloudWatch</strong>
+                <br />
+                While the EC2 Dashboard provides a high-level overview, you can create <strong>custom CloudWatch dashboards</strong> for deeper monitoring:
+                <ul>
+                    <li>Navigate to <span class="chip">CloudWatch → Dashboards</span></li>
+                    <li>Click <span class="chip">Create Dashboard</span></li>
+                    <li>Enter a name and click <span class="chip">Create</span></li>
+                    <li>Add widgets for metrics like:
+                        <ul>
+                            <li><span class="chip chip-blue">CPU Utilization</span> (average across instances)</li>
+                            <li><span class="chip chip-green">Network In/Out</span></li>
+                            <li><span class="chip chip-gold">Disk Read/Write</span></li>
+                            <li><span class="chip chip-purple">Status Check Metrics</span> (instance and system status)</li>
+                        </ul>
+                    </li>
+                </ul>
+                <br />
+                <strong>Filtering and Sorting Instances</strong>
+                <br />
+                The Instances page supports powerful filtering and sorting:
+                <ul>
+                    <li><span class="chip chip-blue">Filter by State:</span> Running, Stopped, Terminated, Pending</li>
+                    <li><span class="chip chip-green">Filter by Tags:</span> Use tag key-value pairs to show only specific resources</li>
+                    <li><span class="chip chip-gold">Filter by Search:</span> Find instances by name, ID, IP, or other attributes</li>
+                    <li><span class="chip chip-purple">Sort by Columns:</span> Click column headers to sort by any attribute</li>
+                </ul>
+                <br />
+                <strong>Adding and Removing Columns</strong>
+                <ul>
+                    <li>Click the <span class="chip">gear icon (⚙️)</span> on the Instances page</li>
+                    <li>Check or uncheck columns to add or remove them</li>
+                    <li>Click <span class="chip">Confirm</span> to save your preferences</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>🏷️ customize</span>
+                <span>📊 CloudWatch</span>
+                <span>🔍 filtering</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 8: Key Takeaways -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:7">
+            <div class="note-pin">📝</div>
+            <h2 class="note-title">Key Takeaways</h2>
+            <div class="note-body">
+                <ul>
+                    <li>The <strong>EC2 Dashboard</strong> provides a region-specific overview of your resources, including counts for instances, volumes, AMIs, and security groups.</li>
+                    <br />
+                    <li>The <strong>Quick Actions</strong> section gives you one-click access to the most common EC2 tasks.</li>
+                    <br />
+                    <li>The <strong>left navigation pane</strong> organizes all EC2 management features into logical categories, making it easy to navigate.</li>
+                    <br />
+                    <li>The <strong>Resource Summary</strong> counts are <strong>region-specific</strong> — always check your region selector to ensure you are looking at the right location.</li>
+                    <br />
+                    <li>You can customize the <strong>Instances table</strong> by adding or removing columns and filtering by tags.</li>
+                    <br />
+                    <li><strong>CloudWatch dashboards</strong> can be used to create custom monitoring views beyond the default EC2 Dashboard.</li>
+                    <br />
+                    <li><strong>Tags</strong> are essential for organizing and filtering resources at scale.</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>📝 takeaways</span>
+                <span>📊 dashboard</span>
+                <span>🎯 EC2</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 9: Review Questions -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:8">
+            <div class="note-pin">❓</div>
+            <h2 class="note-title">Review Questions</h2>
+            <div class="note-body">
+
+                <div class="qa-box">
+                    <div class="q">Q1: What information does the Resource Summary section of the EC2 Dashboard provide?</div>
+                    <div class="a"><strong>Answer:</strong> The Resource Summary provides a <strong>quick count</strong> of your key EC2 resources in the current region. This includes running and stopped instances, volumes, snapshots, AMIs, Elastic IPs, security groups, key pairs, load balancers, and Auto Scaling groups. Clicking on any resource type takes you directly to its detailed management page.</div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#f5d4aa;">
+                    <div class="q">Q2: What Quick Actions are available from the EC2 Dashboard?</div>
+                    <div class="a"><strong>Answer:</strong> The Quick Actions section provides <strong>one-click access</strong> to common EC2 tasks, including:
+                        <ul>
+                            <li><strong>Launch Instance</strong> — create a new EC2 instance</li>
+                            <li><strong>Create AMI</strong> — create an AMI from an instance</li>
+                            <li><strong>Create Volume</strong> — create a new EBS volume</li>
+                            <li><strong>Create Key Pair</strong> — create an SSH/RDP key pair</li>
+                            <li><strong>Create Security Group</strong> — create a new security group</li>
+                            <li><strong>Create Snapshot</strong> — create a snapshot of an EBS volume</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#b8cce0;">
+                    <div class="q">Q3: Why is the Resource Summary considered region-specific?</div>
+                    <div class="a"><strong>Answer:</strong> The Resource Summary only shows resources that exist in the <strong>currently selected AWS Region</strong> (e.g., <span class="chip">us-east-1</span>). If you have resources deployed in multiple regions, you must change the region selector to view the counts for each region. This behavior is crucial for avoiding confusion when managing multi-region architectures.</div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#cfb8e0;">
+                    <div class="q">Q4: What are the main categories in the EC2 left navigation pane?</div>
+                    <div class="a"><strong>Answer:</strong> The left navigation pane is organized into these main categories:
+                        <ul>
+                            <li><strong>🚀 Instances</strong> — EC2 instances, launch templates, Spot Requests</li>
+                            <li><strong>💾 Images</strong> — AMIs and AMI Catalog</li>
+                            <li><strong>📦 Storage</strong> — EBS volumes, snapshots, Lifecycle Manager</li>
+                            <li><strong>🌐 Network &amp; Security</strong> — Security Groups, Elastic IPs, Network ACLs</li>
+                            <li><strong>⚖️ Load Balancing</strong> — Load Balancers and Target Groups</li>
+                            <li><strong>💻 Auto Scaling</strong> — Auto Scaling Groups</li>
+                            <li><strong>📊 Monitoring</strong> — CloudWatch Metrics and Alarms</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#aad0c4;">
+                    <div class="q">Q5: How can you customize the Instances page to show only the information you need?</div>
+                    <div class="a"><strong>Answer:</strong> You can customize the Instances page by:
+                        <ul>
+                            <li><strong>Adding/Removing Columns:</strong> Click the <span class="chip">gear icon (⚙️)</span> to add or remove columns from the Instances table.</li>
+                            <li><strong>Filtering by State or Tags:</strong> Use the filter bar to show only instances that meet specific criteria.</li>
+                            <li><strong>Sorting:</strong> Click column headers to sort by any attribute (e.g., click "Instance Type" to sort by instance type).</li>
+                        </ul>
+                    </div>
+                </div>
+
+            </div>
+            <div class="note-meta">
+                <span>❓ Q&A</span>
+                <span>📝 review</span>
+                <span>🧠 learning</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 10: Next Steps -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:9">
+            <div class="note-pin">🚀</div>
+            <h2 class="note-title">Next Steps</h2>
+            <div class="note-body">
+                <span style="font-size:2rem;">📖</span> Proceed to the next section:
+                <br /><br />
+                <span class="chip chip-purple" style="font-size:1.4rem;">3.4.3: Launching an EC2 Instance</span>
+                <br /><br />
+                <div class="quote-box" style="border-left-color:#aad0c4;">
+                    "The EC2 Dashboard is your <strong>window</strong> into the world of cloud compute — mastering it is the <strong>first step</strong> toward becoming an AWS expert."
+                    <div class="author">— AWS EC2 Principles</div>
+                </div>
+                <br />
+                <div style="text-align:center; font-size:2.5rem; opacity:0.3; letter-spacing:10px;">
+                    ❖ ❖ ❖
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🚀 next</span>
+                <span>📖 3.4.3</span>
+                <span>🚀 launch instance</span>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

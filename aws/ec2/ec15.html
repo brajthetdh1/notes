@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EC2 Chapter 6.2.2 · Handwritten Notes</title>
+
+    <!-- Google Fonts – clear handwriting -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Gloria+Hallelujah&family=Architects+Daughter&family=Reenie+Beanie&display=swap" rel="stylesheet" />
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: #f7f0e7;
+            background-image: radial-gradient(circle at 30% 20%, #fcf7f0 0%, #eee7dd 100%);
+            display: flex;
+            justify-content: center;
+            padding: 2.5rem 1.5rem;
+            font-family: 'Patrick Hand', 'Architects Daughter', cursive;
+        }
+
+        .notes-container {
+            max-width: 1100px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 2.8rem;
+            animation: floatUp 0.9s ease-out;
+        }
+
+        .note {
+            background: #fffcf5;
+            padding: 2.5rem 3.5rem;
+            border-radius: 28px 28px 28px 10px;
+            box-shadow: 0 12px 36px rgba(0,0,0,0.06), 0 2px 10px rgba(0,0,0,0.03), inset 0 -2px 0 rgba(0,0,0,0.02);
+            position: relative;
+            transition: transform 0.3s ease, box-shadow 0.35s ease;
+            transform-origin: left center;
+            border-left: 8px solid transparent;
+            animation: notePop 0.6s ease both;
+            animation-delay: calc(var(--i, 0) * 0.025s);
+        }
+
+        .note:nth-child(1) { border-left-color: #f0b8b8; }
+        .note:nth-child(2) { border-left-color: #aad0c4; }
+        .note:nth-child(3) { border-left-color: #f5d4aa; }
+        .note:nth-child(4) { border-left-color: #cfb8e0; }
+        .note:nth-child(5) { border-left-color: #b8cce0; }
+        .note:nth-child(6) { border-left-color: #e8c8b8; }
+        .note:nth-child(7) { border-left-color: #b8d9c8; }
+        .note:nth-child(8) { border-left-color: #f0c8c8; }
+        .note:nth-child(9) { border-left-color: #d4c8e8; }
+        .note:nth-child(10) { border-left-color: #c8dce8; }
+        .note:nth-child(11) { border-left-color: #e8d4b8; }
+
+        .note:hover {
+            transform: rotate(-0.8deg) scale(1.015);
+            box-shadow: 0 24px 48px rgba(0,0,0,0.09), 0 4px 16px rgba(0,0,0,0.05);
+        }
+
+        .note-title {
+            font-family: 'Gloria Hallelujah', 'Patrick Hand', cursive;
+            font-size: 2.2rem;
+            font-weight: 500;
+            color: #2f2216;
+            letter-spacing: 0.8px;
+            margin-bottom: 0.3rem;
+            line-height: 1.25;
+            display: inline-block;
+            position: relative;
+        }
+
+        .note-title::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: -4px;
+            width: 100%;
+            height: 8px;
+            background: repeating-linear-gradient(90deg, transparent, transparent 6px, rgba(240,184,184,0.4) 6px, rgba(240,184,184,0.4) 12px);
+            border-radius: 20px;
+            opacity: 0.8;
+        }
+
+        .note-subtitle {
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.3rem;
+            color: #5a4a3a;
+            margin: -0.1rem 0 1rem 0;
+            font-weight: 400;
+            opacity: 0.85;
+        }
+
+        .note-body {
+            font-family: 'Architects Daughter', 'Patrick Hand', cursive;
+            font-size: 1.35rem;
+            line-height: 1.85;
+            color: #2a1f15;
+            margin: 0.9rem 0 0.4rem 0;
+            font-weight: 400;
+            letter-spacing: 0.4px;
+        }
+
+        .note-body strong {
+            font-weight: 700;
+            color: #a05545;
+            background: rgba(240,184,184,0.15);
+            padding: 0 8px;
+            border-radius: 16px;
+            font-style: normal;
+        }
+
+        .note-body em {
+            color: #5a8a78;
+            font-style: italic;
+            text-decoration: underline wavy #aad0c4 3px;
+            font-weight: 500;
+        }
+
+        .note-body .chip {
+            background: #f0e9e0;
+            padding: 0.1rem 1.2rem;
+            border-radius: 40px;
+            display: inline-block;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.15rem;
+            color: #3d3226;
+            border: 1px dashed #cbb8a8;
+            margin: 2px 0;
+            font-weight: 400;
+        }
+
+        .note-body .chip-blue { background: #dce8f0; border-color: #aac0d0; }
+        .note-body .chip-green { background: #d8ece0; border-color: #a0c8b8; }
+        .note-body .chip-pink { background: #f0dcd8; border-color: #d8b8b0; }
+        .note-body .chip-purple { background: #e4d8ec; border-color: #c8b8d8; }
+        .note-body .chip-gold { background: #f0e8d0; border-color: #d8c8a8; }
+        .note-body .chip-teal { background: #c8e8dc; border-color: #88c8b8; }
+        .note-body .chip-orange { background: #f0dcc8; border-color: #d8b898; }
+        .note-body .chip-red { background: #f0d8d8; border-color: #d8b0b0; }
+
+        .code-block {
+            background: #1e1a16;
+            color: #e8e0d8;
+            padding: 1.2rem 1.8rem;
+            border-radius: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.75rem;
+            line-height: 1.7;
+            margin: 0.8rem 0 1rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            border-left: 4px solid #f0b8b8;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .code-block .comment { color: #7a8a7a; }
+        .code-block .keyword { color: #f0b8b8; }
+        .code-block .string { color: #b8d9c8; }
+        .code-block .function { color: #c8b8e8; }
+        .code-block .tag { color: #f5d4aa; }
+        .code-block .number { color: #f5d4aa; }
+        .code-block .bold { color: #f0e0c8; font-weight: bold; }
+
+        .ascii-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1rem 1.5rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.48rem;
+            line-height: 1.5;
+            color: #2a1f15;
+            border: 1px solid #e0d8ce;
+            margin: 0.8rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .ascii-box .highlight { color: #a05545; font-weight: bold; }
+        .ascii-box .title { color: #2f2216; font-weight: bold; text-decoration: underline; }
+
+        .styled-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 0.82rem;
+            background: #f8f4ec;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        }
+
+        .styled-table th {
+            background: #2f2216;
+            color: #f5efe8;
+            padding: 0.5rem 0.7rem;
+            text-align: left;
+            font-weight: 500;
+            font-size: 0.78rem;
+        }
+
+        .styled-table td {
+            padding: 0.5rem 0.7rem;
+            border-bottom: 1px solid #e8e0d6;
+            color: #2a1f15;
+            font-size: 0.78rem;
+        }
+
+        .styled-table tr:last-child td { border-bottom: none; }
+        .styled-table tr:hover td { background: #f0e9e0; }
+
+        .note-body ul, .note-body ol {
+            padding-left: 2rem;
+            margin: 0.5rem 0;
+        }
+        .note-body li { margin-bottom: 0.3rem; }
+
+        .def-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1.2rem 1.8rem;
+            margin: 0.8rem 0;
+            border-left: 6px solid #aad0c4;
+        }
+        .def-box strong { color: #a05545; }
+
+        .qa-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1rem 1.8rem;
+            margin: 0.8rem 0;
+            border-left: 6px solid #cfb8e0;
+        }
+        .qa-box .q { font-weight: 600; color: #a05545; font-size: 1.2rem; }
+        .qa-box .a { color: #3d6b5a; margin-top: 0.3rem; padding-left: 0.5rem; }
+
+        .note-meta {
+            margin-top: 1.5rem;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.05rem;
+            color: #9f8875;
+            display: flex;
+            align-items: center;
+            gap: 1.2rem;
+            flex-wrap: wrap;
+        }
+
+        .note-meta span {
+            background: #f1eae1;
+            padding: 0.3rem 1.4rem;
+            border-radius: 60px;
+            font-size: 1rem;
+            color: #4d3b2b;
+            box-shadow: inset 0 1px 4px rgba(0,0,0,0.02);
+            font-weight: 400;
+            letter-spacing: 0.3px;
+        }
+
+        .note-pin {
+            position: absolute;
+            top: -12px;
+            right: 34px;
+            font-size: 2.6rem;
+            opacity: 0.25;
+            transform: rotate(25deg);
+            filter: drop-shadow(0 3px 6px rgba(0,0,0,0.06));
+            transition: opacity 0.25s;
+        }
+        .note:hover .note-pin { opacity: 0.8; }
+
+        .param-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.3rem;
+            margin: 0.5rem 0;
+        }
+        .param-item {
+            background: #f8f4ec;
+            padding: 0.3rem 0.5rem;
+            border-radius: 6px;
+            border-left: 3px solid #b8cce0;
+            font-size: 0.7rem;
+        }
+        .param-item .p { font-weight: 700; color: #a05545; }
+        .param-item .d { color: #3d6b5a; }
+
+        .bmap-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.2rem;
+            margin: 0.5rem 0;
+        }
+        .bmap-item {
+            background: #f8f4ec;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            border-left: 3px solid #f5d4aa;
+            font-size: 0.65rem;
+        }
+        .bmap-item .b { font-weight: 700; color: #a05545; }
+
+        @keyframes floatUp {
+            0% { opacity: 0; transform: translateY(50px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes notePop {
+            0% { opacity: 0; transform: scale(0.92) rotate(-3deg); }
+            80% { opacity: 1; transform: scale(1.015) rotate(0.8deg); }
+            100% { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+
+        @media (max-width: 700px) {
+            .note { padding: 1.8rem 1.8rem; }
+            .note-title { font-size: 1.8rem; }
+            .note-body { font-size: 1.15rem; line-height: 1.7; }
+            .note-body .chip { font-size: 1rem; padding: 0 0.8rem; }
+            .code-block { font-size: 0.65rem; padding: 1rem; }
+            .note-pin { font-size: 2rem; top: -8px; right: 18px; }
+            .styled-table { font-size: 0.7rem; }
+            .styled-table th, .styled-table td { padding: 0.4rem 0.5rem; font-size: 0.7rem; }
+            .notes-container { gap: 2rem; }
+            .ascii-box { font-size: 0.4rem; padding: 0.8rem 1rem; }
+            .qa-box { padding: 0.8rem 1.2rem; }
+            .def-box { padding: 0.8rem 1.2rem; }
+            .param-grid { grid-template-columns: 1fr; }
+            .bmap-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="notes-container">
+
+        <!-- ============================================================ -->
+        <!-- NOTE 1: Chapter Title -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:0">
+            <div class="note-pin">💻</div>
+            <h2 class="note-title">6.2.2 Launching via AWS CLI</h2>
+            <div class="note-body">
+                The AWS Command Line Interface (AWS CLI) is a <strong>powerful tool</strong> for launching and managing EC2 instances programmatically. Many administrators prefer the CLI over the console because it provides a <strong>reliable, scalable, and consistent</strong> way to deploy infrastructure.
+                <br /><br />
+                This section provides a comprehensive guide to launching EC2 instances using the AWS CLI's <span class="chip">run-instances</span> command.
+            </div>
+            <div class="note-meta">
+                <span>💻 CLI</span>
+                <span>⚙️ run-instances</span>
+                <span>🤖 automation</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 2: Command Overview -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:1">
+            <div class="note-pin">📖</div>
+            <h2 class="note-title">Command Overview</h2>
+            <div class="note-body">
+                The <span class="chip">aws ec2 run-instances</span> command is the <strong>primary method</strong> for launching EC2 instances through the CLI. This command supports over <strong>40 different parameters</strong>, allowing you to customize your instance configuration with granular control.
+                <br /><br />
+                <strong>Basic Syntax:</strong>
+                <div class="code-block">
+                    aws ec2 run-instances \
+                        --image-id &lt;ami-id&gt; \
+                        --instance-type &lt;instance-type&gt; \
+                        --key-name &lt;key-pair-name&gt; \
+                        --subnet-id &lt;subnet-id&gt; \
+                        --security-group-ids &lt;sg-id&gt; \
+                        --count &lt;number-of-instances&gt;
+                </div>
+                <br />
+                <strong>🎯 Minimum Required Parameters:</strong>
+                <div class="param-grid">
+                    <div class="param-item" style="border-left-color:#b8cce0;">
+                        <div class="p">--image-id</div>
+                        <div class="d">The ID of the AMI to launch</div>
+                        <div style="font-size:0.6rem;">Example: ami-0abcdef1234567890</div>
+                    </div>
+                    <div class="param-item" style="border-left-color:#aad0c4;">
+                        <div class="p">--instance-type</div>
+                        <div class="d">Hardware configuration</div>
+                        <div style="font-size:0.6rem;">Example: t2.micro</div>
+                    </div>
+                    <div class="param-item" style="border-left-color:#f5d4aa;">
+                        <div class="p">--key-name</div>
+                        <div class="d">Key pair for SSH/RDP access</div>
+                        <div style="font-size:0.6rem;">Example: MyKeyPair</div>
+                    </div>
+                </div>
+                <br />
+                <div class="def-box" style="border-left-color:#f5d4aa;">
+                    <strong>💡 Notes:</strong>
+                    <ul>
+                        <li>If you do not specify <span class="chip">--subnet-id</span>, AWS launches the instance in the <strong>default subnet</strong> of your default VPC.</li>
+                        <li>If you do not specify <span class="chip">--security-group-ids</span>, the instance uses the <strong>default security group</strong> for that VPC.</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>📖 overview</span>
+                <span>⚙️ parameters</span>
+                <span>🎯 minimum</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 3: Minimal Launch Examples -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:2">
+            <div class="note-pin">🚀</div>
+            <h2 class="note-title">Minimal Launch Examples</h2>
+            <div class="note-body">
+                <strong>Example 1: Minimal Launch (Default VPC/Subnet)</strong>
+                <div class="code-block">
+                    aws ec2 run-instances \
+                        --image-id ami-0abcdef1234567890 \
+                        --instance-type t2.micro \
+                        --key-name MyKeyPair
+                </div>
+                <strong>Output:</strong>
+                <div class="code-block" style="color:#b8d9c8; font-size:0.7rem;">
+                    {
+                        "Instances": [{
+                            "InstanceId": "i-1231231230abcdef0",
+                            "State": {"Name": "pending"},
+                            "InstanceType": "t2.micro",
+                            "LaunchTime": "2018-05-10T08:05:20.000Z",
+                            ...
+                        }]
+                    }
+                </div>
+                <br />
+                <strong>Example 2: Launch in a Specific VPC Subnet</strong>
+                <div class="code-block">
+                    aws ec2 run-instances \
+                        --image-id ami-0abcdef1234567890 \
+                        --instance-type t2.micro \
+                        --subnet-id subnet-08fc749671b2d077c \
+                        --security-group-ids sg-0b0384b66d7d692f9 \
+                        --associate-public-ip-address \
+                        --key-name MyKeyPair
+                </div>
+                <br />
+                <strong>Example 3: Using a Launch Template</strong>
+                <div class="code-block">
+                    <span class="comment"># Launch using template</span>
+                    aws ec2 run-instances \
+                        --launch-template LaunchTemplateId=lt-0abcd290751193123,Version=1
+
+                    <span class="comment"># Override specific parameters</span>
+                    aws ec2 run-instances \
+                        --launch-template LaunchTemplateId=lt-0abcd290751193123 \
+                        --instance-type t2.small
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🚀 examples</span>
+                <span>📋 minimal</span>
+                <span>📦 launch template</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 4: Essential Security Parameters -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:3">
+            <div class="note-pin">🛡️</div>
+            <h2 class="note-title">Essential Security Parameters</h2>
+            <div class="note-body">
+                <strong>--metadata-options (Enforces IMDSv2)</strong>
+                <br />
+                For improved security, enforce IMDSv2 which provides additional protection against SSRF attacks.
+                <div class="code-block">
+                    aws ec2 run-instances \
+                        --image-id ami-0abcdef1234567890 \
+                        --instance-type t2.micro \
+                        --metadata-options "HttpTokens=required,HttpEndpoint=enabled" \
+                        ...
+                </div>
+                <br />
+                <strong>--block-device-mappings (Configure EBS Storage)</strong>
+                <div class="code-block">
+                    aws ec2 run-instances \
+                        --image-id ami-0abcdef1234567890 \
+                        --instance-type t2.micro \
+                        --block-device-mappings "DeviceName=/dev/xvda,Ebs={VolumeSize=30,VolumeType=gp3,Encrypted=true}"
+                </div>
+                <br />
+                <strong>Block Device Mapping Parameters:</strong>
+                <div class="bmap-grid">
+                    <div class="bmap-item" style="border-left-color:#b8cce0;">
+                        <div class="b">DeleteOnTermination</div>
+                        <div style="font-size:0.55rem;">Delete volume on termination (default: true)</div>
+                    </div>
+                    <div class="bmap-item" style="border-left-color:#aad0c4;">
+                        <div class="b">Iops</div>
+                        <div style="font-size:0.55rem;">Provisioned IOPS for io1/io2 volumes</div>
+                    </div>
+                    <div class="bmap-item" style="border-left-color:#f5d4aa;">
+                        <div class="b">SnapshotId</div>
+                        <div style="font-size:0.55rem;">ID of snapshot to restore from</div>
+                    </div>
+                    <div class="bmap-item" style="border-left-color:#cfb8e0;">
+                        <div class="b">VolumeSize</div>
+                        <div style="font-size:0.55rem;">Size in GiB</div>
+                    </div>
+                    <div class="bmap-item" style="border-left-color:#e8c8b8;">
+                        <div class="b">VolumeType</div>
+                        <div style="font-size:0.55rem;">gp2, gp3, io1, io2, st1, sc1</div>
+                    </div>
+                    <div class="bmap-item" style="border-left-color:#b8d9c8;">
+                        <div class="b">Encrypted</div>
+                        <div style="font-size:0.55rem;">Whether volume is encrypted</div>
+                    </div>
+                </div>
+                <br />
+                <strong>--user-data (Bootstrap Configuration)</strong>
+                <div class="code-block">
+                    aws ec2 run-instances \
+                        --image-id ami-0abcdef1234567890 \
+                        --instance-type t2.micro \
+                        --user-data file://my_script.txt
+                </div>
+                <div class="def-box" style="border-left-color:#f5d4aa;">
+                    <strong>💡 Important:</strong> User data scripts run only on the <strong>first boot</strong> of the instance.
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🛡️ security</span>
+                <span>🔐 IMDSv2</span>
+                <span>💾 block mapping</span>
+                <span>📋 user data</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 5: Tagging & IAM -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:4">
+            <div class="note-pin">🏷️</div>
+            <h2 class="note-title">Tagging & IAM Roles</h2>
+            <div class="note-body">
+                <strong>--tag-specifications (Resource Tagging)</strong>
+                <br />
+                Tagging is essential for organizing and managing your resources.
+                <div class="code-block">
+                    aws ec2 run-instances \
+                        --image-id ami-0abcdef1234567890 \
+                        --instance-type t2.micro \
+                        --tag-specifications \
+                            'ResourceType=instance,Tags=[{Key=Name,Value=MyWebServer},{Key=Environment,Value=Production}]' \
+                            'ResourceType=volume,Tags=[{Key=CostCenter,Value=Finance}]'
+                </div>
+                <br />
+                <strong>--iam-instance-profile (Assign IAM Roles)</strong>
+                <br />
+                Instead of embedding credentials in the instance, assign an IAM role for security.
+                <div class="code-block">
+                    aws ec2 run-instances \
+                        --image-id ami-0abcdef1234567890 \
+                        --instance-type t2.micro \
+                        --iam-instance-profile Name=my-instance-role
+                </div>
+                <br />
+                <strong>--disable-api-termination (Prevent Accidental Deletion)</strong>
+                <div class="code-block">
+                    aws ec2 run-instances \
+                        --image-id ami-0abcdef1234567890 \
+                        --instance-type t2.micro \
+                        --disable-api-termination
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🏷️ tagging</span>
+                <span>🎭 IAM role</span>
+                <span>🛡️ termination protection</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 6: Production-Ready Example -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:5">
+            <div class="note-pin">🏭</div>
+            <h2 class="note-title">Production-Ready Launch</h2>
+            <div class="note-body">
+                <strong>Full Example:</strong>
+                <div class="code-block" style="font-size:0.7rem;">
+                    aws ec2 run-instances \
+                        --image-id ami-0abcdef1234567890 \
+                        --instance-type t3.medium \
+                        --key-name my-production-key \
+                        --subnet-id subnet-08fc749671b2d077c \
+                        --security-group-ids sg-0b0384b66d7d692f9 \
+                        --associate-public-ip-address \
+                        --count 1 \
+                        --block-device-mappings "DeviceName=/dev/xvda,Ebs={VolumeSize=50,VolumeType=gp3,Encrypted=true,DeleteOnTermination=true}" \
+                        --metadata-options "HttpTokens=required,HttpEndpoint=enabled" \
+                        --iam-instance-profile Name=my-app-role \
+                        --disable-api-termination \
+                        --tag-specifications \
+                            'ResourceType=instance,Tags=[{Key=Name,Value=Production-WebServer},{Key=Environment,Value=Production},{Key=Project,Value=Ecommerce}]' \
+                            'ResourceType=volume,Tags=[{Key=Environment,Value=Production}]' \
+                        --monitoring Enabled \
+                        --credit-specification CpuCredits=unlimited
+                </div>
+                <br />
+                <strong>Key Parameters Explained:</strong>
+                <ul>
+                    <li><span class="chip">--count 1</span> — Launch exactly one instance</li>
+                    <li><span class="chip">--monitoring Enabled</span> — Enable detailed CloudWatch monitoring (1-minute intervals)</li>
+                    <li><span class="chip">--credit-specification CpuCredits=unlimited</span> — Enable unlimited CPU credits for burstable instances</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>🏭 production</span>
+                <span>📋 full example</span>
+                <span>⚡ unlimited credits</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 7: Viewing Instances -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:6">
+            <div class="note-pin">🔍</div>
+            <h2 class="note-title">Viewing Instances After Launch</h2>
+            <div class="note-body">
+                <strong>Get Public IP Address:</strong>
+                <div class="code-block">
+                    aws ec2 describe-instances \
+                        --instance-ids i-1231231230abcdef0 \
+                        --query 'Reservations[0].Instances[0].PublicIpAddress' \
+                        --output text
+                </div>
+                <br />
+                <strong>View Instance Details:</strong>
+                <div class="code-block">
+                    aws ec2 describe-instances \
+                        --instance-ids i-1231231230abcdef0 \
+                        --query 'Reservations[0].Instances[0].{ID:InstanceId,Type:InstanceType,State:State.Name,PublicIP:PublicIpAddress,PrivateIP:PrivateIpAddress}' \
+                        --output table
+                </div>
+                <br />
+                <strong>Common Command Patterns:</strong>
+                <div class="code-block">
+                    <span class="comment"># Launch multiple instances</span>
+                    aws ec2 run-instances \
+                        --image-id ami-0abcdef1234567890 \
+                        --instance-type t2.micro \
+                        --key-name MyKeyPair \
+                        --count 3
+
+                    <span class="comment"># Launch with custom volume and tag</span>
+                    aws ec2 run-instances \
+                        --image-id ami-0abcdef1234567890 \
+                        --instance-type t2.micro \
+                        --key-name MyKeyPair \
+                        --subnet-id subnet-08fc749671b2d077c \
+                        --block-device-mappings file://mapping.json \
+                        --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=MyInstance}]'
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🔍 view</span>
+                <span>📋 describe-instances</span>
+                <span>🌐 public IP</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 8: Finding AMIs -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:7">
+            <div class="note-pin">🔎</div>
+            <h2 class="note-title">Finding an AMI</h2>
+            <div class="note-body">
+                Official Ubuntu AMIs are published by Canonical (AWS Account ID: <span class="chip">099720109477</span>).
+                <br /><br />
+                <strong>Find the latest Ubuntu 22.04 AMI:</strong>
+                <div class="code-block">
+                    aws ec2 describe-images \
+                        --owners 099720109477 \
+                        --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-22.04-amd64-server-*" \
+                        --query 'Images | sort_by(@, &amp;CreationDate) | [-1].ImageId' \
+                        --output text
+                </div>
+                <br />
+                <strong>For Amazon Linux 2023 AMI, use the SSM Parameter Store:</strong>
+                <div class="code-block">
+                    aws ssm get-parameters-by-path \
+                        --path "/aws/service/ami-amazon-linux-latest" \
+                        --query "Parameters[?contains(Name, 'al2023-ami-kernel-default-x86_64')].Value" \
+                        --output text | head -1
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🔎 find AMI</span>
+                <span>🐧 Ubuntu</span>
+                <span>📦 Amazon Linux 2023</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 9: Key Takeaways -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:8">
+            <div class="note-pin">📝</div>
+            <h2 class="note-title">Key Takeaways</h2>
+            <div class="note-body">
+                <ul>
+                    <li>The <span class="chip">run-instances</span> command is the primary method for launching EC2 instances through the AWS CLI. It supports <strong>over 40 parameters</strong> for granular control.</li>
+                    <br />
+                    <li><strong>Minimum required parameters</strong> are <span class="chip">--image-id</span>, <span class="chip">--instance-type</span>, and <span class="chip">--key-name</span>.</li>
+                    <br />
+                    <li><strong>Security best practices</strong> include enforcing IMDSv2 (<span class="chip">--metadata-options "HttpTokens=required"</span>), encrypting EBS volumes, and using IAM roles.</li>
+                    <br />
+                    <li>Use <span class="chip">--user-data</span> to pass bootstrap scripts that run on the <strong>first boot</strong> of the instance, automating configuration and software installation.</li>
+                    <br />
+                    <li><strong>Tagging</strong> resources with <span class="chip">--tag-specifications</span> is essential for managing, organizing, and tracking costs.</li>
+                    <br />
+                    <li><strong>Launch templates</strong> (<span class="chip">--launch-template</span>) simplify instance launches by preconfiguring common parameters.</li>
+                    <br />
+                    <li>Use <span class="chip">--block-device-mappings</span> to customize storage, including volume size, type, and encryption.</li>
+                    <br />
+                    <li>The <span class="chip">--count</span> parameter allows you to launch <strong>multiple identical instances</strong> in a single command.</li>
+                    <br />
+                    <li>Verify launch success by using <span class="chip">aws ec2 describe-instances</span> to check the state and retrieve the public IP address.</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>📝 takeaways</span>
+                <span>💻 CLI</span>
+                <span>⚙️ run-instances</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 10: Review Questions -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:9">
+            <div class="note-pin">❓</div>
+            <h2 class="note-title">Review Questions</h2>
+            <div class="note-body">
+
+                <div class="qa-box">
+                    <div class="q">Q1: What is the minimum set of parameters required to launch an EC2 instance using the AWS CLI?</div>
+                    <div class="a"><strong>Answer:</strong> The minimum required parameters are <span class="chip">--image-id</span>, <span class="chip">--instance-type</span>, and <span class="chip">--key-name</span>. If you omit <span class="chip">--subnet-id</span> and <span class="chip">--security-group-ids</span>, the default VPC and default security group are used.</div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#f5d4aa;">
+                    <div class="q">Q2: How can you enforce IMDSv2 when launching an EC2 instance?</div>
+                    <div class="a"><strong>Answer:</strong> Use the <span class="chip">--metadata-options</span> parameter: <span class="chip">--metadata-options "HttpTokens=required,HttpEndpoint=enabled"</span>. This enforces IMDSv2, which provides additional protection against SSRF attacks.</div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#b8cce0;">
+                    <div class="q">Q3: What is the purpose of the --user-data parameter?</div>
+                    <div class="a"><strong>Answer:</strong> The <span class="chip">--user-data</span> parameter passes a bootstrap script or configuration that executes when the instance starts. User data scripts run <strong>only on the first boot</strong> of the instance, making it ideal for automating configuration and software installation.</div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#cfb8e0;">
+                    <div class="q">Q4: How can you prevent accidental termination of a critical EC2 instance?</div>
+                    <div class="a"><strong>Answer:</strong> Use the <span class="chip">--disable-api-termination</span> parameter when launching the instance. This prevents the instance from being terminated through the API, console, or CLI. To terminate a protected instance, you must first disable the termination protection.</div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#aad0c4;">
+                    <div class="q">Q5: What AWS account ID publishes official Ubuntu AMIs?</div>
+                    <div class="a"><strong>Answer:</strong> Official Ubuntu AMIs are published by Canonical under AWS Account ID <span class="chip">099720109477</span>. You can use this owner ID in the <span class="chip">--owners</span> parameter of the <span class="chip">describe-images</span> command to find official Ubuntu AMIs.</div>
+                </div>
+
+            </div>
+            <div class="note-meta">
+                <span>❓ Q&A</span>
+                <span>📝 review</span>
+                <span>🧠 learning</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 11: Next Steps -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:10">
+            <div class="note-pin">🚀</div>
+            <h2 class="note-title">Next Steps</h2>
+            <div class="note-body">
+                <span style="font-size:2rem;">📖</span> Proceed to the next section:
+                <br /><br />
+                <span class="chip chip-purple" style="font-size:1.4rem;">6.3: Connecting to an EC2 Instance</span>
+                <br /><br />
+                <div class="quote-box" style="border-left-color:#aad0c4;">
+                    "The AWS CLI transforms the cloud from a <strong>point-and-click</strong> experience into a <strong>programmable</strong> platform — master it, and you master <strong>infrastructure at scale</strong>."
+                    <div class="author">— AWS CLI Best Practices</div>
+                </div>
+                <br />
+                <div style="text-align:center; font-size:2.5rem; opacity:0.3; letter-spacing:10px;">
+                    ❖ ❖ ❖
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🚀 next</span>
+                <span>📖 6.3</span>
+                <span>🔌 connecting</span>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EC2 Chapter 6.2.1 · Handwritten Notes</title>
+
+    <!-- Google Fonts – clear handwriting -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Gloria+Hallelujah&family=Architects+Daughter&family=Reenie+Beanie&display=swap" rel="stylesheet" />
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: #f7f0e7;
+            background-image: radial-gradient(circle at 30% 20%, #fcf7f0 0%, #eee7dd 100%);
+            display: flex;
+            justify-content: center;
+            padding: 2.5rem 1.5rem;
+            font-family: 'Patrick Hand', 'Architects Daughter', cursive;
+        }
+
+        .notes-container {
+            max-width: 1100px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 2.8rem;
+            animation: floatUp 0.9s ease-out;
+        }
+
+        .note {
+            background: #fffcf5;
+            padding: 2.5rem 3.5rem;
+            border-radius: 28px 28px 28px 10px;
+            box-shadow: 0 12px 36px rgba(0,0,0,0.06), 0 2px 10px rgba(0,0,0,0.03), inset 0 -2px 0 rgba(0,0,0,0.02);
+            position: relative;
+            transition: transform 0.3s ease, box-shadow 0.35s ease;
+            transform-origin: left center;
+            border-left: 8px solid transparent;
+            animation: notePop 0.6s ease both;
+            animation-delay: calc(var(--i, 0) * 0.025s);
+        }
+
+        .note:nth-child(1) { border-left-color: #f0b8b8; }
+        .note:nth-child(2) { border-left-color: #aad0c4; }
+        .note:nth-child(3) { border-left-color: #f5d4aa; }
+        .note:nth-child(4) { border-left-color: #cfb8e0; }
+        .note:nth-child(5) { border-left-color: #b8cce0; }
+        .note:nth-child(6) { border-left-color: #e8c8b8; }
+        .note:nth-child(7) { border-left-color: #b8d9c8; }
+        .note:nth-child(8) { border-left-color: #f0c8c8; }
+        .note:nth-child(9) { border-left-color: #d4c8e8; }
+        .note:nth-child(10) { border-left-color: #c8dce8; }
+        .note:nth-child(11) { border-left-color: #e8d4b8; }
+
+        .note:hover {
+            transform: rotate(-0.8deg) scale(1.015);
+            box-shadow: 0 24px 48px rgba(0,0,0,0.09), 0 4px 16px rgba(0,0,0,0.05);
+        }
+
+        .note-title {
+            font-family: 'Gloria Hallelujah', 'Patrick Hand', cursive;
+            font-size: 2.2rem;
+            font-weight: 500;
+            color: #2f2216;
+            letter-spacing: 0.8px;
+            margin-bottom: 0.3rem;
+            line-height: 1.25;
+            display: inline-block;
+            position: relative;
+        }
+
+        .note-title::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: -4px;
+            width: 100%;
+            height: 8px;
+            background: repeating-linear-gradient(90deg, transparent, transparent 6px, rgba(240,184,184,0.4) 6px, rgba(240,184,184,0.4) 12px);
+            border-radius: 20px;
+            opacity: 0.8;
+        }
+
+        .note-subtitle {
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.3rem;
+            color: #5a4a3a;
+            margin: -0.1rem 0 1rem 0;
+            font-weight: 400;
+            opacity: 0.85;
+        }
+
+        .note-body {
+            font-family: 'Architects Daughter', 'Patrick Hand', cursive;
+            font-size: 1.35rem;
+            line-height: 1.85;
+            color: #2a1f15;
+            margin: 0.9rem 0 0.4rem 0;
+            font-weight: 400;
+            letter-spacing: 0.4px;
+        }
+
+        .note-body strong {
+            font-weight: 700;
+            color: #a05545;
+            background: rgba(240,184,184,0.15);
+            padding: 0 8px;
+            border-radius: 16px;
+            font-style: normal;
+        }
+
+        .note-body em {
+            color: #5a8a78;
+            font-style: italic;
+            text-decoration: underline wavy #aad0c4 3px;
+            font-weight: 500;
+        }
+
+        .note-body .chip {
+            background: #f0e9e0;
+            padding: 0.1rem 1.2rem;
+            border-radius: 40px;
+            display: inline-block;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.15rem;
+            color: #3d3226;
+            border: 1px dashed #cbb8a8;
+            margin: 2px 0;
+            font-weight: 400;
+        }
+
+        .note-body .chip-blue { background: #dce8f0; border-color: #aac0d0; }
+        .note-body .chip-green { background: #d8ece0; border-color: #a0c8b8; }
+        .note-body .chip-pink { background: #f0dcd8; border-color: #d8b8b0; }
+        .note-body .chip-purple { background: #e4d8ec; border-color: #c8b8d8; }
+        .note-body .chip-gold { background: #f0e8d0; border-color: #d8c8a8; }
+        .note-body .chip-teal { background: #c8e8dc; border-color: #88c8b8; }
+        .note-body .chip-orange { background: #f0dcc8; border-color: #d8b898; }
+        .note-body .chip-red { background: #f0d8d8; border-color: #d8b0b0; }
+
+        .code-block {
+            background: #1e1a16;
+            color: #e8e0d8;
+            padding: 1.2rem 1.8rem;
+            border-radius: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.78rem;
+            line-height: 1.7;
+            margin: 0.8rem 0 1rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            border-left: 4px solid #f0b8b8;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .code-block .comment { color: #7a8a7a; }
+        .code-block .keyword { color: #f0b8b8; }
+        .code-block .string { color: #b8d9c8; }
+        .code-block .function { color: #c8b8e8; }
+        .code-block .tag { color: #f5d4aa; }
+        .code-block .number { color: #f5d4aa; }
+        .code-block .bold { color: #f0e0c8; font-weight: bold; }
+
+        .ascii-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1rem 1.5rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.48rem;
+            line-height: 1.5;
+            color: #2a1f15;
+            border: 1px solid #e0d8ce;
+            margin: 0.8rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .ascii-box .highlight { color: #a05545; font-weight: bold; }
+        .ascii-box .title { color: #2f2216; font-weight: bold; text-decoration: underline; }
+
+        .styled-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 0.82rem;
+            background: #f8f4ec;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        }
+
+        .styled-table th {
+            background: #2f2216;
+            color: #f5efe8;
+            padding: 0.5rem 0.7rem;
+            text-align: left;
+            font-weight: 500;
+            font-size: 0.78rem;
+        }
+
+        .styled-table td {
+            padding: 0.5rem 0.7rem;
+            border-bottom: 1px solid #e8e0d6;
+            color: #2a1f15;
+            font-size: 0.78rem;
+        }
+
+        .styled-table tr:last-child td { border-bottom: none; }
+        .styled-table tr:hover td { background: #f0e9e0; }
+
+        .note-body ul, .note-body ol {
+            padding-left: 2rem;
+            margin: 0.5rem 0;
+        }
+        .note-body li { margin-bottom: 0.3rem; }
+
+        .def-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1.2rem 1.8rem;
+            margin: 0.8rem 0;
+            border-left: 6px solid #aad0c4;
+        }
+        .def-box strong { color: #a05545; }
+
+        .qa-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1rem 1.8rem;
+            margin: 0.8rem 0;
+            border-left: 6px solid #cfb8e0;
+        }
+        .qa-box .q { font-weight: 600; color: #a05545; font-size: 1.2rem; }
+        .qa-box .a { color: #3d6b5a; margin-top: 0.3rem; padding-left: 0.5rem; }
+
+        .note-meta {
+            margin-top: 1.5rem;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.05rem;
+            color: #9f8875;
+            display: flex;
+            align-items: center;
+            gap: 1.2rem;
+            flex-wrap: wrap;
+        }
+
+        .note-meta span {
+            background: #f1eae1;
+            padding: 0.3rem 1.4rem;
+            border-radius: 60px;
+            font-size: 1rem;
+            color: #4d3b2b;
+            box-shadow: inset 0 1px 4px rgba(0,0,0,0.02);
+            font-weight: 400;
+            letter-spacing: 0.3px;
+        }
+
+        .note-pin {
+            position: absolute;
+            top: -12px;
+            right: 34px;
+            font-size: 2.6rem;
+            opacity: 0.25;
+            transform: rotate(25deg);
+            filter: drop-shadow(0 3px 6px rgba(0,0,0,0.06));
+            transition: opacity 0.25s;
+        }
+        .note:hover .note-pin { opacity: 0.8; }
+
+        .flow-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 0.2rem;
+            margin: 0.5rem 0;
+        }
+        .flow-item {
+            background: #f8f4ec;
+            padding: 0.3rem 0.4rem;
+            border-radius: 6px;
+            border-top: 3px solid #b8cce0;
+            text-align: center;
+            font-size: 0.6rem;
+        }
+        .flow-item .num { font-weight: 700; color: #a05545; }
+        .flow-item .label { font-weight: 600; }
+
+        .sg-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 0.2rem;
+            margin: 0.5rem 0;
+        }
+        .sg-item {
+            background: #f8f4ec;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            border-left: 3px solid #b8cce0;
+            font-size: 0.65rem;
+            text-align: center;
+        }
+        .sg-item .type { font-weight: 700; color: #a05545; }
+
+        .details-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.3rem;
+            margin: 0.5rem 0;
+        }
+        .details-item {
+            background: #f8f4ec;
+            padding: 0.3rem 0.5rem;
+            border-radius: 6px;
+            border-left: 3px solid #aad0c4;
+            font-size: 0.7rem;
+        }
+        .details-item .field { font-weight: 700; color: #a05545; }
+        .details-item .val { color: #3d6b5a; }
+
+        @keyframes floatUp {
+            0% { opacity: 0; transform: translateY(50px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes notePop {
+            0% { opacity: 0; transform: scale(0.92) rotate(-3deg); }
+            80% { opacity: 1; transform: scale(1.015) rotate(0.8deg); }
+            100% { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+
+        @media (max-width: 700px) {
+            .note { padding: 1.8rem 1.8rem; }
+            .note-title { font-size: 1.8rem; }
+            .note-body { font-size: 1.15rem; line-height: 1.7; }
+            .note-body .chip { font-size: 1rem; padding: 0 0.8rem; }
+            .code-block { font-size: 0.65rem; padding: 1rem; }
+            .note-pin { font-size: 2rem; top: -8px; right: 18px; }
+            .styled-table { font-size: 0.7rem; }
+            .styled-table th, .styled-table td { padding: 0.4rem 0.5rem; font-size: 0.7rem; }
+            .notes-container { gap: 2rem; }
+            .ascii-box { font-size: 0.4rem; padding: 0.8rem 1rem; }
+            .qa-box { padding: 0.8rem 1.2rem; }
+            .def-box { padding: 0.8rem 1.2rem; }
+            .flow-grid { grid-template-columns: 1fr 1fr; }
+            .sg-grid { grid-template-columns: 1fr 1fr; }
+            .details-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="notes-container">
+
+        <!-- ============================================================ -->
+        <!-- NOTE 1: Chapter Title -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:0">
+            <div class="note-pin">🚀</div>
+            <h2 class="note-title">6.2.1 Step-by-Step Console Walkthrough</h2>
+            <div class="note-body">
+                <span style="font-size:1.8rem;">📖</span> <strong>Complete Walkthrough</strong>
+                <br /><br />
+                This step-by-step guide walks you through launching your first EC2 instance using the AWS Management Console. The EC2 launch wizard simplifies the process by providing <strong>default values</strong> for most configuration fields, allowing you to launch an instance in minutes.
+            </div>
+            <div class="note-meta">
+                <span>🚀 walkthrough</span>
+                <span>📋 console</span>
+                <span>🖥️ EC2</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 2: High-Level Flow -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:1">
+            <div class="note-pin">🗺️</div>
+            <h2 class="note-title">High-Level Flow</h2>
+            <div class="note-body">
+                <div class="flow-grid">
+                    <div class="flow-item" style="border-top-color:#b8cce0;">
+                        <div class="num">1</div>
+                        <div class="label">Select Region</div>
+                        <div style="font-size:0.55rem;">Physical location</div>
+                    </div>
+                    <div class="flow-item" style="border-top-color:#aad0c4;">
+                        <div class="num">2</div>
+                        <div class="label">Open EC2</div>
+                        <div style="font-size:0.55rem;">Launch wizard</div>
+                    </div>
+                    <div class="flow-item" style="border-top-color:#f5d4aa;">
+                        <div class="num">3</div>
+                        <div class="label">Name</div>
+                        <div style="font-size:0.55rem;">Descriptive name</div>
+                    </div>
+                    <div class="flow-item" style="border-top-color:#cfb8e0;">
+                        <div class="num">4</div>
+                        <div class="label">AMI</div>
+                        <div style="font-size:0.55rem;">OS + software</div>
+                    </div>
+                    <div class="flow-item" style="border-top-color:#e8c8b8;">
+                        <div class="num">5</div>
+                        <div class="label">Instance Type</div>
+                        <div style="font-size:0.55rem;">Hardware</div>
+                    </div>
+                    <div class="flow-item" style="border-top-color:#b8d9c8;">
+                        <div class="num">6</div>
+                        <div class="label">Key Pair</div>
+                        <div style="font-size:0.55rem;">SSH credentials</div>
+                    </div>
+                    <div class="flow-item" style="border-top-color:#d4c8e8;">
+                        <div class="num">7</div>
+                        <div class="label">Network</div>
+                        <div style="font-size:0.55rem;">VPC, SG</div>
+                    </div>
+                    <div class="flow-item" style="border-top-color:#f0dcc8;">
+                        <div class="num">8</div>
+                        <div class="label">Storage</div>
+                        <div style="font-size:0.55rem;">Root volume</div>
+                    </div>
+                    <div class="flow-item" style="border-top-color:#c8dce8;">
+                        <div class="num">9</div>
+                        <div class="label">Review</div>
+                        <div style="font-size:0.55rem;">Verify & launch</div>
+                    </div>
+                    <div class="flow-item" style="border-top-color:#e8d4c8;">
+                        <div class="num">10</div>
+                        <div class="label">Find</div>
+                        <div style="font-size:0.55rem;">Locate instance</div>
+                    </div>
+                    <div class="flow-item" style="border-top-color:#b8c8d4;">
+                        <div class="num">11</div>
+                        <div class="label">View</div>
+                        <div style="font-size:0.55rem;">Configuration</div>
+                    </div>
+                    <div class="flow-item" style="border-top-color:#f0d4c8;">
+                        <div class="num">12</div>
+                        <div class="label">Terminate</div>
+                        <div style="font-size:0.55rem;">Clean up</div>
+                    </div>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🗺️ flow</span>
+                <span>📋 12 steps</span>
+                <span>🚀 launch</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 3: Steps 1-4 -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:2">
+            <div class="note-pin">🛠️</div>
+            <h2 class="note-title">Steps 1-4: Region, Console, Name, AMI</h2>
+            <div class="note-body">
+                <strong>Step 1: Select a Region</strong>
+                <br />
+                Select a Region from the top navigation bar. This determines where your instance will be physically hosted.
+                <br /><br />
+                <span class="chip chip-blue">💡 Tip:</span> Choose the Region closest to you or your users for better latency. For free-tier testing, <span class="chip">us-east-1</span> (N. Virginia) is a common choice.
+                <br /><br />
+                <strong>Step 2: Open the EC2 Console</strong>
+                <br />
+                In the AWS Console search bar, type "EC2" and open the EC2 service. From the EC2 Dashboard, click <span class="chip">Launch instance</span>.
+                <br /><br />
+                <div class="ascii-box">
+                    <span class="title">EC2 DASHBOARD - LAUNCH INSTANCE BUTTON</span>
+                    ┌─────────────────────────────────────────────────────────────────────────────────────┐
+                    │                    EC2 DASHBOARD - LAUNCH INSTANCE BUTTON                         │
+                    ├─────────────────────────────────────────────────────────────────────────────────────┤
+                    │                                                                                     │
+                    │  EC2 Dashboard                                                                     │
+                    │  ┌─────────────────────────────────────────────────────────────────────────────────┐ │
+                    │  │  Resources (us-east-1)                                                         │ │
+                    │  │  ├── Running Instances: 0                                                      │ │
+                    │  │  ├── Volumes: 0                                                                │ │
+                    │  │  └── ...                                                                       │ │
+                    │  │                                                                                 │ │
+                    │  │  [Launch Instance]  ←── Click this to start the wizard                        │ │
+                    │  └─────────────────────────────────────────────────────────────────────────────────┘ │
+                    │                                                                                     │
+                    └─────────────────────────────────────────────────────────────────────────────────────┘
+                </div>
+                <br />
+                <strong>Step 3: Name Your Instance</strong>
+                <br />
+                Under <span class="chip">Name and tags</span>, enter a descriptive name like <span class="chip">My first EC2 instance</span>.
+                <br /><br />
+                <strong>Step 4: Choose an AMI</strong>
+                <br />
+                The AMI determines the operating system and pre-installed software. The <span class="chip">Quick Start</span> tab displays popular options.
+                <br /><br />
+                <strong>Common Free-Tier AMIs:</strong>
+                <ul>
+                    <li><span class="chip chip-green">Amazon Linux 2023</span> (recommended for learning AWS)</li>
+                    <li>Ubuntu Server 22.04 LTS</li>
+                    <li>Windows Server 2022 Base</li>
+                </ul>
+                <div class="def-box" style="border-left-color:#f5d4aa;">
+                    <strong>💡 Note:</strong> AMI IDs are <strong>region-specific</strong>. You may see different IDs depending on your selected Region.
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🛠️ steps 1-4</span>
+                <span>🌍 region</span>
+                <span>🖼️ AMI</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 4: Steps 5-6 -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:3">
+            <div class="note-pin">📊</div>
+            <h2 class="note-title">Steps 5-6: Instance Type & Key Pair</h2>
+            <div class="note-body">
+                <strong>Step 5: Choose an Instance Type</strong>
+                <br />
+                Instance types define the hardware configuration: CPU, memory, storage, and networking capacity.
+                <br /><br />
+                <table class="styled-table">
+                    <thead><tr><th>Instance Type</th><th>vCPUs</th><th>Memory</th><th>Free Tier</th></tr></thead>
+                    <tbody>
+                        <tr><td><span class="chip chip-green">t2.micro</span></td><td>1</td><td>1 GiB</td><td>✅ Yes</td></tr>
+                        <tr><td><span class="chip chip-green">t3.micro</span></td><td>2</td><td>1 GiB</td><td>✅ Yes</td></tr>
+                        <tr><td>t2.small</td><td>1</td><td>2 GiB</td><td>❌ No</td></tr>
+                    </tbody>
+                </table>
+                <br />
+                <div class="def-box" style="border-left-color:#f0b8b8;">
+                    <strong>⚠️ Important:</strong> Only one t2.micro or t3.micro instance is free per month (750 hours) under the AWS Free Tier.
+                </div>
+                <br />
+                <strong>Step 6: Create or Select a Key Pair</strong>
+                <br />
+                A key pair enables secure SSH access to Linux instances without passwords.
+                <br /><br />
+                <strong>How to Create a New Key Pair:</strong>
+                <ol>
+                    <li>Under Key pair, select <span class="chip">Create a new key pair</span></li>
+                    <li>Enter a name (e.g., <span class="chip">ec2-demo-key</span>)</li>
+                    <li>Choose key pair type: <span class="chip">ED25519</span> (Linux) or <span class="chip">RSA</span> (Linux & Windows)</li>
+                    <li>Choose private key file format: <span class="chip">.pem</span> (OpenSSH) or <span class="chip">.ppk</span> (PuTTY)</li>
+                    <li>Click <span class="chip">Create key pair</span></li>
+                </ol>
+            </div>
+            <div class="ascii-box">
+                <span class="title">KEY PAIR CREATION - SECURITY WARNING</span>
+                ┌─────────────────────────────────────────────────────────────────────────────────────┐
+                │                    KEY PAIR CREATION - SECURITY WARNING                            │
+                ├─────────────────────────────────────────────────────────────────────────────────────┤
+                │                                                                                     │
+                │  ⚠️  AWS does NOT retain a copy of your private key.                               │
+                │                                                                                     │
+                │  ✅ Save the .pem file in a secure location immediately.                          │
+                │  ✅ Back it up.                                                                    │
+                │  ✅ Set file permissions on Linux/macOS: chmod 400 your-key.pem                    │
+                │  ❌ Don't share it with anyone.                                                    │
+                │  ❌ Don't lose it—you cannot re-download the same key pair from AWS.              │
+                │                                                                                     │
+                └─────────────────────────────────────────────────────────────────────────────────────┘
+            </div>
+            <div class="note-meta">
+                <span>📊 instance type</span>
+                <span>🔑 key pair</span>
+                <span>⚠️ private key</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 5: Step 7 – Network -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:4">
+            <div class="note-pin">🌐</div>
+            <h2 class="note-title">Step 7: Configure Network Settings</h2>
+            <div class="note-body">
+                The network configuration includes <span class="chip">VPC</span>, <span class="chip">Subnet</span>, and <span class="chip">Security Group</span> settings.
+                <br /><br />
+                <strong>Default Settings (Good for Testing):</strong>
+                <ul>
+                    <li>VPC: <span class="chip">Default VPC</span></li>
+                    <li>Subnet: <span class="chip">Default subnet</span> (public subnet with internet access)</li>
+                    <li>Auto-assign public IP: <span class="chip chip-green">Enabled</span></li>
+                </ul>
+                <br />
+                <strong>Security Group Configuration (Critical):</strong>
+                <br />
+                A security group acts as a firewall controlling inbound and outbound traffic.
+                <br /><br />
+                <div class="ascii-box">
+                    <span class="title">SECURITY GROUP BEST PRACTICES</span>
+                    ┌─────────────────────────────────────────────────────────────────────────────────────┐
+                    │                    SECURITY GROUP BEST PRACTICES                                    │
+                    ├─────────────────────────────────────────────────────────────────────────────────────┤
+                    │                                                                                     │
+                    │  ✅ DO: Restrict SSH access to your specific IP address.                          │
+                    │  ✅ DO: Allow only necessary ports (e.g., HTTP port 80 for web servers).          │
+                    │  ❌ DON'T: Leave SSH open to 0.0.0.0/0 in production environments.                │
+                    │  ❌ DON'T: Use overly permissive rules unless absolutely necessary.               │
+                    │                                                                                     │
+                    │  Example Inbound Rules:                                                            │
+                    │  ┌─────────────────────────────────────────────────────────────────────────────┐   │
+                    │  │ Type │ Protocol │ Port │ Source      │ Description                         │   │
+                    │  ├─────────────────────────────────────────────────────────────────────────────┤   │
+                    │  │ SSH  │ TCP      │ 22   │ 203.0.113.0/24 │ Your office IP range            │   │
+                    │  │ HTTP │ TCP      │ 80   │ 0.0.0.0/0    │ Web traffic (anywhere)            │   │
+                    │  │ HTTPS│ TCP      │ 443  │ 0.0.0.0/0    │ Web traffic (anywhere)            │   │
+                    │  └─────────────────────────────────────────────────────────────────────────────┘   │
+                    │                                                                                     │
+                    └─────────────────────────────────────────────────────────────────────────────────────┘
+                </div>
+                <br />
+                <div class="def-box" style="border-left-color:#b8cce0;">
+                    <strong>💡 For SSH access, add an inbound rule:</strong>
+                    <ul>
+                        <li>Type: <span class="chip">SSH</span></li>
+                        <li>Protocol: <span class="chip">TCP</span></li>
+                        <li>Port Range: <span class="chip">22</span></li>
+                        <li>Source: <span class="chip">Your local IP address or range</span> (not 0.0.0.0/0 in production)</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🌐 network</span>
+                <span>🛡️ security group</span>
+                <span>🔒 SSH</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 6: Steps 8-9 -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:5">
+            <div class="note-pin">💾</div>
+            <h2 class="note-title">Steps 8-9: Storage & Launch</h2>
+            <div class="note-body">
+                <strong>Step 8: Configure Storage</strong>
+                <br />
+                EC2 instances typically attach to an <span class="chip">EBS volume</span> configured in this section.
+                <br /><br />
+                <strong>Default Settings:</strong>
+                <ul>
+                    <li>Root Volume Size: <span class="chip">8 GiB</span> (enough for a basic Linux instance)</li>
+                    <li>Volume Type: <span class="chip">gp2</span> or <span class="chip">gp3</span> (SSD)</li>
+                </ul>
+                <br />
+                <span class="chip chip-blue">💡 Tip:</span> For learning and testing, the default storage settings are sufficient. You can increase the root volume size if needed.
+                <br /><br />
+                <strong>Step 9: Review and Launch</strong>
+                <br />
+                Review the configuration in the <span class="chip">Summary</span> panel.
+                <br /><br />
+                <ul>
+                    <li>Ensure you've selected a key pair (if you plan to connect via SSH).</li>
+                    <li>Verify the security group rules.</li>
+                    <li>Click <span class="chip chip-green">Launch instance</span>.</li>
+                </ul>
+                <br />
+                <div class="def-box" style="border-left-color:#aad0c4;">
+                    <strong>✅ A Success banner confirms the launch.</strong>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>💾 storage</span>
+                <span>📋 review</span>
+                <span>🚀 launch</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 7: Finding & Viewing Instance -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:6">
+            <div class="note-pin">🔍</div>
+            <h2 class="note-title">Finding & Viewing Your Instance</h2>
+            <div class="note-body">
+                <strong>Finding Your Instance:</strong>
+                <ol>
+                    <li>From the success banner, choose <span class="chip">Instances</span> in the breadcrumb.</li>
+                    <li>In the <span class="chip">Name</span> column, find your instance by the name you gave it.</li>
+                    <li>Note the <span class="chip">Instance ID</span> — it begins with <span class="chip">i-</span> followed by 17 alphanumeric characters (e.g., <span class="chip">i-01aeed690c9fb5322</span>).</li>
+                </ol>
+                <br />
+                <strong>Viewing Instance Configuration:</strong>
+                <br />
+                Select the instance ID link to open the instance details page.
+                <br /><br />
+                <div class="details-grid">
+                    <div class="details-item" style="border-left-color:#b8cce0;">
+                        <div class="field">Instance type</div>
+                        <div class="val">The hardware configuration — t2.micro</div>
+                    </div>
+                    <div class="details-item" style="border-left-color:#aad0c4;">
+                        <div class="field">Public IPv4 address</div>
+                        <div class="val">34.242.148.128</div>
+                    </div>
+                    <div class="details-item" style="border-left-color:#f5d4aa;">
+                        <div class="field">Owner</div>
+                        <div class="val">123456789012</div>
+                    </div>
+                    <div class="details-item" style="border-left-color:#cfb8e0;">
+                        <div class="field">Launch time</div>
+                        <div class="val">2026-08-02T10:30:15Z</div>
+                    </div>
+                    <div class="details-item" style="border-left-color:#e8c8b8;">
+                        <div class="field">Instance state</div>
+                        <div class="val"><span class="chip chip-green">Running</span></div>
+                    </div>
+                    <div class="details-item" style="border-left-color:#b8d9c8;">
+                        <div class="field">Tags</div>
+                        <div class="val">Name: My first EC2 instance</div>
+                    </div>
+                </div>
+                <br />
+                <span class="chip chip-blue">💡 Tip:</span> Use <span class="chip">Ctrl+F</span> (or <span class="chip">Command+F</span> on Mac) to quickly find specific fields on the details page.
+            </div>
+            <div class="note-meta">
+                <span>🔍 find</span>
+                <span>📋 instance ID</span>
+                <span>📊 details</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 8: Terminating (Clean Up) -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:7">
+            <div class="note-pin">🗑️</div>
+            <h2 class="note-title">Terminating Your Instance (Clean Up)</h2>
+            <div class="note-body">
+                <div class="def-box" style="border-left-color:#f0b8b8;">
+                    <strong>⚠️ WARNING:</strong> Terminating an instance is <strong>permanent and irreversible</strong>. The instance and its data (unless separately backed up) are lost.
+                </div>
+                <br />
+                <strong>How to Terminate:</strong>
+                <ol>
+                    <li>Select the checkbox next to your instance.</li>
+                    <li>Click <span class="chip">Instance State → Terminate (delete) instance</span>.</li>
+                    <li>Confirm by clicking <span class="chip chip-pink">Terminate (delete)</span>.</li>
+                    <li>Monitor the state change from <span class="chip">shutting-down</span> to <span class="chip">terminated</span>.</li>
+                </ol>
+                <br />
+                <div class="def-box" style="border-left-color:#f5d4aa;">
+                    <strong>📌 Why Terminate?</strong> AWS charges for running instances (even idle ones). Always terminate instances you no longer need to avoid unnecessary costs.
+                </div>
+                <br />
+                <strong>Stop vs Terminate (Quick Recap):</strong>
+                <ul>
+                    <li><span class="chip chip-blue">Stop:</span> Pauses the instance, preserves EBS data, and can be restarted later. Billing stops for compute but continues for storage.</li>
+                    <li><span class="chip chip-pink">Terminate:</span> Permanently deletes the instance and its data. Use when you no longer need the instance.</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>🗑️ terminate</span>
+                <span>⚠️ permanent</span>
+                <span>💰 avoid charges</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 9: Key Takeaways -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:8">
+            <div class="note-pin">📝</div>
+            <h2 class="note-title">Key Takeaways</h2>
+            <div class="note-body">
+                <ul>
+                    <li><strong>Region Selection</strong> is the first and most important step — it determines where your instance physically resides.</li>
+                    <br />
+                    <li><strong>AMI and Instance Type</strong> are the two primary decisions: AMI defines the OS and software, while the instance type defines the hardware.</li>
+                    <br />
+                    <li><strong>Key Pair</strong> is essential for SSH access. The private key is <span class="chip chip-pink">only available for download once</span> — store it securely.</li>
+                    <br />
+                    <li><strong>Security Groups</strong> act as firewalls. Restrict inbound traffic to only what is strictly necessary.</li>
+                    <br />
+                    <li><strong>Termination is Permanent</strong> — always double-check before terminating, and ensure you have backups if needed.</li>
+                    <br />
+                    <li>The <strong>Launch Wizard</strong> simplifies the process by providing default values, making it easy for beginners to launch their first instance.</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>📝 takeaways</span>
+                <span>🚀 launch</span>
+                <span>🔑 key pair</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 10: Review Questions -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:9">
+            <div class="note-pin">❓</div>
+            <h2 class="note-title">Review Questions</h2>
+            <div class="note-body">
+
+                <div class="qa-box">
+                    <div class="q">Q1: What are the first two steps to launch an EC2 instance from the console?</div>
+                    <div class="a"><strong>Answer:</strong> Select your desired AWS Region from the top navigation bar, then navigate to the EC2 Console and click the <span class="chip">Launch instance</span> button from the EC2 Dashboard or the Instances page.</div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#f5d4aa;">
+                    <div class="q">Q2: Why is it important to save the private key file securely after creating a key pair?</div>
+                    <div class="a"><strong>Answer:</strong> The private key is required to securely connect to your EC2 instance via SSH. <span class="chip chip-pink">AWS does not retain a copy</span> of the private key — you can only download it during creation. If you lose it, you cannot retrieve it and must create a new key pair.</div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#b8cce0;">
+                    <div class="q">Q3: How can you prevent unauthorized SSH access to your EC2 instance?</div>
+                    <div class="a"><strong>Answer:</strong> Restrict the inbound SSH rule in your security group to your <strong>specific IP address or IP range</strong>. Avoid using <span class="chip">0.0.0.0/0</span> (anywhere) for SSH in production environments.</div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#cfb8e0;">
+                    <div class="q">Q4: What should you do to avoid ongoing charges after testing an EC2 instance?</div>
+                    <div class="a"><strong>Answer:</strong> <span class="chip chip-pink">Terminate</span> the instance when you no longer need it. While stopping the instance stops compute charges, EBS storage charges continue. <strong>Termination</strong> is the only way to avoid all charges for the instance.</div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#aad0c4;">
+                    <div class="q">Q5: What is the difference between the instance ID and the instance name?</div>
+                    <div class="a"><strong>Answer:</strong> The <strong>instance ID</strong> (e.g., <span class="chip">i-01aeed690c9fb5322</span>) is a <strong>unique identifier</strong> automatically assigned by AWS when the instance is launched. The <strong>instance name</strong> is an <strong>optional tag</strong> that you can assign for easier identification in the console. The instance name is not used by AWS for internal identification.</div>
+                </div>
+
+            </div>
+            <div class="note-meta">
+                <span>❓ Q&A</span>
+                <span>📝 review</span>
+                <span>🧠 learning</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 11: Next Steps -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:10">
+            <div class="note-pin">🚀</div>
+            <h2 class="note-title">Next Steps</h2>
+            <div class="note-body">
+                <span style="font-size:2rem;">📖</span> Proceed to the next section:
+                <br /><br />
+                <span class="chip chip-purple" style="font-size:1.4rem;">6.3: Connecting to an EC2 Instance</span>
+                <br /><br />
+                <div class="quote-box" style="border-left-color:#aad0c4;">
+                    "Launching an EC2 instance is the <strong>first step</strong> into the cloud — master it, and you unlock the <strong>power</strong> of on-demand infrastructure."
+                    <div class="author">— AWS EC2 Principles</div>
+                </div>
+                <br />
+                <div style="text-align:center; font-size:2.5rem; opacity:0.3; letter-spacing:10px;">
+                    ❖ ❖ ❖
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🚀 next</span>
+                <span>📖 6.3</span>
+                <span>🔌 connecting</span>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>
