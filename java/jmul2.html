@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Java Multithreading · Chapter 2</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,600;14..32,700&display=swap" rel="stylesheet" />
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(145deg, #eef2f7 0%, #d5dee9 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            padding: 14px;
+        }
+
+        .frame-card {
+            width: 100%;
+            height: calc(100vh - 28px);
+            max-height: calc(100vh - 28px);
+            background: rgba(255, 255, 255, 0.55);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 44px;
+            box-shadow: 0 30px 60px -16px rgba(0, 20, 30, 0.3), 0 12px 32px -8px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+            padding: 28px 34px;
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .scroll-viewport {
+            flex: 1;
+            width: 100%;
+            overflow: hidden;
+            border-radius: 36px;
+            position: relative;
+            background: rgba(255, 255, 255, 0.06);
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.02);
+            min-height: 0;
+        }
+
+        .scroll-content {
+            display: flex;
+            flex-direction: column;
+            gap: 1.8rem;
+            padding: 2.4rem 2.8rem 3.2rem 2.8rem;
+            animation: slowScroll 350s linear infinite;
+            will-change: transform;
+        }
+
+        .scroll-viewport:hover .scroll-content {
+            animation-play-state: paused;
+        }
+
+        @keyframes slowScroll {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(-50%); }
+        }
+
+        .content-item {
+            background: rgba(255, 255, 255, 0.78);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            border-radius: 28px;
+            padding: 2.2rem 2.8rem;
+            border: 1px solid rgba(255, 255, 255, 0.85);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.02);
+            transition: transform 0.2s ease, box-shadow 0.25s ease;
+            color: #14212e;
+        }
+
+        .content-item:hover {
+            transform: scale(1.005);
+            box-shadow: 0 12px 32px rgba(0, 20, 40, 0.08);
+            background: rgba(255, 255, 255, 0.92);
+        }
+
+        .content-item .section-tag {
+            display: inline-block;
+            background: rgba(40, 80, 140, 0.07);
+            padding: 0.15rem 1.2rem;
+            border-radius: 60px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #1a3a5e;
+            letter-spacing: 0.05em;
+            border: 1px solid rgba(255,255,255,0.3);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+        }
+
+        .content-item h1 {
+            font-weight: 700;
+            font-size: 2.4rem;
+            letter-spacing: -0.02em;
+            margin: 0.2rem 0 0.4rem 0;
+            color: #0a1725;
+            line-height: 1.2;
+        }
+
+        .content-item h2 {
+            font-weight: 600;
+            font-size: 1.9rem;
+            letter-spacing: -0.01em;
+            margin: 0.8rem 0 0.4rem 0;
+            color: #0f2033;
+            line-height: 1.3;
+        }
+
+        .content-item h3 {
+            font-weight: 600;
+            font-size: 1.5rem;
+            margin: 0.6rem 0 0.3rem 0;
+            color: #142b42;
+            line-height: 1.3;
+        }
+
+        .content-item h4 {
+            font-weight: 600;
+            font-size: 1.2rem;
+            margin: 0.5rem 0 0.2rem 0;
+            color: #1a334d;
+            line-height: 1.4;
+        }
+
+        .content-item p {
+            font-weight: 400;
+            font-size: 1.15rem;
+            line-height: 1.8;
+            color: #1d2d3f;
+            opacity: 0.9;
+            margin: 0.3rem 0;
+        }
+
+        .content-item .code-block {
+            background: rgba(10, 20, 40, 0.04);
+            border-radius: 18px;
+            padding: 1rem 1.6rem;
+            margin: 0.7rem 0;
+            font-family: 'Menlo', 'Consolas', 'Monaco', monospace;
+            font-size: 1rem;
+            border-left: 4px solid rgba(50, 100, 200, 0.25);
+            color: #1a2a3e;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            line-height: 1.7;
+        }
+
+        .content-item .code-block .kw { color: #a626a4; font-weight: 600; }
+        .content-item .code-block .str { color: #50a14f; }
+        .content-item .code-block .cmt { color: #6a7a8e; font-style: italic; }
+        .content-item .code-block .typ { color: #4078c0; }
+        .content-item .code-block .fnc { color: #986801; }
+        .content-item .code-block .num { color: #986801; }
+
+        .content-item .meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-top: 0.8rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #3b4f64;
+            opacity: 0.6;
+        }
+
+        .content-item .meta i {
+            font-style: normal;
+            background: rgba(0,0,0,0.02);
+            padding: 0.15rem 1.2rem;
+            border-radius: 40px;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .content-item .divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(60, 80, 120, 0.08), transparent);
+            margin: 1.2rem 0;
+        }
+
+        .content-item .highlight-box {
+            background: rgba(255, 240, 200, 0.3);
+            border-radius: 18px;
+            padding: 1rem 1.6rem;
+            margin: 0.7rem 0;
+            border-left: 4px solid #e6b800;
+        }
+
+        .content-item .highlight-box strong {
+            color: #1a2a3e;
+        }
+
+        .content-item ul, .content-item ol {
+            padding-left: 1.8rem;
+            margin: 0.3rem 0;
+        }
+
+        .content-item li {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            color: #1d2d3f;
+            opacity: 0.88;
+            margin: 0.15rem 0;
+        }
+
+        .content-item table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0.7rem 0;
+            font-size: 1rem;
+        }
+
+        .content-item th {
+            background: rgba(40, 80, 140, 0.06);
+            font-weight: 600;
+            padding: 0.6rem 1rem;
+            text-align: left;
+            border: 1px solid rgba(0,0,0,0.04);
+            font-size: 1rem;
+        }
+
+        .content-item td {
+            padding: 0.6rem 1rem;
+            border: 1px solid rgba(0,0,0,0.04);
+            font-size: 0.98rem;
+        }
+
+        .content-item code {
+            font-family: 'Menlo', 'Consolas', 'Monaco', monospace;
+            font-size: 0.95em;
+            background: rgba(0,0,0,0.03);
+            padding: 0.1rem 0.4rem;
+            border-radius: 6px;
+        }
+
+        @media (max-width: 900px) {
+            .frame-card { padding: 20px 24px; border-radius: 32px; }
+            .scroll-content { padding: 1.8rem 2rem 2.4rem 2rem; gap: 1.4rem; }
+            .content-item { padding: 1.8rem 2rem; }
+            .content-item h1 { font-size: 2rem; }
+            .content-item h2 { font-size: 1.6rem; }
+            .content-item h3 { font-size: 1.3rem; }
+            .content-item h4 { font-size: 1.1rem; }
+            .content-item p { font-size: 1.05rem; }
+            .content-item .code-block { font-size: 0.9rem; padding: 0.8rem 1.2rem; }
+            .content-item li { font-size: 1rem; }
+        }
+
+        @media (max-width: 600px) {
+            body { padding: 8px; }
+            .frame-card { padding: 14px 16px; border-radius: 24px; }
+            .scroll-viewport { border-radius: 20px; }
+            .scroll-content { gap: 1.2rem; padding: 1.4rem 1.4rem 2rem 1.4rem; }
+            .content-item { padding: 1.4rem 1.6rem; border-radius: 20px; }
+            .content-item h1 { font-size: 1.6rem; }
+            .content-item h2 { font-size: 1.3rem; }
+            .content-item h3 { font-size: 1.1rem; }
+            .content-item h4 { font-size: 1rem; }
+            .content-item p { font-size: 0.95rem; }
+            .content-item .code-block { font-size: 0.8rem; padding: 0.6rem 0.9rem; }
+            .content-item li { font-size: 0.92rem; }
+            .content-item .meta { font-size: 0.75rem; }
+            .content-item table { font-size: 0.85rem; }
+            .content-item th, .content-item td { font-size: 0.82rem; padding: 0.4rem 0.6rem; }
+            .content-item .section-tag { font-size: 0.65rem; padding: 0.1rem 0.8rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="frame-card">
+    <div class="scroll-viewport">
+        <div class="scroll-content">
+
+            <!-- ============================================================ -->
+            <!-- CHAPTER 2: THREAD CREATION AND MANAGEMENT                     -->
+            <!-- ============================================================ -->
+
+            <div class="content-item">
+                <div class="section-tag">Part I · Fundamentals of Threading</div>
+                <h1>Chapter 2: Thread Creation and Management</h1>
+                <h3>Section 2.1: What is a Thread?</h3>
+                <p>Before we create threads, we must understand what they are at both the JVM level and the OS level.</p>
+                
+                <h4>Subsection 2.1.1: The java.lang.Thread Class – Anatomy</h4>
+                <p>The <code>Thread</code> class is the core abstraction for a thread of execution in Java. Let's dissect it.</p>
+                <p><strong>Key Fields (Internal):</strong></p>
+                <table>
+                    <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+                    <tr><td>name</td><td>String</td><td>Human-readable name (default: "Thread-0", "Thread-1", etc.)</td></tr>
+                    <tr><td>priority</td><td>int</td><td>1 (MIN_PRIORITY) to 10 (MAX_PRIORITY), default 5 (NORM_PRIORITY)</td></tr>
+                    <tr><td>daemon</td><td>boolean</td><td>Is this a daemon thread? (Default: false)</td></tr>
+                    <tr><td>target</td><td>Runnable</td><td>The task to execute (can be null if you override run())</td></tr>
+                    <tr><td>group</td><td>ThreadGroup</td><td>The thread group this thread belongs to</td></tr>
+                    <tr><td>state</td><td>State</td><td>Enum representing the current lifecycle state</td></tr>
+                    <tr><td>threadLocalMap</td><td>ThreadLocalMap</td><td>Internal storage for ThreadLocal values</td></tr>
+                    <tr><td>tid</td><td>long</td><td>Unique thread ID (generated by the JVM)</td></tr>
+                    <tr><td>parkBlocker</td><td>Object</td><td>Used by LockSupport for debugging blocked threads</td></tr>
+                    <tr><td>blockerLock</td><td>Object</td><td>Internal lock for blocking operations</td></tr>
+                    <tr><td>nativeThread</td><td>long</td><td>Reference to the underlying OS thread handle</td></tr>
+                </table>
+                
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – What is ThreadLocalMap?</strong><br />
+                Each thread has its own ThreadLocalMap that stores values for ThreadLocal variables. When you call <code>ThreadLocal.get()</code>, it retrieves the value from the current thread's map. This is how ThreadLocal provides thread-isolated storage.</div>
+                
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – What is parkBlocker?</strong><br />
+                When a thread is blocked by <code>LockSupport.park()</code>, the parkBlocker field stores the object that caused the blocking. This is used by diagnostic tools to identify why a thread is blocked.<br />
+                <div class="code-block"><span class="cmt">// Internal implementation of LockSupport</span>
+<span class="kw">public static void</span> park(Object blocker) {
+    Thread t = Thread.currentThread();
+    setBlocker(t, blocker);  <span class="cmt">// Stores blocker in t.parkBlocker</span>
+    UNSAFE.park(<span class="kw">false</span>, 0L);
+    setBlocker(t, <span class="kw">null</span>);
+}</div></div>
+                <div class="meta"><i>8 min read</i> <i>thread</i> <i>anatomy</i></div>
+            </div>
+
+            <div class="content-item">
+                <div class="section-tag">Part I · Fundamentals of Threading</div>
+                <h4>Subsection 2.1.2: The Native Thread – The OS-Level Reality</h4>
+                <p>Every Java thread (platform thread) maps 1:1 to an OS thread. This is called the <strong>Native Thread Model</strong>.</p>
+                <p><strong>What happens when you call <code>new Thread().start()</code>?</strong></p>
+                <ol>
+                    <li><strong>JVM allocates memory:</strong> The JVM allocates a Thread object on the Java heap.</li>
+                    <li><strong>JVM calls native method:</strong> <code>Thread.start()</code> calls the native method <code>start0()</code>.</li>
+                    <li><strong>OS thread creation:</strong> The JVM asks the OS to create a new native thread (via <code>pthread_create</code> on Linux, <code>CreateThread</code> on Windows).</li>
+                    <li><strong>OS allocates resources:</strong> The OS allocates:
+                        <ul>
+                            <li>A thread control block (TCB) in kernel space.</li>
+                            <li>A stack (typically 1 MB, configurable via <code>-Xss</code>).</li>
+                            <li>A program counter (PC) and register set.</li>
+                        </ul>
+                    </li>
+                    <li><strong>JVM attaches:</strong> The JVM attaches the new native thread to the Java Thread object.</li>
+                    <li><strong>Thread begins execution:</strong> The OS scheduler schedules the thread, and it begins executing the <code>run()</code> method.</li>
+                </ol>
+                
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – What is the stack size?</strong><br />
+                The stack stores method frames (local variables, parameters, return addresses). Each frame has a fixed size determined by the compiler. The stack size is configurable:
+                <div class="code-block">java -Xss1m MyClass   <span class="cmt"># 1 MB stack (default)</span>
+java -Xss512k MyClass <span class="cmt"># 512 KB stack (for many threads)</span>
+java -Xss2m MyClass   <span class="cmt"># 2 MB stack (for deep recursion)</span></div></div>
+                
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – What happens if you exceed the stack size?</strong><br />
+                You get a <code>StackOverflowError</code>. This often happens with deep recursion or infinite recursion.<br />
+                <div class="code-block"><span class="kw">public static void</span> recursive() {
+    recursive();  <span class="cmt">// Infinite recursion</span>
+}</div>
+                Each call adds a new frame to the stack. When the stack overflows, the JVM throws <code>StackOverflowError</code>.</div>
+                <div class="meta"><i>6 min read</i> <i>thread</i> <i>native</i></div>
+            </div>
+
+            <div class="content-item">
+                <div class="section-tag">Part I · Fundamentals of Threading</div>
+                <h4>Subsection 2.1.3: The Thread Class – Constructors</h4>
+                <p>The <code>Thread</code> class has several constructors. Here's the complete list:</p>
+                <div class="code-block"><span class="cmt">// 1. Default: Creates a new thread with a generated name</span>
+Thread()
+
+<span class="cmt">// 2. With a Runnable target</span>
+Thread(Runnable target)
+
+<span class="cmt">// 3. With a name</span>
+Thread(String name)
+
+<span class="cmt">// 4. With a target and name</span>
+Thread(Runnable target, String name)
+
+<span class="cmt">// 5. With a ThreadGroup</span>
+Thread(ThreadGroup group, Runnable target)
+
+<span class="cmt">// 6. With a ThreadGroup and name</span>
+Thread(ThreadGroup group, String name)
+
+<span class="cmt">// 7. With a ThreadGroup, target, and name</span>
+Thread(ThreadGroup group, Runnable target, String name)
+
+<span class="cmt">// 8. With a ThreadGroup, target, name, and stack size</span>
+Thread(ThreadGroup group, Runnable target, String name, <span class="kw">long</span> stackSize)</div>
+                
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – What is ThreadGroup?</strong><br />
+                <code>ThreadGroup</code> is a way to group threads for bulk operations. You can interrupt all threads in a group or set their priority.<br />
+                <div class="code-block">ThreadGroup group = <span class="kw">new</span> ThreadGroup(<span class="str">"Workers"</span>);
+Thread t1 = <span class="kw">new</span> Thread(group, () -> { <span class="cmt">/* work */</span> }, <span class="str">"Worker-1"</span>);
+Thread t2 = <span class="kw">new</span> Thread(group, () -> { <span class="cmt">/* work */</span> }, <span class="str">"Worker-2"</span>);
+group.interrupt();  <span class="cmt">// Interrupts both t1 and t2</span></div>
+                But note: <code>ThreadGroup</code> is largely obsolete. Modern practice uses <code>ExecutorService</code> for thread management. <code>ThreadGroup</code> is still used by the JVM for internal purposes.</div>
+                <div class="meta"><i>5 min read</i> <i>thread</i> <i>constructors</i></div>
+            </div>
+
+            <div class="content-item">
+                <div class="section-tag">Part I · Fundamentals of Threading</div>
+                <h4>Subsection 2.1.4: The "Doubt Clarifier" – Why does Thread implement Runnable?</h4>
+                <p>Look at the <code>Thread</code> class signature:</p>
+                <div class="code-block"><span class="kw">public class</span> Thread <span class="kw">implements</span> Runnable {
+    <span class="cmt">// ...</span>
+    <span class="kw">@Override</span>
+    <span class="kw">public void</span> run() {
+        <span class="kw">if</span> (target != <span class="kw">null</span>) {
+            target.run();
+        }
+    }
+}</div>
+                <p><code>Thread</code> implements <code>Runnable</code>. This means you can pass a <code>Thread</code> instance to another <code>Thread</code> (though this is almost never done).</p>
+                <p><strong>Why?</strong> Historical reasons. The designers wanted <code>Thread</code> to be a valid <code>Runnable</code> so that you could override <code>run()</code> directly when extending <code>Thread</code>.</p>
+                <p>But the better practice is to implement <code>Runnable</code> separately, as we'll see in Section 2.2.</p>
+                <div class="meta"><i>4 min read</i> <i>thread</i> <i>design</i></div>
+            </div>
+
+            <!-- Section 2.2 -->
+            <div class="content-item">
+                <div class="section-tag">Part I · Fundamentals of Threading</div>
+                <h3>Section 2.2: Creating a Thread – The Two Primary Ways</h3>
+                <p>There are two fundamental ways to create a thread in Java. Let's explore both in extreme detail.</p>
+                
+                <h4>Subsection 2.2.1: Method 1 – Extending the Thread Class</h4>
+                <p><strong>Syntax:</strong></p>
+                <div class="code-block"><span class="kw">public class</span> MyThread <span class="kw">extends</span> Thread {
+    <span class="kw">@Override</span>
+    <span class="kw">public void</span> run() {
+        System.out.println(<span class="str">"Thread is running: "</span> + Thread.currentThread().getName());
+    }
+}
+
+<span class="cmt">// Usage</span>
+MyThread t = <span class="kw">new</span> MyThread();
+t.start();</div>
+                <p><strong>What happens internally:</strong></p>
+                <ul>
+                    <li>You create a subclass of <code>Thread</code>.</li>
+                    <li>You override <code>run()</code> (which is <code>public void</code>).</li>
+                    <li>When you call <code>start()</code>, the JVM creates a native thread and invokes your <code>run()</code> method.</li>
+                </ul>
+                <p><strong>Pros:</strong></p>
+                <ul>
+                    <li>Simple and straightforward.</li>
+                    <li>You can access Thread methods directly (<code>getName()</code>, <code>setPriority()</code>, etc.).</li>
+                </ul>
+                <p><strong>Cons:</strong></p>
+                <ul>
+                    <li>Single inheritance limitation: You cannot extend any other class.</li>
+                    <li>Tight coupling: The task is baked into the thread class. You can't reuse the task with other execution mechanisms (e.g., thread pools).</li>
+                    <li>Not flexible: You can't pass parameters to <code>run()</code> easily.</li>
+                </ul>
+                
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – Can I call run() directly instead of start()?</strong><br />
+                Yes, but do not do it.
+                <div class="code-block">MyThread t = <span class="kw">new</span> MyThread();
+t.run();  <span class="cmt">// This runs in the current thread, NOT a new thread!</span></div>
+                <code>run()</code> is just a regular method. Calling it directly doesn't create a new thread. The <code>start()</code> method is what creates the new thread and schedules it.<br /><br />
+                If you call <code>run()</code> directly, it executes in the calling thread, not in a separate thread.</div>
+                <div class="meta"><i>8 min read</i> <i>creation</i> <i>extend</i></div>
+            </div>
+
+            <div class="content-item">
+                <div class="section-tag">Part I · Fundamentals of Threading</div>
+                <h4>Subsection 2.2.2: Method 2 – Implementing the Runnable Interface</h4>
+                <p><strong>Syntax:</strong></p>
+                <div class="code-block"><span class="kw">public class</span> MyRunnable <span class="kw">implements</span> Runnable {
+    <span class="kw">@Override</span>
+    <span class="kw">public void</span> run() {
+        System.out.println(<span class="str">"Runnable running: "</span> + Thread.currentThread().getName());
+    }
+}
+
+<span class="cmt">// Usage</span>
+MyRunnable task = <span class="kw">new</span> MyRunnable();
+Thread t = <span class="kw">new</span> Thread(task);
+t.start();</div>
+                <p><strong>What happens internally:</strong></p>
+                <ul>
+                    <li>You create a class that implements <code>Runnable</code>.</li>
+                    <li>You implement <code>run()</code>.</li>
+                    <li>You create a <code>Thread</code> instance and pass the <code>Runnable</code> to it.</li>
+                    <li>When you call <code>start()</code>, the JVM creates a native thread and invokes <code>target.run()</code> (where <code>target</code> is your <code>Runnable</code>).</li>
+                </ul>
+                <p><strong>Pros:</strong></p>
+                <ul>
+                    <li>Flexible: You can extend another class (since you're only implementing an interface).</li>
+                    <li>Reusable: The same <code>Runnable</code> can be submitted to a thread pool (<code>ExecutorService</code>).</li>
+                    <li>Separation of concerns: The task (what to do) is separate from the execution mechanism (how to run it).</li>
+                </ul>
+                <p><strong>Cons:</strong></p>
+                <ul>
+                    <li>Slightly more verbose (you need to create a <code>Thread</code> explicitly).</li>
+                </ul>
+                
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – What is the Runnable functional interface?</strong><br />
+                <div class="code-block"><span class="kw">@FunctionalInterface</span>
+<span class="kw">public interface</span> Runnable {
+    <span class="kw">void</span> run();
+}</div>
+                It's a functional interface, meaning you can use lambda expressions.</div>
+                <div class="meta"><i>6 min read</i> <i>creation</i> <i>Runnable</i></div>
+            </div>
+
+            <div class="content-item">
+                <div class="section-tag">Part I · Fundamentals of Threading</div>
+                <h4>Subsection 2.2.3: Method 3 – Using Lambda Expressions (Java 8+)</h4>
+                <p>Because <code>Runnable</code> is a functional interface, you can use lambdas:</p>
+                <div class="code-block"><span class="cmt">// Lambda expression</span>
+Thread t = <span class="kw">new</span> Thread(() -> {
+    System.out.println(<span class="str">"Lambda running: "</span> + Thread.currentThread().getName());
+});
+t.start();
+
+<span class="cmt">// Even shorter (method reference)</span>
+Runnable task = System.out::println;
+Thread t2 = <span class="kw">new</span> Thread(task);
+t2.start();</div>
+                <p><strong>Pros:</strong></p>
+                <ul>
+                    <li>Very concise.</li>
+                    <li>Captures local variables (effectively final).</li>
+                </ul>
+                
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – What does "effectively final" mean?</strong><br />
+                A variable is effectively final if it is not reassigned after initialization. Lambdas can only capture effectively final variables.
+                <div class="code-block"><span class="kw">int</span> x = 10;
+Runnable r = () -> System.out.println(x);  <span class="cmt">// OK (x is effectively final)</span>
+
+<span class="kw">int</span> y = 20;
+y = 30;  <span class="cmt">// y is reassigned, NOT effectively final</span>
+Runnable r2 = () -> System.out.println(y);  <span class="cmt">// COMPILE ERROR!</span></div>
+                Why this restriction? The lambda is executed on a different thread. To ensure consistency, the captured variables are copied (or reference is captured). If the variable could change, the copy would be stale.</div>
+                <div class="meta"><i>5 min read</i> <i>creation</i> <i>lambda</i></div>
+            </div>
+
+            <div class="content-item">
+                <div class="section-tag">Part I · Fundamentals of Threading</div>
+                <h4>Subsection 2.2.4: Method 4 – Using ExecutorService (The Real-World Standard)</h4>
+                <p>In production code, you rarely create <code>Thread</code> objects directly. You use thread pools.</p>
+                <div class="code-block">ExecutorService executor = Executors.newFixedThreadPool(10);
+
+<span class="cmt">// Submit a Runnable</span>
+executor.execute(() -> {
+    System.out.println(<span class="str">"Task running on thread pool"</span>);
+});
+
+<span class="cmt">// Submit a Callable (returns a result)</span>
+Future&lt;Integer&gt; future = executor.submit(() -> {
+    Thread.sleep(1000);
+    <span class="kw">return</span> 42;
+});
+
+executor.shutdown();</div>
+                <p>We'll cover <code>ExecutorService</code> in depth in Part IV. For now, just know that it's the preferred way to run tasks.</p>
+                <div class="meta"><i>4 min read</i> <i>creation</i> <i>executor</i></div>
+            </div>
+
+            <div class="content-item">
+                <div class="section-tag">Part I · Fundamentals of Threading</div>
+                <h4>Subsection 2.2.5: The "Doubt Clarifier" – Which method should I use?</h4>
+                <table>
+                    <tr><th>Scenario</th><th>Recommended Approach</th></tr>
+                    <tr><td>Learning/experimenting</td><td>Extend Thread or implement Runnable</td></tr>
+                    <tr><td>Simple one-off tasks</td><td>Lambda with Runnable</td></tr>
+                    <tr><td>Production code (task execution)</td><td>ExecutorService (thread pools)</td></tr>
+                    <tr><td>Production code (async results)</td><td>CompletableFuture</td></tr>
+                    <tr><td>Java 21+ (massive concurrency)</td><td>Virtual Threads (<code>Executors.newVirtualThreadPerTaskExecutor()</code>)</td></tr>
+                </table>
+                <div class="highlight-box"><strong>Never extend Thread in production code. It's an anti-pattern.</strong></div>
+                <div class="meta"><i>4 min read</i> <i>creation</i> <i>best-practice</i></div>
+            </div>
+
+            <div class="content-item">
+                <div class="section-tag">Part I · Fundamentals of Threading</div>
+                <h4>Subsection 2.2.6: The "Doubt Clarifier" – Can I create threads without a Runnable?</h4>
+                <p>Yes, by overriding <code>run()</code> in a subclass of <code>Thread</code>:</p>
+                <div class="code-block"><span class="kw">class</span> MyThread <span class="kw">extends</span> Thread {
+    <span class="kw">@Override</span>
+    <span class="kw">public void</span> run() {
+        System.out.println(<span class="str">"No Runnable needed"</span>);
+    }
+}</div>
+                <p>But this is just Method 1 (extending Thread). The target (<code>Runnable</code>) is null, so <code>Thread.run()</code> executes the overridden method.</p>
+                <div class="meta"><i>2 min read</i> <i>creation</i> <i>faq</i></div>
+            </div>
+
+            <!-- Section 2.3 -->
+            <div class="content-item">
+                <div class="section-tag">Part I · Fundamentals of Threading</div>
+                <h3>Section 2.3: The Thread Lifecycle (States)</h3>
+                <p>A thread in Java can be in one of six states (as defined by the <code>Thread.State</code> enum). Understanding these states is critical for debugging, performance tuning, and preventing liveness issues.</p>
+                
+                <h4>Subsection 2.3.1: The Six States – Complete Breakdown</h4>
+                <table>
+                    <tr><th>State</th><th>Description</th><th>When Does It Enter This State?</th><th>When Does It Leave?</th></tr>
+                    <tr><td><strong>NEW</strong></td><td>Thread object created but not started</td><td><code>new Thread()</code></td><td><code>thread.start()</code> is called</td></tr>
+                    <tr><td><strong>RUNNABLE</strong></td><td>Thread is ready to run, or is currently running on a CPU core</td><td><code>thread.start()</code> is called</td><td>Thread scheduler assigns CPU time</td></tr>
+                    <tr><td><strong>BLOCKED</strong></td><td>Thread is blocked, waiting to acquire a monitor lock</td><td><code>synchronized</code> block/method, but lock is held by another thread</td><td>Lock is released by the holding thread</td></tr>
+                    <tr><td><strong>WAITING</strong></td><td>Thread is waiting indefinitely for another thread to perform an action</td><td><code>Object.wait()</code> (no timeout), <code>Thread.join()</code> (no timeout), <code>LockSupport.park()</code></td><td><code>notify()/notifyAll()</code> called, thread terminates, or <code>unpark()</code> called</td></tr>
+                    <tr><td><strong>TIMED_WAITING</strong></td><td>Thread is waiting for a specified amount of time</td><td><code>Thread.sleep()</code>, <code>Object.wait(timeout)</code>, <code>Thread.join(timeout)</code>, <code>LockSupport.parkNanos()</code>, <code>LockSupport.parkUntil()</code></td><td>Timeout expires, notification, or unpark</td></tr>
+                    <tr><td><strong>TERMINATED</strong></td><td>Thread has completed execution</td><td><code>run()</code> method completes (normally or with exception)</td><td>N/A (thread is dead, cannot be restarted)</td></tr>
+                </table>
+                <div class="meta"><i>6 min read</i> <i>lifecycle</i> <i>states</i></div>
+            </div>
+
+            <div class="content-item">
+                <div class="section-tag">Part I · Fundamentals of Threading</div>
+                <h4>Subsection 2.3.2: Visualizing State Transitions</h4>
+                <div class="code-block">    NEW
+     |
+     v
+ RUNNABLE  &lt;----&gt;  BLOCKED
+     |             (acquires lock)
+     | (wait)
+     v
+  WAITING  &lt;----&gt;  TIMED_WAITING
+     |             (timeout)
+     | (notify)
+     v
+ TERMINATED</div>
+                
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – Is RUNNABLE the same as "running"?</strong><br />
+                No! RUNNABLE means the thread is ready to run. It may be waiting for the OS scheduler to assign CPU time. In a busy system with more threads than cores, many RUNNABLE threads are actually waiting for CPU.</div>
+                
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – What's the difference between WAITING and BLOCKED?</strong><br />
+                <strong>BLOCKED:</strong> Waiting for a monitor lock (<code>synchronized</code>). The thread is competing with other threads for the lock.<br />
+                <strong>WAITING:</strong> Waiting for notification or termination. The thread is not competing for a lock; it's passively waiting for an external signal.</div>
+                <div class="meta"><i>4 min read</i> <i>lifecycle</i> <i>transitions</i></div>
+            </div>
+
+            <div class="content-item">
+                <div class="section-tag">Part I · Fundamentals of Threading</div>
+                <h4>Subsection 2.3.3: Code Examples – Observing Thread States</h4>
+                <p><strong>Example 1: NEW and RUNNABLE</strong></p>
+                <div class="code-block"><span class="kw">public class</span> StateDemo {
+    <span class="kw">public static void</span> main(String[] args) <span class="kw">throws</span> InterruptedException {
+        Thread t = <span class="kw">new</span> Thread(() -> {
+            <span class="kw">for</span> (<span class="kw">int</span> i = 0; i &lt; 100_000_000; i++) {
+                <span class="cmt">// Busy loop to keep thread RUNNABLE</span>
+            }
+        });
+        
+        System.out.println(<span class="str">"After creation: "</span> + t.getState());  <span class="cmt">// NEW</span>
+        
+        t.start();
+        System.out.println(<span class="str">"After start: "</span> + t.getState());     <span class="cmt">// RUNNABLE (likely)</span>
+        
+        t.join();  <span class="cmt">// Wait for it to finish</span>
+        System.out.println(<span class="str">"After join: "</span> + t.getState());      <span class="cmt">// TERMINATED</span>
+    }
+}</div>
+                <p><strong>Output:</strong></p>
+                <div class="code-block">After creation: NEW
+After start: RUNNABLE
+After join: TERMINATED</div>
+
+                <p><strong>Example 2: WAITING</strong></p>
+                <div class="code-block"><span class="kw">public class</span> WaitDemo {
+    <span class="kw">public static void</span> main(String[] args) <span class="kw">throws</span> InterruptedException {
+        Object lock = <span class="kw">new</span> Object();
+        
+        Thread t = <span class="kw">new</span> Thread(() -> {
+            <span class="kw">synchronized</span> (lock) {
+                <span class="kw">try</span> {
+                    System.out.println(<span class="str">"Thread waiting..."</span>);
+                    lock.wait();  <span class="cmt">// Releases lock and waits</span>
+                    System.out.println(<span class="str">"Thread notified!"</span>);
+                } <span class="kw">catch</span> (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        });
+        
+        t.start();
+        Thread.sleep(100);  <span class="cmt">// Give t time to enter WAITING state</span>
+        System.out.println(<span class="str">"Thread state: "</span> + t.getState());  <span class="cmt">// WAITING</span>
+        
+        <span class="kw">synchronized</span> (lock) {
+            lock.notify();  <span class="cmt">// Wake up t</span>
+        }
+        
+        t.join();
+        System.out.println(<span class="str">"Thread state: "</span> + t.getState());  <span class="cmt">// TERMINATED</span>
+    }
+}</div>
+                <p><strong>Output:</strong></p>
+                <div class="code-block">Thread waiting...
+Thread state: WAITING
+Thread notified!
+Thread state: TERMINATED</div>
+                
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – Why does wait() release the lock?</strong><br />
+                Because if it didn't, no other thread could enter the synchronized block to call <code>notify()</code>. The thread must give up the lock so that other threads can signal it.</div>
+
+                <p><strong>Example 3: TIMED_WAITING</strong></p>
+                <div class="code-block">Thread t = <span class="kw">new</span> Thread(() -> {
+    <span class="kw">try</span> {
+        Thread.sleep(5000);  <span class="cmt">// Sleep for 5 seconds</span>
+    } <span class="kw">catch</span> (InterruptedException e) {
+        Thread.currentThread().interrupt();
+    }
+});
+
+t.start();
+Thread.sleep(100);  <span class="cmt">// Give t time to enter sleep</span>
+System.out.println(t.getState());  <span class="cmt">// TIMED_WAITING</span></div>
+                <p><strong>Output:</strong></p>
+                <div class="code-block">TIMED_WAITING</div>
+
+                <p><strong>Example 4: BLOCKED</strong></p>
+                <div class="code-block"><span class="kw">public class</span> BlockedDemo {
+    <span class="kw">private static final</span> Object lock = <span class="kw">new</span> Object();
+    
+    <span class="kw">public static void</span> main(String[] args) <span class="kw">throws</span> InterruptedException {
+        Thread t1 = <span class="kw">new</span> Thread(() -> {
+            <span class="kw">synchronized</span> (lock) {
+                <span class="kw">try</span> {
+                    Thread.sleep(10000);  <span class="cmt">// Hold lock for 10 seconds</span>
+                } <span class="kw">catch</span> (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        });
+        
+        Thread t2 = <span class="kw">new</span> Thread(() -> {
+            <span class="kw">synchronized</span> (lock) {
+                System.out.println(<span class="str">"Acquired lock!"</span>);
+            }
+        });
+        
+        t1.start();
+        Thread.sleep(100);  <span class="cmt">// Give t1 time to acquire lock</span>
+        
+        t2.start();
+        Thread.sleep(100);  <span class="cmt">// Give t2 time to try to acquire lock</span>
+        
+        System.out.println(<span class="str">"t2 state: "</span> + t2.getState());  <span class="cmt">// BLOCKED</span>
+        
+        t1.join();
+        t2.join();
+    }
+}</div>
+                <p><strong>Output:</strong></p>
+                <div class="code-block">t2 state: BLOCKED</div>
+                
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – Why is t2 in BLOCKED and not WAITING?</strong><br />
+                Because t2 is trying to acquire the intrinsic lock (<code>synchronized</code>). It's not waiting for a notification; it's waiting for the lock to be released. That's the definition of BLOCKED.</div>
+                <div class="meta"><i>10 min read</i> <i>lifecycle</i> <i>examples</i></div>
+            </div>
+
+            <div class="content-item">
+                <div class="section-tag">Part I · Fundamentals of Threading</div>
+                <h4>Subsection 2.3.4: The "Doubt Clarifier" – Can a thread be in multiple states?</h4>
+                <p>No. A thread is in exactly one state at any given time. The state transitions are mutually exclusive.</p>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – Can a thread enter WAITING without owning a lock?</strong><br />
+                No! <code>Object.wait()</code> must be called from within a synchronized block. If you call <code>wait()</code> without owning the lock, you get <code>IllegalMonitorStateException</code>.
+                <div class="code-block">Object lock = <span class="kw">new</span> Object();
+lock.wait();  <span class="cmt">// Throws IllegalMonitorStateException (not synchronized)</span></div></div>
+                <div class="meta"><i>3 min read</i> <i>lifecycle</i> <i>faq</i></div>
+            </div>
+
+            <!-- Section 2.4 -->
+            <div class="content-item">
+                <div class="section-tag">Part I · Fundamentals of Threading</div>
+                <h3>Section 2.4: Important Thread Methods</h3>
+                <p>Let's explore the most commonly used methods of the <code>Thread</code> class, their semantics, and their pitfalls.</p>
+                
+                <h4><code>start()</code> – The Only Way to Begin</h4>
+                <p><strong>Signature:</strong> <code>public void start()</code></p>
+                <p><strong>What it does:</strong></p>
+                <ul>
+                    <li>Checks that the thread is in NEW state. If not, throws <code>IllegalThreadStateException</code>.</li>
+                    <li>Allocates a native thread (OS thread).</li>
+                    <li>Schedules the native thread to run.</li>
+                    <li>The OS scheduler eventually invokes the thread's <code>run()</code> method.</li>
+                </ul>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – Why is start() synchronized?</strong><br />
+                Internally, <code>start()</code> is synchronized to prevent two threads from calling <code>start()</code> on the same <code>Thread</code> object simultaneously.</div>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – Can I call start() twice on the same thread?</strong><br />
+                No. It will throw <code>IllegalThreadStateException</code>.
+                <div class="code-block">Thread t = <span class="kw">new</span> Thread(() -> {});
+t.start();
+t.start();  <span class="cmt">// Throws IllegalThreadStateException</span></div></div>
+                <div class="meta"><i>4 min read</i> <i>methods</i> <i>start</i></div>
+            </div>
+
+            <div class="content-item">
+                <div class="section-tag">Part I · Fundamentals of Threading</div>
+                <h4><code>run()</code> – The Task Entry Point</h4>
+                <p><strong>Signature:</strong> <code>public void run()</code></p>
+                <p><strong>What it does:</strong> Contains the code executed by the thread.</p>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – If I override run(), should I call super.run()?</strong><br />
+                Only if you want the default behavior (which runs the target <code>Runnable</code>). If you're extending <code>Thread</code> and overriding <code>run()</code>, you usually don't call <code>super.run()</code>.</div>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – What's the difference between start() and run()?</strong><br />
+                <code>start()</code> creates a new thread and calls <code>run()</code> on that thread.<br />
+                <code>run()</code> is just a regular method call on the current thread.</div>
+                <div class="meta"><i>3 min read</i> <i>methods</i> <i>run</i></div>
+            </div>
+
+            <div class="content-item">
+                <div class="section-tag">Part I · Fundamentals of Threading</div>
+                <h4><code>join()</code> – Waiting for Thread Termination</h4>
+                <p><strong>Signature:</strong></p>
+                <ul>
+                    <li><code>public void join() throws InterruptedException</code> – Wait indefinitely.</li>
+                    <li><code>public void join(long millis) throws InterruptedException</code> – Wait with timeout.</li>
+                    <li><code>public void join(long millis, int nanos) throws InterruptedException</code> – Fine-grained timeout.</li>
+                </ul>
+                <p><strong>What it does:</strong> The calling thread waits for the specified thread to terminate.</p>
+                <p><strong>Example:</strong></p>
+                <div class="code-block">Thread t = <span class="kw">new</span> Thread(() -> {
+    <span class="cmt">// Do some work</span>
+    <span class="kw">try</span> { Thread.sleep(2000); } <span class="kw">catch</span> (InterruptedException ignored) {}
+});
+
+t.start();
+t.join();  <span class="cmt">// Main thread waits here until t finishes</span>
+System.out.println(<span class="str">"t has finished"</span>);</div>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – What happens if the thread is already terminated?</strong><br />
+                <code>join()</code> returns immediately.</div>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – What if I call join(0)?</strong><br />
+                It means "wait forever" (same as <code>join()</code> with no timeout).</div>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – Does join() release locks?</strong><br />
+                No. The calling thread holds its locks while waiting. This can cause deadlock if the other thread is waiting for one of those locks.</div>
+                <div class="meta"><i>5 min read</i> <i>methods</i> <i>join</i></div>
+            </div>
+
+            <div class="content-item">
+                <div class="section-tag">Part I · Fundamentals of Threading</div>
+                <h4><code>sleep()</code> – Pausing the Current Thread</h4>
+                <p><strong>Signature:</strong></p>
+                <ul>
+                    <li><code>public static void sleep(long millis) throws InterruptedException</code></li>
+                    <li><code>public static void sleep(long millis, int nanos) throws InterruptedException</code></li>
+                </ul>
+                <p><strong>What it does:</strong> The current thread pauses for the specified time. It does not release any locks.</p>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – Why is sleep() static?</strong><br />
+                Because it always operates on the current thread. You cannot make another thread sleep.
+                <div class="code-block">Thread.sleep(1000);  <span class="cmt">// Current thread sleeps for 1 second</span></div></div>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – What is the minimum sleep time?</strong><br />
+                The JVM's thread scheduler has a certain granularity (typically 1-10 ms on most systems). <code>sleep(1)</code> might actually sleep 1-10 ms depending on the OS.</div>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – Is sleep() interrupted?</strong><br />
+                Yes. If another thread interrupts the sleeping thread, <code>sleep()</code> throws <code>InterruptedException</code>.
+                <div class="code-block"><span class="kw">try</span> {
+    Thread.sleep(10000);
+} <span class="kw">catch</span> (InterruptedException e) {
+    System.out.println(<span class="str">"Woken up early!"</span>);
+    Thread.currentThread().interrupt();  <span class="cmt">// Re-interrupt</span>
+}</div></div>
+                <div class="meta"><i>4 min read</i> <i>methods</i> <i>sleep</i></div>
+            </div>
+
+            <div class="content-item">
+                <div class="section-tag">Part I · Fundamentals of Threading</div>
+                <h4><code>yield()</code> – Yielding the CPU</h4>
+                <p><strong>Signature:</strong> <code>public static void yield()</code></p>
+                <p><strong>What it does:</strong> A hint to the JVM scheduler that the current thread is willing to give up its CPU time.</p>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – Does yield() guarantee anything?</strong><br />
+                No. It's just a hint. The scheduler may ignore it.</div>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – When should I use yield()?</strong><br />
+                Almost never. It's a legacy method. In modern applications, you should not rely on <code>yield()</code> for any correctness or performance guarantees.</div>
+                <div class="meta"><i>3 min read</i> <i>methods</i> <i>yield</i></div>
+            </div>
+
+            <div class="content-item">
+                <div class="section-tag">Part I · Fundamentals of Threading</div>
+                <h4><code>interrupt()</code> – Interrupting a Thread</h4>
+                <p><strong>Signature:</strong> <code>public void interrupt()</code></p>
+                <p><strong>What it does:</strong> Sets the thread's interrupt flag and, if the thread is blocked in certain methods, wakes it up.</p>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – What methods throw InterruptedException?</strong></div>
+                <ul>
+                    <li><code>Thread.sleep()</code></li>
+                    <li><code>Object.wait()</code></li>
+                    <li><code>Thread.join()</code></li>
+                    <li><code>BlockingQueue.take()</code></li>
+                    <li><code>Lock.lockInterruptibly()</code></li>
+                    <li><code>Future.get()</code></li>
+                </ul>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – What does interrupt() do to a thread that's not blocked?</strong><br />
+                It just sets the interrupt flag. The thread can check it later with <code>Thread.interrupted()</code> or <code>Thread.currentThread().isInterrupted()</code>.</div>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – How do I handle InterruptedException properly?</strong><br />
+                Always propagate it or restore the interrupt flag.<br /><br />
+                <strong>Good:</strong>
+                <div class="code-block"><span class="kw">public void</span> myMethod() <span class="kw">throws</span> InterruptedException {
+    Thread.sleep(1000);  <span class="cmt">// Propagate</span>
+}</div>
+                <strong>Good:</strong>
+                <div class="code-block"><span class="kw">public void</span> myMethod() {
+    <span class="kw">try</span> {
+        Thread.sleep(1000);
+    } <span class="kw">catch</span> (InterruptedException e) {
+        Thread.currentThread().interrupt();  <span class="cmt">// Restore flag</span>
+    }
+}</div>
+                <strong>Bad (swallow):</strong>
+                <div class="code-block"><span class="kw">public void</span> myMethod() {
+    <span class="kw">try</span> {
+        Thread.sleep(1000);
+    } <span class="kw">catch</span> (InterruptedException e) {
+        <span class="cmt">// Swallow silently! BAD!</span>
+    }
+}</div></div>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – What's the difference between interrupted() and isInterrupted()?</strong><br />
+                <code>interrupted()</code>: Static method. Returns the interrupt flag and clears it.<br />
+                <code>isInterrupted()</code>: Instance method. Returns the interrupt flag and does not clear it.
+                <div class="code-block">Thread t = Thread.currentThread();
+t.interrupt();
+<span class="kw">boolean</span> flag1 = t.isInterrupted(); <span class="cmt">// true</span>
+<span class="kw">boolean</span> flag2 = Thread.interrupted(); <span class="cmt">// true (clears flag)</span>
+<span class="kw">boolean</span> flag3 = t.isInterrupted(); <span class="cmt">// false (flag was cleared)</span></div></div>
+                <div class="meta"><i>8 min read</i> <i>methods</i> <i>interrupt</i></div>
+            </div>
+
+            <div class="content-item">
+                <div class="section-tag">Part I · Fundamentals of Threading</div>
+                <h4><code>setDaemon()</code> and <code>isDaemon()</code> – Daemon Threads</h4>
+                <p><strong>Signature:</strong></p>
+                <ul>
+                    <li><code>public void setDaemon(boolean on)</code></li>
+                    <li><code>public boolean isDaemon()</code></li>
+                </ul>
+                <p><strong>What it does:</strong> Marks a thread as a daemon thread.</p>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – What happens when all non-daemon threads finish?</strong><br />
+                The JVM exits, even if daemon threads are still running.
+                <div class="code-block">Thread daemon = <span class="kw">new</span> Thread(() -> {
+    <span class="kw">while</span> (<span class="kw">true</span>) {
+        <span class="cmt">// Infinite loop</span>
+    }
+});
+daemon.setDaemon(<span class="kw">true</span>);
+daemon.start();
+<span class="cmt">// Main thread ends, JVM exits. Daemon thread is killed.</span></div>
+                <strong>Use cases for daemon threads:</strong>
+                <ul>
+                    <li>Garbage collection (GC threads).</li>
+                    <li>Background health checks.</li>
+                    <li>Monitoring and logging.</li>
+                </ul></div>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – Can you call setDaemon() after start()?</strong><br />
+                No. It throws <code>IllegalThreadStateException</code>.
+                <div class="code-block">Thread t = <span class="kw">new</span> Thread();
+t.start();
+t.setDaemon(<span class="kw">true</span>);  <span class="cmt">// Throws IllegalThreadStateException</span></div></div>
+                <div class="meta"><i>5 min read</i> <i>methods</i> <i>daemon</i></div>
+            </div>
+
+            <!-- Section 2.5 -->
+            <div class="content-item">
+                <div class="section-tag">Part I · Fundamentals of Threading</div>
+                <h3>Section 2.5: Callable and Future – Tasks That Return Results</h3>
+                <p><code>Runnable</code> is great, but it has a limitation: it cannot return a result or throw checked exceptions. This is where <code>Callable</code> comes in.</p>
+                
+                <h4>Subsection 2.5.1: The Callable Interface</h4>
+                <p><strong>Signature:</strong></p>
+                <div class="code-block"><span class="kw">@FunctionalInterface</span>
+<span class="kw">public interface</span> Callable&lt;V&gt; {
+    V call() <span class="kw">throws</span> Exception;
+}</div>
+                <p><strong>Comparison with Runnable:</strong></p>
+                <table>
+                    <tr><th>Feature</th><th>Runnable</th><th>Callable</th></tr>
+                    <tr><td>Returns a value</td><td>No (void)</td><td>Yes (V)</td></tr>
+                    <tr><td>Throws checked exceptions</td><td>No</td><td>Yes (throws Exception)</td></tr>
+                    <tr><td>Functional interface</td><td>Yes</td><td>Yes</td></tr>
+                    <tr><td>Executed by</td><td>Thread, Executor</td><td>ExecutorService only</td></tr>
+                </table>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – Why can't I submit a Callable to a Thread?</strong><br />
+                Because <code>Thread</code> only accepts <code>Runnable</code>. You need to use <code>ExecutorService.submit()</code>.</div>
+                <div class="meta"><i>4 min read</i> <i>Callable</i> <i>Future</i></div>
+            </div>
+
+            <div class="content-item">
+                <div class="section-tag">Part I · Fundamentals of Threading</div>
+                <h4>Subsection 2.5.2: The Future Interface</h4>
+                <p><strong>Signature:</strong></p>
+                <div class="code-block"><span class="kw">public interface</span> Future&lt;V&gt; {
+    <span class="kw">boolean</span> cancel(<span class="kw">boolean</span> mayInterruptIfRunning);
+    <span class="kw">boolean</span> isCancelled();
+    <span class="kw">boolean</span> isDone();
+    V get() <span class="kw">throws</span> InterruptedException, ExecutionException;
+    V get(<span class="kw">long</span> timeout, TimeUnit unit) <span class="kw">throws</span> InterruptedException, ExecutionException, TimeoutException;
+}</div>
+                <p><strong>Methods Explained:</strong></p>
+                <table>
+                    <tr><th>Method</th><th>Description</th></tr>
+                    <tr><td><code>cancel()</code></td><td>Attempts to cancel the task.</td></tr>
+                    <tr><td><code>isCancelled()</code></td><td>Returns true if the task was cancelled.</td></tr>
+                    <tr><td><code>isDone()</code></td><td>Returns true if the task completed (normally, exceptionally, or cancelled).</td></tr>
+                    <tr><td><code>get()</code></td><td>Blocks until the task completes and returns the result.</td></tr>
+                    <tr><td><code>get(timeout)</code></td><td>Blocks for a limited time. Throws <code>TimeoutException</code> if the task doesn't complete.</td></tr>
+                </table>
+                <div class="meta"><i>4 min read</i> <i>Callable</i> <i>Future</i></div>
+            </div>
+
+            <div class="content-item">
+                <div class="section-tag">Part I · Fundamentals of Threading</div>
+                <h4>Subsection 2.5.3: Using Callable and Future with ExecutorService</h4>
+                <div class="code-block">ExecutorService executor = Executors.newSingleThreadExecutor();
+
+<span class="cmt">// Submit a Callable</span>
+Future&lt;Integer&gt; future = executor.submit(() -> {
+    Thread.sleep(2000);
+    <span class="kw">return</span> 42;
+});
+
+<span class="cmt">// Do other work while the task runs...</span>
+
+<span class="kw">try</span> {
+    <span class="cmt">// Block and wait for the result</span>
+    Integer result = future.get();
+    System.out.println(<span class="str">"Result: "</span> + result);
+} <span class="kw">catch</span> (InterruptedException e) {
+    Thread.currentThread().interrupt();
+} <span class="kw">catch</span> (ExecutionException e) {
+    <span class="cmt">// The task threw an exception</span>
+    Throwable cause = e.getCause();
+    System.out.println(<span class="str">"Task failed: "</span> + cause.getMessage());
+}
+
+executor.shutdown();</div>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – What is ExecutionException?</strong><br />
+                It's a wrapper for any exception thrown by the task. You can call <code>getCause()</code> to get the underlying exception.</div>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – Can I cancel a running task?</strong><br />
+                Yes, but it requires cooperation from the task.
+                <div class="code-block">Future&lt;Integer&gt; future = executor.submit(() -> {
+    <span class="kw">while</span> (!Thread.currentThread().isInterrupted()) {
+        <span class="cmt">// Do work...</span>
+        <span class="kw">if</span> (Thread.currentThread().isInterrupted()) {
+            <span class="kw">return</span> -1;  <span class="cmt">// Clean up and exit</span>
+        }
+    }
+    <span class="kw">return</span> 0;
+});
+
+future.cancel(<span class="kw">true</span>);  <span class="cmt">// Interrupts the thread</span></div></div>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – What does cancel(true) do?</strong><br />
+                <ul>
+                    <li>Sets the interrupt flag on the thread.</li>
+                    <li>If the thread is blocked, it wakes it up (throws <code>InterruptedException</code>).</li>
+                    <li>The task must check the interrupt flag to actually stop.</li>
+                </ul>
+                <strong>What does cancel(false) do?</strong><br />
+                <ul>
+                    <li>Sets the interrupt flag but does not interrupt the thread.</li>
+                    <li>The task must check <code>isInterrupted()</code> on its own.</li>
+                </ul></div>
+                <div class="meta"><i>6 min read</i> <i>Callable</i> <i>Future</i></div>
+            </div>
+
+            <div class="content-item">
+                <div class="section-tag">Part I · Fundamentals of Threading</div>
+                <h4>Subsection 2.5.4: The "Doubt Clarifier" – Future vs. CompletableFuture</h4>
+                <p><code>Future</code> is limited:</p>
+                <ul>
+                    <li>You can't chain operations.</li>
+                    <li>You can't combine multiple futures.</li>
+                    <li><code>get()</code> is blocking.</li>
+                </ul>
+                <p><code>CompletableFuture</code> solves these limitations. We'll cover it in depth in Part IV.</p>
+                <div class="meta"><i>3 min read</i> <i>Callable</i> <i>Future</i></div>
+            </div>
+
+            <!-- Section 2.6 -->
+            <div class="content-item">
+                <div class="section-tag">Part I · Fundamentals of Threading</div>
+                <h3>Section 2.6: Common Pitfalls with Thread Creation</h3>
+                <p>Let's list the most common mistakes developers make when creating threads.</p>
+                
+                <p><strong>Pitfall 1: Calling <code>run()</code> Instead of <code>start()</code></strong></p>
+                <div class="code-block">Thread t = <span class="kw">new</span> Thread(() -> System.out.println(<span class="str">"Hello"</span>));
+t.run();  <span class="cmt">// Runs on the main thread, NOT a new thread!</span></div>
+                <p><strong>Fix:</strong> Always call <code>start()</code>.</p>
+                
+                <p><strong>Pitfall 2: Starting a Thread Twice</strong></p>
+                <div class="code-block">Thread t = <span class="kw">new</span> Thread(() -> {});
+t.start();
+t.start();  <span class="cmt">// Throws IllegalThreadStateException</span></div>
+                <p><strong>Fix:</strong> Create a new thread if you need to run the task again.</p>
+                
+                <p><strong>Pitfall 3: Forgetting to Handle InterruptedException</strong></p>
+                <div class="code-block"><span class="kw">try</span> {
+    Thread.sleep(1000);
+} <span class="kw">catch</span> (InterruptedException e) {
+    <span class="cmt">// Ignored! BAD!</span>
+}</div>
+                <p><strong>Fix:</strong> Always propagate or restore the interrupt flag.</p>
+                
+                <p><strong>Pitfall 4: Using <code>Thread.stop()</code>, <code>suspend()</code>, or <code>resume()</code></strong></p>
+                <p>These are deprecated. They are unsafe and can leave objects in inconsistent states.</p>
+                <p><strong>Fix:</strong> Use <code>interrupt()</code> for cooperative cancellation.</p>
+                
+                <p><strong>Pitfall 5: Not Using Thread Pools</strong></p>
+                <p>Creating a new thread for every request is expensive and can exhaust system resources.</p>
+                <p><strong>Fix:</strong> Use <code>Executors.newFixedThreadPool()</code> or <code>Executors.newCachedThreadPool()</code>.</p>
+                <div class="meta"><i>5 min read</i> <i>pitfalls</i> <i>best-practice</i></div>
+            </div>
+
+            <!-- End of Chapter 2 Summary -->
+            <div class="content-item">
+                <div class="section-tag">Part I · Fundamentals of Threading</div>
+                <h2>End of Chapter 2</h2>
+                <p>We have covered:</p>
+                <ul>
+                    <li><strong>2.1:</strong> The anatomy of the Thread class (fields, native threads, constructors).</li>
+                    <li><strong>2.2:</strong> Creating threads (extending Thread, implementing Runnable, lambdas).</li>
+                    <li><strong>2.3:</strong> The six thread states with code examples.</li>
+                    <li><strong>2.4:</strong> Important thread methods (<code>start</code>, <code>run</code>, <code>join</code>, <code>sleep</code>, <code>yield</code>, <code>interrupt</code>, daemon).</li>
+                    <li><strong>2.5:</strong> Callable and Future (returning results, exceptions, cancellation).</li>
+                    <li><strong>2.6:</strong> Common pitfalls and how to avoid them.</li>
+                </ul>
+                <p><strong>Where to next?</strong></p>
+                <p>We have completed:</p>
+                <ul>
+                    <li>Part 0: Prerequisites and Mindset – FULLY DONE.</li>
+                    <li>Chapter 1: Introduction to Concurrency – FULLY DONE.</li>
+                    <li>Chapter 2: Thread Creation and Management – FULLY DONE.</li>
+                </ul>
+                <p>Shall I continue to <strong>Chapter 3: Thread Safety</strong>? This is the heart of concurrent programming. We'll cover:</p>
+                <ul>
+                    <li>3.1: What is thread safety? (Atomicity, Visibility, Ordering).</li>
+                    <li>3.2: Race conditions and the synchronized keyword.</li>
+                    <li>3.3: Guarding state with locks.</li>
+                    <li>3.4: The volatile keyword (complete semantics).</li>
+                    <li>3.5: The final keyword in concurrency.</li>
+                    <li>3.6: Thread confinement and the ThreadLocal class.</li>
+                    <li>3.7: Immutability and safe publication.</li>
+                </ul>
+                <p>Let me know, and I'll dive in!</p>
+                <div class="meta"><i>3 min read</i> <i>summary</i> <i>next-steps</i></div>
+            </div>
+
+        </div>
+    </div>
+</div>
+</body>
+</html>
