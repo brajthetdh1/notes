@@ -1,0 +1,1320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Java wait() and notify() - Complete Guide</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        java: '#5382A1',
+                        javaDark: '#3A6D8C',
+                        waitNotify: '#7C3AED',
+                        waitNotifyLight: '#8B5CF6',
+                        producer: '#059669',
+                        consumer: '#DC2626'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .code-block {
+            font-family: 'Consolas', 'Monaco', monospace;
+            background-color: #282c34;
+            color: #abb2bf;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            overflow-x: auto;
+            position: relative;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        .copy-btn {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: all 0.2s ease;
+        }
+        .copy-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        .nav-link {
+            position: relative;
+            transition: color 0.3s ease;
+        }
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: -4px;
+            left: 0;
+            background-color: #8B5CF6;
+            transition: width 0.3s ease;
+        }
+        .nav-link:hover::after {
+            width: 100%;
+        }
+        .concept-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border-left: 4px solid #7C3AED;
+        }
+        .concept-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .method-card {
+            border-left: 4px solid #059669;
+        }
+        .warning-card {
+            border-left: 4px solid #DC2626;
+        }
+        .thread-state {
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-weight: 600;
+            text-align: center;
+            margin: 0.25rem;
+        }
+        .state-waiting { background-color: #FEF3C7; color: #92400E; }
+        .state-running { background-color: #DCFCE7; color: #166534; }
+        .state-blocked { background-color: #FEE2E2; color: #DC2626; }
+        .state-notified { background-color: #DBEAFE; color: #1E40AF; }
+        .comparison-table tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+        .method-signature {
+            font-family: 'Consolas', monospace;
+            background-color: #F3F4F6;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+        }
+        .lifecycle-path {
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+            animation: dash 5s linear forwards;
+        }
+        @keyframes dash {
+            to {
+                stroke-dashoffset: 0;
+            }
+        }
+        .producer-color { color: #059669; }
+        .consumer-color { color: #DC2626; }
+        .interaction-visual {
+            transition: all 0.3s ease;
+        }
+        .interaction-visual:hover {
+            transform: scale(1.05);
+        }
+        .step-indicator {
+            width: 2rem;
+            height: 2rem;
+            border-radius: 50%;
+            background-color: #7C3AED;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 1rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-waitNotify to-waitNotifyLight text-white shadow-lg sticky top-0 z-10">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="flex items-center mb-4 md:mb-0">
+                    <i class="fas fa-comments text-4xl mr-3"></i>
+                    <div>
+                        <h1 class="text-2xl md:text-3xl font-bold">Java wait() & notify()</h1>
+                        <p class="text-sm text-purple-100">Complete Guide to Inter-Thread Communication</p>
+                    </div>
+                </div>
+                <nav class="flex flex-wrap justify-center gap-3 md:gap-6">
+                    <a href="#overview" class="nav-link text-white font-medium">Overview</a>
+                    <a href="#methods" class="nav-link text-white font-medium">Methods</a>
+                    <a href="#producer-consumer" class="nav-link text-white font-medium">Producer-Consumer</a>
+                    <a href="#conditions" class="nav-link text-white font-medium">Conditions</a>
+                    <a href="#best-practices" class="nav-link text-white font-medium">Best Practices</a>
+                    <a href="#common-issues" class="nav-link text-white font-medium">Common Issues</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8">
+        <!-- Overview Section -->
+        <section id="overview" class="mb-16 scroll-mt-20">
+            <div class="bg-white rounded-xl shadow-md p-6 md:p-8">
+                <h2 class="text-2xl md:text-3xl font-bold text-waitNotify mb-4">wait() and notify() Overview</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <p class="mb-4 text-lg">
+                            The <code>wait()</code> and <code>notify()</code> methods in Java provide a mechanism for inter-thread communication, 
+                            allowing threads to coordinate their activities and avoid busy waiting.
+                        </p>
+                        <div class="bg-purple-50 p-4 rounded-lg border border-purple-200 mb-4">
+                            <h3 class="font-bold text-purple-700 mb-2"><i class="fas fa-info-circle mr-2"></i>Key Points</h3>
+                            <ul class="list-disc pl-5 space-y-1">
+                                <li>Defined in <code>java.lang.Object</code> class</li>
+                                <li>Used for inter-thread communication and coordination</li>
+                                <li>Must be called from synchronized context</li>
+                                <li>Thread releases monitor lock when waiting</li>
+                                <li>Alternative to polling and busy waiting</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-center">
+                        <div class="bg-gradient-to-br from-waitNotify to-waitNotifyLight text-white rounded-xl p-6 max-w-md w-full">
+                            <h3 class="text-xl font-bold mb-4 text-center">Thread Coordination Flow</h3>
+                            <div class="space-y-3">
+                                <div class="bg-white bg-opacity-10 p-3 rounded-lg text-center">
+                                    <h4 class="font-bold">Thread 1</h4>
+                                    <p class="text-sm">Calls wait() - releases lock and waits</p>
+                                </div>
+                                <div class="text-center">
+                                    <i class="fas fa-arrow-down text-white"></i>
+                                </div>
+                                <div class="bg-white bg-opacity-10 p-3 rounded-lg text-center">
+                                    <h4 class="font-bold">Thread 2</h4>
+                                    <p class="text-sm">Calls notify() - wakes up waiting thread</p>
+                                </div>
+                                <div class="text-center">
+                                    <i class="fas fa-arrow-down text-white"></i>
+                                </div>
+                                <div class="bg-white bg-opacity-10 p-3 rounded-lg text-center">
+                                    <h4 class="font-bold">Thread 1</h4>
+                                    <p class="text-sm">Resumes execution after reacquiring lock</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Basic Wait-Notify Example -->
+                <div class="mt-8">
+                    <h3 class="text-xl font-bold text-waitNotify mb-4">Basic Wait-Notify Pattern</h3>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                        <pre><code class="java">public class BasicWaitNotify {
+    private boolean condition = false;
+    private final Object lock = new Object();
+    
+    public void waitForCondition() throws InterruptedException {
+        synchronized (lock) {
+            // Always use wait() in a loop to handle spurious wakeups
+            while (!condition) {
+                System.out.println(Thread.currentThread().getName() + " is waiting...");
+                lock.wait(); // Releases lock and waits for notification
+            }
+            // Condition is true, proceed with work
+            System.out.println(Thread.currentThread().getName() + " is proceeding with work");
+            condition = false; // Reset condition for next time
+        }
+    }
+    
+    public void setCondition() {
+        synchronized (lock) {
+            condition = true;
+            System.out.println(Thread.currentThread().getName() + " is notifying waiting threads");
+            lock.notify(); // Wakes up one waiting thread
+            // lock.notifyAll(); // Use this to wake up all waiting threads
+        }
+    }
+    
+    public static void main(String[] args) throws InterruptedException {
+        BasicWaitNotify example = new BasicWaitNotify();
+        
+        // Thread that waits for condition
+        Thread waiter = new Thread(() -> {
+            try {
+                example.waitForCondition();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }, "Waiter-Thread");
+        
+        // Thread that sets condition
+        Thread notifier = new Thread(() -> {
+            try {
+                Thread.sleep(2000); // Simulate some work before notifying
+                example.setCondition();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }, "Notifier-Thread");
+        
+        waiter.start();
+        notifier.start();
+        
+        waiter.join();
+        notifier.join();
+        
+        System.out.println("Basic wait-notify example completed");
+    }
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Methods Deep Dive -->
+        <section id="methods" class="mb-16 scroll-mt-20">
+            <h2 class="text-2xl md:text-3xl font-bold text-waitNotify mb-6">Method Deep Dive</h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                <!-- wait() Method -->
+                <div class="concept-card method-card bg-white rounded-xl shadow-md p-6">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-green-500 text-white p-2 rounded-lg mr-3">
+                            <i class="fas fa-pause"></i>
+                        </div>
+                        <h3 class="text-xl font-bold">wait()</h3>
+                    </div>
+                    <p class="mb-4">Causes current thread to wait until another thread invokes notify() or notifyAll().</p>
+                    
+                    <div class="space-y-3 mb-4">
+                        <div>
+                            <h4 class="font-bold text-gray-700">Signature:</h4>
+                            <code class="method-signature">public final void wait() throws InterruptedException</code>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-gray-700">Behavior:</h4>
+                            <ul class="list-disc pl-5 text-sm space-y-1">
+                                <li>Releases the object's monitor lock</li>
+                                <li>Thread moves to WAITING state</li>
+                                <li>Waits indefinitely for notification</li>
+                                <li>Can be interrupted</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                        <pre><code class="java">synchronized (lockObject) {
+    while (!condition) {
+        lockObject.wait(); // Releases lock and waits
+    }
+    // Proceed when condition is true
+}</code></pre>
+                    </div>
+                </div>
+
+                <!-- wait(timeout) Method -->
+                <div class="concept-card method-card bg-white rounded-xl shadow-md p-6">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-yellow-500 text-white p-2 rounded-lg mr-3">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <h3 class="text-xl font-bold">wait(long timeout)</h3>
+                    </div>
+                    <p class="mb-4">Waits for specified milliseconds or until notified.</p>
+                    
+                    <div class="space-y-3 mb-4">
+                        <div>
+                            <h4 class="font-bold text-gray-700">Signature:</h4>
+                            <code class="method-signature">public final void wait(long timeout) throws InterruptedException</code>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-gray-700">Behavior:</h4>
+                            <ul class="list-disc pl-5 text-sm space-y-1">
+                                <li>Waits up to specified milliseconds</li>
+                                <li>Returns if timeout expires</li>
+                                <li>Still need to check condition after wait</li>
+                                <li>Prevents indefinite blocking</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                        <pre><code class="java">synchronized (lockObject) {
+    long timeout = 5000; // 5 seconds
+    long startTime = System.currentTimeMillis();
+    
+    while (!condition) {
+        long remaining = timeout - (System.currentTimeMillis() - startTime);
+        if (remaining <= 0) {
+            throw new TimeoutException("Condition not met within timeout");
+        }
+        lockObject.wait(remaining);
+    }
+}</code></pre>
+                    </div>
+                </div>
+
+                <!-- notify() Method -->
+                <div class="concept-card method-card bg-white rounded-xl shadow-md p-6">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-blue-500 text-white p-2 rounded-lg mr-3">
+                            <i class="fas fa-bell"></i>
+                        </div>
+                        <h3 class="text-xl font-bold">notify() & notifyAll()</h3>
+                    </div>
+                    <p class="mb-4">Wakes up waiting thread(s).</p>
+                    
+                    <div class="space-y-3 mb-4">
+                        <div>
+                            <h4 class="font-bold text-gray-700">Signatures:</h4>
+                            <code class="method-signature block">public final void notify()</code>
+                            <code class="method-signature block">public final void notifyAll()</code>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-gray-700">Behavior:</h4>
+                            <ul class="list-disc pl-5 text-sm space-y-1">
+                                <li><strong>notify()</strong>: Wakes one arbitrary waiting thread</li>
+                                <li><strong>notifyAll()</strong>: Wakes all waiting threads</li>
+                                <li>Waiting threads compete for the lock</li>
+                                <li>Doesn't release lock immediately</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                        <pre><code class="java">synchronized (lockObject) {
+    condition = true;
+    lockObject.notify(); // Wake one thread
+    // OR
+    lockObject.notifyAll(); // Wake all threads
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Method Comparison -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h3 class="text-xl font-bold text-waitNotify mb-4">Method Comparison</h3>
+                
+                <div class="overflow-x-auto">
+                    <table class="comparison-table w-full border-collapse">
+                        <thead>
+                            <tr class="bg-gray-100">
+                                <th class="border p-3 text-left">Method</th>
+                                <th class="border p-3 text-left">Parameters</th>
+                                <th class="border p-3 text-left">Behavior</th>
+                                <th class="border p-3 text-left">When to Use</th>
+                                <th class="border p-3 text-left">Throws</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="border p-3 font-mono">wait()</td>
+                                <td class="border p-3">None</td>
+                                <td class="border p-3">Waits indefinitely for notification</td>
+                                <td class="border p-3">When you can wait forever</td>
+                                <td class="border p-3">InterruptedException</td>
+                            </tr>
+                            <tr>
+                                <td class="border p-3 font-mono">wait(long timeout)</td>
+                                <td class="border p-3">milliseconds</td>
+                                <td class="border p-3">Waits up to specified time</td>
+                                <td class="border p-3">When you need timeout</td>
+                                <td class="border p-3">InterruptedException</td>
+                            </tr>
+                            <tr>
+                                <td class="border p-3 font-mono">wait(long timeout, int nanos)</td>
+                                <td class="border p-3">ms + nanoseconds</td>
+                                <td class="border p-3">More precise timeout</td>
+                                <td class="border p-3">High precision timing</td>
+                                <td class="border p-3">InterruptedException</td>
+                            </tr>
+                            <tr>
+                                <td class="border p-3 font-mono">notify()</td>
+                                <td class="border p-3">None</td>
+                                <td class="border p-3">Wakes one waiting thread</td>
+                                <td class="border p-3">Single consumer or don't care which</td>
+                                <td class="border p-3">-</td>
+                            </tr>
+                            <tr>
+                                <td class="border p-3 font-mono">notifyAll()</td>
+                                <td class="border p-3">None</td>
+                                <td class="border p-3">Wakes all waiting threads</td>
+                                <td class="border p-3">Multiple consumers or specific ordering needed</td>
+                                <td class="border p-3">-</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Producer-Consumer Pattern -->
+        <section id="producer-consumer" class="mb-16 scroll-mt-20">
+            <h2 class="text-2xl md:text-3xl font-bold text-waitNotify mb-6">Producer-Consumer Pattern</h2>
+            
+            <div class="bg-white rounded-xl shadow-md p-6 mb-8">
+                <div class="flex items-center mb-4">
+                    <div class="bg-gradient-to-r from-producer to-consumer text-white p-2 rounded-lg mr-3">
+                        <i class="fas fa-exchange-alt"></i>
+                    </div>
+                    <h3 class="text-xl font-bold">Classic Producer-Consumer with Bounded Buffer</h3>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <p class="mb-4">
+                            The producer-consumer pattern demonstrates how wait() and notify() coordinate multiple threads 
+                            sharing a bounded buffer with capacity constraints.
+                        </p>
+                        
+                        <div class="bg-green-50 p-4 rounded-lg border border-green-200 mb-4">
+                            <h4 class="font-bold text-green-700 mb-2 producer-color"><i class="fas fa-arrow-right mr-2"></i>Producer Thread</h4>
+                            <ul class="list-disc pl-5 space-y-1 text-sm">
+                                <li>Produces items and adds to buffer</li>
+                                <li>Waits if buffer is full</li>
+                                <li>Notifies consumers when adding items</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="bg-red-50 p-4 rounded-lg border border-red-200">
+                            <h4 class="font-bold text-red-700 mb-2 consumer-color"><i class="fas fa-arrow-left mr-2"></i>Consumer Thread</h4>
+                            <ul class="list-disc pl-5 space-y-1 text-sm">
+                                <li>Consumes items from buffer</li>
+                                <li>Waits if buffer is empty</li>
+                                <li>Notifies producers when removing items</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <div class="code-block">
+                            <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                            <pre><code class="java">import java.util.LinkedList;
+import java.util.Queue;
+
+public class ProducerConsumerExample {
+    private final Queue<Integer> buffer = new LinkedList<>();
+    private final int capacity;
+    private final Object lock = new Object();
+    
+    public ProducerConsumerExample(int capacity) {
+        this.capacity = capacity;
+    }
+    
+    // Producer method
+    public void produce(int item) throws InterruptedException {
+        synchronized (lock) {
+            // Wait while buffer is full
+            while (buffer.size() == capacity) {
+                System.out.println("Buffer full, producer waiting...");
+                lock.wait();
+            }
+            
+            // Add item to buffer
+            buffer.offer(item);
+            System.out.println("Produced: " + item + ", Buffer size: " + buffer.size());
+            
+            // Notify consumers that buffer is not empty
+            lock.notifyAll();
+        }
+    }
+    
+    // Consumer method
+    public int consume() throws InterruptedException {
+        synchronized (lock) {
+            // Wait while buffer is empty
+            while (buffer.isEmpty()) {
+                System.out.println("Buffer empty, consumer waiting...");
+                lock.wait();
+            }
+            
+            // Remove item from buffer
+            int item = buffer.poll();
+            System.out.println("Consumed: " + item + ", Buffer size: " + buffer.size());
+            
+            // Notify producers that buffer is not full
+            lock.notifyAll();
+            
+            return item;
+        }
+    }
+    
+    public static void main(String[] args) throws InterruptedException {
+        ProducerConsumerExample pc = new ProducerConsumerExample(5);
+        
+        // Create multiple producers
+        Thread[] producers = new Thread[3];
+        for (int i = 0; i < producers.length; i++) {
+            final int producerId = i;
+            producers[i] = new Thread(() -> {
+                try {
+                    for (int j = 0; j < 5; j++) {
+                        int item = producerId * 10 + j;
+                        pc.produce(item);
+                        Thread.sleep(100); // Simulate production time
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }, "Producer-" + producerId);
+        }
+        
+        // Create multiple consumers
+        Thread[] consumers = new Thread[2];
+        for (int i = 0; i < consumers.length; i++) {
+            final int consumerId = i;
+            consumers[i] = new Thread(() -> {
+                try {
+                    for (int j = 0; j < 7; j++) { // Consume more than produced by single producer
+                        pc.consume();
+                        Thread.sleep(150); // Simulate consumption time
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }, "Consumer-" + consumerId);
+        }
+        
+        // Start all threads
+        for (Thread producer : producers) {
+            producer.start();
+        }
+        for (Thread consumer : consumers) {
+            consumer.start();
+        }
+        
+        // Wait for completion
+        for (Thread producer : producers) {
+            producer.join();
+        }
+        for (Thread consumer : consumers) {
+            consumer.join();
+        }
+        
+        System.out.println("Producer-Consumer example completed");
+    }
+}</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Producer-Consumer Visualization -->
+            <div class="bg-gray-100 p-6 rounded-lg">
+                <h4 class="font-bold text-lg mb-4 text-center">Producer-Consumer Interaction Flow</h4>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                    <div class="interaction-visual bg-green-100 p-4 rounded-lg">
+                        <h5 class="font-bold producer-color mb-2">Producer</h5>
+                        <div class="space-y-2">
+                            <div class="thread-state state-running">Check Buffer</div>
+                            <div class="thread-state state-waiting">Wait if Full</div>
+                            <div class="thread-state state-running">Add Item</div>
+                            <div class="thread-state state-notified">Notify Consumer</div>
+                        </div>
+                    </div>
+                    
+                    <div class="interaction-visual bg-blue-100 p-4 rounded-lg flex items-center justify-center">
+                        <div class="text-center">
+                            <i class="fas fa-sync-alt text-3xl text-blue-500 mb-2"></i>
+                            <p class="text-sm font-bold">Shared Buffer</p>
+                            <p class="text-xs">Capacity: 5</p>
+                        </div>
+                    </div>
+                    
+                    <div class="interaction-visual bg-red-100 p-4 rounded-lg">
+                        <h5 class="font-bold consumer-color mb-2">Consumer</h5>
+                        <div class="space-y-2">
+                            <div class="thread-state state-running">Check Buffer</div>
+                            <div class="thread-state state-waiting">Wait if Empty</div>
+                            <div class="thread-state state-running">Remove Item</div>
+                            <div class="thread-state state-notified">Notify Producer</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Conditions and Spurious Wakeups -->
+        <section id="conditions" class="mb-16 scroll-mt-20">
+            <h2 class="text-2xl md:text-3xl font-bold text-waitNotify mb-6">Conditions & Spurious Wakeups</h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Spurious Wakeups -->
+                <div class="concept-card warning-card bg-white rounded-xl shadow-md p-6">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-red-500 text-white p-2 rounded-lg mr-3">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <h3 class="text-xl font-bold">Spurious Wakeups</h3>
+                    </div>
+                    <p class="mb-4">
+                        Threads can sometimes wake up from wait() without being notified. This is called a "spurious wakeup" 
+                        and must be handled properly.
+                    </p>
+                    
+                    <div class="code-block mb-4">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                        <pre><code class="java">public class SpuriousWakeupHandling {
+    private boolean condition = false;
+    private final Object lock = new Object();
+    
+    // ❌ WRONG - susceptible to spurious wakeups
+    public void wrongWait() throws InterruptedException {
+        synchronized (lock) {
+            if (!condition) {
+                lock.wait(); // May wake up without notification!
+            }
+            // Proceed assuming condition is true (may be false!)
+        }
+    }
+    
+    // ✅ CORRECT - handles spurious wakeups
+    public void correctWait() throws InterruptedException {
+        synchronized (lock) {
+            // Always use wait() in a while loop
+            while (!condition) {
+                lock.wait(); // If spurious wakeup occurs, check condition again
+            }
+            // Condition is guaranteed to be true here
+            System.out.println("Condition is true, proceeding...");
+        }
+    }
+    
+    public void setCondition() {
+        synchronized (lock) {
+            condition = true;
+            lock.notifyAll();
+        }
+    }
+}</code></pre>
+                    </div>
+                    
+                    <div class="bg-red-50 p-3 rounded-lg border border-red-200">
+                        <h4 class="font-bold text-red-700 mb-1"><i class="fas fa-bug mr-1"></i>Why Spurious Wakeups Happen</h4>
+                        <p class="text-sm">Due to underlying OS and JVM implementation details. Always assume they can occur.</p>
+                    </div>
+                </div>
+
+                <!-- Multiple Conditions -->
+                <div class="concept-card method-card bg-white rounded-xl shadow-md p-6">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-blue-500 text-white p-2 rounded-lg mr-3">
+                            <i class="fas fa-filter"></i>
+                        </div>
+                        <h3 class="text-xl font-bold">Multiple Conditions</h3>
+                    </div>
+                    <p class="mb-4">
+                        When multiple conditions need to be waited upon, use different lock objects or implement condition checking.
+                    </p>
+                    
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                        <pre><code class="java">public class MultipleConditionsExample {
+    private boolean condition1 = false;
+    private boolean condition2 = false;
+    private final Object lock = new Object();
+    
+    public void waitForCondition1() throws InterruptedException {
+        synchronized (lock) {
+            while (!condition1) {
+                lock.wait();
+            }
+            condition1 = false; // Reset for next use
+            System.out.println("Condition 1 satisfied");
+        }
+    }
+    
+    public void waitForCondition2() throws InterruptedException {
+        synchronized (lock) {
+            while (!condition2) {
+                lock.wait();
+            }
+            condition2 = false; // Reset for next use
+            System.out.println("Condition 2 satisfied");
+        }
+    }
+    
+    public void setCondition1() {
+        synchronized (lock) {
+            condition1 = true;
+            lock.notifyAll(); // Wake all to check their conditions
+        }
+    }
+    
+    public void setCondition2() {
+        synchronized (lock) {
+            condition2 = true;
+            lock.notifyAll(); // Wake all to check their conditions
+        }
+    }
+    
+    // More efficient approach with selective notification
+    public void efficientWaitForCondition1() throws InterruptedException {
+        synchronized (lock) {
+            while (!condition1) {
+                lock.wait();
+            }
+        }
+    }
+    
+    // But we can't selectively notify with basic wait/notify
+    // For selective notification, use java.util.concurrent.locks.Condition
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Wait with Timeout Pattern -->
+            <div class="concept-card bg-white rounded-xl shadow-md p-6 mt-8">
+                <h3 class="text-xl font-bold text-waitNotify mb-4">Advanced: Wait with Timeout Pattern</h3>
+                
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                    <pre><code class="java">import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
+public class TimedWaitExample {
+    private boolean condition = false;
+    private final Object lock = new Object();
+    
+    /**
+     * Waits for condition to be true, with timeout
+     * @param timeout the maximum time to wait
+     * @param unit the time unit of the timeout argument
+     * @return true if condition became true, false if timeout occurred
+     * @throws InterruptedException if thread is interrupted
+     */
+    public boolean waitForCondition(long timeout, TimeUnit unit) 
+            throws InterruptedException {
+        
+        long nanosTimeout = unit.toNanos(timeout);
+        long startTime = System.nanoTime();
+        
+        synchronized (lock) {
+            while (!condition) {
+                if (nanosTimeout <= 0) {
+                    return false; // Timeout occurred
+                }
+                
+                // Wait for remaining time or until notified
+                long waitStart = System.nanoTime();
+                lock.wait(nanosTimeout / 1_000_000, (int) (nanosTimeout % 1_000_000));
+                long waitEnd = System.nanoTime();
+                
+                // Update remaining time
+                nanosTimeout -= (waitEnd - waitStart);
+                
+                // Check if condition was set while we were waiting
+                if (condition) {
+                    return true;
+                }
+            }
+            return true; // Condition was already true
+        }
+    }
+    
+    /**
+     * Alternative implementation that throws exception on timeout
+     */
+    public void waitForConditionOrThrow(long timeout, TimeUnit unit) 
+            throws InterruptedException, TimeoutException {
+        
+        if (!waitForCondition(timeout, unit)) {
+            throw new TimeoutException("Condition not met within " + timeout + " " + unit);
+        }
+    }
+    
+    public void setCondition() {
+        synchronized (lock) {
+            condition = true;
+            lock.notifyAll();
+        }
+    }
+    
+    public void resetCondition() {
+        synchronized (lock) {
+            condition = false;
+        }
+    }
+    
+    public static void main(String[] args) {
+        TimedWaitExample example = new TimedWaitExample();
+        
+        Thread waiter = new Thread(() -> {
+            try {
+                System.out.println("Waiting for condition with 3 second timeout...");
+                boolean success = example.waitForCondition(3, TimeUnit.SECONDS);
+                
+                if (success) {
+                    System.out.println("Condition met within timeout!");
+                } else {
+                    System.out.println("Timeout occurred before condition was met");
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        
+        Thread setter = new Thread(() -> {
+            try {
+                Thread.sleep(2000); // Set condition after 2 seconds
+                example.setCondition();
+                System.out.println("Condition set by setter thread");
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        
+        waiter.start();
+        setter.start();
+        
+        try {
+            waiter.join();
+            setter.join();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+}</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- Best Practices Section -->
+        <section id="best-practices" class="mb-16 scroll-mt-20">
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-2xl md:text-3xl font-bold text-waitNotify mb-6">Best Practices</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-green-50 p-4 rounded-lg border border-green-200">
+                        <h3 class="font-bold text-green-700 mb-2"><i class="fas fa-sync-alt mr-2"></i>Always Use While Loop</h3>
+                        <p class="text-sm">Protect against spurious wakeups by checking condition in a while loop.</p>
+                        <code class="method-signature block mt-2">while (!condition) { wait(); }</code>
+                    </div>
+                    
+                    <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                        <h3 class="font-bold text-blue-700 mb-2"><i class="fas fa-lock mr-2"></i>Synchronized Context</h3>
+                        <p class="text-sm">Always call wait() and notify() from synchronized blocks/methods.</p>
+                        <code class="method-signature block mt-2">synchronized(lock) { wait(); }</code>
+                    </div>
+                    
+                    <div class="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                        <h3 class="font-bold text-purple-700 mb-2"><i class="fas fa-bell mr-2"></i>Prefer notifyAll()</h3>
+                        <p class="text-sm">Use notifyAll() unless you have specific performance requirements.</p>
+                        <code class="method-signature block mt-2">notifyAll() // over notify()</code>
+                    </div>
+                    
+                    <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                        <h3 class="font-bold text-yellow-700 mb-2"><i class="fas fa-clock mr-2"></i>Use Timeouts</h3>
+                        <p class="text-sm">Prevent indefinite blocking with wait(timeout) in production code.</p>
+                        <code class="method-signature block mt-2">wait(5000) // 5 second timeout</code>
+                    </div>
+                    
+                    <div class="bg-red-50 p-4 rounded-lg border border-red-200">
+                        <h3 class="font-bold text-red-700 mb-2"><i class="fas fa-hand-paper mr-2"></i>Handle Interruption</h3>
+                        <p class="text-sm">Always handle InterruptedException properly by restoring interrupt status.</p>
+                        <code class="method-signature block mt-2">catch (InterruptedException e) { Thread.currentThread().interrupt(); }</code>
+                    </div>
+                    
+                    <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-200">
+                        <h3 class="font-bold text-indigo-700 mb-2"><i class="fas fa-code-branch mr-2"></i>Document Assumptions</h3>
+                        <p class="text-sm">Clearly document which thread is responsible for notifications.</p>
+                    </div>
+                </div>
+
+                <!-- Step-by-Step Guide -->
+                <div class="bg-gray-100 p-6 rounded-lg">
+                    <h3 class="text-xl font-bold text-waitNotify mb-4">Step-by-Step Implementation Guide</h3>
+                    
+                    <div class="space-y-4">
+                        <div class="flex items-start bg-white p-4 rounded-lg">
+                            <div class="step-indicator">1</div>
+                            <div>
+                                <h4 class="font-bold mb-2">Define Shared Lock Object</h4>
+                                <p class="text-sm">Use a dedicated object for synchronization to avoid confusion with 'this'.</p>
+                                <code class="method-signature">private final Object lock = new Object();</code>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-start bg-white p-4 rounded-lg">
+                            <div class="step-indicator">2</div>
+                            <div>
+                                <h4 class="font-bold mb-2">Define Condition Variables</h4>
+                                <p class="text-sm">Use boolean flags or other state variables to represent conditions.</p>
+                                <code class="method-signature">private boolean condition = false;</code>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-start bg-white p-4 rounded-lg">
+                            <div class="step-indicator">3</div>
+                            <div>
+                                <h4 class="font-bold mb-2">Implement Waiting Logic</h4>
+                                <p class="text-sm">Use while loop to wait for condition, handle interruptions.</p>
+                                <code class="method-signature block">while (!condition) { lock.wait(); }</code>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-start bg-white p-4 rounded-lg">
+                            <div class="step-indicator">4</div>
+                            <div>
+                                <h4 class="font-bold mb-2">Implement Notification Logic</h4>
+                                <p class="text-sm">Set condition and notify waiting threads in synchronized block.</p>
+                                <code class="method-signature block">condition = true; lock.notifyAll();</code>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-start bg-white p-4 rounded-lg">
+                            <div class="step-indicator">5</div>
+                            <div>
+                                <h4 class="font-bold mb-2">Test Thoroughly</h4>
+                                <p class="text-sm">Test with multiple threads, timeouts, and interruption scenarios.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Common Issues Section -->
+        <section id="common-issues" class="mb-16 scroll-mt-20">
+            <h2 class="text-2xl md:text-3xl font-bold text-waitNotify mb-6">Common Issues & Solutions</h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- IllegalMonitorStateException -->
+                <div class="concept-card warning-card bg-white rounded-xl shadow-md p-6">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-red-500 text-white p-2 rounded-lg mr-3">
+                            <i class="fas fa-ban"></i>
+                        </div>
+                        <h3 class="text-xl font-bold">IllegalMonitorStateException</h3>
+                    </div>
+                    <p class="mb-4">Thrown when wait() or notify() is called without holding the object's monitor.</p>
+                    
+                    <div class="code-block mb-4">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                        <pre><code class="java">public class MonitorStateExample {
+    private final Object lock = new Object();
+    
+    // ❌ WRONG - not synchronized
+    public void wrongWait() throws InterruptedException {
+        lock.wait(); // Throws IllegalMonitorStateException!
+    }
+    
+    // ❌ WRONG - synchronized on wrong object
+    public void wrongSyncWait() throws InterruptedException {
+        synchronized (this) { // Synchronizing on 'this' but waiting on 'lock'
+            lock.wait(); // Throws IllegalMonitorStateException!
+        }
+    }
+    
+    // ✅ CORRECT - synchronized on the same object
+    public void correctWait() throws InterruptedException {
+        synchronized (lock) {
+            lock.wait(); // This works correctly
+        }
+    }
+    
+    // ✅ CORRECT - synchronized method using 'this'
+    public synchronized void correctSyncMethodWait() throws InterruptedException {
+        this.wait(); // Synchronized method uses 'this' as lock
+    }
+}</code></pre>
+                    </div>
+                </div>
+
+                <!-- Lost Notification -->
+                <div class="concept-card warning-card bg-white rounded-xl shadow-md p-6">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-orange-500 text-white p-2 rounded-lg mr-3">
+                            <i class="fas fa-exclamation-circle"></i>
+                        </div>
+                        <h3 class="text-xl font-bold">Lost Notifications</h3>
+                    </div>
+                    <p class="mb-4">Occurs when notify() is called before wait(), causing the notification to be lost.</p>
+                    
+                    <div class="code-block mb-4">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                        <pre><code class="java">public class LostNotificationExample {
+    private boolean condition = false;
+    private final Object lock = new Object();
+    
+    // Scenario that can cause lost notification
+    public void demonstrateLostNotification() throws InterruptedException {
+        // Thread 1: Sets condition and notifies (but no one is waiting yet)
+        Thread notifier = new Thread(() -> {
+            synchronized (lock) {
+                condition = true;
+                lock.notify(); // Notification is lost!
+                System.out.println("Notification sent, but no one was waiting");
+            }
+        });
+        
+        // Thread 2: Waits after notification was already sent
+        Thread waiter = new Thread(() -> {
+            synchronized (lock) {
+                try {
+                    while (!condition) {
+                        lock.wait(); // Waits forever because notification was lost
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        });
+        
+        notifier.start();
+        Thread.sleep(100); // Ensure notifier runs first
+        waiter.start();
+        
+        notifier.join();
+        waiter.join(); // This may never complete!
+    }
+    
+    // Solution: Use proper state management and consider notifyAll()
+    public void fixedVersion() {
+        // Proper design ensures notifications aren't timing-dependent
+        // Or use java.util.concurrent components instead
+    }
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- wait() vs sleep() Comparison -->
+            <div class="concept-card bg-white rounded-xl shadow-md p-6 mt-8">
+                <h3 class="text-xl font-bold text-waitNotify mb-4">wait() vs sleep() Comparison</h3>
+                
+                <div class="overflow-x-auto">
+                    <table class="comparison-table w-full border-collapse">
+                        <thead>
+                            <tr class="bg-gray-100">
+                                <th class="border p-3 text-left">Aspect</th>
+                                <th class="border p-3 text-left">wait()</th>
+                                <th class="border p-3 text-left">sleep()</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="border p-3 font-medium">Defined in</td>
+                                <td class="border p-3">java.lang.Object</td>
+                                <td class="border p-3">java.lang.Thread</td>
+                            </tr>
+                            <tr>
+                                <td class="border p-3 font-medium">Called from</td>
+                                <td class="border p-3">Synchronized context only</td>
+                                <td class="border p-3">Any context</td>
+                            </tr>
+                            <tr>
+                                <td class="border p-3 font-medium">Lock behavior</td>
+                                <td class="border p-3">Releases monitor lock</td>
+                                <td class="border p-3">Does not release any locks</td>
+                            </tr>
+                            <tr>
+                                <td class="border p-3 font-medium">Wakeup condition</td>
+                                <td class="border p-3">notify()/notifyAll() or timeout</td>
+                                <td class="border p-3">Timeout or interruption</td>
+                            </tr>
+                            <tr>
+                                <td class="border p-3 font-medium">Use case</td>
+                                <td class="border p-3">Inter-thread coordination</td>
+                                <td class="border p-3">Pausing execution</td>
+                            </tr>
+                            <tr>
+                                <td class="border p-3 font-medium">Exception</td>
+                                <td class="border p-3">InterruptedException</td>
+                                <td class="border p-3">InterruptedException</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Modern Alternatives -->
+            <div class="concept-card bg-white rounded-xl shadow-md p-6 mt-8">
+                <h3 class="text-xl font-bold text-waitNotify mb-4">Modern Alternatives</h3>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-bold text-lg mb-3">java.util.concurrent</h4>
+                        <p class="mb-4">For new code, consider using higher-level concurrency utilities:</p>
+                        <ul class="list-disc pl-5 space-y-2">
+                            <li><strong>BlockingQueue</strong> - For producer-consumer scenarios</li>
+                            <li><strong>CountDownLatch</strong> - For one-time synchronization</li>
+                            <li><strong>CyclicBarrier</strong> - For repeated synchronization points</li>
+                            <li><strong>Phaser</strong> - For reusable synchronization barriers</li>
+                            <li><strong>CompletableFuture</strong> - For asynchronous programming</li>
+                        </ul>
+                    </div>
+                    
+                    <div>
+                        <h4 class="font-bold text-lg mb-3">Lock and Condition</h4>
+                        <p class="mb-4">For more advanced scenarios, use <code>java.util.concurrent.locks</code>:</p>
+                        <div class="code-block">
+                            <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                            <pre><code class="java">import java.util.concurrent.locks.*;
+
+// Modern alternative to wait/notify
+Lock lock = new ReentrantLock();
+Condition condition = lock.newCondition();
+
+// Waiting
+lock.lock();
+try {
+    while (!someCondition) {
+        condition.await(); // Similar to wait()
+    }
+} finally {
+    lock.unlock();
+}
+
+// Notifying
+lock.lock();
+try {
+    someCondition = true;
+    condition.signalAll(); // Similar to notifyAll()
+} finally {
+    lock.unlock();
+}</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-waitNotifyLight text-white py-8">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-4 md:mb-0">
+                    <h2 class="text-xl font-bold mb-2">Java wait() & notify() Guide</h2>
+                    <p class="text-purple-100">Mastering Inter-Thread Communication</p>
+                </div>
+                <div class="flex space-x-4">
+                    <a href="#" class="text-white hover:text-purple-200 transition-colors">
+                        <i class="fab fa-github text-2xl"></i>
+                    </a>
+                    <a href="#" class="text-white hover:text-purple-200 transition-colors">
+                        <i class="fab fa-twitter text-2xl"></i>
+                    </a>
+                    <a href="#" class="text-white hover:text-purple-200 transition-colors">
+                        <i class="fab fa-linkedin text-2xl"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="border-t border-purple-700 mt-6 pt-6 text-center text-purple-200">
+                <p>&copy; 2023 Java wait() & notify() Guide. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Initialize syntax highlighting
+        hljs.highlightAll();
+        
+        // Copy code functionality
+        function copyCode(button) {
+            const codeBlock = button.parentElement;
+            const code = codeBlock.querySelector('code').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                button.style.background = 'rgba(34, 197, 94, 0.8)';
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.background = 'rgba(255, 255, 255, 0.1)';
+                }, 2000);
+            });
+        }
+
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+        
+        // Add animation to concept cards on scroll
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+        
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, observerOptions);
+        
+        document.querySelectorAll('.concept-card').forEach(el => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(20px)';
+            el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            observer.observe(el);
+        });
+
+        // Interactive thread state demonstration
+        function demonstrateThreadStates() {
+            const states = document.querySelectorAll('.thread-state');
+            states.forEach(state => {
+                state.addEventListener('click', function() {
+                    const currentText = this.textContent;
+                    if (currentText.includes('Waiting')) {
+                        this.textContent = currentText.replace('Waiting', 'Running');
+                        this.className = this.className.replace('state-waiting', 'state-running');
+                    } else if (currentText.includes('Running')) {
+                        this.textContent = currentText.replace('Running', 'Notified');
+                        this.className = this.className.replace('state-running', 'state-notified');
+                    } else if (currentText.includes('Notified')) {
+                        this.textContent = currentText.replace('Notified', 'Waiting');
+                        this.className = this.className.replace('state-notified', 'state-waiting');
+                    }
+                });
+            });
+        }
+        
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', demonstrateThreadStates);
+
+        // Producer-Consumer animation
+        function animateProducerConsumer() {
+            const producers = document.querySelectorAll('.producer-color');
+            const consumers = document.querySelectorAll('.consumer-color');
+            
+            setInterval(() => {
+                producers.forEach(producer => {
+                    producer.style.opacity = producer.style.opacity === '0.7' ? '1' : '0.7';
+                });
+            }, 1000);
+            
+            setInterval(() => {
+                consumers.forEach(consumer => {
+                    consumer.style.opacity = consumer.style.opacity === '0.7' ? '1' : '0.7';
+                });
+            }, 1200);
+        }
+        
+        document.addEventListener('DOMContentLoaded', animateProducerConsumer);
+    </script>
+</body>
+</html>

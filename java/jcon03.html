@@ -1,0 +1,1376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chapter 3 · Thread Safety · Full Content · Auto Slide</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(145deg, #f0f4fa 0%, #dce3ed 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            padding: 12px;
+        }
+
+        .frame-card {
+            width: 100%;
+            height: calc(100vh - 24px);
+            max-height: calc(100vh - 24px);
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 44px;
+            box-shadow: 0 30px 60px -16px rgba(0, 20, 30, 0.3),
+                0 12px 32px -8px rgba(0, 0, 0, 0.06),
+                inset 0 1px 0 rgba(255, 255, 255, 0.7);
+            padding: 20px 24px;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .slider-viewport {
+            flex: 1;
+            width: 100%;
+            overflow: hidden;
+            border-radius: 28px;
+            position: relative;
+            background: rgba(255, 255, 255, 0.06);
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.02);
+            min-height: 0;
+        }
+
+        .slider-track {
+            display: flex;
+            height: 100%;
+            width: 100%;
+            animation: slideAnimation 200s ease-in-out infinite;
+            will-change: transform;
+        }
+
+        .slide {
+            flex: 0 0 100%;
+            height: 100%;
+            padding: 1.2rem 1.8rem;
+            overflow-y: auto;
+            overflow-x: hidden;
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.02);
+            color: #14212e;
+            margin: 0 3px;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(0, 0, 0, 0.12) transparent;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            hyphens: auto;
+            max-width: 100%;
+        }
+
+        .slide::-webkit-scrollbar {
+            width: 4px;
+        }
+        .slide::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .slide::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.12);
+            border-radius: 10px;
+        }
+
+        .slide h1 {
+            font-weight: 800;
+            font-size: 1.5rem;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.5rem;
+            color: #0a1725;
+            border-bottom: 3px solid rgba(50, 80, 120, 0.15);
+            padding-bottom: 0.3rem;
+            background: linear-gradient(135deg, #1a2a4a, #3a5a8a);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            word-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .slide h2 {
+            font-weight: 700;
+            font-size: 1.15rem;
+            margin: 0.5rem 0 0.25rem 0;
+            color: #1a3a6a;
+            border-left: 4px solid #4a8af4;
+            padding-left: 0.7rem;
+            word-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .slide h3 {
+            font-weight: 600;
+            font-size: 1rem;
+            margin: 0.4rem 0 0.2rem 0;
+            color: #2a5a8a;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            word-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .slide h3::before {
+            content: "▸";
+            color: #4a8af4;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .slide h4 {
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin: 0.35rem 0 0.15rem 0;
+            color: #3a6a9a;
+            padding-left: 0.4rem;
+            border-left: 3px solid #6aafff;
+            word-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .slide p {
+            font-weight: 400;
+            font-size: 0.87rem;
+            line-height: 1.55;
+            color: #1d2d3f;
+            opacity: 0.92;
+            margin-bottom: 0.25rem;
+            padding-left: 0.2rem;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .slide ul,
+        .slide ol {
+            padding-left: 1.3rem;
+            margin-bottom: 0.25rem;
+            word-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .slide li {
+            font-size: 0.84rem;
+            line-height: 1.5;
+            color: #1d2d3f;
+            opacity: 0.88;
+            margin-bottom: 0.12rem;
+            padding-left: 0.2rem;
+            list-style-type: none;
+            position: relative;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .slide li::before {
+            content: "✦";
+            color: #4a8af4;
+            position: absolute;
+            left: -1.1rem;
+            font-size: 0.65rem;
+            opacity: 0.6;
+            flex-shrink: 0;
+        }
+
+        .slide li strong {
+            color: #1a4a7a;
+        }
+
+        .slide code {
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            font-size: 0.76rem;
+            background: rgba(74, 138, 244, 0.08);
+            padding: 0.04rem 0.35rem;
+            border-radius: 4px;
+            color: #1a4a8a;
+            border: 1px solid rgba(74, 138, 244, 0.12);
+            word-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .slide pre {
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            font-size: 0.68rem;
+            background: linear-gradient(135deg, rgba(10, 30, 60, 0.04), rgba(74, 138, 244, 0.04));
+            padding: 0.4rem 0.8rem;
+            border-radius: 10px;
+            overflow-x: auto;
+            border: 1px solid rgba(74, 138, 244, 0.08);
+            margin: 0.25rem 0 0.35rem 0;
+            line-height: 1.45;
+            white-space: pre-wrap;
+            word-break: break-word;
+            color: #0a2a4a;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+            max-width: 100%;
+        }
+
+        .slide table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.78rem;
+            margin: 0.25rem 0;
+            max-width: 100%;
+            word-wrap: break-word;
+        }
+
+        .slide table th,
+        .slide table td {
+            border: 1px solid rgba(74, 138, 244, 0.12);
+            padding: 0.2rem 0.5rem;
+            text-align: left;
+        }
+
+        .slide table th {
+            background: rgba(74, 138, 244, 0.06);
+            font-weight: 600;
+            color: #1a3a6a;
+        }
+
+        .slide table td {
+            color: #1d2d3f;
+            opacity: 0.88;
+        }
+
+        .slide .qa-block {
+            background: linear-gradient(135deg, rgba(74, 138, 244, 0.04), rgba(106, 175, 255, 0.04));
+            border-radius: 10px;
+            padding: 0.4rem 0.8rem;
+            margin: 0.3rem 0;
+            border-left: 4px solid #4a8af4;
+            word-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .slide .qa-block .q {
+            font-weight: 600;
+            color: #1a3a6a;
+            font-size: 0.88rem;
+        }
+
+        .slide .qa-block .a {
+            color: #1d2d3f;
+            font-size: 0.84rem;
+            margin-top: 0.15rem;
+            padding-left: 0.2rem;
+        }
+
+        .slide .qa-block .a code {
+            font-size: 0.74rem;
+        }
+
+        .slide .highlight-box {
+            background: linear-gradient(135deg, rgba(74, 138, 244, 0.06), rgba(106, 175, 255, 0.06));
+            border-radius: 10px;
+            padding: 0.4rem 0.8rem;
+            margin: 0.25rem 0;
+            border: 1px solid rgba(74, 138, 244, 0.12);
+            box-shadow: 0 2px 8px rgba(74, 138, 244, 0.04);
+            word-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .slide .highlight-box p {
+            margin-bottom: 0;
+        }
+
+        .slide .divider {
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(74, 138, 244, 0.15), transparent);
+            margin: 0.4rem 0;
+        }
+
+        .slide .slide-number {
+            position: absolute;
+            bottom: 10px;
+            left: 18px;
+            font-size: 0.65rem;
+            opacity: 0.25;
+            font-weight: 600;
+            color: #2a4a6a;
+            pointer-events: none;
+            letter-spacing: 0.05em;
+        }
+
+        .slide .category-tag {
+            display: inline-block;
+            background: linear-gradient(135deg, rgba(74, 138, 244, 0.1), rgba(106, 175, 255, 0.1));
+            padding: 0.08rem 0.7rem;
+            border-radius: 20px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: #1a4a7a;
+            border: 1px solid rgba(74, 138, 244, 0.12);
+            margin-bottom: 0.3rem;
+        }
+
+        .concept-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            margin-top: 0.3rem;
+            max-width: 100%;
+        }
+
+        .concept-card {
+            border-radius: 10px;
+            padding: 0.5rem 0.8rem;
+            border: 1px solid rgba(74, 138, 244, 0.12);
+            word-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .concept-card h4 {
+            border-left: none;
+            padding-left: 0;
+            margin-top: 0;
+            font-size: 0.85rem;
+        }
+
+        .concept-card p {
+            font-size: 0.78rem;
+            margin-bottom: 0;
+            padding-left: 0;
+        }
+
+        /* ===== KEYFRAMES: 50 slides × 4s = 200s ===== */
+        @keyframes slideAnimation {
+            0% { transform: translateX(0); }
+            1.5% { transform: translateX(0); }
+            3% { transform: translateX(-100%); }
+            4.5% { transform: translateX(-100%); }
+            6% { transform: translateX(-200%); }
+            7.5% { transform: translateX(-200%); }
+            9% { transform: translateX(-300%); }
+            10.5% { transform: translateX(-300%); }
+            12% { transform: translateX(-400%); }
+            13.5% { transform: translateX(-400%); }
+            15% { transform: translateX(-500%); }
+            16.5% { transform: translateX(-500%); }
+            18% { transform: translateX(-600%); }
+            19.5% { transform: translateX(-600%); }
+            21% { transform: translateX(-700%); }
+            22.5% { transform: translateX(-700%); }
+            24% { transform: translateX(-800%); }
+            25.5% { transform: translateX(-800%); }
+            27% { transform: translateX(-900%); }
+            28.5% { transform: translateX(-900%); }
+            30% { transform: translateX(-1000%); }
+            31.5% { transform: translateX(-1000%); }
+            33% { transform: translateX(-1100%); }
+            34.5% { transform: translateX(-1100%); }
+            36% { transform: translateX(-1200%); }
+            37.5% { transform: translateX(-1200%); }
+            39% { transform: translateX(-1300%); }
+            40.5% { transform: translateX(-1300%); }
+            42% { transform: translateX(-1400%); }
+            43.5% { transform: translateX(-1400%); }
+            45% { transform: translateX(-1500%); }
+            46.5% { transform: translateX(-1500%); }
+            48% { transform: translateX(-1600%); }
+            49.5% { transform: translateX(-1600%); }
+            51% { transform: translateX(-1700%); }
+            52.5% { transform: translateX(-1700%); }
+            54% { transform: translateX(-1800%); }
+            55.5% { transform: translateX(-1800%); }
+            57% { transform: translateX(-1900%); }
+            58.5% { transform: translateX(-1900%); }
+            60% { transform: translateX(-2000%); }
+            61.5% { transform: translateX(-2000%); }
+            63% { transform: translateX(-2100%); }
+            64.5% { transform: translateX(-2100%); }
+            66% { transform: translateX(-2200%); }
+            67.5% { transform: translateX(-2200%); }
+            69% { transform: translateX(-2300%); }
+            70.5% { transform: translateX(-2300%); }
+            72% { transform: translateX(-2400%); }
+            73.5% { transform: translateX(-2400%); }
+            75% { transform: translateX(-2500%); }
+            76.5% { transform: translateX(-2500%); }
+            78% { transform: translateX(-2600%); }
+            79.5% { transform: translateX(-2600%); }
+            81% { transform: translateX(-2700%); }
+            82.5% { transform: translateX(-2700%); }
+            84% { transform: translateX(-2800%); }
+            85.5% { transform: translateX(-2800%); }
+            87% { transform: translateX(-2900%); }
+            88.5% { transform: translateX(-2900%); }
+            90% { transform: translateX(-3000%); }
+            91.5% { transform: translateX(-3000%); }
+            93% { transform: translateX(-3100%); }
+            94.5% { transform: translateX(-3100%); }
+            96% { transform: translateX(-3200%); }
+            97.5% { transform: translateX(-3200%); }
+            100% { transform: translateX(-3200%); }
+        }
+
+        .slider-viewport:hover .slider-track {
+            animation-play-state: paused;
+        }
+
+        .slide-indicator {
+            position: absolute;
+            bottom: 12px;
+            right: 18px;
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            padding: 4px 12px 4px 10px;
+            border-radius: 60px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: #1a3a5a;
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+            pointer-events: none;
+            letter-spacing: 0.03em;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            z-index: 10;
+            animation: pulseGlow 2s ease-in-out infinite;
+        }
+
+        .slide-indicator::after {
+            content: "4s";
+            font-size: 0.6rem;
+            opacity: 0.5;
+            font-weight: 700;
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 4px 12px rgba(74, 138, 244, 0.04); }
+            50% { box-shadow: 0 4px 20px rgba(74, 138, 244, 0.12); }
+        }
+
+        @media (max-width: 1024px) {
+            .slide { padding: 1rem 1.4rem; }
+            .slide h1 { font-size: 1.3rem; }
+            .slide h2 { font-size: 1.05rem; }
+            .slide p { font-size: 0.82rem; }
+            .slide pre { font-size: 0.64rem; padding: 0.35rem 0.6rem; }
+            .slide li { font-size: 0.79rem; }
+            .slide .qa-block .q { font-size: 0.82rem; }
+            .slide .qa-block .a { font-size: 0.78rem; }
+            .slide table { font-size: 0.72rem; }
+        }
+
+        @media (max-width: 768px) {
+            body { padding: 8px; }
+            .frame-card { padding: 10px 12px; border-radius: 28px; }
+            .slider-viewport { border-radius: 20px; }
+            .slide { padding: 0.8rem 1rem; margin: 0 2px; border-radius: 16px; }
+            .slide h1 { font-size: 1.1rem; }
+            .slide h2 { font-size: 0.95rem; }
+            .slide h3 { font-size: 0.88rem; }
+            .slide h4 { font-size: 0.82rem; }
+            .slide p { font-size: 0.76rem; line-height: 1.45; }
+            .slide pre { font-size: 0.58rem; padding: 0.25rem 0.5rem; }
+            .slide code { font-size: 0.68rem; }
+            .slide ul, .slide ol { padding-left: 1rem; }
+            .slide li { font-size: 0.73rem; }
+            .slide li::before { left: -0.9rem; font-size: 0.55rem; }
+            .slide table { font-size: 0.64rem; }
+            .slide table th, .slide table td { padding: 0.15rem 0.3rem; }
+            .slide .qa-block { padding: 0.3rem 0.6rem; }
+            .slide .qa-block .q { font-size: 0.76rem; }
+            .slide .qa-block .a { font-size: 0.72rem; }
+            .slide .highlight-box { padding: 0.3rem 0.6rem; }
+            .slide .slide-number { font-size: 0.55rem; bottom: 6px; left: 12px; }
+            .slide-indicator { bottom: 8px; right: 12px; font-size: 0.55rem; padding: 3px 8px; }
+            .concept-grid { grid-template-columns: 1fr 1fr; gap: 0.3rem; }
+            .concept-card { padding: 0.3rem 0.5rem; }
+            .concept-card h4 { font-size: 0.75rem; }
+            .concept-card p { font-size: 0.68rem; }
+        }
+
+        @media (max-width: 480px) {
+            body { padding: 6px; }
+            .frame-card { padding: 6px 8px; border-radius: 18px; }
+            .slider-viewport { border-radius: 12px; }
+            .slide { padding: 0.6rem 0.7rem; margin: 0 2px; border-radius: 12px; }
+            .slide h1 { font-size: 0.95rem; }
+            .slide h2 { font-size: 0.82rem; padding-left: 0.4rem; }
+            .slide h3 { font-size: 0.76rem; }
+            .slide h4 { font-size: 0.72rem; padding-left: 0.25rem; }
+            .slide p { font-size: 0.68rem; line-height: 1.4; padding-left: 0.1rem; }
+            .slide pre { font-size: 0.52rem; padding: 0.2rem 0.4rem; border-radius: 6px; }
+            .slide code { font-size: 0.6rem; padding: 0.02rem 0.25rem; }
+            .slide ul, .slide ol { padding-left: 0.8rem; }
+            .slide li { font-size: 0.67rem; padding-left: 0.1rem; }
+            .slide li::before { left: -0.7rem; font-size: 0.45rem; }
+            .slide table { font-size: 0.55rem; }
+            .slide table th, .slide table td { padding: 0.1rem 0.2rem; }
+            .slide .qa-block { padding: 0.2rem 0.4rem; border-radius: 6px; }
+            .slide .qa-block .q { font-size: 0.68rem; }
+            .slide .qa-block .a { font-size: 0.64rem; }
+            .slide .highlight-box { padding: 0.2rem 0.4rem; border-radius: 6px; }
+            .slide .slide-number { font-size: 0.45rem; bottom: 4px; left: 8px; }
+            .slide-indicator { bottom: 6px; right: 8px; font-size: 0.5rem; padding: 2px 6px; }
+            .concept-grid { grid-template-columns: 1fr 1fr; gap: 0.2rem; }
+            .concept-card { padding: 0.2rem 0.4rem; border-radius: 6px; }
+            .concept-card h4 { font-size: 0.65rem; }
+            .concept-card p { font-size: 0.58rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="frame-card">
+        <div class="slider-viewport">
+            <div class="slider-track">
+
+                <!-- ===== SLIDE 1: Chapter 3 Title ===== -->
+                <div class="slide">
+                    <h1>🔒 PART II: THE CORE OF CONCURRENCY</h1>
+                    <h1 style="font-size: 1.8rem; border-bottom: none; padding-bottom: 0;">Chapter 3: Thread Safety</h1>
+                    <div class="divider"></div>
+                    <h2>Section 3.1: What is Thread Safety? – The Formal Definition</h2>
+                    <p>Let's start with an absolutely precise definition, then break it down word by word.</p>
+                    <h3>Subsection 3.1.1: The Definitive Definition</h3>
+                    <div class="highlight-box">
+                        <p style="font-weight: 500; font-size: 0.95rem;">A class is <strong>thread-safe</strong> if it behaves correctly when accessed from multiple threads, regardless of the scheduling or interleaving of the execution of those threads, and with no additional synchronization or other coordination on the part of the calling code.</p>
+                    </div>
+                    <p><strong>Let's dissect this:</strong></p>
+                    <table>
+                        <tr><th>Phrase</th><th>Meaning</th></tr>
+                        <tr><td>"behaves correctly"</td><td>The class maintains its invariants (e.g., a BankAccount never has a negative balance).</td></tr>
+                        <tr><td>"regardless of scheduling"</td><td>No matter how the OS scheduler interleaves thread instructions, the invariants hold.</td></tr>
+                        <tr><td>"with no additional synchronization"</td><td>The caller doesn't need to wrap every method call in <code>synchronized</code>.</td></tr>
+                    </table>
+                    <div class="slide-number">1 / 50</div>
+                </div>
+
+                <!-- ===== SLIDE 2: Invariants + Three Pillars ===== -->
+                <div class="slide">
+                    <div class="highlight-box">
+                        <p><strong>The "Doubt Clarifier" – What is an invariant?</strong></p>
+                        <p>An invariant is a condition that must always be true for an object to be in a valid state.</p>
+                        <p><strong>Example:</strong> For a <code>Counter</code> class, the invariant is <code>count &gt;= 0</code>.</p>
+                    </div>
+                    <div class="divider"></div>
+                    <h3>Subsection 3.1.2: The Three Pillars of Thread Safety</h3>
+                    <p>Thread safety rests on three fundamental properties. You must understand all three:</p>
+                    <table>
+                        <tr><th>Pillar</th><th>Definition</th><th>Example of Failure</th></tr>
+                        <tr><td><strong>Atomicity</strong></td><td>Operations appear to happen instantaneously; no other thread sees an intermediate state.</td><td><code>count++</code> (read-modify-write) is not atomic.</td></tr>
+                        <tr><td><strong>Visibility</strong></td><td>Changes made by one thread are guaranteed to be seen by other threads.</td><td>Without <code>volatile</code>, a thread may never see a value written by another thread.</td></tr>
+                        <tr><td><strong>Ordering</strong></td><td>Instructions are not reordered in ways that violate program semantics.</td><td>Without <code>synchronized</code>, the JVM/CPU can reorder <code>ready = true</code> before <code>config = loadConfig()</code>.</td></tr>
+                    </table>
+                    <div class="slide-number">2 / 50</div>
+                </div>
+
+                <!-- ===== SLIDE 3: Thread-Safe Classes + Atomicity ===== -->
+                <div class="slide">
+                    <h3>Subsection 3.1.3: Thread-Safe Classes – Examples</h3>
+                    <p><strong>Thread-Safe (Built-in):</strong></p>
+                    <ul>
+                        <li><code>java.util.concurrent.ConcurrentHashMap</code></li>
+                        <li><code>java.util.concurrent.CopyOnWriteArrayList</code></li>
+                        <li><code>java.util.concurrent.atomic.AtomicInteger</code></li>
+                        <li><code>java.lang.String</code> (immutable)</li>
+                        <li><code>java.lang.Integer</code> (immutable)</li>
+                    </ul>
+                    <p><strong>Not Thread-Safe:</strong></p>
+                    <ul>
+                        <li><code>java.util.HashMap</code></li>
+                        <li><code>java.util.ArrayList</code></li>
+                        <li><code>java.lang.StringBuilder</code></li>
+                        <li><code>java.text.SimpleDateFormat</code> (use <code>DateTimeFormatter</code> instead)</li>
+                    </ul>
+                    <div class="divider"></div>
+                    <h2>Section 3.2: Atomicity – The First Pillar</h2>
+                    <h3>Subsection 3.2.1: Atomic Operations – What the JVM Guarantees</h3>
+                    <p>The JVM guarantees that the following operations are atomic:</p>
+                    <ul>
+                        <li>Reads and writes to <code>volatile</code> variables (including <code>long</code> and <code>double</code>).</li>
+                        <li>Reads and writes to all primitive types except <code>long</code> and <code>double</code> (on 32-bit JVMs).</li>
+                        <li>Reads and writes to reference variables (the reference itself, not the object).</li>
+                        <li>All operations in a <code>synchronized</code> block (the block as a whole is atomic).</li>
+                    </ul>
+                    <div class="slide-number">3 / 50</div>
+                </div>
+
+                <!-- ===== SLIDE 4: Check-Then-Act Race Condition ===== -->
+                <div class="slide">
+                    <h3>Subsection 3.2.2: The "Check-Then-Act" Race Condition</h3>
+                    <p>This is the most common race condition in Java.</p>
+                    <p><strong>Example: Lazy Initialization (Broken)</strong></p>
+                    <pre>public class LazySingleton {
+            private static ExpensiveObject instance = null;
+            
+            public static ExpensiveObject getInstance() {
+                if (instance == null) {           // CHECK
+                    instance = new ExpensiveObject(); // ACT
+                }
+                return instance;
+            }
+        }</pre>
+                    <p><strong>Why it's broken:</strong></p>
+                    <ul>
+                        <li>Thread A checks <code>instance == null</code> (true), pauses just before creating the object.</li>
+                        <li>Thread B checks <code>instance == null</code> (true), creates the object, returns it.</li>
+                        <li>Thread A resumes, creates a second object, overwriting Thread B's work.</li>
+                    </ul>
+                    <p><strong>The Fix:</strong></p>
+                    <pre>public static synchronized ExpensiveObject getInstance() {
+            if (instance == null) {
+                instance = new ExpensiveObject();
+            }
+            return instance;
+        }</pre>
+                    <div class="slide-number">4 / 50</div>
+                </div>
+
+                <!-- ===== SLIDE 5: Read-Modify-Write ===== -->
+                <div class="slide">
+                    <h3>Subsection 3.2.3: The "Read-Modify-Write" Race Condition</h3>
+                    <p>This is the classic <code>count++</code> problem.</p>
+                    <p><strong>Example: Counter (Broken)</strong></p>
+                    <pre>public class Counter {
+            private int count = 0;
+            public void increment() {
+                count++;  // NOT atomic
+            }
+        }</pre>
+                    <p><strong>The Interleaving:</strong></p>
+                    <ul>
+                        <li>Thread A reads count (0).</li>
+                        <li>Thread B reads count (0).</li>
+                        <li>Thread A adds 1 (1) and writes back.</li>
+                        <li>Thread B adds 1 (1) and writes back.</li>
+                        <li><strong>Result: count = 1. We lost an increment.</strong></li>
+                    </ul>
+                    <p><strong>The Fix (Option 1 – synchronized):</strong></p>
+                    <pre>public synchronized void increment() { count++; }</pre>
+                    <p><strong>The Fix (Option 2 – AtomicInteger):</strong></p>
+                    <pre>private AtomicInteger count = new AtomicInteger(0);
+        public void increment() { count.incrementAndGet(); }</pre>
+                    <div class="slide-number">5 / 50</div>
+                </div>
+
+                <!-- ===== SLIDE 6: Put-If-Absent + synchronized deep dive ===== -->
+                <div class="slide">
+                    <h3>Subsection 3.2.4: The "Put-If-Absent" Race Condition</h3>
+                    <p><strong>Example: Cache (Broken)</strong></p>
+                    <pre>public Object getOrCompute(String key) {
+            if (!map.containsKey(key)) {           // CHECK
+                Object value = compute(key);       // EXPENSIVE
+                map.put(key, value);               // ACT
+            }
+            return map.get(key);
+        }</pre>
+                    <p><strong>Fix:</strong> Use <code>ConcurrentHashMap.computeIfAbsent()</code> (atomic).</p>
+                    <div class="divider"></div>
+                    <h2>Section 3.3: The synchronized Keyword – Deep Internal Mechanics</h2>
+                    <h3>Subsection 3.3.1: The Monitor – Every Object Has One</h3>
+                    <p>Every Java object has an implicit monitor (intrinsic lock). Only one thread can hold the monitor at a time.</p>
+                    <div class="highlight-box">
+                        <p><strong>Where is the lock stored?</strong> In the object header (the "Mark Word").</p>
+                    </div>
+                    <div class="slide-number">6 / 50</div>
+                </div>
+
+                <!-- ===== SLIDE 7: synchronized Methods vs Blocks ===== -->
+                <div class="slide">
+                    <h3>Subsection 3.3.2: synchronized Methods vs. Blocks</h3>
+                    <p><strong>Synchronized Instance Method:</strong></p>
+                    <pre>public synchronized void method() {
+            // Lock acquired on 'this'
+        }</pre>
+                    <p><strong>Equivalent to:</strong></p>
+                    <pre>public void method() {
+            synchronized (this) { /* ... */ }
+        }</pre>
+                    <p><strong>Synchronized Static Method:</strong></p>
+                    <pre>public static synchronized void staticMethod() {
+            // Lock acquired on 'MyClass.class'
+        }</pre>
+                    <p><strong>Synchronized Block (Custom Object):</strong></p>
+                    <pre>private final Object lock = new Object();
+        public void method() {
+            synchronized (lock) { /* ... */ }
+        }</pre>
+                    <div class="highlight-box">
+                        <p><strong>Why use a custom lock object instead of <code>this</code>?</strong></p>
+                        <ul>
+                            <li><strong>Encapsulation:</strong> The lock is private; no external code can lock on your object.</li>
+                            <li><strong>Fine-grained locking:</strong> You can have multiple locks for different parts.</li>
+                        </ul>
+                    </div>
+                    <div class="slide-number">7 / 50</div>
+                </div>
+
+                <!-- ===== SLIDE 8: Lock Granularity + Reentrancy ===== -->
+                <div class="slide">
+                    <h3>Subsection 3.3.3: Lock Granularity – Coarse vs. Fine</h3>
+                    <p><strong>Coarse-Grained (Bad for Performance):</strong></p>
+                    <pre>public synchronized void transfer(BankAccount target, int amount) {
+            this.balance -= amount;      // Only this.balance needs locking
+            target.balance += amount;    // Only target.balance needs locking
+        }</pre>
+                    <p><strong>Fine-Grained (Better, but deadlock risk):</strong></p>
+                    <pre>public void transfer(BankAccount target, int amount) {
+            synchronized (this) { this.balance -= amount; }
+            synchronized (target) { target.balance += amount; }
+        }</pre>
+                    <div class="divider"></div>
+                    <h3>Subsection 3.3.4: The Lock Reentrancy – What It Means</h3>
+                    <p><code>synchronized</code> locks are <strong>reentrant</strong>. If a thread already holds a lock, it can re-enter the same lock without blocking.</p>
+                    <pre>public synchronized void outer() {
+            inner();  // Thread already holds the lock, so it can enter inner()
+        }
+        public synchronized void inner() { /* ... */ }</pre>
+                    <div class="highlight-box">
+                        <p><strong>How does the JVM track reentrancy?</strong> Each lock has a counter. When a thread acquires the lock, the counter increments. When it releases, the counter decrements. Only when the counter reaches 0 is the lock released.</p>
+                    </div>
+                    <div class="slide-number">8 / 50</div>
+                </div>
+
+                <!-- ===== SLIDE 9: Bias/Light/Heavy Locking ===== -->
+                <div class="slide">
+                    <h3>Subsection 3.3.5: Bias Locking, Lightweight Locking, Heavyweight Locking</h3>
+                    <table>
+                        <tr><th>Level</th><th>Description</th><th>When Used</th></tr>
+                        <tr><td><strong>Biased Locking</strong></td><td>Lock "biases" toward the first thread that acquires it. Almost zero overhead.</td><td>When a lock is always acquired by the same thread.</td></tr>
+                        <tr><td><strong>Lightweight Locking</strong></td><td>Uses CAS operations in the object header. No OS involvement.</td><td>When contention is low.</td></tr>
+                        <tr><td><strong>Heavyweight Locking</strong></td><td>Uses OS mutex. Involves context switching and blocking.</td><td>When contention is high.</td></tr>
+                    </table>
+                    <div class="highlight-box">
+                        <p><strong>Can I disable biased locking?</strong> Yes, using <code>-XX:-UseBiasedLocking</code>. In Java 15+, biased locking is deprecated and disabled by default in Java 17+.</p>
+                    </div>
+                    <div class="highlight-box">
+                        <p><strong>Does <code>synchronized</code> block on String literals?</strong> Yes, but <strong>don't do it!</strong> String literals are interned, causing global locking.</p>
+                    </div>
+                    <div class="slide-number">9 / 50</div>
+                </div>
+
+                <!-- ===== SLIDE 10: volatile Deep Dive ===== -->
+                <div class="slide">
+                    <h2>Section 3.4: The volatile Keyword – Complete Semantics</h2>
+                    <h3>Subsection 3.4.1: What volatile Guarantees</h3>
+                    <ul>
+                        <li><strong>Visibility:</strong> Every write to a <code>volatile</code> variable is immediately flushed to main memory. Every read reads from main memory.</li>
+                        <li><strong>Ordering:</strong> The JVM and CPU cannot reorder <code>volatile</code> reads/writes with other <code>volatile</code> reads/writes.</li>
+                    </ul>
+                    <p><strong>What volatile Does NOT Guarantee:</strong></p>
+                    <ul>
+                        <li><strong>Atomicity:</strong> <code>volatile</code> does not make <code>count++</code> atomic.</li>
+                    </ul>
+                    <div class="divider"></div>
+                    <h3>Subsection 3.4.2: When to Use volatile</h3>
+                    <p><strong>Use Case 1: Flags (State Variables)</strong></p>
+                    <pre>private volatile boolean running = true;
+        public void run() { while (running) { /* work */ } }
+        public void stop() { running = false; }</pre>
+                    <p><strong>Use Case 2: Configuration Reloading</strong></p>
+                    <pre>private volatile Config config = loadConfig();
+        public void reloadConfig() { config = loadConfig(); }</pre>
+                    <div class="slide-number">10 / 50</div>
+                </div>
+
+                <!-- ===== SLIDE 11: volatile Limitations ===== -->
+                <div class="slide">
+                    <h3>Subsection 3.4.3: When NOT to Use volatile</h3>
+                    <p><strong>Case 1: Compound Actions</strong></p>
+                    <pre>private volatile int count = 0;
+        public void increment() { count++; }  // BAD! Not atomic!</pre>
+                    <p><strong>Case 2: Accumulators</strong></p>
+                    <pre>private volatile int total = 0;
+        public void add(int value) { total += value; }  // BAD! Not atomic!</pre>
+                    <p><strong>Case 3: Dependencies Between Variables</strong></p>
+                    <pre>private volatile boolean ready;
+        private Config config;
+        public void publish() {
+            config = loadConfig();  // Normal write (could be reordered!)
+            ready = true;           // Volatile write
+        }</pre>
+                    <div class="divider"></div>
+                    <h3>Subsection 3.4.5: The "Doubt Clarifier" – Why is volatile cheaper than synchronized?</h3>
+                    <p><code>volatile</code> does not acquire a lock. It only adds memory barriers (fences) to ensure visibility and ordering. There is no OS mutex, no context switching, no blocking.</p>
+                    <div class="slide-number">11 / 50</div>
+                </div>
+
+                <!-- ===== SLIDE 12: final Keyword + Safe Publication ===== -->
+                <div class="slide">
+                    <h2>Section 3.5: The final Keyword in Concurrency</h2>
+                    <h3>Subsection 3.5.1: Initialization Safety</h3>
+                    <p>The JMM guarantees that a <code>final</code> field's value is visible to all threads after the constructor completes, even without synchronization.</p>
+                    <pre>public class ImmutablePerson {
+            private final String name;
+            private final int age;
+            public ImmutablePerson(String name, int age) {
+                this.name = name;
+                this.age = age;
+            }
+        }</pre>
+                    <div class="divider"></div>
+                    <h3>Subsection 3.5.2: The "Safe Publication" Problem</h3>
+                    <p>Even with <code>final</code> fields, the object itself must be safely published.</p>
+                    <p><strong>Safe Publication Options:</strong></p>
+                    <ul>
+                        <li>Static initialization: <code>public static final ImmutablePerson person = new ImmutablePerson(...)</code></li>
+                        <li><code>volatile</code> reference: <code>private volatile ImmutablePerson person;</code></li>
+                        <li><code>AtomicReference</code>: <code>private AtomicReference&lt;ImmutablePerson&gt; person;</code></li>
+                        <li>Proper synchronization: <code>synchronized</code> block when publishing.</li>
+                    </ul>
+                    <div class="slide-number">12 / 50</div>
+                </div>
+
+                <!-- ===== SLIDE 13: Thread Confinement + ThreadLocal ===== -->
+                <div class="slide">
+                    <h2>Section 3.6: Thread Confinement and ThreadLocal</h2>
+                    <h3>Subsection 3.6.1: What is Thread Confinement?</h3>
+                    <p>Thread confinement means that an object is only accessed by a single thread.</p>
+                    <ul>
+                        <li><strong>Stack Confinement:</strong> Local variables in a method. Each thread has its own stack.</li>
+                        <li><strong>ThreadLocal Confinement:</strong> Using <code>ThreadLocal</code> to store values per thread.</li>
+                    </ul>
+                    <div class="divider"></div>
+                    <h3>Subsection 3.6.2: The ThreadLocal Class</h3>
+                    <pre>private static ThreadLocal&lt;DateFormat&gt; dateFormat = 
+            ThreadLocal.withInitial(() -> new SimpleDateFormat("yyyy-MM-dd"));
+        
+        public String formatDate(Date date) {
+            return dateFormat.get().format(date);  // Each thread gets its own instance
+        }</pre>
+                    <div class="highlight-box">
+                        <p><strong>Why is ThreadLocal useful for SimpleDateFormat?</strong> Because <code>SimpleDateFormat</code> is not thread-safe. <code>ThreadLocal</code> gives each thread its own instance.</p>
+                    </div>
+                    <div class="slide-number">13 / 50</div>
+                </div>
+
+                <!-- ===== SLIDE 14: ThreadLocal Memory Leak ===== -->
+                <div class="slide">
+                    <h3>Subsection 3.6.3: ThreadLocal – The Memory Leak Problem</h3>
+                    <p><code>ThreadLocal</code> can cause memory leaks in web applications. If a thread (from a thread pool) is reused, the <code>ThreadLocal</code> value from a previous request may still be attached.</p>
+                    <p><strong>The Fix: Always call <code>ThreadLocal.remove()</code> after the request is complete.</strong></p>
+                    <pre>try {
+            dateFormat.get();  // Use ThreadLocal
+        } finally {
+            dateFormat.remove();  // Clean up!
+        }</pre>
+                    <div class="highlight-box">
+                        <p><strong>Why does ThreadLocal cause memory leaks?</strong> The <code>ThreadLocalMap</code> stores the value in an <code>Entry</code> that uses the <code>ThreadLocal</code> object as a weak key. However, the <strong>value</strong> is strongly referenced. If you don't call <code>remove()</code>, the value remains.</p>
+                    </div>
+                    <div class="divider"></div>
+                    <h3>Subsection 3.6.4: InheritableThreadLocal – Passing Values to Child Threads</h3>
+                    <p><code>InheritableThreadLocal</code> passes its value from the parent thread to any child threads created.</p>
+                    <div class="highlight-box">
+                        <p><strong>When should I use InheritableThreadLocal?</strong> Rarely. In Java 21+, <code>ScopedValue</code> is a better alternative.</p>
+                    </div>
+                    <div class="slide-number">14 / 50</div>
+                </div>
+
+                <!-- ===== SLIDE 15: Immutability ===== -->
+                <div class="slide">
+                    <h2>Section 3.7: Immutability – The Ultimate Thread Safety</h2>
+                    <h3>Subsection 3.7.1: The Rules of Immutability</h3>
+                    <p>An object is immutable if:</p>
+                    <ol>
+                        <li>All fields are <code>final</code>.</li>
+                        <li>The object is not published before construction is complete.</li>
+                        <li>Any mutable fields are not exposed to the caller.</li>
+                    </ol>
+                    <p><strong>Example:</strong></p>
+                    <pre>public final class ImmutablePerson {
+            private final String name;
+            private final LocalDate birthDate;  // LocalDate is immutable
+            
+            public ImmutablePerson(String name, LocalDate birthDate) {
+                this.name = name;
+                this.birthDate = birthDate;
+            }
+        }</pre>
+                    <div class="divider"></div>
+                    <h3>Subsection 3.7.3: The Benefits of Immutability</h3>
+                    <ul>
+                        <li>No synchronization needed.</li>
+                        <li>No race conditions.</li>
+                        <li>Safe to share.</li>
+                        <li>Caching-friendly.</li>
+                    </ul>
+                    <div class="slide-number">15 / 50</div>
+                </div>
+
+                <!-- ===== SLIDE 16: Safe Publication Patterns ===== -->
+                <div class="slide">
+                    <h2>Section 3.8: Safe Publication – The Final Piece</h2>
+                    <h3>Subsection 3.8.1: The Unsafe Publication Patterns</h3>
+                    <table>
+                        <tr><th>Pattern</th><th>Safe?</th><th>Why?</th></tr>
+                        <tr><td>Storing in a static field</td><td>✅ Yes</td><td>JVM guarantees atomicity of static initializers.</td></tr>
+                        <tr><td>Storing in a <code>volatile</code> field</td><td>✅ Yes</td><td>Volatile guarantees visibility.</td></tr>
+                        <tr><td>Storing in an <code>AtomicReference</code></td><td>✅ Yes</td><td>Atomic reference guarantees visibility.</td></tr>
+                        <tr><td>Storing in a non-<code>volatile</code> field</td><td>❌ No</td><td>Other threads may see a stale reference.</td></tr>
+                        <tr><td>Storing in a <code>ConcurrentMap</code></td><td>✅ Yes</td><td>ConcurrentMap handles visibility.</td></tr>
+                        <tr><td>Storing in a <code>synchronized</code> block</td><td>✅ Yes</td><td>Synchronization guarantees visibility.</td></tr>
+                    </table>
+                    <div class="highlight-box">
+                        <p><strong>What if I publish an object in a constructor?</strong> DANGER! Publishing <code>this</code> in a constructor can let other threads see a partially constructed object. Never start threads or publish <code>this</code> inside a constructor.</p>
+                    </div>
+                    <div class="slide-number">16 / 50</div>
+                </div>
+
+                <!-- ===== SLIDE 17: Chapter 3 Summary ===== -->
+                <div class="slide">
+                    <h1>📌 Chapter 3 Summary</h1>
+                    <div class="divider"></div>
+                    <p>We have covered:</p>
+                    <ul>
+                        <li><strong>3.1:</strong> What is thread safety? (Atomicity, Visibility, Ordering).</li>
+                        <li><strong>3.2:</strong> Atomicity (check-then-act, read-modify-write, put-if-absent).</li>
+                        <li><strong>3.3:</strong> <code>synchronized</code> in depth (monitors, methods vs. blocks, lock granularity, reentrancy, bias/light/heavy locking).</li>
+                        <li><strong>3.4:</strong> <code>volatile</code> (guarantees, use cases, limitations).</li>
+                        <li><strong>3.5:</strong> <code>final</code> (initialization safety, safe publication).</li>
+                        <li><strong>3.6:</strong> Thread confinement and <code>ThreadLocal</code> (with memory leak warnings).</li>
+                        <li><strong>3.7:</strong> Immutability (rules, benefits, pitfalls).</li>
+                        <li><strong>3.8:</strong> Safe publication (patterns, constructor hazards).</li>
+                    </ul>
+                    <div style="background: linear-gradient(135deg, rgba(74, 138, 244, 0.06), rgba(106, 175, 255, 0.06)); border-radius: 10px; padding: 0.5rem 0.8rem; margin-top: 0.4rem; border: 1px solid rgba(74, 138, 244, 0.08);">
+                        <p style="font-weight: 600; color: #1a3a6a;">Next: Chapter 4 – Sharing Objects (Visibility, Publication, Escape)</p>
+                    </div>
+                    <div class="slide-number">17 / 50</div>
+                </div>
+
+                <!-- ===== SLIDE 18: Q&A Bank – Title ===== -->
+                <div class="slide">
+                    <h1>🎯 CHAPTER 3: THREAD SAFETY</h1>
+                    <h1 style="font-size: 1.6rem; border-bottom: none; padding-bottom: 0;">THE ULTIMATE Q&A BANK</h1>
+                    <div class="divider"></div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.5rem;">
+                        <div style="background: rgba(74, 138, 244, 0.06); border-radius: 10px; padding: 0.5rem 0.8rem; border: 1px solid rgba(74, 138, 244, 0.08);">
+                            <h4 style="border-left: none; padding-left: 0; color: #1a4a8a;">Part A</h4>
+                            <p style="font-size: 0.82rem;">Conceptual Deep-Dive Questions</p>
+                            <p style="font-size: 0.7rem; opacity: 0.6;">Q1 – Q40</p>
+                        </div>
+                        <div style="background: rgba(244, 138, 74, 0.06); border-radius: 10px; padding: 0.5rem 0.8rem; border: 1px solid rgba(244, 138, 74, 0.08);">
+                            <h4 style="border-left: none; padding-left: 0; color: #8a4a1a;">Part B</h4>
+                            <p style="font-size: 0.82rem;">Classic Interview Questions (Code-Based)</p>
+                            <p style="font-size: 0.7rem; opacity: 0.6;">Q41 – Q50</p>
+                        </div>
+                    </div>
+                    <div class="slide-number">18 / 50</div>
+                </div>
+
+                <!-- ===== SLIDES 19-35: Part A Conceptual Questions ===== -->
+                <!-- SLIDE 19: Q1-Q3 -->
+                <div class="slide">
+                    <span class="category-tag">Part A: Conceptual Deep-Dive</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q1:</strong> If I have a class with no mutable state (no fields), is it thread-safe?</p>
+                        <p class="a"><strong>A:</strong> Yes, trivially. Stateless objects are always thread-safe because there is nothing to corrupt. Example: a utility class with only static methods that operate on local variables. The local variables live on the stack, which is thread-confined.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q2:</strong> What is the difference between "thread-safe" and "thread-compatible"?</p>
+                        <p class="a"><strong>A:</strong> Thread-safe = behaves correctly without external synchronization (<code>ConcurrentHashMap</code>). Thread-compatible = safe if the caller uses external synchronization (<code>HashMap</code> wrapped with <code>Collections.synchronizedMap()</code>).</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q3:</strong> What is an "invariant" and how does it relate to thread safety?</p>
+                        <p class="a"><strong>A:</strong> An invariant is a condition that must always be true for an object to be in a valid state. Example: <code>balance >= 0</code> in a <code>BankAccount</code>. If a race condition breaks the invariant, the object is in an invalid state.</p>
+                    </div>
+                    <div class="slide-number">19 / 50</div>
+                </div>
+
+                <!-- SLIDE 20: Q4-Q7 -->
+                <div class="slide">
+                    <span class="category-tag">Part A: Conceptual Deep-Dive</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q4:</strong> What is the relationship between thread safety and synchronized? Can you be thread-safe without synchronized?</p>
+                        <p class="a"><strong>A:</strong> Yes! You can be thread-safe without <code>synchronized</code> by: (1) Immutability (<code>String</code>, <code>Integer</code>), (2) Atomic Variables (<code>AtomicInteger</code>), (3) Thread Confinement (local variables, <code>ThreadLocal</code>), (4) Concurrent Collections (<code>ConcurrentHashMap</code>).</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q5:</strong> What is the difference between a race condition and a data race?</p>
+                        <p class="a"><strong>A:</strong> Race condition = correctness failure due to timing (e.g., check-then-act). Data race = a specific race condition caused by lack of visibility (stale values). All data races are race conditions, but not all race conditions are data races.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q6:</strong> Is <code>i++</code> atomic in Java? Why or why not?</p>
+                        <p class="a"><strong>A:</strong> No. <code>i++</code> is a read-modify-write operation. The bytecode is: <code>getfield</code> → <code>iconst_1</code> → <code>iadd</code> → <code>putfield</code>. Each instruction is atomic individually, but the sequence is not atomic.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q7:</strong> Is <code>x = 5</code> atomic? What about <code>long x = 5L</code>?</p>
+                        <p class="a"><strong>A:</strong> <code>x = 5</code> (32-bit primitive) is atomic. <code>long x = 5L</code> is not atomic on 32-bit JVMs (split into two 32-bit writes). On 64-bit JVMs, <code>long</code> writes are atomic. <strong>Guaranteed:</strong> reads/writes to <code>volatile long</code> are atomic on all JVMs.</p>
+                    </div>
+                    <div class="slide-number">20 / 50</div>
+                </div>
+
+                <!-- SLIDE 21: Q8-Q11 -->
+                <div class="slide">
+                    <span class="category-tag">Part A: Conceptual Deep-Dive</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q8:</strong> What is the "check-then-act" problem? Give an example.</p>
+                        <p class="a"><strong>A:</strong> Check-then-act is a race condition where you check a condition, and between the check and the action, another thread changes the state. Example: lazy initialization (<code>if (instance == null) { instance = new MyObject(); }</code>).</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q9:</strong> What is the "put-if-absent" race condition and how do you fix it?</p>
+                        <p class="a"><strong>A:</strong> This is a specific check-then-act with a <code>Map</code>. Fixes: (1) <code>synchronized</code> around the whole block, (2) <code>ConcurrentHashMap.putIfAbsent()</code>, (3) <code>ConcurrentHashMap.computeIfAbsent()</code> (preferred for high concurrency).</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q10:</strong> Is <code>HashMap</code> thread-safe? What happens if two threads modify it concurrently?</p>
+                        <p class="a"><strong>A:</strong> No. Concurrent modifications can cause: (1) lost updates, (2) corrupted internal structure (circular lists → infinite loops), (3) <code>NullPointerException</code> or <code>ArrayIndexOutOfBoundsException</code>.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q11:</strong> What is the difference between <code>synchronized</code> and <code>ReentrantLock</code>?</p>
+                        <p class="a"><strong>A:</strong> <code>ReentrantLock</code> offers: try-lock, timed-lock, interruptible-lock, multiple condition variables, fairness. <code>synchronized</code> is simpler and often preferred for low contention. Both are reentrant.</p>
+                    </div>
+                    <div class="slide-number">21 / 50</div>
+                </div>
+
+                <!-- SLIDE 22: Q12-Q15 -->
+                <div class="slide">
+                    <span class="category-tag">Part A: Conceptual Deep-Dive</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q12:</strong> What does a thread do when it enters a <code>synchronized</code> block?</p>
+                        <p class="a"><strong>A:</strong> It attempts to acquire the monitor. If free, it acquires and enters. If held by another thread, it enters <code>BLOCKED</code> state and waits. If held by the same thread, it re-enters (reentrant).</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q13:</strong> What is the difference between locking on <code>this</code> and locking on a <code>private final Object</code>?</p>
+                        <p class="a"><strong>A:</strong> <code>private final Object</code> provides better encapsulation, lower deadlock risk, and more flexibility (multiple locks). <code>synchronized(this)</code> is less encapsulated (external code can lock on your object).</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q14:</strong> Can you <code>synchronized</code> on a <code>null</code> reference?</p>
+                        <p class="a"><strong>A:</strong> No. It throws <code>NullPointerException</code>.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q15:</strong> What is the difference between <code>synchronized static</code> method and instance method?</p>
+                        <p class="a"><strong>A:</strong> Instance method locks on <code>this</code>. Static method locks on <code>MyClass.class</code>. They can run concurrently (different locks).</p>
+                    </div>
+                    <div class="slide-number">22 / 50</div>
+                </div>
+
+                <!-- SLIDE 23: Q16-Q18 -->
+                <div class="slide">
+                    <span class="category-tag">Part A: Conceptual Deep-Dive</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q16:</strong> What is a "monitor" in Java?</p>
+                        <p class="a"><strong>A:</strong> A monitor is a synchronization mechanism that provides: (1) mutual exclusion (only one thread can enter), (2) condition waiting (<code>wait()</code>/<code>notify()</code>). Every Java object has a built-in monitor.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q17:</strong> What is "lock coarsening" and "lock elision"?</p>
+                        <p class="a"><strong>A:</strong> JIT optimizations. Lock coarsening = merging adjacent <code>synchronized</code> blocks. Lock elision = removing a <code>synchronized</code> block entirely if the JIT detects the lock is never contended.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q18:</strong> What does <code>volatile</code> guarantee?</p>
+                        <p class="a"><strong>A:</strong> (1) <strong>Visibility:</strong> Writes are immediately visible to all threads. (2) <strong>Ordering (Happens-Before):</strong> A write to a <code>volatile</code> variable happens-before any subsequent read. <strong>It does NOT guarantee atomicity</strong> for compound actions.</p>
+                    </div>
+                    <div class="slide-number">23 / 50</div>
+                </div>
+
+                <!-- SLIDE 24: Q19-Q22 -->
+                <div class="slide">
+                    <span class="category-tag">Part A: Conceptual Deep-Dive</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q19:</strong> When should you use <code>volatile</code>?</p>
+                        <p class="a"><strong>A:</strong> (1) Simple flags (<code>running</code>, <code>shutdown</code>), (2) Single variable written by one thread and read by others, (3) Configuration objects that are safely published.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q20:</strong> When should you NOT use <code>volatile</code>?</p>
+                        <p class="a"><strong>A:</strong> (1) Compound actions (<code>count++</code>), (2) Dependent variables (two variables must be updated together), (3) Long running computations with internal state.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q21:</strong> What is the difference between <code>volatile</code> and <code>synchronized</code>?</p>
+                        <p class="a"><strong>A:</strong> <code>volatile</code> provides visibility and ordering, but not atomicity. <code>synchronized</code> provides all three. <code>volatile</code> is cheaper (no blocking, no OS mutex).</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q22:</strong> Can you make <code>long</code> and <code>double</code> atomic without <code>synchronized</code>?</p>
+                        <p class="a"><strong>A:</strong> Yes, by using <code>volatile</code>. On 32-bit JVMs, <code>volatile</code> ensures the write is atomic.</p>
+                    </div>
+                    <div class="slide-number">24 / 50</div>
+                </div>
+
+                <!-- SLIDE 25: Q23 Double-Checked Locking -->
+                <div class="slide">
+                    <span class="category-tag">Part A: Conceptual Deep-Dive</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q23:</strong> What is the "Double-Checked Locking" pattern and why is it broken? How was it fixed?</p>
+                        <p class="a"><strong>A:</strong> Double-checked locking was a performance optimization for singleton initialization. <strong>Broken because:</strong> due to instruction reordering, <code>instance</code> can be assigned before the constructor completes, causing other threads to see a partially constructed object. <strong>The fix (Java 5+):</strong> make <code>instance</code> <code>volatile</code>.</p>
+                        <pre>private static volatile Singleton instance;</pre>
+                        <p><strong>Even Better Fix:</strong> Static inner class pattern or enum singleton.</p>
+                    </div>
+                    <div class="slide-number">25 / 50</div>
+                </div>
+
+                <!-- SLIDE 26: Q24-Q27 -->
+                <div class="slide">
+                    <span class="category-tag">Part A: Conceptual Deep-Dive</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q24:</strong> How does <code>final</code> help with thread safety?</p>
+                        <p class="a"><strong>A:</strong> <strong>Initialization Safety:</strong> <code>final</code> fields are guaranteed to be fully initialized before the constructor completes, and their values are visible to all threads after the constructor finishes, even without synchronization.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q25:</strong> What is "safe publication" and how does <code>final</code> help?</p>
+                        <p class="a"><strong>A:</strong> Safe publication is making an object visible to other threads without violating the JMM. <code>final</code> helps because the JMM guarantees <code>final</code> fields are visible after the constructor completes.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q26:</strong> Can a class with mutable fields be thread-safe?</p>
+                        <p class="a"><strong>A:</strong> Yes, if you synchronize access to those fields. Example: <code>java.util.Vector</code> (all methods are synchronized). However, modern concurrent classes use better techniques (lock striping, CAS).</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q27:</strong> What is the difference between immutable and effectively immutable?</p>
+                        <p class="a"><strong>A:</strong> Immutable = cannot be changed after construction (all fields <code>final</code>). Effectively immutable = mutable but never mutated after being safely published (e.g., <code>Collections.unmodifiableList()</code>).</p>
+                    </div>
+                    <div class="slide-number">26 / 50</div>
+                </div>
+
+                <!-- SLIDE 27: Q28-Q31 -->
+                <div class="slide">
+                    <span class="category-tag">Part A: Conceptual Deep-Dive</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q28:</strong> What is a "defensive copy" and why is it used?</p>
+                        <p class="a"><strong>A:</strong> A defensive copy is a copy of a mutable object returned to the caller, preventing the caller from modifying the original. Used in immutable classes with mutable fields (e.g., <code>Date</code>).</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q29:</strong> What is <code>ThreadLocal</code> and when should you use it?</p>
+                        <p class="a"><strong>A:</strong> <code>ThreadLocal</code> provides thread-local variables. Use cases: (1) non-thread-safe objects (<code>SimpleDateFormat</code>), (2) per-thread context (user ID, transaction ID), (3) database connections per thread.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q30:</strong> What is the memory leak problem with <code>ThreadLocal</code>?</p>
+                        <p class="a"><strong>A:</strong> In thread pools, threads are reused. If you don't call <code>remove()</code> on your <code>ThreadLocal</code>, the value remains attached to the thread forever. <strong>Fix:</strong> always call <code>remove()</code> in a <code>finally</code> block.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q31:</strong> What is the difference between <code>ThreadLocal</code> and <code>InheritableThreadLocal</code>?</p>
+                        <p class="a"><strong>A:</strong> <code>ThreadLocal</code> is not propagated to child threads. <code>InheritableThreadLocal</code> is propagated to child threads. Use <code>ScopedValue</code> (Java 21+) instead.</p>
+                    </div>
+                    <div class="slide-number">27 / 50</div>
+                </div>
+
+                <!-- SLIDE 28: Q32-Q34 -->
+                <div class="slide">
+                    <span class="category-tag">Part A: Conceptual Deep-Dive</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q32:</strong> What is the "safe publication" problem? Give an example.</p>
+                        <p class="a"><strong>A:</strong> Safe publication is ensuring that a reference to an object is visible to other threads after the object is fully constructed. Unsafe: storing in a non-<code>volatile</code> field without synchronization.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q33:</strong> What are the safe publication patterns?</p>
+                        <p class="a"><strong>A:</strong> (1) Static initialization, (2) <code>volatile</code> field, (3) <code>AtomicReference</code>, (4) <code>synchronized</code> block, (5) Concurrent collections.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q34:</strong> Why is it dangerous to publish <code>this</code> in a constructor?</p>
+                        <p class="a"><strong>A:</strong> The object is only partially constructed. Another thread may see default values (0, null, false) instead of initialized values. <strong>Fix:</strong> never start threads or publish <code>this</code> inside a constructor.</p>
+                    </div>
+                    <div class="slide-number">28 / 50</div>
+                </div>
+
+                <!-- SLIDE 29: Q35-Q37 -->
+                <div class="slide">
+                    <span class="category-tag">Part A: Conceptual Deep-Dive</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q35:</strong> What are the rules for creating an immutable class?</p>
+                        <p class="a"><strong>A:</strong> (1) Make the class <code>final</code>. (2) Make all fields <code>final</code>. (3) Make all fields <code>private</code>. (4) No setter methods. (5) Do not expose mutable fields (return defensive copies). (6) Ensure the constructor does not leak <code>this</code>.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q36:</strong> Why is <code>String</code> immutable? What are the benefits?</p>
+                        <p class="a"><strong>A:</strong> Benefits: (1) Thread-safe (no synchronization needed), (2) Caching (String literals are interned), (3) Security (pass to sensitive methods safely), (4) <code>HashCode</code> caching (improves <code>HashMap</code> performance).</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q37:</strong> Can you make a <code>List</code> immutable?</p>
+                        <p class="a"><strong>A:</strong> Yes: (1) <code>Collections.unmodifiableList()</code> (read-only view), (2) <code>List.copyOf()</code> (Java 10+, truly immutable copy), (3) <code>List.of(...)</code> (Java 9+, immutable list).</p>
+                    </div>
+                    <div class="slide-number">29 / 50</div>
+                </div>
+
+                <!-- SLIDE 30: Q38-Q40 -->
+                <div class="slide">
+                    <span class="category-tag">Part A: Conceptual Deep-Dive</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q38:</strong> What is the "happens-before" relationship?</p>
+                        <p class="a"><strong>A:</strong> A JMM rule that defines when one action is guaranteed to be visible to another. Key rules: Program order, Monitor lock, Volatile, Thread start, Thread join, Interruption, Finalizer, and Transitivity.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q39:</strong> What is the difference between "happens-before" and "synchronizes-with"?</p>
+                        <p class="a"><strong>A:</strong> Synchronizes-with is a specific action (e.g., unlocking a monitor, writing to a <code>volatile</code>) that establishes a happens-before relationship. Happens-before is the resulting ordering guarantee.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q40:</strong> What is "sequential consistency" and does Java guarantee it?</p>
+                        <p class="a"><strong>A:</strong> Sequential consistency = all operations appear in a global order consistent with program order. Java does NOT guarantee sequential consistency. The JMM is weaker to allow optimizations. However, <code>volatile</code> and <code>synchronized</code> provide sequential consistency on specific variables/locks.</p>
+                    </div>
+                    <div class="slide-number">30 / 50</div>
+                </div>
+
+                <!-- ===== SLIDE 31-50: Part B Code-Based Interview Questions ===== -->
+                <!-- SLIDE 31: Q41 Singleton -->
+                <div class="slide">
+                    <span class="category-tag">Part B: Classic Interview Questions (Code-Based)</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q41:</strong> Write a thread-safe singleton in Java.</p>
+                        <p class="a"><strong>A:</strong> Best: Static Inner Class pattern.</p>
+                        <pre>public class Singleton {
+            private Singleton() {}
+            private static class Holder {
+                private static final Singleton INSTANCE = new Singleton();
+            }
+            public static Singleton getInstance() {
+                return Holder.INSTANCE;
+            }
+        }</pre>
+                        <p><strong>Why it's thread-safe:</strong> The static inner class is loaded lazily, and JVM guarantees class loading and initialization are thread-safe.</p>
+                        <p><strong>Alternative (Enum – Most Robust):</strong></p>
+                        <pre>public enum Singleton { INSTANCE; }</pre>
+                    </div>
+                    <div class="slide-number">31 / 50</div>
+                </div>
+
+                <!-- SLIDE 32: Q42-Q44 -->
+                <div class="slide">
+                    <span class="category-tag">Part B: Classic Interview Questions (Code-Based)</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q42:</strong> What is wrong with this code?</p>
+                        <pre>public class Counter {
+            private int count = 0;
+            public synchronized void increment() { count++; }
+            public int get() { return count; }
+        }</pre>
+                        <p class="a"><strong>A:</strong> <code>get()</code> is not synchronized. Thread B may see a stale value due to visibility issues. <strong>Fix:</strong> make <code>get()</code> <code>synchronized</code> as well.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q43:</strong> What is wrong with this code?</p>
+                        <pre>public class Cache {
+            private Map&lt;String, Object&gt; cache = new HashMap&lt;&gt;();
+            public Object get(String key) { return cache.get(key); }
+            public void put(String key, Object value) { cache.put(key, value); }
+        }</pre>
+                        <p class="a"><strong>A:</strong> <code>HashMap</code> is not thread-safe. Multiple threads calling <code>put()</code> and <code>get()</code> concurrently can corrupt the internal structure. <strong>Fix:</strong> use <code>ConcurrentHashMap</code>.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q44:</strong> What is wrong with this code?</p>
+                        <pre>public class LazyInit {
+            private Object instance;
+            public Object getInstance() {
+                if (instance == null) { instance = new Object(); }
+                return instance;
+            }
+        }</pre>
+                        <p class="a"><strong>A:</strong> Check-then-act race condition. Multiple threads can create multiple instances. <strong>Fix:</strong> use <code>synchronized</code> or <code>AtomicReference</code>.</p>
+                    </div>
+                    <div class="slide-number">32 / 50</div>
+                </div>
+
+                <!-- SLIDE 33: Q45-Q47 -->
+                <div class="slide">
+                    <span class="category-tag">Part B: Classic Interview Questions (Code-Based)</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q45:</strong> What is wrong with this code?</p>
+                        <pre>public class VolatileCounter {
+            private volatile int count = 0;
+            public void increment() { count++; }
+        }</pre>
+                        <p class="a"><strong>A:</strong> <code>count++</code> is not atomic, even with <code>volatile</code>. <code>volatile</code> only provides visibility, not atomicity. <strong>Fix:</strong> use <code>AtomicInteger</code>.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q46:</strong> What is wrong with this code?</p>
+                        <pre>public class ThreadLocalLeak {
+            private static ThreadLocal&lt;BigObject&gt; threadLocal = new ThreadLocal&lt;&gt;();
+            public void doWork() {
+                threadLocal.set(new BigObject());
+                // ... use threadLocal
+                // No remove() call!
+            }
+        }</pre>
+                        <p class="a"><strong>A:</strong> In a thread pool, the <code>BigObject</code> remains attached to the thread after <code>doWork()</code> returns, causing a memory leak. <strong>Fix:</strong> call <code>remove()</code> in a <code>finally</code> block.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q47:</strong> What is wrong with this code?</p>
+                        <pre>public class DoubleChecked {
+            private static DoubleChecked instance;
+            public static DoubleChecked getInstance() {
+                if (instance == null) {
+                    synchronized (DoubleChecked.class) {
+                        if (instance == null) {
+                            instance = new DoubleChecked();
+                        }
+                    }
+                }
+                return instance;
+            }
+        }</pre>
+                        <p class="a"><strong>A:</strong> Double-checked locking is broken without <code>volatile</code>. The <code>instance</code> write can be reordered before the constructor completes. <strong>Fix:</strong> make <code>instance</code> <code>volatile</code>.</p>
+                    </div>
+                    <div class="slide-number">33 / 50</div>
+                </div>
+
+                <!-- SLIDE 34: Q48-Q50 -->
+                <div class="slide">
+                    <span class="category-tag">Part B: Classic Interview Questions (Code-Based)</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q48:</strong> What is wrong with this code?</p>
+                        <pre>public class WaitNotify {
+            private boolean condition = false;
+            private final Object lock = new Object();
+            public void waitForCondition() throws InterruptedException {
+                if (!condition) { lock.wait(); }
+            }
+            public void setCondition() {
+                condition = true;
+                lock.notify();
+            }
+        }</pre>
+                        <p class="a"><strong>A:</strong> <code>wait()</code> and <code>notify()</code> must be called from within a <code>synchronized</code> block on the same object. Also, <code>wait()</code> should be called in a loop to handle spurious wakeups.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q49:</strong> What is wrong with this code?</p>
+                        <pre>public class Visibility {
+            private boolean running = true;
+            public void run() { while (running) { /* work */ } }
+            public void stop() { running = false; }
+        }</pre>
+                        <p class="a"><strong>A:</strong> Without <code>volatile</code> on <code>running</code>, Thread B may never see the change. The JIT compiler may cache <code>running</code>. <strong>Fix:</strong> make <code>running</code> <code>volatile</code>.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q50:</strong> Write a thread-safe <code>Counter</code> using <code>AtomicInteger</code>.</p>
+                        <p class="a"><strong>A:</strong></p>
+                        <pre>import java.util.concurrent.atomic.AtomicInteger;
+        public class Counter {
+            private final AtomicInteger count = new AtomicInteger(0);
+            public void increment() { count.incrementAndGet(); }
+            public int get() { return count.get(); }
+        }</pre>
+                    </div>
+                    <div class="slide-number">34 / 50</div>
+                </div>
+
+                <!-- SLIDE 35: End of Q&A -->
+                <div class="slide">
+                    <h1>📌 End of Chapter 3 – Complete Q&A Bank</h1>
+                    <div class="divider"></div>
+                    <p>We have covered:</p>
+                    <ul>
+                        <li><strong>50 comprehensive questions</strong> covering every aspect of Chapter 3.</li>
+                        <li><strong>Conceptual deep-dives</strong> (race conditions, data races, happens-before, safe publication).</li>
+                        <li><strong>Code-based interview questions</strong> (singletons, double-checked locking, volatile, ThreadLocal).</li>
+                    </ul>
+                    <div style="background: linear-gradient(135deg, rgba(74, 138, 244, 0.06), rgba(106, 175, 255, 0.06)); border-radius: 10px; padding: 0.5rem 0.8rem; margin-top: 0.4rem; border: 1px solid rgba(74, 138, 244, 0.08);">
+                        <p style="font-weight: 600; color: #1a3a6a;">Ready for Chapter 4: Sharing Objects (Visibility, Publication, Escape)</p>
+                    </div>
+                    <div class="slide-number">35 / 50</div>
+                </div>
+
+            </div>
+
+            <div class="slide-indicator">auto slide</div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Java Synchronization - Complete Guide</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        java: '#5382A1',
+                        javaDark: '#3A6D8C',
+                        javaLight: '#E76F00',
+                        syncPrimary: '#2563eb',
+                        syncSecondary: '#1e40af'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .code-block {
+            font-family: 'Consolas', 'Monaco', monospace;
+            background-color: #282c34;
+            color: #abb2bf;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            overflow-x: auto;
+            position: relative;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        .copy-btn {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: all 0.2s ease;
+        }
+        .copy-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        .nav-link {
+            position: relative;
+            transition: color 0.3s ease;
+        }
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: -4px;
+            left: 0;
+            background-color: #3b82f6;
+            transition: width 0.3s ease;
+        }
+        .nav-link:hover::after {
+            width: 100%;
+        }
+        .concept-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border-left: 4px solid #2563eb;
+        }
+        .concept-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .problem-card {
+            border-left: 4px solid #ef4444;
+        }
+        .solution-card {
+            border-left: 4px solid #10b981;
+        }
+        .lock-visual {
+            transition: all 0.3s ease;
+        }
+        .lock-visual:hover {
+            transform: scale(1.05);
+        }
+        .thread-visual {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .method-table tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+        .comparison-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-synchronized { background-color: #dbeafe; color: #1e40af; }
+        .badge-volatile { background-color: #fef3c7; color: #92400e; }
+        .badge-atomic { background-color: #dcfce7; color: #166534; }
+        .badge-lock { background-color: #f3e8ff; color: #7e22ce; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-syncPrimary to-syncSecondary text-white shadow-lg sticky top-0 z-10">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="flex items-center mb-4 md:mb-0">
+                    <i class="fas fa-lock text-4xl mr-3"></i>
+                    <div>
+                        <h1 class="text-2xl md:text-3xl font-bold">Java Synchronization</h1>
+                        <p class="text-sm text-blue-100">Complete Guide to Thread Safety</p>
+                    </div>
+                </div>
+                <nav class="flex flex-wrap justify-center gap-4 md:gap-6">
+                    <a href="#overview" class="nav-link text-white font-medium">Overview</a>
+                    <a href="#problems" class="nav-link text-white font-medium">Problems</a>
+                    <a href="#synchronized" class="nav-link text-white font-medium">Synchronized</a>
+                    <a href="#locks" class="nav-link text-white font-medium">Locks</a>
+                    <a href="#volatile" class="nav-link text-white font-medium">Volatile</a>
+                    <a href="#atomic" class="nav-link text-white font-medium">Atomic</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8">
+        <!-- Overview Section -->
+        <section id="overview" class="mb-16 scroll-mt-20">
+            <div class="bg-white rounded-xl shadow-md p-6 md:p-8">
+                <h2 class="text-2xl md:text-3xl font-bold text-syncPrimary mb-4">What is Synchronization?</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <p class="mb-4 text-lg">
+                            Synchronization in Java is the capability to control the access of multiple threads to shared resources.
+                            Without synchronization, threads can interfere with each other, leading to inconsistent data.
+                        </p>
+                        <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-4">
+                            <h3 class="font-bold text-blue-700 mb-2"><i class="fas fa-info-circle mr-2"></i>Why Synchronization?</h3>
+                            <ul class="list-disc pl-5 space-y-1">
+                                <li>Prevent thread interference</li>
+                                <li>Avoid consistency problems</li>
+                                <li>Control access to shared resources</li>
+                                <li>Ensure thread safety</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-center">
+                        <div class="bg-gradient-to-br from-syncPrimary to-syncSecondary text-white rounded-xl p-6 max-w-md w-full">
+                            <h3 class="text-xl font-bold mb-4 text-center">Synchronization Tools</h3>
+                            <div class="space-y-3">
+                                <div class="bg-white bg-opacity-10 p-3 rounded-lg flex items-center">
+                                    <i class="fas fa-lock mr-3"></i>
+                                    <div>
+                                        <h4 class="font-bold">synchronized keyword</h4>
+                                        <p class="text-sm">Method and block synchronization</p>
+                                    </div>
+                                </div>
+                                <div class="bg-white bg-opacity-10 p-3 rounded-lg flex items-center">
+                                    <i class="fas fa-bolt mr-3"></i>
+                                    <div>
+                                        <h4 class="font-bold">volatile keyword</h4>
+                                        <p class="text-sm">Visibility guarantees</p>
+                                    </div>
+                                </div>
+                                <div class="bg-white bg-opacity-10 p-3 rounded-lg flex items-center">
+                                    <i class="fas fa-atom mr-3"></i>
+                                    <div>
+                                        <h4 class="font-bold">Atomic Classes</h4>
+                                        <p class="text-sm">Lock-free thread-safe operations</p>
+                                    </div>
+                                </div>
+                                <div class="bg-white bg-opacity-10 p-3 rounded-lg flex items-center">
+                                    <i class="fas fa-unlock-alt mr-3"></i>
+                                    <div>
+                                        <h4 class="font-bold">Lock Interface</h4>
+                                        <p class="text-sm">Explicit locking mechanism</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Problems Section -->
+        <section id="problems" class="mb-16 scroll-mt-20">
+            <h2 class="text-2xl md:text-3xl font-bold text-syncPrimary mb-6">Problems Without Synchronization</h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                <!-- Race Condition -->
+                <div class="concept-card problem-card bg-white rounded-xl shadow-md p-6">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-red-500 text-white p-2 rounded-lg mr-3">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <h3 class="text-xl font-bold">Race Condition</h3>
+                    </div>
+                    <p class="mb-4">When multiple threads access and modify shared data concurrently, leading to unpredictable results.</p>
+                    
+                    <div class="code-block mb-4">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                        <pre><code class="java">class Counter {
+    private int count = 0;
+    
+    // Not thread-safe - race condition
+    public void increment() {
+        count++; // This is NOT atomic
+    }
+    
+    public int getCount() {
+        return count;
+    }
+}
+
+public class RaceConditionExample {
+    public static void main(String[] args) throws InterruptedException {
+        Counter counter = new Counter();
+        
+        Thread t1 = new Thread(() -> {
+            for (int i = 0; i < 1000; i++) {
+                counter.increment();
+            }
+        });
+        
+        Thread t2 = new Thread(() -> {
+            for (int i = 0; i < 1000; i++) {
+                counter.increment();
+            }
+        });
+        
+        t1.start();
+        t2.start();
+        
+        t1.join();
+        t2.join();
+        
+        // May not print 2000!
+        System.out.println("Final count: " + counter.getCount());
+    }
+}</code></pre>
+                    </div>
+                    <div class="bg-red-50 p-3 rounded-lg border border-red-200">
+                        <h4 class="font-bold text-red-700 mb-1"><i class="fas fa-bug mr-1"></i>The Problem</h4>
+                        <p class="text-sm">count++ is actually three operations: read, increment, write. Threads can interleave these operations.</p>
+                    </div>
+                </div>
+
+                <!-- Data Inconsistency -->
+                <div class="concept-card problem-card bg-white rounded-xl shadow-md p-6">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-orange-500 text-white p-2 rounded-lg mr-3">
+                            <i class="fas fa-database"></i>
+                        </div>
+                        <h3 class="text-xl font-bold">Data Inconsistency</h3>
+                    </div>
+                    <p class="mb-4">Threads may see stale or inconsistent values due to caching and memory visibility issues.</p>
+                    
+                    <div class="code-block mb-4">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                        <pre><code class="java">class SharedData {
+    private boolean flag = false;
+    private int data = 0;
+    
+    public void write() {
+        data = 42;          // Step 1
+        flag = true;        // Step 2
+    }
+    
+    public void read() {
+        if (flag) {         // Step 3
+            System.out.println("Data: " + data); // Step 4
+        }
+    }
+}
+
+public class VisibilityProblem {
+    public static void main(String[] args) {
+        SharedData shared = new SharedData();
+        
+        Thread writer = new Thread(() -> {
+            shared.write();
+        });
+        
+        Thread reader = new Thread(() -> {
+            shared.read(); // Might see flag=true but data=0!
+        });
+        
+        writer.start();
+        reader.start();
+    }
+}</code></pre>
+                    </div>
+                    <div class="bg-orange-50 p-3 rounded-lg border border-orange-200">
+                        <h4 class="font-bold text-orange-700 mb-1"><i class="fas fa-eye-slash mr-1"></i>Visibility Issue</h4>
+                        <p class="text-sm">Due to CPU caching, the reader thread might not see the updated values immediately.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Problem Visualization -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h3 class="text-xl font-bold text-syncPrimary mb-4">Race Condition Visualization</h3>
+                <div class="bg-gray-100 p-6 rounded-lg">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center mb-6">
+                        <div class="thread-visual bg-blue-100 p-4 rounded-lg">
+                            <h4 class="font-bold text-blue-700">Thread 1</h4>
+                            <p class="text-sm">Read: count=0</p>
+                            <p class="text-sm">Increment: 0→1</p>
+                            <p class="text-sm">Write: count=1</p>
+                        </div>
+                        <div class="thread-visual bg-green-100 p-4 rounded-lg">
+                            <h4 class="font-bold text-green-700">Thread 2</h4>
+                            <p class="text-sm">Read: count=0</p>
+                            <p class="text-sm">Increment: 0→1</p>
+                            <p class="text-sm">Write: count=1</p>
+                        </div>
+                        <div class="bg-red-100 p-4 rounded-lg">
+                            <h4 class="font-bold text-red-700">Result</h4>
+                            <p class="text-sm">Final count: 1</p>
+                            <p class="text-sm text-red-600">Expected: 2</p>
+                        </div>
+                    </div>
+                    <p class="text-center text-gray-600">
+                        Both threads read the same value, increment independently, and overwrite each other's results.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Synchronized Section -->
+        <section id="synchronized" class="mb-16 scroll-mt-20">
+            <h2 class="text-2xl md:text-3xl font-bold text-syncPrimary mb-6">Synchronized Keyword</h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                <!-- Synchronized Method -->
+                <div class="concept-card solution-card bg-white rounded-xl shadow-md p-6">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-green-500 text-white p-2 rounded-lg mr-3">
+                            <i class="fas fa-lock"></i>
+                        </div>
+                        <h3 class="text-xl font-bold">Synchronized Method</h3>
+                    </div>
+                    <p class="mb-4">Synchronized methods lock on the object instance (for instance methods) or class (for static methods).</p>
+                    
+                    <div class="code-block mb-4">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                        <pre><code class="java">class SynchronizedCounter {
+    private int count = 0;
+    
+    // Synchronized instance method
+    // Locks on 'this' object
+    public synchronized void increment() {
+        count++;
+    }
+    
+    // Synchronized static method
+    // Locks on Class object
+    public static synchronized void staticIncrement() {
+        // static counter increment
+    }
+    
+    public int getCount() {
+        return count;
+    }
+}
+
+public class SynchronizedMethodExample {
+    public static void main(String[] args) throws InterruptedException {
+        SynchronizedCounter counter = new SynchronizedCounter();
+        
+        Thread t1 = new Thread(() -> {
+            for (int i = 0; i < 1000; i++) {
+                counter.increment();
+            }
+        });
+        
+        Thread t2 = new Thread(() -> {
+            for (int i = 0; i < 1000; i++) {
+                counter.increment();
+            }
+        });
+        
+        t1.start();
+        t2.start();
+        
+        t1.join();
+        t2.join();
+        
+        // Always prints 2000
+        System.out.println("Final count: " + counter.getCount());
+    }
+}</code></pre>
+                    </div>
+                    <div class="bg-green-50 p-3 rounded-lg border border-green-200">
+                        <h4 class="font-bold text-green-700 mb-1"><i class="fas fa-check-circle mr-1"></i>Thread Safety</h4>
+                        <p class="text-sm">Only one thread can execute synchronized methods on the same object at a time.</p>
+                    </div>
+                </div>
+
+                <!-- Synchronized Block -->
+                <div class="concept-card solution-card bg-white rounded-xl shadow-md p-6">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-blue-500 text-white p-2 rounded-lg mr-3">
+                            <i class="fas fa-code"></i>
+                        </div>
+                        <h3 class="text-xl font-bold">Synchronized Block</h3>
+                    </div>
+                    <p class="mb-4">Synchronized blocks provide finer-grained control by locking on specific objects.</p>
+                    
+                    <div class="code-block mb-4">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                        <pre><code class="java">class FineGrainedCounter {
+    private int count1 = 0;
+    private int count2 = 0;
+    
+    // Use separate lock objects for different resources
+    private final Object lock1 = new Object();
+    private final Object lock2 = new Object();
+    
+    public void increment1() {
+        // Synchronized block with custom lock
+        synchronized(lock1) {
+            count1++;
+        }
+    }
+    
+    public void increment2() {
+        // Synchronized block with different lock
+        synchronized(lock2) {
+            count2++;
+        }
+    }
+    
+    // Method that needs to lock both counters
+    public void incrementBoth() {
+        // To avoid deadlock, always acquire locks in same order
+        synchronized(lock1) {
+            synchronized(lock2) {
+                count1++;
+                count2++;
+            }
+        }
+    }
+    
+    public void printCounts() {
+        synchronized(lock1) {
+            synchronized(lock2) {
+                System.out.println("Count1: " + count1 + ", Count2: " + count2);
+            }
+        }
+    }
+}
+
+public class SynchronizedBlockExample {
+    public static void main(String[] args) {
+        FineGrainedCounter counter = new FineGrainedCounter();
+        
+        // Multiple threads can increment count1 and count2 concurrently
+        // because they use different locks
+        Thread t1 = new Thread(() -> {
+            for (int i = 0; i < 1000; i++) {
+                counter.increment1();
+            }
+        });
+        
+        Thread t2 = new Thread(() -> {
+            for (int i = 0; i < 1000; i++) {
+                counter.increment2();
+            }
+        });
+        
+        t1.start();
+        t2.start();
+        
+        try {
+            t1.join();
+            t2.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        
+        counter.printCounts(); // Both will be 1000
+    }
+}</code></pre>
+                    </div>
+                    <div class="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                        <h4 class="font-bold text-blue-700 mb-1"><i class="fas fa-bolt mr-1"></i>Advantage</h4>
+                        <p class="text-sm">Better performance through finer-grained locking and reduced contention.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Synchronized Details -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h3 class="text-xl font-bold text-syncPrimary mb-4">Synchronized Details</h3>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <h4 class="font-bold text-lg mb-3">Lock Objects</h4>
+                        <ul class="list-disc pl-5 space-y-2">
+                            <li><strong>Instance methods:</strong> Lock on <code>this</code> object</li>
+                            <li><strong>Static methods:</strong> Lock on <code>Class</code> object</li>
+                            <li><strong>Synchronized blocks:</strong> Lock on specified object</li>
+                            <li><strong>Intrinsic locks:</strong> Reentrant (thread can acquire same lock multiple times)</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-lg mb-3">Best Practices</h4>
+                        <ul class="list-disc pl-5 space-y-2">
+                            <li>Keep synchronized blocks as small as possible</li>
+                            <li>Use separate locks for independent resources</li>
+                            <li>Avoid nested synchronized blocks to prevent deadlocks</li>
+                            <li>Document locking strategy clearly</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Reentrant Example -->
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                    <pre><code class="java">class ReentrantExample {
+    public synchronized void methodA() {
+        System.out.println("In methodA");
+        methodB(); // This works - lock is reentrant
+    }
+    
+    public synchronized void methodB() {
+        System.out.println("In methodB");
+    }
+    
+    public void demonstrateReentrancy() {
+        synchronized(this) {
+            System.out.println("First synchronized block");
+            // Reentrant - same thread can acquire lock again
+            synchronized(this) {
+                System.out.println("Nested synchronized block");
+            }
+        }
+    }
+}
+
+public class ReentrantLockDemo {
+    public static void main(String[] args) {
+        ReentrantExample example = new ReentrantExample();
+        example.methodA(); // No deadlock - lock is reentrant
+        example.demonstrateReentrancy();
+    }
+}</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- Locks Section -->
+        <section id="locks" class="mb-16 scroll-mt-20">
+            <h2 class="text-2xl md:text-3xl font-bold text-syncPrimary mb-6">Lock Interface</h2>
+            
+            <div class="bg-white rounded-xl shadow-md p-6 mb-8">
+                <div class="flex items-center mb-4">
+                    <div class="bg-purple-500 text-white p-2 rounded-lg mr-3">
+                        <i class="fas fa-unlock-alt"></i>
+                    </div>
+                    <h3 class="text-xl font-bold">java.util.concurrent.locks Package</h3>
+                </div>
+                <p class="mb-4">The Lock interface provides more flexible and sophisticated locking operations than synchronized methods/blocks.</p>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- ReentrantLock -->
+                    <div>
+                        <h4 class="font-bold text-lg mb-3">ReentrantLock</h4>
+                        <div class="code-block mb-4">
+                            <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                            <pre><code class="java">import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.Lock;
+
+class LockBasedCounter {
+    private int count = 0;
+    private final Lock lock = new ReentrantLock();
+    
+    public void increment() {
+        lock.lock(); // Acquire the lock
+        try {
+            count++;
+        } finally {
+            lock.unlock(); // Always release in finally block
+        }
+    }
+    
+    // TryLock example - non-blocking
+    public boolean tryIncrement() {
+        if (lock.tryLock()) { // Try without waiting
+            try {
+                count++;
+                return true;
+            } finally {
+                lock.unlock();
+            }
+        }
+        return false; // Lock wasn't available
+    }
+    
+    // Lock with timeout
+    public boolean incrementWithTimeout() throws InterruptedException {
+        if (lock.tryLock(1, TimeUnit.SECONDS)) { // Wait up to 1 second
+            try {
+                count++;
+                return true;
+            } finally {
+                lock.unlock();
+            }
+        }
+        return false; // Couldn't acquire lock within timeout
+    }
+    
+    public int getCount() {
+        lock.lock();
+        try {
+            return count;
+        } finally {
+            lock.unlock();
+        }
+    }
+}
+
+public class ReentrantLockExample {
+    public static void main(String[] args) throws InterruptedException {
+        LockBasedCounter counter = new LockBasedCounter();
+        
+        Thread t1 = new Thread(() -> {
+            for (int i = 0; i < 1000; i++) {
+                counter.increment();
+            }
+        });
+        
+        Thread t2 = new Thread(() -> {
+            for (int i = 0; i < 1000; i++) {
+                counter.increment();
+            }
+        });
+        
+        t1.start();
+        t2.start();
+        
+        t1.join();
+        t2.join();
+        
+        System.out.println("Final count: " + counter.getCount()); // 2000
+    }
+}</code></pre>
+                        </div>
+                    </div>
+
+                    <!-- ReadWriteLock -->
+                    <div>
+                        <h4 class="font-bold text-lg mb-3">ReadWriteLock</h4>
+                        <div class="code-block mb-4">
+                            <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                            <pre><code class="java">import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+
+class ThreadSafeDictionary {
+    private final Map<String, String> dictionary = new HashMap<>();
+    private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
+    
+    // Multiple threads can read concurrently
+    public String get(String key) {
+        rwLock.readLock().lock();
+        try {
+            return dictionary.get(key);
+        } finally {
+            rwLock.readLock().unlock();
+        }
+    }
+    
+    // Only one thread can write at a time
+    public void put(String key, String value) {
+        rwLock.writeLock().lock();
+        try {
+            dictionary.put(key, value);
+        } finally {
+            rwLock.writeLock().unlock();
+        }
+    }
+    
+    // Multiple readers, exclusive writer
+    public boolean containsKey(String key) {
+        rwLock.readLock().lock();
+        try {
+            return dictionary.containsKey(key);
+        } finally {
+            rwLock.readLock().unlock();
+        }
+    }
+}
+
+public class ReadWriteLockExample {
+    public static void main(String[] args) {
+        ThreadSafeDictionary dictionary = new ThreadSafeDictionary();
+        
+        // Multiple readers can access concurrently
+        Thread reader1 = new Thread(() -> {
+            for (int i = 0; i < 100; i++) {
+                dictionary.get("key" + i);
+            }
+        });
+        
+        Thread reader2 = new Thread(() -> {
+            for (int i = 0; i < 100; i++) {
+                dictionary.get("key" + i);
+            }
+        });
+        
+        // Writer has exclusive access
+        Thread writer = new Thread(() -> {
+            for (int i = 0; i < 100; i++) {
+                dictionary.put("key" + i, "value" + i);
+            }
+        });
+        
+        writer.start();
+        reader1.start();
+        reader2.start();
+        
+        try {
+            writer.join();
+            reader1.join();
+            reader2.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+}</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lock Comparison -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h3 class="text-xl font-bold text-syncPrimary mb-4">synchronized vs Lock Interface</h3>
+                
+                <div class="overflow-x-auto">
+                    <table class="method-table w-full border-collapse">
+                        <thead>
+                            <tr class="bg-gray-100">
+                                <th class="border p-3 text-left">Feature</th>
+                                <th class="border p-3 text-left">synchronized</th>
+                                <th class="border p-3 text-left">Lock Interface</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="border p-3 font-medium">Acquisition</td>
+                                <td class="border p-3">Automatic, implicit</td>
+                                <td class="border p-3">Explicit with lock()/unlock()</td>
+                            </tr>
+                            <tr>
+                                <td class="border p-3 font-medium">Try Lock</td>
+                                <td class="border p-3">No</td>
+                                <td class="border p-3">Yes, with tryLock()</td>
+                            </tr>
+                            <tr>
+                                <td class="border p-3 font-medium">Timeout</td>
+                                <td class="border p-3">No</td>
+                                <td class="border p-3">Yes, with tryLock(timeout)</td>
+                            </tr>
+                            <tr>
+                                <td class="border p-3 font-medium">Interruption</td>
+                                <td class="border p-3">No (blocks indefinitely)</td>
+                                <td class="border p-3">Yes, with lockInterruptibly()</td>
+                            </tr>
+                            <tr>
+                                <td class="border p-3 font-medium">Fairness</td>
+                                <td class="border p-3">No guaranteed order</td>
+                                <td class="border p-3">Configurable fairness policy</td>
+                            </tr>
+                            <tr>
+                                <td class="border p-3 font-medium">Read/Write</td>
+                                <td class="border p-3">No distinction</td>
+                                <td class="border p-3">Separate read and write locks</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Volatile Section -->
+        <section id="volatile" class="mb-16 scroll-mt-20">
+            <h2 class="text-2xl md:text-3xl font-bold text-syncPrimary mb-6">Volatile Keyword</h2>
+            
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <div class="flex items-center mb-4">
+                    <div class="bg-yellow-500 text-white p-2 rounded-lg mr-3">
+                        <i class="fas fa-bolt"></i>
+                    </div>
+                    <h3 class="text-xl font-bold">Visibility Guarantees</h3>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-6">
+                    <div>
+                        <p class="mb-4">
+                            The <code>volatile</code> keyword ensures that changes to a variable are immediately visible to all threads.
+                            It prevents thread caching and ensures reads/writes go directly to main memory.
+                        </p>
+                        <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-200 mb-4">
+                            <h4 class="font-bold text-yellow-700 mb-2"><i class="fas fa-exclamation-triangle mr-2"></i>Important Notes</h4>
+                            <ul class="list-disc pl-5 space-y-1 text-sm">
+                                <li>Volatile provides visibility but NOT atomicity</li>
+                                <li>Use for simple flag variables or status indicators</li>
+                                <li>Not suitable for compound operations (like count++)</li>
+                                <li>Prevents instruction reordering</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="code-block">
+                            <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                            <pre><code class="java">class VolatileExample {
+    // Without volatile, changes might not be visible to other threads
+    private volatile boolean running = true;
+    private volatile int counter = 0; // NOT atomic for increment!
+    
+    public void start() {
+        Thread worker = new Thread(() -> {
+            while (running) { // Always sees the latest value
+                // Do some work
+                counter++; // This is NOT thread-safe!
+            }
+            System.out.println("Worker stopped");
+        });
+        worker.start();
+    }
+    
+    public void stop() {
+        running = false; // Immediately visible to worker thread
+    }
+    
+    // Correct usage - status flag
+    public void correctUsage() {
+        volatile boolean shutdownRequested = false;
+        
+        Thread worker = new Thread(() -> {
+            while (!shutdownRequested) {
+                // Process tasks
+            }
+            System.out.println("Shutting down...");
+        });
+        worker.start();
+        
+        // Later, from another thread
+        shutdownRequested = true; // Immediately visible
+    }
+}
+
+public class VolatileDemo {
+    public static void main(String[] args) throws InterruptedException {
+        VolatileExample example = new VolatileExample();
+        example.start();
+        
+        Thread.sleep(1000);
+        example.stop(); // Worker thread will see this change immediately
+        
+        Thread.sleep(100);
+    }
+}</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- When to Use Volatile -->
+                <div class="bg-gray-100 p-4 rounded-lg">
+                    <h4 class="font-bold text-lg mb-3">When to Use Volatile</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <h5 class="font-bold text-green-600 mb-2">Good for Volatile</h5>
+                            <ul class="list-disc pl-5 space-y-1 text-sm">
+                                <li>Status flags (running, shutdown, initialized)</li>
+                                <li>Publish immutable objects safely</li>
+                                <li>One-time initialization flags</li>
+                                <li>Read-only variables after initialization</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h5 class="font-bold text-red-600 mb-2">Not for Volatile</h5>
+                            <ul class="list-disc pl-5 space-y-1 text-sm">
+                                <li>Compound operations (check-then-act)</li>
+                                <li>Counter increments/decrements</li>
+                                <li>Multiple related variables that need consistent updates</li>
+                                <li>Complex state transitions</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Atomic Section -->
+        <section id="atomic" class="mb-16 scroll-mt-20">
+            <h2 class="text-2xl md:text-3xl font-bold text-syncPrimary mb-6">Atomic Classes</h2>
+            
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <div class="flex items-center mb-4">
+                    <div class="bg-green-500 text-white p-2 rounded-lg mr-3">
+                        <i class="fas fa-atom"></i>
+                    </div>
+                    <h3 class="text-xl font-bold">java.util.concurrent.atomic Package</h3>
+                </div>
+                <p class="mb-4">
+                    Atomic classes provide lock-free, thread-safe programming on single variables using compare-and-swap (CAS) operations.
+                </p>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-6">
+                    <!-- Basic Atomic Classes -->
+                    <div>
+                        <h4 class="font-bold text-lg mb-3">Basic Atomic Types</h4>
+                        <div class="code-block">
+                            <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                            <pre><code class="java">import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+
+public class AtomicExamples {
+    public static void main(String[] args) throws InterruptedException {
+        // Atomic counter - lock-free and thread-safe
+        AtomicInteger counter = new AtomicInteger(0);
+        
+        Thread t1 = new Thread(() -> {
+            for (int i = 0; i < 1000; i++) {
+                counter.incrementAndGet(); // Atomic operation
+            }
+        });
+        
+        Thread t2 = new Thread(() -> {
+            for (int i = 0; i < 1000; i++) {
+                counter.incrementAndGet();
+            }
+        });
+        
+        t1.start();
+        t2.start();
+        
+        t1.join();
+        t2.join();
+        
+        System.out.println("Final count: " + counter.get()); // Always 2000
+        
+        // Atomic boolean for flags
+        AtomicBoolean flag = new AtomicBoolean(true);
+        
+        // Atomic reference for object references
+        AtomicReference<String> message = new AtomicReference<>("Hello");
+        
+        // Compare and set example
+        String oldValue = message.get();
+        String newValue = "World";
+        boolean updated = message.compareAndSet(oldValue, newValue);
+        System.out.println("Update successful: " + updated);
+        
+        // Complex atomic operations
+        AtomicInteger value = new AtomicInteger(10);
+        
+        // Atomic update with function
+        int result = value.updateAndGet(x -> x * 2 + 1);
+        System.out.println("Updated value: " + result); // 21
+        
+        // Accumulate values
+        value.accumulateAndGet(5, (x, y) -> x + y);
+        System.out.println("After accumulate: " + value.get()); // 26
+    }
+}</code></pre>
+                        </div>
+                    </div>
+
+                    <!-- Advanced Atomic Operations -->
+                    <div>
+                        <h4 class="font-bold text-lg mb-3">Advanced Atomic Operations</h4>
+                        <div class="code-block">
+                            <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                            <pre><code class="java">import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.LongAdder;
+
+class AtomicCounter {
+    private final AtomicInteger count = new AtomicInteger(0);
+    
+    public void increment() {
+        count.incrementAndGet();
+    }
+    
+    public void decrement() {
+        count.decrementAndGet();
+    }
+    
+    public int get() {
+        return count.get();
+    }
+    
+    // Complex atomic operation
+    public boolean compareAndSet(int expected, int newValue) {
+        return count.compareAndSet(expected, newValue);
+    }
+    
+    // Atomic update with transformation
+    public int multiplyAndGet(int multiplier) {
+        return count.updateAndGet(x -> x * multiplier);
+    }
+}
+
+// High-performance counter for high contention scenarios
+class HighPerformanceCounter {
+    private final LongAdder adder = new LongAdder();
+    
+    public void increment() {
+        adder.increment();
+    }
+    
+    public long get() {
+        return adder.sum();
+    }
+}
+
+public class AdvancedAtomicOperations {
+    public static void main(String[] args) throws InterruptedException {
+        // Standard atomic counter
+        AtomicCounter counter = new AtomicCounter();
+        
+        Thread[] threads = new Thread[10];
+        for (int i = 0; i < threads.length; i++) {
+            threads[i] = new Thread(() -> {
+                for (int j = 0; j < 1000; j++) {
+                    counter.increment();
+                }
+            });
+            threads[i].start();
+        }
+        
+        for (Thread t : threads) {
+            t.join();
+        }
+        
+        System.out.println("Atomic counter: " + counter.get()); // 10000
+        
+        // High-performance counter
+        HighPerformanceCounter hpCounter = new HighPerformanceCounter();
+        
+        for (int i = 0; i < threads.length; i++) {
+            threads[i] = new Thread(() -> {
+                for (int j = 0; j < 1000; j++) {
+                    hpCounter.increment();
+                }
+            });
+            threads[i].start();
+        }
+        
+        for (Thread t : threads) {
+            t.join();
+        }
+        
+        System.out.println("LongAdder counter: " + hpCounter.get()); // 10000
+        
+        // Demonstrate CAS operation
+        AtomicInteger value = new AtomicInteger(100);
+        
+        // This will succeed
+        boolean success1 = value.compareAndSet(100, 200);
+        System.out.println("First CAS: " + success1 + ", value: " + value.get());
+        
+        // This will fail because value is now 200, not 100
+        boolean success2 = value.compareAndSet(100, 300);
+        System.out.println("Second CAS: " + success2 + ", value: " + value.get());
+    }
+}</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Atomic Classes Comparison -->
+                <div class="bg-gray-100 p-4 rounded-lg">
+                    <h4 class="font-bold text-lg mb-3">Atomic Classes Overview</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="bg-white p-3 rounded-lg text-center">
+                            <span class="comparison-badge badge-atomic">AtomicInteger</span>
+                            <p class="text-sm mt-2">Thread-safe int operations</p>
+                        </div>
+                        <div class="bg-white p-3 rounded-lg text-center">
+                            <span class="comparison-badge badge-atomic">AtomicLong</span>
+                            <p class="text-sm mt-2">Thread-safe long operations</p>
+                        </div>
+                        <div class="bg-white p-3 rounded-lg text-center">
+                            <span class="comparison-badge badge-atomic">AtomicBoolean</span>
+                            <p class="text-sm mt-2">Thread-safe boolean operations</p>
+                        </div>
+                        <div class="bg-white p-3 rounded-lg text-center">
+                            <span class="comparison-badge badge-atomic">AtomicReference</span>
+                            <p class="text-sm mt-2">Thread-safe object references</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Best Practices Section -->
+        <section class="mb-16">
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-2xl md:text-3xl font-bold text-syncPrimary mb-6">Synchronization Best Practices</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                        <h3 class="font-bold text-blue-700 mb-2"><i class="fas fa-lock mr-2"></i>Minimize Lock Scope</h3>
+                        <p class="text-sm">Keep synchronized blocks as small as possible to reduce contention and improve performance.</p>
+                    </div>
+                    
+                    <div class="bg-green-50 p-4 rounded-lg border border-green-200">
+                        <h3 class="font-bold text-green-700 mb-2"><i class="fas fa-project-diagram mr-2"></i>Avoid Nested Locks</h3>
+                        <p class="text-sm">Prevent deadlocks by acquiring locks in a consistent order or using timeout mechanisms.</p>
+                    </div>
+                    
+                    <div class="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                        <h3 class="font-bold text-purple-700 mb-2"><i class="fas fa-balance-scale mr-2"></i>Use ReadWriteLock</h3>
+                        <p class="text-sm">For read-heavy workloads, use ReadWriteLock to allow multiple concurrent readers.</p>
+                    </div>
+                    
+                    <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                        <h3 class="font-bold text-yellow-700 mb-2"><i class="fas fa-atom mr-2"></i>Prefer Atomic Classes</h3>
+                        <p class="text-sm">Use atomic classes for simple counters and flags to avoid lock contention.</p>
+                    </div>
+                    
+                    <div class="bg-red-50 p-4 rounded-lg border border-red-200">
+                        <h3 class="font-bold text-red-700 mb-2"><i class="fas fa-eye mr-2"></i>Document Thread Safety</h3>
+                        <p class="text-sm">Clearly document the thread safety guarantees and synchronization strategies of your classes.</p>
+                    </div>
+                    
+                    <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-200">
+                        <h3 class="font-bold text-indigo-700 mb-2"><i class="fas fa-vial mr-2"></i>Test Thoroughly</h3>
+                        <p class="text-sm">Use stress testing and thread analysis tools to identify concurrency issues.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-syncSecondary text-white py-8">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-4 md:mb-0">
+                    <h2 class="text-xl font-bold mb-2">Java Synchronization Guide</h2>
+                    <p class="text-blue-100">Complete Reference for Thread Safety</p>
+                </div>
+                <div class="flex space-x-4">
+                    <a href="#" class="text-white hover:text-blue-200 transition-colors">
+                        <i class="fab fa-github text-2xl"></i>
+                    </a>
+                    <a href="#" class="text-white hover:text-blue-200 transition-colors">
+                        <i class="fab fa-twitter text-2xl"></i>
+                    </a>
+                    <a href="#" class="text-white hover:text-blue-200 transition-colors">
+                        <i class="fab fa-linkedin text-2xl"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="border-t border-blue-700 mt-6 pt-6 text-center text-blue-200">
+                <p>&copy; 2023 Java Synchronization Guide. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Initialize syntax highlighting
+        hljs.highlightAll();
+        
+        // Copy code functionality
+        function copyCode(button) {
+            const codeBlock = button.parentElement;
+            const code = codeBlock.querySelector('code').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                button.style.background = 'rgba(34, 197, 94, 0.8)';
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.background = 'rgba(255, 255, 255, 0.1)';
+                }, 2000);
+            });
+        }
+
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+        
+        // Add animation to concept cards on scroll
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+        
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, observerOptions);
+        
+        document.querySelectorAll('.concept-card').forEach(el => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(20px)';
+            el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            observer.observe(el);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Java Locks - Complete Guide</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        java: '#5382A1',
+                        javaDark: '#3A6D8C',
+                        lockPrimary: '#7C3AED',
+                        lockSecondary: '#5B21B6',
+                        reentrant: '#059669'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .code-block {
+            font-family: 'Consolas', 'Monaco', monospace;
+            background-color: #282c34;
+            color: #abb2bf;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            overflow-x: auto;
+            position: relative;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        .copy-btn {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: all 0.2s ease;
+        }
+        .copy-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        .nav-link {
+            position: relative;
+            transition: color 0.3s ease;
+        }
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: -4px;
+            left: 0;
+            background-color: #8B5CF6;
+            transition: width 0.3s ease;
+        }
+        .nav-link:hover::after {
+            width: 100%;
+        }
+        .concept-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border-left: 4px solid #7C3AED;
+        }
+        .concept-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .reentrant-card {
+            border-left: 4px solid #059669;
+        }
+        .feature-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin: 0.125rem;
+        }
+        .badge-reentrant { background-color: #D1FAE5; color: #065F46; }
+        .badge-fair { background-color: #DBEAFE; color: #1E40AF; }
+        .badge-timeout { background-color: #FEF3C7; color: #92400E; }
+        .badge-interrupt { background-color: #FCE7F3; color: #9D174D; }
+        .lock-state {
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-weight: 600;
+            text-align: center;
+            margin: 0.25rem;
+        }
+        .state-locked { background-color: #FEE2E2; color: #DC2626; }
+        .state-unlocked { background-color: #DCFCE7; color: #16A34A; }
+        .state-waiting { background-color: #FEF3C7; color: #D97706; }
+        .comparison-table tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+        .method-signature {
+            font-family: 'Consolas', monospace;
+            background-color: #F3F4F6;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+        }
+        .lock-visualization {
+            transition: all 0.3s ease;
+        }
+        .lock-visualization:hover {
+            transform: scale(1.02);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-lockPrimary to-lockSecondary text-white shadow-lg sticky top-0 z-10">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="flex items-center mb-4 md:mb-0">
+                    <i class="fas fa-lock text-4xl mr-3"></i>
+                    <div>
+                        <h1 class="text-2xl md:text-3xl font-bold">Java Locks Complete Guide</h1>
+                        <p class="text-sm text-purple-100">Mastering ReentrantLock and Lock Interface</p>
+                    </div>
+                </div>
+                <nav class="flex flex-wrap justify-center gap-3 md:gap-6">
+                    <a href="#overview" class="nav-link text-white font-medium">Overview</a>
+                    <a href="#reentrant" class="nav-link text-white font-medium">ReentrantLock</a>
+                    <a href="#methods" class="nav-link text-white font-medium">Methods</a>
+                    <a href="#readwrite" class="nav-link text-white font-medium">ReadWriteLock</a>
+                    <a href="#conditions" class="nav-link text-white font-medium">Conditions</a>
+                    <a href="#best-practices" class="nav-link text-white font-medium">Best Practices</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8">
+        <!-- Overview Section -->
+        <section id="overview" class="mb-16 scroll-mt-20">
+            <div class="bg-white rounded-xl shadow-md p-6 md:p-8">
+                <h2 class="text-2xl md:text-3xl font-bold text-lockPrimary mb-4">Lock Interface Overview</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <p class="mb-4 text-lg">
+                            The <code>java.util.concurrent.locks.Lock</code> interface provides a more flexible and powerful 
+                            locking mechanism than intrinsic synchronization. It offers explicit lock acquisition and release, 
+                            timeout support, and interruptible locking.
+                        </p>
+                        <div class="bg-purple-50 p-4 rounded-lg border border-purple-200 mb-4">
+                            <h3 class="font-bold text-purple-700 mb-2"><i class="fas fa-star mr-2"></i>Key Advantages</h3>
+                            <ul class="list-disc pl-5 space-y-1">
+                                <li>Explicit lock acquisition and release</li>
+                                <li>Try-lock with timeout support</li>
+                                <li>Interruptible lock acquisition</li>
+                                <li>Non-block-structured locking</li>
+                                <li>Multiple condition variables per lock</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-center">
+                        <div class="bg-gradient-to-br from-lockPrimary to-lockSecondary text-white rounded-xl p-6 max-w-md w-full">
+                            <h3 class="text-xl font-bold mb-4 text-center">Lock Hierarchy</h3>
+                            <div class="space-y-3">
+                                <div class="bg-white bg-opacity-10 p-3 rounded-lg">
+                                    <h4 class="font-bold">Lock Interface</h4>
+                                    <p class="text-sm">Base interface for all locks</p>
+                                </div>
+                                <div class="text-center">
+                                    <i class="fas fa-arrow-down text-white"></i>
+                                </div>
+                                <div class="bg-white bg-opacity-10 p-3 rounded-lg">
+                                    <h4 class="font-bold">ReentrantLock</h4>
+                                    <p class="text-sm">Most commonly used implementation</p>
+                                </div>
+                                <div class="text-center">
+                                    <i class="fas fa-arrow-down text-white"></i>
+                                </div>
+                                <div class="bg-white bg-opacity-10 p-3 rounded-lg">
+                                    <h4 class="font-bold">ReadWriteLock</h4>
+                                    <p class="text-sm">Separate read and write locks</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Basic Lock Example -->
+                <div class="mt-8">
+                    <h3 class="text-xl font-bold text-lockPrimary mb-4">Basic Lock Usage Pattern</h3>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                        <pre><code class="java">import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+
+public class BasicLockExample {
+    private final Lock lock = new ReentrantLock();
+    private int sharedResource = 0;
+    
+    public void criticalSection() {
+        lock.lock();  // Acquire the lock
+        try {
+            // Critical section - thread-safe operations
+            sharedResource++;
+            System.out.println("Thread " + Thread.currentThread().getName() + 
+                             " updated resource to: " + sharedResource);
+        } finally {
+            lock.unlock();  // Always release in finally block
+        }
+    }
+    
+    public static void main(String[] args) {
+        BasicLockExample example = new BasicLockExample();
+        
+        // Create multiple threads accessing the critical section
+        Thread[] threads = new Thread[5];
+        for (int i = 0; i < threads.length; i++) {
+            threads[i] = new Thread(() -> {
+                for (int j = 0; j < 3; j++) {
+                    example.criticalSection();
+                    try {
+                        Thread.sleep(100); // Simulate some work
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+            });
+            threads[i].start();
+        }
+        
+        // Wait for all threads to complete
+        for (Thread thread : threads) {
+            try {
+                thread.join();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+        
+        System.out.println("Final resource value: " + example.sharedResource);
+    }
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ReentrantLock Deep Dive -->
+        <section id="reentrant" class="mb-16 scroll-mt-20">
+            <h2 class="text-2xl md:text-3xl font-bold text-lockPrimary mb-6">ReentrantLock Deep Dive</h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                <!-- Reentrancy Feature -->
+                <div class="concept-card reentrant-card bg-white rounded-xl shadow-md p-6">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-reentrant text-white p-2 rounded-lg mr-3">
+                            <i class="fas fa-redo"></i>
+                        </div>
+                        <h3 class="text-xl font-bold">Reentrancy</h3>
+                    </div>
+                    <p class="mb-4">
+                        A thread can acquire the same lock multiple times without deadlocking itself. 
+                        Each lock acquisition must be matched with a release.
+                    </p>
+                    
+                    <div class="code-block mb-4">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                        <pre><code class="java">import java.util.concurrent.locks.ReentrantLock;
+
+public class ReentrancyExample {
+    private final ReentrantLock lock = new ReentrantLock();
+    
+    public void outerMethod() {
+        lock.lock();
+        try {
+            System.out.println("Outer method - Lock count: " + lock.getHoldCount());
+            innerMethod(); // Reentrant call - same thread can acquire lock again
+        } finally {
+            lock.unlock();
+        }
+    }
+    
+    public void innerMethod() {
+        lock.lock(); // This works - lock is reentrant
+        try {
+            System.out.println("Inner method - Lock count: " + lock.getHoldCount());
+            // The lock will only be released when unlock() is called as many times as lock()
+        } finally {
+            lock.unlock();
+        }
+    }
+    
+    public void demonstrateReentrancy() {
+        System.out.println("Initial - isLocked: " + lock.isLocked() + 
+                         ", Hold count: " + lock.getHoldCount());
+        
+        outerMethod();
+        
+        System.out.println("Final - isLocked: " + lock.isLocked() + 
+                         ", Hold count: " + lock.getHoldCount());
+    }
+    
+    public static void main(String[] args) {
+        ReentrancyExample example = new ReentrancyExample();
+        example.demonstrateReentrancy();
+    }
+}</code></pre>
+                    </div>
+                    <div class="bg-green-50 p-3 rounded-lg border border-green-200">
+                        <h4 class="font-bold text-green-700 mb-1"><i class="fas fa-info-circle mr-1"></i>Reentrancy in Action</h4>
+                        <p class="text-sm">The lock maintains a hold count. It's only released when unlock() is called as many times as lock().</p>
+                    </div>
+                </div>
+
+                <!-- Fairness Feature -->
+                <div class="concept-card reentrant-card bg-white rounded-xl shadow-md p-6">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-blue-500 text-white p-2 rounded-lg mr-3">
+                            <i class="fas fa-scale-balanced"></i>
+                        </div>
+                        <h3 class="text-xl font-bold">Fairness Policy</h3>
+                    </div>
+                    <p class="mb-4">
+                        ReentrantLock can be configured with a fairness policy. When fair, locks are granted 
+                        to the longest-waiting thread.
+                    </p>
+                    
+                    <div class="code-block mb-4">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                        <pre><code class="java">import java.util.concurrent.locks.ReentrantLock;
+
+public class FairnessExample {
+    // Fair lock - grants access to the longest-waiting thread
+    private final ReentrantLock fairLock = new ReentrantLock(true);
+    
+    // Non-fair lock - no guarantee about acquisition order
+    private final ReentrantLock nonFairLock = new ReentrantLock(false);
+    
+    public void accessWithFairLock(String threadName) {
+        fairLock.lock();
+        try {
+            System.out.println(threadName + " acquired fair lock");
+            Thread.sleep(100); // Simulate work
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } finally {
+            fairLock.unlock();
+        }
+    }
+    
+    public void accessWithNonFairLock(String threadName) {
+        nonFairLock.lock();
+        try {
+            System.out.println(threadName + " acquired non-fair lock");
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } finally {
+            nonFairLock.unlock();
+        }
+    }
+    
+    public static void main(String[] args) throws InterruptedException {
+        FairnessExample example = new FairnessExample();
+        
+        System.out.println("=== Fair Lock Test ===");
+        Thread[] fairThreads = new Thread[5];
+        for (int i = 0; i < fairThreads.length; i++) {
+            final int threadId = i;
+            fairThreads[i] = new Thread(() -> {
+                example.accessWithFairLock("FairThread-" + threadId);
+            });
+        }
+        
+        // Start threads in order
+        for (Thread t : fairThreads) {
+            t.start();
+            Thread.sleep(10); // Small delay to ensure ordering
+        }
+        
+        for (Thread t : fairThreads) {
+            t.join();
+        }
+        
+        System.out.println("\n=== Non-Fair Lock Test ===");
+        Thread[] nonFairThreads = new Thread[5];
+        for (int i = 0; i < nonFairThreads.length; i++) {
+            final int threadId = i;
+            nonFairThreads[i] = new Thread(() -> {
+                example.accessWithNonFairLock("NonFairThread-" + threadId);
+            });
+        }
+        
+        for (Thread t : nonFairThreads) {
+            t.start();
+            Thread.sleep(10);
+        }
+        
+        for (Thread t : nonFairThreads) {
+            t.join();
+        }
+    }
+}</code></pre>
+                    </div>
+                    <div class="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                        <h4 class="font-bold text-blue-700 mb-1"><i class="fas fa-balance-scale mr-1"></i>Fairness Trade-off</h4>
+                        <p class="text-sm">Fair locks prevent starvation but have higher overhead. Non-fair locks are faster but may cause starvation.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Advanced ReentrantLock Features -->
+            <div class="concept-card bg-white rounded-xl shadow-md p-6">
+                <h3 class="text-xl font-bold text-lockPrimary mb-4">Advanced ReentrantLock Features</h3>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <h4 class="font-bold text-lg mb-3">Lock Monitoring</h4>
+                        <div class="code-block">
+                            <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                            <pre><code class="java">import java.util.concurrent.locks.ReentrantLock;
+
+public class LockMonitoringExample {
+    private final ReentrantLock lock = new ReentrantLock();
+    
+    public void demonstrateMonitoring() {
+        System.out.println("=== Lock State Information ===");
+        System.out.println("isLocked: " + lock.isLocked());
+        System.out.println("isHeldByCurrentThread: " + lock.isHeldByCurrentThread());
+        System.out.println("getHoldCount: " + lock.getHoldCount());
+        System.out.println("isFair: " + lock.isFair());
+        System.out.println("hasQueuedThreads: " + lock.hasQueuedThreads());
+        System.out.println("getQueueLength: " + lock.getQueueLength());
+        
+        lock.lock();
+        try {
+            System.out.println("\n=== After acquiring lock ===");
+            System.out.println("isLocked: " + lock.isLocked());
+            System.out.println("isHeldByCurrentThread: " + lock.isHeldByCurrentThread());
+            System.out.println("getHoldCount: " + lock.getHoldCount());
+            
+            // Nested lock acquisition
+            lock.lock();
+            System.out.println("After nested lock - getHoldCount: " + lock.getHoldCount());
+            lock.unlock();
+            
+        } finally {
+            lock.unlock();
+            System.out.println("\n=== After releasing lock ===");
+            System.out.println("isLocked: " + lock.isLocked());
+            System.out.println("getHoldCount: " + lock.getHoldCount());
+        }
+    }
+    
+    public static void main(String[] args) {
+        LockMonitoringExample example = new LockMonitoringExample();
+        example.demonstrateMonitoring();
+    }
+}</code></pre>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h4 class="font-bold text-lg mb-3">TryLock with Timeout</h4>
+                        <div class="code-block">
+                            <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                            <pre><code class="java">import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
+
+public class TryLockExample {
+    private final ReentrantLock lock = new ReentrantLock();
+    
+    public boolean attemptTaskWithTimeout(long timeout, TimeUnit unit) {
+        boolean locked = false;
+        try {
+            // Try to acquire lock with timeout
+            locked = lock.tryLock(timeout, unit);
+            if (locked) {
+                System.out.println(Thread.currentThread().getName() + 
+                                 " acquired lock successfully");
+                // Perform critical section work
+                Thread.sleep(500); // Simulate work
+                return true;
+            } else {
+                System.out.println(Thread.currentThread().getName() + 
+                                 " could not acquire lock within timeout");
+                return false;
+            }
+        } catch (InterruptedException e) {
+            System.out.println(Thread.currentThread().getName() + " was interrupted");
+            Thread.currentThread().interrupt();
+            return false;
+        } finally {
+            if (locked) {
+                lock.unlock();
+            }
+        }
+    }
+    
+    public static void main(String[] args) throws InterruptedException {
+        TryLockExample example = new TryLockExample();
+        
+        // Thread that holds the lock for a while
+        Thread holder = new Thread(() -> {
+            example.lock.lock();
+            try {
+                System.out.println("Holder thread acquired lock, sleeping...");
+                Thread.sleep(2000); // Hold lock for 2 seconds
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } finally {
+                example.lock.unlock();
+                System.out.println("Holder thread released lock");
+            }
+        });
+        
+        // Thread that tries to acquire with timeout
+        Thread attemptor = new Thread(() -> {
+            boolean success = example.attemptTaskWithTimeout(1, TimeUnit.SECONDS);
+            System.out.println("Attemptor result: " + success);
+        });
+        
+        holder.start();
+        Thread.sleep(100); // Ensure holder gets lock first
+        attemptor.start();
+        
+        holder.join();
+        attemptor.join();
+    }
+}</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Lock Methods Section -->
+        <section id="methods" class="mb-16 scroll-mt-20">
+            <h2 class="text-2xl md:text-3xl font-bold text-lockPrimary mb-6">Lock Interface Methods</h2>
+            
+            <div class="bg-white rounded-xl shadow-md p-6 mb-8">
+                <h3 class="text-xl font-bold text-lockPrimary mb-4">Complete Method Reference</h3>
+                
+                <div class="overflow-x-auto mb-6">
+                    <table class="comparison-table w-full border-collapse">
+                        <thead>
+                            <tr class="bg-gray-100">
+                                <th class="border p-3 text-left">Method</th>
+                                <th class="border p-3 text-left">Description</th>
+                                <th class="border p-3 text-left">Usage</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="border p-3 font-mono">void lock()</td>
+                                <td class="border p-3">Acquires the lock, blocking if necessary</td>
+                                <td class="border p-3">Standard lock acquisition</td>
+                            </tr>
+                            <tr>
+                                <td class="border p-3 font-mono">void lockInterruptibly()</td>
+                                <td class="border p-3">Acquires lock unless current thread is interrupted</td>
+                                <td class="border p-3">Interruptible locking</td>
+                            </tr>
+                            <tr>
+                                <td class="border p-3 font-mono">boolean tryLock()</td>
+                                <td class="border p-3">Acquires lock only if available immediately</td>
+                                <td class="border p-3">Non-blocking attempt</td>
+                            </tr>
+                            <tr>
+                                <td class="border p-3 font-mono">boolean tryLock(long time, TimeUnit unit)</td>
+                                <td class="border p-3">Acquires lock within given waiting time</td>
+                                <td class="border p-3">Timeout-based acquisition</td>
+                            </tr>
+                            <tr>
+                                <td class="border p-3 font-mono">void unlock()</td>
+                                <td class="border p-3">Releases the lock</td>
+                                <td class="border p-3">Always call in finally block</td>
+                            </tr>
+                            <tr>
+                                <td class="border p-3 font-mono">Condition newCondition()</td>
+                                <td class="border p-3">Returns new Condition bound to this lock</td>
+                                <td class="border p-3">Advanced thread coordination</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Practical Method Examples -->
+                <h4 class="text-lg font-bold mb-4">Practical Method Usage Examples</h4>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                    <pre><code class="java">import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+
+public class LockMethodsExample {
+    private final Lock lock = new ReentrantLock();
+    private int counter = 0;
+    
+    // Example 1: Basic lock() and unlock()
+    public void basicLockExample() {
+        lock.lock();
+        try {
+            counter++;
+            System.out.println("Counter: " + counter);
+        } finally {
+            lock.unlock();
+        }
+    }
+    
+    // Example 2: tryLock() for non-blocking access
+    public boolean tryIncrement() {
+        if (lock.tryLock()) {
+            try {
+                counter++;
+                System.out.println("Incremented to: " + counter);
+                return true;
+            } finally {
+                lock.unlock();
+            }
+        } else {
+            System.out.println("Could not acquire lock, skipping increment");
+            return false;
+        }
+    }
+    
+    // Example 3: tryLock with timeout
+    public boolean timedIncrement() throws InterruptedException {
+        if (lock.tryLock(1, TimeUnit.SECONDS)) {
+            try {
+                counter++;
+                System.out.println("Timed increment to: " + counter);
+                return true;
+            } finally {
+                lock.unlock();
+            }
+        } else {
+            System.out.println("Timeout acquiring lock");
+            return false;
+        }
+    }
+    
+    // Example 4: lockInterruptibly() for responsive locking
+    public void interruptibleIncrement() throws InterruptedException {
+        lock.lockInterruptibly();
+        try {
+            // Simulate long operation
+            Thread.sleep(2000);
+            counter++;
+            System.out.println("Interruptible increment to: " + counter);
+        } finally {
+            lock.unlock();
+        }
+    }
+    
+    public static void main(String[] args) throws InterruptedException {
+        LockMethodsExample example = new LockMethodsExample();
+        
+        // Test basic lock
+        example.basicLockExample();
+        
+        // Test tryLock
+        example.tryIncrement();
+        
+        // Test timed tryLock
+        example.timedIncrement();
+        
+        // Test interruptible lock
+        Thread interrupter = new Thread(() -> {
+            try {
+                example.interruptibleIncrement();
+            } catch (InterruptedException e) {
+                System.out.println("Thread was interrupted during lock acquisition");
+            }
+        });
+        
+        interrupter.start();
+        Thread.sleep(100); // Let thread start
+        interrupter.interrupt(); // Interrupt the thread
+        interrupter.join();
+    }
+}</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- ReadWriteLock Section -->
+        <section id="readwrite" class="mb-16 scroll-mt-20">
+            <h2 class="text-2xl md:text-3xl font-bold text-lockPrimary mb-6">ReadWriteLock</h2>
+            
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <div class="flex items-center mb-4">
+                    <div class="bg-purple-500 text-white p-2 rounded-lg mr-3">
+                        <i class="fas fa-book-reader"></i>
+                    </div>
+                    <h3 class="text-xl font-bold">Optimized for Read-Heavy Workloads</h3>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-6">
+                    <div>
+                        <p class="mb-4">
+                            <code>ReadWriteLock</code> maintains a pair of locks: one for read-only operations and one for writing. 
+                            Multiple readers can hold the read lock simultaneously, but only one writer can hold the write lock.
+                        </p>
+                        <div class="bg-purple-50 p-4 rounded-lg border border-purple-200 mb-4">
+                            <h4 class="font-bold text-purple-700 mb-2"><i class="fas fa-lightbulb mr-2"></i>When to Use ReadWriteLock</h4>
+                            <ul class="list-disc pl-5 space-y-1 text-sm">
+                                <li>Read-heavy data structures (caches, configuration)</li>
+                                <li>Frequently read, rarely written data</li>
+                                <li>When readers significantly outnumber writers</li>
+                                <li>When read operations are time-consuming</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="code-block">
+                            <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                            <pre><code class="java">import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.HashMap;
+import java.util.Map;
+
+public class ReadWriteLockExample {
+    private final Map<String, String> data = new HashMap<>();
+    private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
+    
+    // Read operation - multiple threads can read concurrently
+    public String read(String key) {
+        rwLock.readLock().lock();
+        try {
+            System.out.println(Thread.currentThread().getName() + " reading: " + key);
+            Thread.sleep(100); // Simulate read operation
+            return data.get(key);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return null;
+        } finally {
+            rwLock.readLock().unlock();
+        }
+    }
+    
+    // Write operation - exclusive access
+    public void write(String key, String value) {
+        rwLock.writeLock().lock();
+        try {
+            System.out.println(Thread.currentThread().getName() + " writing: " + key);
+            Thread.sleep(200); // Simulate write operation
+            data.put(key, value);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } finally {
+            rwLock.writeLock().unlock();
+        }
+    }
+    
+    // Upgrade read lock to write lock (not directly supported)
+    public void upgradeDemo(String key, String newValue) {
+        // This demonstrates why you can't directly upgrade
+        rwLock.readLock().lock();
+        try {
+            if (data.containsKey(key)) {
+                // Can't upgrade read lock to write lock directly
+                // Must release read lock and acquire write lock
+                rwLock.readLock().unlock();
+                rwLock.writeLock().lock();
+                try {
+                    data.put(key, newValue);
+                } finally {
+                    // Downgrade: acquire read lock before releasing write lock
+                    rwLock.readLock().lock();
+                    rwLock.writeLock().unlock();
+                }
+            }
+        } finally {
+            rwLock.readLock().unlock();
+        }
+    }
+    
+    public static void main(String[] args) throws InterruptedException {
+        ReadWriteLockExample example = new ReadWriteLockExample();
+        
+        // Initialize some data
+        example.write("key1", "value1");
+        example.write("key2", "value2");
+        
+        // Create multiple reader threads
+        Thread[] readers = new Thread[5];
+        for (int i = 0; i < readers.length; i++) {
+            final int readerId = i;
+            readers[i] = new Thread(() -> {
+                for (int j = 0; j < 3; j++) {
+                    example.read("key1");
+                }
+            }, "Reader-" + readerId);
+        }
+        
+        // Create writer thread
+        Thread writer = new Thread(() -> {
+            for (int i = 0; i < 2; i++) {
+                example.write("key3", "value" + i);
+            }
+        }, "Writer");
+        
+        // Start all threads
+        for (Thread reader : readers) {
+            reader.start();
+        }
+        writer.start();
+        
+        // Wait for completion
+        for (Thread reader : readers) {
+            reader.join();
+        }
+        writer.join();
+        
+        System.out.println("All operations completed");
+    }
+}</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ReadWriteLock Visualization -->
+                <div class="bg-gray-100 p-6 rounded-lg">
+                    <h4 class="font-bold text-lg mb-4 text-center">ReadWriteLock Behavior</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                        <div class="lock-visualization bg-green-100 p-4 rounded-lg">
+                            <h5 class="font-bold text-green-700">Multiple Readers</h5>
+                            <p class="text-sm">Many threads can read simultaneously</p>
+                            <div class="flex justify-center mt-2">
+                                <span class="lock-state state-unlocked">Reader 1</span>
+                                <span class="lock-state state-unlocked">Reader 2</span>
+                                <span class="lock-state state-unlocked">Reader 3</span>
+                            </div>
+                        </div>
+                        <div class="lock-visualization bg-red-100 p-4 rounded-lg">
+                            <h5 class="font-bold text-red-700">Single Writer</h5>
+                            <p class="text-sm">Only one thread can write at a time</p>
+                            <div class="flex justify-center mt-2">
+                                <span class="lock-state state-locked">Writer</span>
+                            </div>
+                        </div>
+                        <div class="lock-visualization bg-yellow-100 p-4 rounded-lg">
+                            <h5 class="font-bold text-yellow-700">Writer Blocks Readers</h5>
+                            <p class="text-sm">Writer gets exclusive access</p>
+                            <div class="flex justify-center mt-2">
+                                <span class="lock-state state-waiting">Readers wait</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Conditions Section -->
+        <section id="conditions" class="mb-16 scroll-mt-20">
+            <h2 class="text-2xl md:text-3xl font-bold text-lockPrimary mb-6">Condition Objects</h2>
+            
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <div class="flex items-center mb-4">
+                    <div class="bg-indigo-500 text-white p-2 rounded-lg mr-3">
+                        <i class="fas fa-pause-circle"></i>
+                    </div>
+                    <h3 class="text-xl font-bold">Advanced Thread Coordination</h3>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <p class="mb-4">
+                            <code>Condition</code> objects provide sophisticated thread coordination similar to 
+                            <code>wait()</code>/<code>notify()</code> but with more flexibility. Each Lock can have multiple Condition objects.
+                        </p>
+                        
+                        <div class="code-block">
+                            <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                            <pre><code class="java">import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.LinkedList;
+import java.util.Queue;
+
+public class ConditionExample {
+    private final Lock lock = new ReentrantLock();
+    private final Condition notEmpty = lock.newCondition();
+    private final Condition notFull = lock.newCondition();
+    private final Queue<String> queue = new LinkedList<>();
+    private final int capacity = 5;
+    
+    // Producer method
+    public void produce(String item) throws InterruptedException {
+        lock.lock();
+        try {
+            // Wait while queue is full
+            while (queue.size() == capacity) {
+                System.out.println("Queue full, producer waiting...");
+                notFull.await(); // Releases lock and waits
+            }
+            
+            queue.offer(item);
+            System.out.println("Produced: " + item + ", Queue size: " + queue.size());
+            
+            // Signal consumers that queue is not empty
+            notEmpty.signal();
+        } finally {
+            lock.unlock();
+        }
+    }
+    
+    // Consumer method
+    public String consume() throws InterruptedException {
+        lock.lock();
+        try {
+            // Wait while queue is empty
+            while (queue.isEmpty()) {
+                System.out.println("Queue empty, consumer waiting...");
+                notEmpty.await(); // Releases lock and waits
+            }
+            
+            String item = queue.poll();
+            System.out.println("Consumed: " + item + ", Queue size: " + queue.size());
+            
+            // Signal producers that queue is not full
+            notFull.signal();
+            
+            return item;
+        } finally {
+            lock.unlock();
+        }
+    }
+    
+    // Timed await example
+    public String consumeWithTimeout() throws InterruptedException {
+        lock.lock();
+        try {
+            long waitTime = 2000; // 2 seconds
+            while (queue.isEmpty()) {
+                System.out.println("Queue empty, waiting with timeout...");
+                if (!notEmpty.await(waitTime, java.util.concurrent.TimeUnit.MILLISECONDS)) {
+                    System.out.println("Timeout occurred, returning null");
+                    return null;
+                }
+            }
+            
+            String item = queue.poll();
+            notFull.signal();
+            return item;
+        } finally {
+            lock.unlock();
+        }
+    }
+    
+    public static void main(String[] args) throws InterruptedException {
+        ConditionExample example = new ConditionExample();
+        
+        // Producer thread
+        Thread producer = new Thread(() -> {
+            try {
+                for (int i = 1; i <= 10; i++) {
+                    example.produce("Item-" + i);
+                    Thread.sleep(100);
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        
+        // Consumer thread
+        Thread consumer = new Thread(() -> {
+            try {
+                for (int i = 0; i < 10; i++) {
+                    example.consume();
+                    Thread.sleep(150);
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        
+        producer.start();
+        consumer.start();
+        
+        producer.join();
+        consumer.join();
+        
+        System.out.println("Producer-consumer example completed");
+    }
+}</code></pre>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h4 class="font-bold text-lg mb-3">Condition Methods</h4>
+                        <div class="space-y-4">
+                            <div class="bg-white p-4 rounded-lg border">
+                                <h5 class="font-bold text-purple-700 mb-2">await()</h5>
+                                <p class="text-sm">Causes current thread to wait until signaled or interrupted</p>
+                                <code class="method-signature">void await() throws InterruptedException</code>
+                            </div>
+                            
+                            <div class="bg-white p-4 rounded-lg border">
+                                <h5 class="font-bold text-purple-700 mb-2">awaitUninterruptibly()</h5>
+                                <p class="text-sm">Causes current thread to wait until signaled (not interruptible)</p>
+                                <code class="method-signature">void awaitUninterruptibly()</code>
+                            </div>
+                            
+                            <div class="bg-white p-4 rounded-lg border">
+                                <h5 class="font-bold text-purple-700 mb-2">awaitNanos(long nanosTimeout)</h5>
+                                <p class="text-sm">Waits until signaled, interrupted, or timeout</p>
+                                <code class="method-signature">long awaitNanos(long nanosTimeout)</code>
+                            </div>
+                            
+                            <div class="bg-white p-4 rounded-lg border">
+                                <h5 class="font-bold text-purple-700 mb-2">signal()</h5>
+                                <p class="text-sm">Wakes up one waiting thread</p>
+                                <code class="method-signature">void signal()</code>
+                            </div>
+                            
+                            <div class="bg-white p-4 rounded-lg border">
+                                <h5 class="font-bold text-purple-700 mb-2">signalAll()</h5>
+                                <p class="text-sm">Wakes up all waiting threads</p>
+                                <code class="method-signature">void signalAll()</code>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-6 bg-blue-50 p-4 rounded-lg border border-blue-200">
+                            <h4 class="font-bold text-blue-700 mb-2"><i class="fas fa-lightbulb mr-2"></i>Condition Best Practices</h4>
+                            <ul class="list-disc pl-5 space-y-1 text-sm">
+                                <li>Always use await() in a while loop to handle spurious wakeups</li>
+                                <li>Use different Condition objects for different wait conditions</li>
+                                <li>Always call await() with the lock held</li>
+                                <li>Use signal() instead of signalAll() when possible for better performance</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Best Practices Section -->
+        <section id="best-practices" class="mb-16 scroll-mt-20">
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-2xl md:text-3xl font-bold text-lockPrimary mb-6">Best Practices & Common Patterns</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-green-50 p-4 rounded-lg border border-green-200">
+                        <h3 class="font-bold text-green-700 mb-2"><i class="fas fa-check-circle mr-2"></i>Always Use try-finally</h3>
+                        <p class="text-sm">Ensure locks are always released by using try-finally blocks.</p>
+                        <code class="method-signature block mt-2">lock.lock(); try { ... } finally { lock.unlock(); }</code>
+                    </div>
+                    
+                    <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                        <h3 class="font-bold text-blue-700 mb-2"><i class="fas fa-clock mr-2"></i>Use Timeouts</h3>
+                        <p class="text-sm">Prevent deadlocks by using tryLock with timeouts in production code.</p>
+                        <code class="method-signature block mt-2">lock.tryLock(timeout, unit)</code>
+                    </div>
+                    
+                    <div class="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                        <h3 class="font-bold text-purple-700 mb-2"><i class="fas fa-book-reader mr-2"></i>Choose Right Lock</h3>
+                        <p class="text-sm">Use ReadWriteLock for read-heavy scenarios, ReentrantLock for write-heavy.</p>
+                    </div>
+                    
+                    <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                        <h3 class="font-bold text-yellow-700 mb-2"><i class="fas fa-balance-scale mr-2"></i>Consider Fairness</h3>
+                        <p class="text-sm">Use fair locks only when thread starvation is a real concern.</p>
+                    </div>
+                    
+                    <div class="bg-red-50 p-4 rounded-lg border border-red-200">
+                        <h3 class="font-bold text-red-700 mb-2"><i class="fas fa-exclamation-triangle mr-2"></i>Avoid Nested Locks</h3>
+                        <p class="text-sm">Acquire locks in a consistent order to prevent deadlocks.</p>
+                    </div>
+                    
+                    <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-200">
+                        <h3 class="font-bold text-indigo-700 mb-2"><i class="fas fa-tachometer-alt mr-2"></i>Monitor Performance</h3>
+                        <p class="text-sm">Use getQueueLength() and other monitoring methods to detect contention.</p>
+                    </div>
+                </div>
+
+                <!-- Common Anti-patterns -->
+                <div class="bg-red-50 p-6 rounded-lg border border-red-200">
+                    <h3 class="text-xl font-bold text-red-700 mb-4"><i class="fas fa-bug mr-2"></i>Common Anti-patterns to Avoid</h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="font-bold mb-2">❌ Forgetting to Unlock</h4>
+                            <div class="code-block">
+                                <pre><code class="java">// WRONG - may cause deadlock if exception occurs
+lock.lock();
+sharedResource++;  // If exception here, lock never released!
+lock.unlock();
+
+// CORRECT - use try-finally
+lock.lock();
+try {
+    sharedResource++;
+} finally {
+    lock.unlock();
+}</code></pre>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h4 class="font-bold mb-2">❌ Calling unlock() Without Lock</h4>
+                            <div class="code-block">
+                                <pre><code class="java">// WRONG - IllegalMonitorStateException
+if (condition) {
+    lock.unlock();  // Never called lock()!
+}
+
+// CORRECT - check lock ownership
+if (lock.tryLock()) {
+    try {
+        // critical section
+    } finally {
+        lock.unlock();
+    }
+}</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Performance Comparison -->
+                <div class="mt-8 bg-white p-6 rounded-lg border">
+                    <h3 class="text-xl font-bold text-lockPrimary mb-4">Performance Characteristics</h3>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="comparison-table w-full border-collapse">
+                            <thead>
+                                <tr class="bg-gray-100">
+                                    <th class="border p-3 text-left">Lock Type</th>
+                                    <th class="border p-3 text-left">Read Performance</th>
+                                    <th class="border p-3 text-left">Write Performance</th>
+                                    <th class="border p-3 text-left">Memory Overhead</th>
+                                    <th class="border p-3 text-left">Use Case</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="border p-3 font-medium">synchronized</td>
+                                    <td class="border p-3">Good</td>
+                                    <td class="border p-3">Good</td>
+                                    <td class="border p-3">Low</td>
+                                    <td class="border p-3">Simple synchronization</td>
+                                </tr>
+                                <tr>
+                                    <td class="border p-3 font-medium">ReentrantLock</td>
+                                    <td class="border p-3">Very Good</td>
+                                    <td class="border p-3">Very Good</td>
+                                    <td class="border p-3">Medium</td>
+                                    <td class="border p-3">Advanced features needed</td>
+                                </tr>
+                                <tr>
+                                    <td class="border p-3 font-medium">ReadWriteLock</td>
+                                    <td class="border p-3">Excellent</td>
+                                    <td class="border p-3">Good</td>
+                                    <td class="border p-3">High</td>
+                                    <td class="border p-3">Read-heavy workloads</td>
+                                </tr>
+                                <tr>
+                                    <td class="border p-3 font-medium">StampedLock</td>
+                                    <td class="border p-3">Best</td>
+                                    <td class="border p-3">Best</td>
+                                    <td class="border p-3">Medium</td>
+                                    <td class="border p-3">Very high performance needed</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-lockSecondary text-white py-8">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-4 md:mb-0">
+                    <h2 class="text-xl font-bold mb-2">Java Locks Complete Guide</h2>
+                    <p class="text-purple-100">Mastering Concurrent Programming</p>
+                </div>
+                <div class="flex space-x-4">
+                    <a href="#" class="text-white hover:text-purple-200 transition-colors">
+                        <i class="fab fa-github text-2xl"></i>
+                    </a>
+                    <a href="#" class="text-white hover:text-purple-200 transition-colors">
+                        <i class="fab fa-twitter text-2xl"></i>
+                    </a>
+                    <a href="#" class="text-white hover:text-purple-200 transition-colors">
+                        <i class="fab fa-linkedin text-2xl"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="border-t border-purple-700 mt-6 pt-6 text-center text-purple-200">
+                <p>&copy; 2023 Java Locks Guide. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Initialize syntax highlighting
+        hljs.highlightAll();
+        
+        // Copy code functionality
+        function copyCode(button) {
+            const codeBlock = button.parentElement;
+            const code = codeBlock.querySelector('code').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                button.style.background = 'rgba(34, 197, 94, 0.8)';
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.background = 'rgba(255, 255, 255, 0.1)';
+                }, 2000);
+            });
+        }
+
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+        
+        // Add animation to concept cards on scroll
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+        
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, observerOptions);
+        
+        document.querySelectorAll('.concept-card').forEach(el => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(20px)';
+            el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            observer.observe(el);
+        });
+
+        // Interactive lock state demonstration
+        function demonstrateLockStates() {
+            const states = document.querySelectorAll('.lock-state');
+            states.forEach(state => {
+                state.addEventListener('click', function() {
+                    const currentState = this.textContent;
+                    if (currentState.includes('Locked')) {
+                        this.textContent = this.textContent.replace('Locked', 'Unlocked');
+                        this.className = this.className.replace('state-locked', 'state-unlocked');
+                    } else if (currentState.includes('Unlocked')) {
+                        this.textContent = this.textContent.replace('Unlocked', 'Waiting');
+                        this.className = this.className.replace('state-unlocked', 'state-waiting');
+                    } else {
+                        this.textContent = this.textContent.replace('Waiting', 'Locked');
+                        this.className = this.className.replace('state-waiting', 'state-locked');
+                    }
+                });
+            });
+        }
+        
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', demonstrateLockStates);
+    </script>
+</body>
+</html>

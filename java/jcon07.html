@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chapter 7 · Explicit Locks · Full Content · Auto Slide</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(145deg, #f0f4fa 0%, #dce3ed 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            padding: 12px;
+        }
+
+        .frame-card {
+            width: 100%;
+            height: calc(100vh - 24px);
+            max-height: calc(100vh - 24px);
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 44px;
+            box-shadow: 0 30px 60px -16px rgba(0, 20, 30, 0.3),
+                0 12px 32px -8px rgba(0, 0, 0, 0.06),
+                inset 0 1px 0 rgba(255, 255, 255, 0.7);
+            padding: 20px 24px;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .slider-viewport {
+            flex: 1;
+            width: 100%;
+            overflow: hidden;
+            border-radius: 28px;
+            position: relative;
+            background: rgba(255, 255, 255, 0.06);
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.02);
+            min-height: 0;
+        }
+
+        .slider-track {
+            display: flex;
+            height: 100%;
+            width: 100%;
+            animation: slideAnimation 160s ease-in-out infinite;
+            will-change: transform;
+        }
+
+        .slide {
+            flex: 0 0 100%;
+            height: 100%;
+            padding: 1.2rem 1.8rem;
+            overflow-y: auto;
+            overflow-x: hidden;
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.02);
+            color: #14212e;
+            margin: 0 3px;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(0, 0, 0, 0.12) transparent;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            hyphens: auto;
+            max-width: 100%;
+        }
+
+        .slide::-webkit-scrollbar {
+            width: 4px;
+        }
+        .slide::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .slide::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.12);
+            border-radius: 10px;
+        }
+
+        .slide h1 {
+            font-weight: 800;
+            font-size: 1.5rem;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.5rem;
+            color: #0a1725;
+            border-bottom: 3px solid rgba(50, 80, 120, 0.15);
+            padding-bottom: 0.3rem;
+            background: linear-gradient(135deg, #1a2a4a, #3a5a8a);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            word-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .slide h2 {
+            font-weight: 700;
+            font-size: 1.15rem;
+            margin: 0.5rem 0 0.25rem 0;
+            color: #1a3a6a;
+            border-left: 4px solid #4a8af4;
+            padding-left: 0.7rem;
+            word-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .slide h3 {
+            font-weight: 600;
+            font-size: 1rem;
+            margin: 0.4rem 0 0.2rem 0;
+            color: #2a5a8a;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            word-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .slide h3::before {
+            content: "▸";
+            color: #4a8af4;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .slide h4 {
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin: 0.35rem 0 0.15rem 0;
+            color: #3a6a9a;
+            padding-left: 0.4rem;
+            border-left: 3px solid #6aafff;
+            word-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .slide p {
+            font-weight: 400;
+            font-size: 0.87rem;
+            line-height: 1.55;
+            color: #1d2d3f;
+            opacity: 0.92;
+            margin-bottom: 0.25rem;
+            padding-left: 0.2rem;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .slide ul,
+        .slide ol {
+            padding-left: 1.3rem;
+            margin-bottom: 0.25rem;
+            word-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .slide li {
+            font-size: 0.84rem;
+            line-height: 1.5;
+            color: #1d2d3f;
+            opacity: 0.88;
+            margin-bottom: 0.12rem;
+            padding-left: 0.2rem;
+            list-style-type: none;
+            position: relative;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .slide li::before {
+            content: "✦";
+            color: #4a8af4;
+            position: absolute;
+            left: -1.1rem;
+            font-size: 0.65rem;
+            opacity: 0.6;
+            flex-shrink: 0;
+        }
+
+        .slide li strong {
+            color: #1a4a7a;
+        }
+
+        .slide code {
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            font-size: 0.76rem;
+            background: rgba(74, 138, 244, 0.08);
+            padding: 0.04rem 0.35rem;
+            border-radius: 4px;
+            color: #1a4a8a;
+            border: 1px solid rgba(74, 138, 244, 0.12);
+            word-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .slide pre {
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            font-size: 0.68rem;
+            background: linear-gradient(135deg, rgba(10, 30, 60, 0.04), rgba(74, 138, 244, 0.04));
+            padding: 0.4rem 0.8rem;
+            border-radius: 10px;
+            overflow-x: auto;
+            border: 1px solid rgba(74, 138, 244, 0.08);
+            margin: 0.25rem 0 0.35rem 0;
+            line-height: 1.45;
+            white-space: pre-wrap;
+            word-break: break-word;
+            color: #0a2a4a;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+            max-width: 100%;
+        }
+
+        .slide table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.78rem;
+            margin: 0.25rem 0;
+            max-width: 100%;
+            word-wrap: break-word;
+        }
+
+        .slide table th,
+        .slide table td {
+            border: 1px solid rgba(74, 138, 244, 0.12);
+            padding: 0.2rem 0.5rem;
+            text-align: left;
+        }
+
+        .slide table th {
+            background: rgba(74, 138, 244, 0.06);
+            font-weight: 600;
+            color: #1a3a6a;
+        }
+
+        .slide table td {
+            color: #1d2d3f;
+            opacity: 0.88;
+        }
+
+        .slide .qa-block {
+            background: linear-gradient(135deg, rgba(74, 138, 244, 0.04), rgba(106, 175, 255, 0.04));
+            border-radius: 10px;
+            padding: 0.4rem 0.8rem;
+            margin: 0.3rem 0;
+            border-left: 4px solid #4a8af4;
+            word-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .slide .qa-block .q {
+            font-weight: 600;
+            color: #1a3a6a;
+            font-size: 0.88rem;
+        }
+
+        .slide .qa-block .a {
+            color: #1d2d3f;
+            font-size: 0.84rem;
+            margin-top: 0.15rem;
+            padding-left: 0.2rem;
+        }
+
+        .slide .qa-block .a code {
+            font-size: 0.74rem;
+        }
+
+        .slide .highlight-box {
+            background: linear-gradient(135deg, rgba(74, 138, 244, 0.06), rgba(106, 175, 255, 0.06));
+            border-radius: 10px;
+            padding: 0.4rem 0.8rem;
+            margin: 0.25rem 0;
+            border: 1px solid rgba(74, 138, 244, 0.12);
+            box-shadow: 0 2px 8px rgba(74, 138, 244, 0.04);
+            word-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .slide .highlight-box p {
+            margin-bottom: 0;
+        }
+
+        .slide .divider {
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(74, 138, 244, 0.15), transparent);
+            margin: 0.4rem 0;
+        }
+
+        .slide .slide-number {
+            position: absolute;
+            bottom: 10px;
+            left: 18px;
+            font-size: 0.65rem;
+            opacity: 0.25;
+            font-weight: 600;
+            color: #2a4a6a;
+            pointer-events: none;
+            letter-spacing: 0.05em;
+        }
+
+        .slide .category-tag {
+            display: inline-block;
+            background: linear-gradient(135deg, rgba(74, 138, 244, 0.1), rgba(106, 175, 255, 0.1));
+            padding: 0.08rem 0.7rem;
+            border-radius: 20px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: #1a4a7a;
+            border: 1px solid rgba(74, 138, 244, 0.12);
+            margin-bottom: 0.3rem;
+        }
+
+        .concept-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            margin-top: 0.3rem;
+            max-width: 100%;
+        }
+
+        .concept-card {
+            border-radius: 10px;
+            padding: 0.5rem 0.8rem;
+            border: 1px solid rgba(74, 138, 244, 0.12);
+            word-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .concept-card h4 {
+            border-left: none;
+            padding-left: 0;
+            margin-top: 0;
+            font-size: 0.85rem;
+        }
+
+        .concept-card p {
+            font-size: 0.78rem;
+            margin-bottom: 0;
+            padding-left: 0;
+        }
+
+        /* ===== KEYFRAMES: 40 slides × 4s = 160s ===== */
+        @keyframes slideAnimation {
+            0% { transform: translateX(0); }
+            1.8% { transform: translateX(0); }
+            3.6% { transform: translateX(-100%); }
+            5.4% { transform: translateX(-100%); }
+            7.2% { transform: translateX(-200%); }
+            9.0% { transform: translateX(-200%); }
+            10.8% { transform: translateX(-300%); }
+            12.6% { transform: translateX(-300%); }
+            14.4% { transform: translateX(-400%); }
+            16.2% { transform: translateX(-400%); }
+            18.0% { transform: translateX(-500%); }
+            19.8% { transform: translateX(-500%); }
+            21.6% { transform: translateX(-600%); }
+            23.4% { transform: translateX(-600%); }
+            25.2% { transform: translateX(-700%); }
+            27.0% { transform: translateX(-700%); }
+            28.8% { transform: translateX(-800%); }
+            30.6% { transform: translateX(-800%); }
+            32.4% { transform: translateX(-900%); }
+            34.2% { transform: translateX(-900%); }
+            36.0% { transform: translateX(-1000%); }
+            37.8% { transform: translateX(-1000%); }
+            39.6% { transform: translateX(-1100%); }
+            41.4% { transform: translateX(-1100%); }
+            43.2% { transform: translateX(-1200%); }
+            45.0% { transform: translateX(-1200%); }
+            46.8% { transform: translateX(-1300%); }
+            48.6% { transform: translateX(-1300%); }
+            50.4% { transform: translateX(-1400%); }
+            52.2% { transform: translateX(-1400%); }
+            54.0% { transform: translateX(-1500%); }
+            55.8% { transform: translateX(-1500%); }
+            57.6% { transform: translateX(-1600%); }
+            59.4% { transform: translateX(-1600%); }
+            61.2% { transform: translateX(-1700%); }
+            63.0% { transform: translateX(-1700%); }
+            64.8% { transform: translateX(-1800%); }
+            66.6% { transform: translateX(-1800%); }
+            68.4% { transform: translateX(-1900%); }
+            70.2% { transform: translateX(-1900%); }
+            72.0% { transform: translateX(-2000%); }
+            73.8% { transform: translateX(-2000%); }
+            75.6% { transform: translateX(-2100%); }
+            77.4% { transform: translateX(-2100%); }
+            79.2% { transform: translateX(-2200%); }
+            81.0% { transform: translateX(-2200%); }
+            82.8% { transform: translateX(-2300%); }
+            84.6% { transform: translateX(-2300%); }
+            86.4% { transform: translateX(-2400%); }
+            88.2% { transform: translateX(-2400%); }
+            90.0% { transform: translateX(-2500%); }
+            91.8% { transform: translateX(-2500%); }
+            93.6% { transform: translateX(-2600%); }
+            95.4% { transform: translateX(-2600%); }
+            97.2% { transform: translateX(-2700%); }
+            99.0% { transform: translateX(-2700%); }
+            100% { transform: translateX(-2700%); }
+        }
+
+        .slider-viewport:hover .slider-track {
+            animation-play-state: paused;
+        }
+
+        .slide-indicator {
+            position: absolute;
+            bottom: 12px;
+            right: 18px;
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            padding: 4px 12px 4px 10px;
+            border-radius: 60px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: #1a3a5a;
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+            pointer-events: none;
+            letter-spacing: 0.03em;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            z-index: 10;
+            animation: pulseGlow 2s ease-in-out infinite;
+        }
+
+        .slide-indicator::after {
+            content: "4s";
+            font-size: 0.6rem;
+            opacity: 0.5;
+            font-weight: 700;
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 4px 12px rgba(74, 138, 244, 0.04); }
+            50% { box-shadow: 0 4px 20px rgba(74, 138, 244, 0.12); }
+        }
+
+        @media (max-width: 1024px) {
+            .slide { padding: 1rem 1.4rem; }
+            .slide h1 { font-size: 1.3rem; }
+            .slide h2 { font-size: 1.05rem; }
+            .slide p { font-size: 0.82rem; }
+            .slide pre { font-size: 0.64rem; padding: 0.35rem 0.6rem; }
+            .slide li { font-size: 0.79rem; }
+            .slide .qa-block .q { font-size: 0.82rem; }
+            .slide .qa-block .a { font-size: 0.78rem; }
+            .slide table { font-size: 0.72rem; }
+        }
+
+        @media (max-width: 768px) {
+            body { padding: 8px; }
+            .frame-card { padding: 10px 12px; border-radius: 28px; }
+            .slider-viewport { border-radius: 20px; }
+            .slide { padding: 0.8rem 1rem; margin: 0 2px; border-radius: 16px; }
+            .slide h1 { font-size: 1.1rem; }
+            .slide h2 { font-size: 0.95rem; }
+            .slide h3 { font-size: 0.88rem; }
+            .slide h4 { font-size: 0.82rem; }
+            .slide p { font-size: 0.76rem; line-height: 1.45; }
+            .slide pre { font-size: 0.58rem; padding: 0.25rem 0.5rem; }
+            .slide code { font-size: 0.68rem; }
+            .slide ul, .slide ol { padding-left: 1rem; }
+            .slide li { font-size: 0.73rem; }
+            .slide li::before { left: -0.9rem; font-size: 0.55rem; }
+            .slide table { font-size: 0.64rem; }
+            .slide table th, .slide table td { padding: 0.15rem 0.3rem; }
+            .slide .qa-block { padding: 0.3rem 0.6rem; }
+            .slide .qa-block .q { font-size: 0.76rem; }
+            .slide .qa-block .a { font-size: 0.72rem; }
+            .slide .highlight-box { padding: 0.3rem 0.6rem; }
+            .slide .slide-number { font-size: 0.55rem; bottom: 6px; left: 12px; }
+            .slide-indicator { bottom: 8px; right: 12px; font-size: 0.55rem; padding: 3px 8px; }
+            .concept-grid { grid-template-columns: 1fr 1fr; gap: 0.3rem; }
+            .concept-card { padding: 0.3rem 0.5rem; }
+            .concept-card h4 { font-size: 0.75rem; }
+            .concept-card p { font-size: 0.68rem; }
+        }
+
+        @media (max-width: 480px) {
+            body { padding: 6px; }
+            .frame-card { padding: 6px 8px; border-radius: 18px; }
+            .slider-viewport { border-radius: 12px; }
+            .slide { padding: 0.6rem 0.7rem; margin: 0 2px; border-radius: 12px; }
+            .slide h1 { font-size: 0.95rem; }
+            .slide h2 { font-size: 0.82rem; padding-left: 0.4rem; }
+            .slide h3 { font-size: 0.76rem; }
+            .slide h4 { font-size: 0.72rem; padding-left: 0.25rem; }
+            .slide p { font-size: 0.68rem; line-height: 1.4; padding-left: 0.1rem; }
+            .slide pre { font-size: 0.52rem; padding: 0.2rem 0.4rem; border-radius: 6px; }
+            .slide code { font-size: 0.6rem; padding: 0.02rem 0.25rem; }
+            .slide ul, .slide ol { padding-left: 0.8rem; }
+            .slide li { font-size: 0.67rem; padding-left: 0.1rem; }
+            .slide li::before { left: -0.7rem; font-size: 0.45rem; }
+            .slide table { font-size: 0.55rem; }
+            .slide table th, .slide table td { padding: 0.1rem 0.2rem; }
+            .slide .qa-block { padding: 0.2rem 0.4rem; border-radius: 6px; }
+            .slide .qa-block .q { font-size: 0.68rem; }
+            .slide .qa-block .a { font-size: 0.64rem; }
+            .slide .highlight-box { padding: 0.2rem 0.4rem; border-radius: 6px; }
+            .slide .slide-number { font-size: 0.45rem; bottom: 4px; left: 8px; }
+            .slide-indicator { bottom: 6px; right: 8px; font-size: 0.5rem; padding: 2px 6px; }
+            .concept-grid { grid-template-columns: 1fr 1fr; gap: 0.2rem; }
+            .concept-card { padding: 0.2rem 0.4rem; border-radius: 6px; }
+            .concept-card h4 { font-size: 0.65rem; }
+            .concept-card p { font-size: 0.58rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="frame-card">
+        <div class="slider-viewport">
+            <div class="slider-track">
+
+                <!-- ===== SLIDE 1: Chapter 7 Title ===== -->
+                <div class="slide">
+                    <h1>🔒 Chapter 7: Explicit Locks</h1>
+                    <div class="divider"></div>
+                    <h2>Section 7.1: ReentrantLock – The Flexible Alternative to synchronized</h2>
+                    <p><code>ReentrantLock</code> is the most commonly used explicit lock. It provides the same mutual exclusion as <code>synchronized</code> but with additional features like try-lock, timed lock, interruptible lock, and fairness.</p>
+                    <h3>Subsection 7.1.1: What is ReentrantLock?</h3>
+                    <pre>public class ReentrantLock implements Lock, Serializable {
+            public ReentrantLock();
+            public ReentrantLock(boolean fair);
+            public void lock();
+            public void lockInterruptibly() throws InterruptedException;
+            public boolean tryLock();
+            public boolean tryLock(long timeout, TimeUnit unit) throws InterruptedException;
+            public void unlock();
+            public boolean isLocked();
+            public boolean isHeldByCurrentThread();
+            public int getHoldCount();
+            public boolean isFair();
+        }</pre>
+                    <div class="highlight-box">
+                        <p><strong>What does "reentrant" mean?</strong> A lock is reentrant if a thread that already holds the lock can acquire it again without blocking. The lock maintains a hold count that increments on each lock and decrements on each unlock.</p>
+                    </div>
+                    <div class="slide-number">1 / 40</div>
+                </div>
+
+                <!-- ===== SLIDE 2: Lock Interface + Comparison ===== -->
+                <div class="slide">
+                    <h3>Subsection 7.1.2: The Lock Interface</h3>
+                    <pre>public interface Lock {
+            void lock();
+            void lockInterruptibly() throws InterruptedException;
+            boolean tryLock();
+            boolean tryLock(long time, TimeUnit unit) throws InterruptedException;
+            void unlock();
+            Condition newCondition();
+        }</pre>
+                    <p><strong>Comparison with synchronized:</strong></p>
+                    <table>
+                        <tr><th>Feature</th><th>synchronized</th><th>ReentrantLock</th></tr>
+                        <tr><td>Try-lock</td><td>No</td><td>Yes (tryLock())</td></tr>
+                        <tr><td>Timed lock</td><td>No</td><td>Yes (tryLock(timeout, unit))</td></tr>
+                        <tr><td>Interruptible lock</td><td>No</td><td>Yes (lockInterruptibly())</td></tr>
+                        <tr><td>Multiple conditions</td><td>No</td><td>Yes (newCondition())</td></tr>
+                        <tr><td>Fairness</td><td>Not guaranteed</td><td>Yes (new ReentrantLock(true))</td></tr>
+                        <tr><td>Syntax</td><td>Concise</td><td>Verbose (must call unlock() in finally)</td></tr>
+                    </table>
+                    <div class="slide-number">2 / 40</div>
+                </div>
+
+                <!-- ===== SLIDE 3: Basic Usage + tryLock() ===== -->
+                <div class="slide">
+                    <h3>Subsection 7.1.3: Basic Usage Pattern</h3>
+                    <div class="highlight-box">
+                        <p><strong>Correct pattern:</strong> Always use try-finally to ensure the lock is released.</p>
+                    </div>
+                    <pre>ReentrantLock lock = new ReentrantLock();
+        lock.lock();
+        try {
+            // Critical section
+        } finally {
+            lock.unlock();  // Always release in finally block
+        }</pre>
+                    <div class="divider"></div>
+                    <h3>Subsection 7.1.4: tryLock() – Non-Blocking Lock Acquisition</h3>
+                    <pre>if (lock.tryLock()) {
+            try {
+                // Critical section
+            } finally {
+                lock.unlock();
+            }
+        } else {
+            // Could not acquire lock; do something else
+        }
+        
+        // With timeout
+        if (lock.tryLock(1, TimeUnit.SECONDS)) {
+            try {
+                // Critical section
+            } finally {
+                lock.unlock();
+            }
+        } else {
+            System.out.println("Could not acquire lock within 1 second");
+        }</pre>
+                    <div class="slide-number">3 / 40</div>
+                </div>
+
+                <!-- ===== SLIDE 4: lockInterruptibly() + Query Methods ===== -->
+                <div class="slide">
+                    <h3>Subsection 7.1.5: lockInterruptibly() – Interruptible Lock Acquisition</h3>
+                    <pre>try {
+            lock.lockInterruptibly();
+            try {
+                // Critical section
+            } finally {
+                lock.unlock();
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            // Handle cleanup
+        }</pre>
+                    <div class="highlight-box">
+                        <p><strong>lock() vs lockInterruptibly():</strong> <code>lock()</code> ignores interruption while waiting. <code>lockInterruptibly()</code> throws <code>InterruptedException</code> if interrupted.</p>
+                    </div>
+                    <div class="divider"></div>
+                    <h3>Subsection 7.1.6: getHoldCount() and isHeldByCurrentThread()</h3>
+                    <pre>ReentrantLock lock = new ReentrantLock();
+        lock.lock();
+        System.out.println(lock.getHoldCount());  // 1
+        lock.lock();
+        System.out.println(lock.getHoldCount());  // 2
+        System.out.println(lock.isHeldByCurrentThread());  // true
+        lock.unlock();
+        System.out.println(lock.getHoldCount());  // 1
+        lock.unlock();
+        System.out.println(lock.getHoldCount());  // 0</pre>
+                    <div class="slide-number">4 / 40</div>
+                </div>
+
+                <!-- ===== SLIDE 5: Mixing Locks + Recommendations ===== -->
+                <div class="slide">
+                    <h3>Subsection 7.1.7: The "Doubt Clarifier" – Can I mix synchronized and ReentrantLock on the same object?</h3>
+                    <p>Yes, but they are different locks! <code>synchronized</code> uses the intrinsic lock (monitor) of the object. <code>ReentrantLock</code> is a separate lock object.</p>
+                    <pre>private final Object monitor = new Object();
+        private final ReentrantLock lock = new ReentrantLock();
+        
+        // Thread A
+        synchronized (monitor) {
+            lock.lock();  // Holds both locks
+            try { /* Critical section */ } finally { lock.unlock(); }
+        }
+        
+        // Thread B - Deadlock risk!
+        lock.lock();
+        try {
+            synchronized (monitor) { /* Critical section */ }
+        } finally { lock.unlock(); }</pre>
+                    <div class="highlight-box">
+                        <p><strong>Which should I use?</strong> Simple mutual exclusion → <code>synchronized</code>. Need try-lock, timed lock, interruptible lock, multiple conditions, or fairness → <code>ReentrantLock</code>.</p>
+                    </div>
+                    <div class="slide-number">5 / 40</div>
+                </div>
+
+                <!-- ===== SLIDE 6: ReadWriteLock ===== -->
+                <div class="slide">
+                    <h2>Section 7.2: ReadWriteLock – Optimizing for Read-Heavy Workloads</h2>
+                    <p><code>ReadWriteLock</code> allows multiple readers to hold the lock simultaneously, but only one writer.</p>
+                    <h3>Subsection 7.2.1: What is ReadWriteLock?</h3>
+                    <pre>public interface ReadWriteLock {
+            Lock readLock();
+            Lock writeLock();
+        }</pre>
+                    <p><strong>Rules:</strong></p>
+                    <ul>
+                        <li>If no thread holds the write lock, any thread can acquire the read lock.</li>
+                        <li>If any thread holds the read lock, a thread attempting to acquire the write lock blocks.</li>
+                        <li>If a thread holds the write lock, all other threads block for both read and write locks.</li>
+                    </ul>
+                    <div class="divider"></div>
+                    <h3>Subsection 7.2.2: Basic Usage Pattern</h3>
+                    <pre>public class Cache {
+            private final ReentrantReadWriteLock rwLock = new ReentrantReadWriteLock();
+            private final Lock readLock = rwLock.readLock();
+            private final Lock writeLock = rwLock.writeLock();
+            private final Map&lt;String, Object&gt; cache = new HashMap&lt;&gt;();
+            
+            public Object get(String key) {
+                readLock.lock();
+                try { return cache.get(key); }
+                finally { readLock.unlock(); }
+            }
+            
+            public void put(String key, Object value) {
+                writeLock.lock();
+                try { cache.put(key, value); }
+                finally { writeLock.unlock(); }
+            }
+        }</pre>
+                    <div class="slide-number">6 / 40</div>
+                </div>
+
+                <!-- ===== SLIDE 7: ReadWriteLock Doubt Clarifiers ===== -->
+                <div class="slide">
+                    <h3>Subsection 7.2.3: The "Doubt Clarifier" – What is the risk of writer starvation?</h3>
+                    <p>If many readers keep acquiring the read lock, writers may be starved.</p>
+                    <p><strong>Solution 1:</strong> Use a fair lock <code>new ReentrantReadWriteLock(true)</code>.</p>
+                    <p><strong>Solution 2:</strong> Use <code>StampedLock</code> (Java 8+) for optimistic reads.</p>
+                    <div class="divider"></div>
+                    <h3>Subsection 7.2.4: The "Doubt Clarifier" – Can a thread holding the read lock upgrade to a write lock?</h3>
+                    <p><strong>No.</strong> If a thread holds the read lock and tries to acquire the write lock, it will deadlock.</p>
+                    <pre>readLock.lock();
+        try {
+            writeLock.lock();  // DEADLOCK! Waiting for read lock to be released
+            try { /* write */ } finally { writeLock.unlock(); }
+        } finally { readLock.unlock(); }</pre>
+                    <p><strong>The Fix:</strong> Release the read lock before acquiring the write lock.</p>
+                    <pre>readLock.lock();
+        try { int value = data; } finally { readLock.unlock(); }
+        writeLock.lock();
+        try { data = value + 1; } finally { writeLock.unlock(); }</pre>
+                    <div class="slide-number">7 / 40</div>
+                </div>
+
+                <!-- ===== SLIDE 8: StampedLock ===== -->
+                <div class="slide">
+                    <h2>Section 7.3: StampedLock – Optimistic Locking for Maximum Performance</h2>
+                    <p><code>StampedLock</code> (Java 8+) provides optimistic locking for even better performance in read-heavy workloads.</p>
+                    <h3>Subsection 7.3.1: What is StampedLock?</h3>
+                    <pre>public class StampedLock implements Serializable {
+            public StampedLock();
+            public long writeLock();
+            public long tryWriteLock();
+            public void unlockWrite(long stamp);
+            public long readLock();
+            public long tryReadLock();
+            public void unlockRead(long stamp);
+            public long tryOptimisticRead();
+            public boolean validate(long stamp);
+            public long tryConvertToWriteLock(long stamp);
+            public long tryConvertToReadLock(long stamp);
+        }</pre>
+                    <div class="highlight-box">
+                        <p><strong>What is a "stamp"?</strong> A stamp is a long value returned by lock acquisition methods. It serves as a "ticket" that must be passed back to unlock methods.</p>
+                    </div>
+                    <div class="slide-number">8 / 40</div>
+                </div>
+
+                <!-- ===== SLIDE 9: Optimistic Read ===== -->
+                <div class="slide">
+                    <h3>Subsection 7.3.2: Optimistic Read – The Game Changer</h3>
+                    <p>Optimistic read is a special read operation that does not acquire a lock. It reads the data and then validates that no write occurred during the read.</p>
+                    <pre>public class StampedLockExample {
+            private final StampedLock lock = new StampedLock();
+            private int x = 0;
+            private int y = 0;
+            
+            public int read() {
+                long stamp = lock.tryOptimisticRead();  // No blocking!
+                int currentX = x;
+                int currentY = y;
+                
+                if (!lock.validate(stamp)) {
+                    // A write occurred during the read! Fall back to regular read lock.
+                    stamp = lock.readLock();
+                    try {
+                        currentX = x;
+                        currentY = y;
+                    } finally {
+                        lock.unlockRead(stamp);
+                    }
+                }
+                return currentX + currentY;
+            }
+        }</pre>
+                    <div class="highlight-box">
+                        <p><strong>Why is optimistic read faster?</strong> No blocking, no cache invalidation, no contention. If a write occurs, you retry with a regular read lock.</p>
+                    </div>
+                    <div class="slide-number">9 / 40</div>
+                </div>
+
+                <!-- ===== SLIDE 10: Lock Conversion + Comparison ===== -->
+                <div class="slide">
+                    <h3>Subsection 7.3.3: Lock Conversion</h3>
+                    <pre>StampedLock lock = new StampedLock();
+        long stamp = lock.readLock();
+        try {
+            long writeStamp = lock.tryConvertToWriteLock(stamp);
+            if (writeStamp != 0) {
+                stamp = writeStamp;  // Converted to write lock
+            } else {
+                lock.unlockRead(stamp);
+                stamp = lock.writeLock();
+            }
+            // Now we hold the write lock
+        } finally {
+            lock.unlock(stamp);
+        }</pre>
+                    <div class="divider"></div>
+                    <h3>Subsection 7.3.4: The "Doubt Clarifier" – When should I use StampedLock vs. ReadWriteLock?</h3>
+                    <table>
+                        <tr><th>Feature</th><th>ReadWriteLock</th><th>StampedLock</th></tr>
+                        <tr><td>Optimistic read</td><td>No</td><td>Yes</td></tr>
+                        <tr><td>Lock conversion</td><td>No</td><td>Yes</td></tr>
+                        <tr><td>Reentrant</td><td>Yes</td><td>No</td></tr>
+                        <tr><td>Fairness</td><td>Yes</td><td>No</td></tr>
+                        <tr><td>Complexity</td><td>Simple</td><td>More complex</td></tr>
+                    </table>
+                    <div class="slide-number">10 / 40</div>
+                </div>
+
+                <!-- ===== SLIDE 11: Condition ===== -->
+                <div class="slide">
+                    <h2>Section 7.4: Condition Variables – The Condition Interface</h2>
+                    <p><code>Condition</code> provides a more flexible alternative to <code>Object.wait()</code> and <code>Object.notify()</code>.</p>
+                    <h3>Subsection 7.4.1: What is a Condition?</h3>
+                    <pre>public interface Condition {
+            void await() throws InterruptedException;
+            void awaitUninterruptibly();
+            long awaitNanos(long nanosTimeout) throws InterruptedException;
+            boolean await(long time, TimeUnit unit) throws InterruptedException;
+            boolean awaitUntil(Date deadline) throws InterruptedException;
+            void signal();
+            void signalAll();
+        }</pre>
+                    <div class="highlight-box">
+                        <p><strong>How is Condition different from Object.wait()/notify()?</strong> Condition supports multiple conditions per lock, rich timeouts, and fairness.</p>
+                    </div>
+                    <div class="slide-number">11 / 40</div>
+                </div>
+
+                <!-- ===== SLIDE 12: Condition Usage ===== -->
+                <div class="slide">
+                    <h3>Subsection 7.4.2: Basic Usage Pattern</h3>
+                    <pre>public class BoundedQueue&lt;T&gt; {
+            private final Lock lock = new ReentrantLock();
+            private final Condition notFull = lock.newCondition();
+            private final Condition notEmpty = lock.newCondition();
+            private final Queue&lt;T&gt; queue = new LinkedList&lt;&gt;();
+            private final int capacity;
+            
+            public void put(T item) throws InterruptedException {
+                lock.lock();
+                try {
+                    while (queue.size() == capacity) {
+                        notFull.await();  // Wait until queue is not full
+                    }
+                    queue.offer(item);
+                    notEmpty.signal();  // Signal that queue is not empty
+                } finally { lock.unlock(); }
+            }
+            
+            public T take() throws InterruptedException {
+                lock.lock();
+                try {
+                    while (queue.isEmpty()) {
+                        notEmpty.await();  // Wait until queue is not empty
+                    }
+                    T item = queue.poll();
+                    notFull.signal();  // Signal that queue is not full
+                    return item;
+                } finally { lock.unlock(); }
+            }
+        }</pre>
+                    <div class="highlight-box">
+                        <p><strong>Why use while instead of if?</strong> Always use <code>while</code> to handle spurious wakeups. A thread can wake up from <code>await()</code> without a <code>signal()</code> being called.</p>
+                    </div>
+                    <div class="slide-number">12 / 40</div>
+                </div>
+
+                <!-- ===== SLIDE 13: Condition Doubt Clarifiers ===== -->
+                <div class="slide">
+                    <h3>Subsection 7.4.3: The "Doubt Clarifier" – How is signal() different from signalAll()?</h3>
+                    <table>
+                        <tr><th>Feature</th><th>signal()</th><th>signalAll()</th></tr>
+                        <tr><td>Wakes</td><td>One waiting thread</td><td>All waiting threads</td></tr>
+                        <tr><td>Efficiency</td><td>More efficient</td><td>Less efficient</td></tr>
+                        <tr><td>Safety</td><td>Can cause lost signals</td><td>Safer</td></tr>
+                    </table>
+                    <p><strong>Rule of thumb:</strong> Use <code>signalAll()</code> unless you have a specific reason to use <code>signal()</code>.</p>
+                    <div class="divider"></div>
+                    <h3>Subsection 7.4.4: Timed Waits</h3>
+                    <pre>// Wait with timeout
+        if (notFull.await(1, TimeUnit.SECONDS)) {
+            // Condition was signaled
+        } else {
+            // Timeout occurred
+        }
+        
+        // Wait with nanosecond precision
+        long nanos = notFull.awaitNanos(1_000_000_000L);
+        if (nanos > 0) {
+            // Condition was signaled before timeout
+        }</pre>
+                    <div class="slide-number">13 / 40</div>
+                </div>
+
+                <!-- ===== SLIDE 14: Performance Considerations ===== -->
+                <div class="slide">
+                    <h2>Section 7.5: Performance Considerations</h2>
+                    <h3>Subsection 7.5.1: Lock Contention</h3>
+                    <p>Lock contention occurs when multiple threads compete for the same lock. High contention reduces performance.</p>
+                    <p><strong>How to reduce contention:</strong></p>
+                    <ul>
+                        <li>Narrow the critical section: Hold the lock for as short as possible.</li>
+                        <li>Use read-write locks: For read-heavy workloads.</li>
+                        <li>Use StampedLock: For even better read performance.</li>
+                        <li>Use lock striping: Multiple locks for different parts of the data structure.</li>
+                        <li>Use lock-free algorithms: AtomicInteger, ConcurrentLinkedQueue.</li>
+                    </ul>
+                    <div class="divider"></div>
+                    <h3>Subsection 7.5.2: Fairness</h3>
+                    <p>Fair locks <code>new ReentrantLock(true)</code> ensure threads acquire the lock in FIFO order. This prevents starvation but reduces throughput.</p>
+                    <div class="divider"></div>
+                    <h3>Subsection 7.5.3: The "Doubt Clarifier" – Which is faster: synchronized or ReentrantLock?</h3>
+                    <table>
+                        <tr><th>Scenario</th><th>synchronized</th><th>ReentrantLock</th></tr>
+                        <tr><td>Low contention</td><td>Slightly faster</td><td>Slightly slower</td></tr>
+                        <tr><td>High contention</td><td>Comparable</td><td>Comparable</td></tr>
+                        <tr><td>With tryLock()</td><td>Not available</td><td>N/A</td></tr>
+                        <tr><td>With fairness</td><td>N/A</td><td>Slower</td></tr>
+                    </table>
+                    <div style="background: linear-gradient(135deg, rgba(74, 138, 244, 0.06), rgba(106, 175, 255, 0.06)); border-radius: 10px; padding: 0.5rem 0.8rem; margin-top: 0.4rem; border: 1px solid rgba(74, 138, 244, 0.08);">
+                        <p style="font-weight: 600; color: #1a3a6a;">Next: Chapter 8 – Concurrent Collections</p>
+                    </div>
+                    <div class="slide-number">14 / 40</div>
+                </div>
+
+                <!-- ===== SLIDE 15: Q&A Bank – Title ===== -->
+                <div class="slide">
+                    <h1>🎯 CHAPTER 7: EXPLICIT LOCKS</h1>
+                    <h1 style="font-size: 1.6rem; border-bottom: none; padding-bottom: 0;">THE ULTIMATE Q&A BANK</h1>
+                    <div class="divider"></div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.5rem;">
+                        <div style="background: rgba(74, 138, 244, 0.06); border-radius: 10px; padding: 0.5rem 0.8rem; border: 1px solid rgba(74, 138, 244, 0.08);">
+                            <h4 style="border-left: none; padding-left: 0; color: #1a4a8a;">Part A</h4>
+                            <p style="font-size: 0.82rem;">Conceptual Deep-Dive Questions</p>
+                            <p style="font-size: 0.7rem; opacity: 0.6;">Q1 – Q31</p>
+                        </div>
+                        <div style="background: rgba(244, 138, 74, 0.06); border-radius: 10px; padding: 0.5rem 0.8rem; border: 1px solid rgba(244, 138, 74, 0.08);">
+                            <h4 style="border-left: none; padding-left: 0; color: #8a4a1a;">Part B</h4>
+                            <p style="font-size: 0.82rem;">Classic Interview Questions (Code-Based)</p>
+                            <p style="font-size: 0.7rem; opacity: 0.6;">Q32 – Q39</p>
+                        </div>
+                    </div>
+                    <div class="slide-number">15 / 40</div>
+                </div>
+
+                <!-- ===== SLIDES 16-31: Part A Conceptual Questions ===== -->
+                <!-- SLIDE 16: Q1-Q3 -->
+                <div class="slide">
+                    <span class="category-tag">Part A: Conceptual Deep-Dive</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q1:</strong> What is ReentrantLock and how does it differ from synchronized?</p>
+                        <p class="a"><strong>A:</strong> ReentrantLock is an explicit lock that provides try-lock, timed lock, interruptible lock, multiple conditions, and fairness. One-liner: "ReentrantLock provides the same mutual exclusion as synchronized but adds try-lock, timed lock, interruptible lock, and fairness."</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q2:</strong> What does "reentrant" mean in ReentrantLock?</p>
+                        <p class="a"><strong>A:</strong> A lock is reentrant if a thread that already holds the lock can acquire it again without blocking. The lock maintains a hold count that increments on each lock() and decrements on each unlock().</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q3:</strong> What is the correct pattern for using ReentrantLock?</p>
+                        <p class="a"><strong>A:</strong> Always use try-finally to ensure the lock is released, even if an exception occurs.</p>
+                        <pre>lock.lock();
+        try { /* Critical section */ } finally { lock.unlock(); }</pre>
+                    </div>
+                    <div class="slide-number">16 / 40</div>
+                </div>
+
+                <!-- SLIDE 17: Q4-Q6 -->
+                <div class="slide">
+                    <span class="category-tag">Part A: Conceptual Deep-Dive</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q4:</strong> What is the difference between lock() and tryLock()?</p>
+                        <p class="a"><strong>A:</strong> lock() blocks indefinitely. tryLock() returns immediately (non-blocking) with a boolean indicating success. tryLock() also supports timeouts.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q5:</strong> What is the difference between lock() and lockInterruptibly()?</p>
+                        <p class="a"><strong>A:</strong> lock() ignores interruption while waiting. lockInterruptibly() throws InterruptedException if interrupted.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q6:</strong> What is isHeldByCurrentThread() and when would you use it?</p>
+                        <p class="a"><strong>A:</strong> isHeldByCurrentThread() returns true if the current thread holds the lock. Use it for debugging or conditional logic (e.g., safeUnlock).</p>
+                    </div>
+                    <div class="slide-number">17 / 40</div>
+                </div>
+
+                <!-- SLIDE 18: Q7-Q10 -->
+                <div class="slide">
+                    <span class="category-tag">Part A: Conceptual Deep-Dive</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q7:</strong> Can you mix synchronized and ReentrantLock on the same object?</p>
+                        <p class="a"><strong>A:</strong> Yes, but they are different locks! synchronized uses the intrinsic lock; ReentrantLock is a separate lock. Mixing them can cause deadlock.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q8:</strong> What is ReadWriteLock and when would you use it?</p>
+                        <p class="a"><strong>A:</strong> ReadWriteLock allows multiple readers to hold the lock simultaneously, but only one writer. Use it for read-heavy workloads (e.g., caching).</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q9:</strong> What is the risk of writer starvation in ReadWriteLock?</p>
+                        <p class="a"><strong>A:</strong> If many readers keep acquiring the read lock, writers may be starved. Solutions: use a fair lock or StampedLock.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q10:</strong> Can a thread holding the read lock upgrade to a write lock?</p>
+                        <p class="a"><strong>A:</strong> No. If a thread holds the read lock and tries to acquire the write lock, it will deadlock. Release the read lock first.</p>
+                    </div>
+                    <div class="slide-number">18 / 40</div>
+                </div>
+
+                <!-- SLIDE 19: Q11-Q15 -->
+                <div class="slide">
+                    <span class="category-tag">Part A: Conceptual Deep-Dive</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q11:</strong> What is StampedLock and how does it differ from ReadWriteLock?</p>
+                        <p class="a"><strong>A:</strong> StampedLock provides optimistic reads and lock conversion. It is not reentrant. It offers better performance for read-heavy workloads.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q12:</strong> What is optimistic reading in StampedLock?</p>
+                        <p class="a"><strong>A:</strong> Optimistic read does not acquire a lock. It reads the data and then validates that no write occurred. If a write occurred, it falls back to a regular read lock.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q13:</strong> What is a "stamp" in StampedLock?</p>
+                        <p class="a"><strong>A:</strong> A stamp is a long value returned by lock acquisition methods. It serves as a "ticket" that must be passed back to unlock methods and for validation.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q14:</strong> What is lock conversion in StampedLock?</p>
+                        <p class="a"><strong>A:</strong> Lock conversion allows converting between lock types without fully releasing and reacquiring (e.g., read to write).</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q15:</strong> Is StampedLock reentrant?</p>
+                        <p class="a"><strong>A:</strong> No. StampedLock is not reentrant. If a thread tries to acquire the same lock again, it will deadlock.</p>
+                    </div>
+                    <div class="slide-number">19 / 40</div>
+                </div>
+
+                <!-- SLIDE 20: Q16-Q20 -->
+                <div class="slide">
+                    <span class="category-tag">Part A: Conceptual Deep-Dive</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q16:</strong> When should I use StampedLock vs. ReadWriteLock?</p>
+                        <p class="a"><strong>A:</strong> Use StampedLock for read-heavy workloads when you need maximum performance. Use ReadWriteLock when you need reentrant locks or fairness.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q17:</strong> What is a Condition and how does it differ from Object.wait()/notify()?</p>
+                        <p class="a"><strong>A:</strong> Condition supports multiple conditions per lock, rich timeouts, and fairness. Object.wait()/notify() only supports one condition per object.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q18:</strong> Why use while instead of if for the condition in await()?</p>
+                        <p class="a"><strong>A:</strong> Always use while to handle spurious wakeups. A thread can wake up from await() without a signal() being called.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q19:</strong> What is the difference between signal() and signalAll()?</p>
+                        <p class="a"><strong>A:</strong> signal() wakes one waiting thread. signalAll() wakes all waiting threads. Use signalAll() unless you have a specific reason to use signal().</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q20:</strong> What is the difference between await() and awaitUninterruptibly()?</p>
+                        <p class="a"><strong>A:</strong> await() throws InterruptedException if interrupted. awaitUninterruptibly() ignores interruption.</p>
+                    </div>
+                    <div class="slide-number">20 / 40</div>
+                </div>
+
+                <!-- SLIDE 21: Q21-Q25 -->
+                <div class="slide">
+                    <span class="category-tag">Part A: Conceptual Deep-Dive</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q21:</strong> Can a Condition be used with a synchronized block?</p>
+                        <p class="a"><strong>A:</strong> No. Condition requires a Lock (like ReentrantLock). You cannot use a Condition with synchronized.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q22:</strong> What is a fair lock? When would you use it?</p>
+                        <p class="a"><strong>A:</strong> A fair lock ensures threads acquire the lock in FIFO order. Use it when starvation is a concern. It reduces throughput.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q23:</strong> What is lock contention and how can you reduce it?</p>
+                        <p class="a"><strong>A:</strong> Lock contention occurs when multiple threads compete for the same lock. Reduce it by narrowing critical sections, using read-write locks, lock striping, or lock-free algorithms.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q24:</strong> Which is faster: synchronized or ReentrantLock?</p>
+                        <p class="a"><strong>A:</strong> The performance difference is small. synchronized is slightly faster at low contention. Choose based on features, not performance.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q25:</strong> What is lock striping?</p>
+                        <p class="a"><strong>A:</strong> Lock striping divides a data structure into segments, each with its own lock. This reduces contention because threads only compete for the lock on their segment.</p>
+                    </div>
+                    <div class="slide-number">21 / 40</div>
+                </div>
+
+                <!-- SLIDE 22: Q26-Q31 -->
+                <div class="slide">
+                    <span class="category-tag">Part A: Conceptual Deep-Dive</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q26:</strong> What is the difference between tryLock() and lockInterruptibly()?</p>
+                        <p class="a"><strong>A:</strong> tryLock() is non-blocking (returns immediately). lockInterruptibly() blocks but can be interrupted.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q27:</strong> What is the difference between unlock() and unlockRead()/unlockWrite()?</p>
+                        <p class="a"><strong>A:</strong> ReentrantLock uses unlock(). ReadWriteLock uses unlock() on both read and write locks. StampedLock uses unlockRead(stamp) and unlockWrite(stamp).</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q28:</strong> What is the difference between ReentrantLock and StampedLock in terms of reentrancy?</p>
+                        <p class="a"><strong>A:</strong> ReentrantLock is reentrant (hold count). StampedLock is not reentrant (deadlock on reacquisition).</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q29:</strong> Can a ReentrantLock be used with try-with-resources?</p>
+                        <p class="a"><strong>A:</strong> No. ReentrantLock does not implement AutoCloseable. You must manually call unlock() in a finally block.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q30:</strong> What is the difference between ReentrantLock and Semaphore(1)?</p>
+                        <p class="a"><strong>A:</strong> ReentrantLock is a mutex (owner-aware, reentrant). Semaphore(1) is a binary semaphore (not owner-aware, not reentrant).</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q31:</strong> What is the difference between ReentrantLock and StampedLock in terms of reentrancy?</p>
+                        <p class="a"><strong>A:</strong> ReentrantLock is reentrant (hold count). StampedLock is not reentrant (deadlock on reacquisition).</p>
+                    </div>
+                    <div class="slide-number">22 / 40</div>
+                </div>
+
+                <!-- ===== SLIDES 23-32: Part B Code-Based Questions ===== -->
+                <!-- SLIDE 23: Q32-Q34 -->
+                <div class="slide">
+                    <span class="category-tag">Part B: Classic Interview Questions (Code-Based)</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q32:</strong> Write a thread-safe counter using ReentrantLock.</p>
+                        <p class="a"><strong>A:</strong></p>
+                        <pre>public class Counter {
+            private final ReentrantLock lock = new ReentrantLock();
+            private int count = 0;
+            
+            public void increment() {
+                lock.lock();
+                try { count++; } finally { lock.unlock(); }
+            }
+            
+            public int get() {
+                lock.lock();
+                try { return count; } finally { lock.unlock(); }
+            }
+        }</pre>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q33:</strong> Write a method that transfers money between two accounts using tryLock() to avoid deadlock.</p>
+                        <p class="a"><strong>A:</strong></p>
+                        <pre>public boolean transfer(BankAccount target, int amount) {
+            try {
+                if (this.lock.tryLock(1, TimeUnit.SECONDS)) {
+                    try {
+                        if (target.lock.tryLock(1, TimeUnit.SECONDS)) {
+                            try {
+                                if (this.balance < amount) return false;
+                                this.balance -= amount;
+                                target.balance += amount;
+                                return true;
+                            } finally { target.lock.unlock(); }
+                        }
+                    } finally { this.lock.unlock(); }
+                }
+            } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+            return false;
+        }</pre>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q34:</strong> Write a thread-safe cache using ReadWriteLock.</p>
+                        <p class="a"><strong>A:</strong></p>
+                        <pre>public class Cache&lt;K, V&gt; {
+            private final ReentrantReadWriteLock rwLock = new ReentrantReadWriteLock();
+            private final Lock readLock = rwLock.readLock();
+            private final Lock writeLock = rwLock.writeLock();
+            private final Map&lt;K, V&gt; cache = new HashMap&lt;&gt;();
+            
+            public V get(K key) {
+                readLock.lock();
+                try { return cache.get(key); } finally { readLock.unlock(); }
+            }
+            
+            public void put(K key, V value) {
+                writeLock.lock();
+                try { cache.put(key, value); } finally { writeLock.unlock(); }
+            }
+        }</pre>
+                    </div>
+                    <div class="slide-number">23 / 40</div>
+                </div>
+
+                <!-- SLIDE 24: Q35-Q37 -->
+                <div class="slide">
+                    <span class="category-tag">Part B: Classic Interview Questions (Code-Based)</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q35:</strong> Write a read method using StampedLock with optimistic reading.</p>
+                        <p class="a"><strong>A:</strong></p>
+                        <pre>public int read() {
+            long stamp = lock.tryOptimisticRead();
+            int currentX = x;
+            int currentY = y;
+            if (!lock.validate(stamp)) {
+                stamp = lock.readLock();
+                try {
+                    currentX = x;
+                    currentY = y;
+                } finally { lock.unlockRead(stamp); }
+            }
+            return currentX + currentY;
+        }</pre>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q36:</strong> Write a bounded queue using ReentrantLock and Condition.</p>
+                        <p class="a"><strong>A:</strong></p>
+                        <pre>public class BoundedQueue&lt;T&gt; {
+            private final Lock lock = new ReentrantLock();
+            private final Condition notFull = lock.newCondition();
+            private final Condition notEmpty = lock.newCondition();
+            private final Queue&lt;T&gt; queue = new LinkedList&lt;&gt;();
+            private final int capacity;
+            
+            public void put(T item) throws InterruptedException {
+                lock.lock();
+                try {
+                    while (queue.size() == capacity) notFull.await();
+                    queue.offer(item);
+                    notEmpty.signal();
+                } finally { lock.unlock(); }
+            }
+            
+            public T take() throws InterruptedException {
+                lock.lock();
+                try {
+                    while (queue.isEmpty()) notEmpty.await();
+                    T item = queue.poll();
+                    notFull.signal();
+                    return item;
+                } finally { lock.unlock(); }
+            }
+        }</pre>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q37:</strong> What is wrong with this code?</p>
+                        <pre>public void doWork() {
+            lock.lock();
+            if (someCondition) { return; }  // Returns without unlocking!
+            lock.unlock();
+        }</pre>
+                        <p class="a"><strong>A:</strong> The method returns without releasing the lock if someCondition is true. Fix: always use try-finally.</p>
+                    </div>
+                    <div class="slide-number">24 / 40</div>
+                </div>
+
+                <!-- SLIDE 25: Q38-Q39 -->
+                <div class="slide">
+                    <span class="category-tag">Part B: Classic Interview Questions (Code-Based)</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q38:</strong> What is wrong with this code?</p>
+                        <pre>public int readAndWrite() {
+            readLock.lock();
+            try {
+                int value = data;
+                writeLock.lock();
+                try { data = value + 1; return data; }
+                finally { writeLock.unlock(); }
+            } finally { readLock.unlock(); }
+        }</pre>
+                        <p class="a"><strong>A:</strong> This code deadlocks! The thread holds the read lock and tries to acquire the write lock. Since the write lock requires exclusive access, the thread is waiting for its own read lock. Fix: release the read lock before acquiring the write lock.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q39:</strong> What is wrong with this code?</p>
+                        <pre>public void write(int value) {
+            long stamp = lock.writeLock();
+            data = value;
+            // Forgot to unlock!
+        }</pre>
+                        <p class="a"><strong>A:</strong> The write lock is never released. The lock is held forever, and all other threads block indefinitely. Fix: always use try-finally.</p>
+                        <pre>public void write(int value) {
+            long stamp = lock.writeLock();
+            try { data = value; } finally { lock.unlockWrite(stamp); }
+        }</pre>
+                    </div>
+                    <div class="slide-number">25 / 40</div>
+                </div>
+
+                <!-- ===== SLIDE 26: End of Q&A ===== -->
+                <div class="slide">
+                    <h1>📌 End of Chapter 7 – Complete Q&A Bank</h1>
+                    <div class="divider"></div>
+                    <p>We have covered:</p>
+                    <ul>
+                        <li><strong>39 comprehensive questions</strong> covering every aspect of Chapter 7.</li>
+                        <li><strong>Conceptual deep-dives</strong> (ReentrantLock, ReadWriteLock, StampedLock, Condition, fairness, contention).</li>
+                        <li><strong>Code-based interview questions</strong> (counter, transfer, cache, bounded queue).</li>
+                        <li><strong>Common pitfalls and how to avoid them.</strong></li>
+                    </ul>
+                    <div style="background: linear-gradient(135deg, rgba(74, 138, 244, 0.06), rgba(106, 175, 255, 0.06)); border-radius: 10px; padding: 0.5rem 0.8rem; margin-top: 0.4rem; border: 1px solid rgba(74, 138, 244, 0.08);">
+                        <p style="font-weight: 600; color: #1a3a6a;">Next: Chapter 8 – Concurrent Collections</p>
+                    </div>
+                    <div class="slide-number">26 / 40</div>
+                </div>
+
+            </div>
+
+            <div class="slide-indicator">auto slide</div>
+        </div>
+    </div>
+</body>
+</html>

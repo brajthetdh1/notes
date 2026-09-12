@@ -1,0 +1,1643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chapter 6 · Synchronization Utilities · Full Content · Auto Slide</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(145deg, #f0f4fa 0%, #dce3ed 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            padding: 12px;
+        }
+
+        .frame-card {
+            width: 100%;
+            height: calc(100vh - 24px);
+            max-height: calc(100vh - 24px);
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 44px;
+            box-shadow: 0 30px 60px -16px rgba(0, 20, 30, 0.3),
+                0 12px 32px -8px rgba(0, 0, 0, 0.06),
+                inset 0 1px 0 rgba(255, 255, 255, 0.7);
+            padding: 20px 24px;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .slider-viewport {
+            flex: 1;
+            width: 100%;
+            overflow: hidden;
+            border-radius: 28px;
+            position: relative;
+            background: rgba(255, 255, 255, 0.06);
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.02);
+            min-height: 0;
+        }
+
+        .slider-track {
+            display: flex;
+            height: 100%;
+            width: 100%;
+            animation: slideAnimation 224s ease-in-out infinite;
+            will-change: transform;
+        }
+
+        .slide {
+            flex: 0 0 100%;
+            height: 100%;
+            padding: 1.2rem 1.8rem;
+            overflow-y: auto;
+            overflow-x: hidden;
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.02);
+            color: #14212e;
+            margin: 0 3px;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(0, 0, 0, 0.12) transparent;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            hyphens: auto;
+            max-width: 100%;
+        }
+
+        .slide::-webkit-scrollbar {
+            width: 4px;
+        }
+        .slide::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .slide::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.12);
+            border-radius: 10px;
+        }
+
+        .slide h1 {
+            font-weight: 800;
+            font-size: 1.5rem;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.5rem;
+            color: #0a1725;
+            border-bottom: 3px solid rgba(50, 80, 120, 0.15);
+            padding-bottom: 0.3rem;
+            background: linear-gradient(135deg, #1a2a4a, #3a5a8a);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            word-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .slide h2 {
+            font-weight: 700;
+            font-size: 1.15rem;
+            margin: 0.5rem 0 0.25rem 0;
+            color: #1a3a6a;
+            border-left: 4px solid #4a8af4;
+            padding-left: 0.7rem;
+            word-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .slide h3 {
+            font-weight: 600;
+            font-size: 1rem;
+            margin: 0.4rem 0 0.2rem 0;
+            color: #2a5a8a;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            word-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .slide h3::before {
+            content: "▸";
+            color: #4a8af4;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .slide h4 {
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin: 0.35rem 0 0.15rem 0;
+            color: #3a6a9a;
+            padding-left: 0.4rem;
+            border-left: 3px solid #6aafff;
+            word-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .slide p {
+            font-weight: 400;
+            font-size: 0.87rem;
+            line-height: 1.55;
+            color: #1d2d3f;
+            opacity: 0.92;
+            margin-bottom: 0.25rem;
+            padding-left: 0.2rem;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .slide ul,
+        .slide ol {
+            padding-left: 1.3rem;
+            margin-bottom: 0.25rem;
+            word-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .slide li {
+            font-size: 0.84rem;
+            line-height: 1.5;
+            color: #1d2d3f;
+            opacity: 0.88;
+            margin-bottom: 0.12rem;
+            padding-left: 0.2rem;
+            list-style-type: none;
+            position: relative;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .slide li::before {
+            content: "✦";
+            color: #4a8af4;
+            position: absolute;
+            left: -1.1rem;
+            font-size: 0.65rem;
+            opacity: 0.6;
+            flex-shrink: 0;
+        }
+
+        .slide li strong {
+            color: #1a4a7a;
+        }
+
+        .slide code {
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            font-size: 0.76rem;
+            background: rgba(74, 138, 244, 0.08);
+            padding: 0.04rem 0.35rem;
+            border-radius: 4px;
+            color: #1a4a8a;
+            border: 1px solid rgba(74, 138, 244, 0.12);
+            word-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .slide pre {
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            font-size: 0.68rem;
+            background: linear-gradient(135deg, rgba(10, 30, 60, 0.04), rgba(74, 138, 244, 0.04));
+            padding: 0.4rem 0.8rem;
+            border-radius: 10px;
+            overflow-x: auto;
+            border: 1px solid rgba(74, 138, 244, 0.08);
+            margin: 0.25rem 0 0.35rem 0;
+            line-height: 1.45;
+            white-space: pre-wrap;
+            word-break: break-word;
+            color: #0a2a4a;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+            max-width: 100%;
+        }
+
+        .slide table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.78rem;
+            margin: 0.25rem 0;
+            max-width: 100%;
+            word-wrap: break-word;
+        }
+
+        .slide table th,
+        .slide table td {
+            border: 1px solid rgba(74, 138, 244, 0.12);
+            padding: 0.2rem 0.5rem;
+            text-align: left;
+        }
+
+        .slide table th {
+            background: rgba(74, 138, 244, 0.06);
+            font-weight: 600;
+            color: #1a3a6a;
+        }
+
+        .slide table td {
+            color: #1d2d3f;
+            opacity: 0.88;
+        }
+
+        .slide .qa-block {
+            background: linear-gradient(135deg, rgba(74, 138, 244, 0.04), rgba(106, 175, 255, 0.04));
+            border-radius: 10px;
+            padding: 0.4rem 0.8rem;
+            margin: 0.3rem 0;
+            border-left: 4px solid #4a8af4;
+            word-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .slide .qa-block .q {
+            font-weight: 600;
+            color: #1a3a6a;
+            font-size: 0.88rem;
+        }
+
+        .slide .qa-block .a {
+            color: #1d2d3f;
+            font-size: 0.84rem;
+            margin-top: 0.15rem;
+            padding-left: 0.2rem;
+        }
+
+        .slide .qa-block .a code {
+            font-size: 0.74rem;
+        }
+
+        .slide .highlight-box {
+            background: linear-gradient(135deg, rgba(74, 138, 244, 0.06), rgba(106, 175, 255, 0.06));
+            border-radius: 10px;
+            padding: 0.4rem 0.8rem;
+            margin: 0.25rem 0;
+            border: 1px solid rgba(74, 138, 244, 0.12);
+            box-shadow: 0 2px 8px rgba(74, 138, 244, 0.04);
+            word-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .slide .highlight-box p {
+            margin-bottom: 0;
+        }
+
+        .slide .divider {
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(74, 138, 244, 0.15), transparent);
+            margin: 0.4rem 0;
+        }
+
+        .slide .slide-number {
+            position: absolute;
+            bottom: 10px;
+            left: 18px;
+            font-size: 0.65rem;
+            opacity: 0.25;
+            font-weight: 600;
+            color: #2a4a6a;
+            pointer-events: none;
+            letter-spacing: 0.05em;
+        }
+
+        .slide .category-tag {
+            display: inline-block;
+            background: linear-gradient(135deg, rgba(74, 138, 244, 0.1), rgba(106, 175, 255, 0.1));
+            padding: 0.08rem 0.7rem;
+            border-radius: 20px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: #1a4a7a;
+            border: 1px solid rgba(74, 138, 244, 0.12);
+            margin-bottom: 0.3rem;
+        }
+
+        .concept-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            margin-top: 0.3rem;
+            max-width: 100%;
+        }
+
+        .concept-card {
+            border-radius: 10px;
+            padding: 0.5rem 0.8rem;
+            border: 1px solid rgba(74, 138, 244, 0.12);
+            word-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .concept-card h4 {
+            border-left: none;
+            padding-left: 0;
+            margin-top: 0;
+            font-size: 0.85rem;
+        }
+
+        .concept-card p {
+            font-size: 0.78rem;
+            margin-bottom: 0;
+            padding-left: 0;
+        }
+
+        /* ===== KEYFRAMES: 56 slides × 4s = 224s ===== */
+        @keyframes slideAnimation {
+            0% { transform: translateX(0); }
+            1.3% { transform: translateX(0); }
+            2.6% { transform: translateX(-100%); }
+            3.9% { transform: translateX(-100%); }
+            5.2% { transform: translateX(-200%); }
+            6.5% { transform: translateX(-200%); }
+            7.8% { transform: translateX(-300%); }
+            9.1% { transform: translateX(-300%); }
+            10.4% { transform: translateX(-400%); }
+            11.7% { transform: translateX(-400%); }
+            13% { transform: translateX(-500%); }
+            14.3% { transform: translateX(-500%); }
+            15.6% { transform: translateX(-600%); }
+            16.9% { transform: translateX(-600%); }
+            18.2% { transform: translateX(-700%); }
+            19.5% { transform: translateX(-700%); }
+            20.8% { transform: translateX(-800%); }
+            22.1% { transform: translateX(-800%); }
+            23.4% { transform: translateX(-900%); }
+            24.7% { transform: translateX(-900%); }
+            26% { transform: translateX(-1000%); }
+            27.3% { transform: translateX(-1000%); }
+            28.6% { transform: translateX(-1100%); }
+            29.9% { transform: translateX(-1100%); }
+            31.2% { transform: translateX(-1200%); }
+            32.5% { transform: translateX(-1200%); }
+            33.8% { transform: translateX(-1300%); }
+            35.1% { transform: translateX(-1300%); }
+            36.4% { transform: translateX(-1400%); }
+            37.7% { transform: translateX(-1400%); }
+            39% { transform: translateX(-1500%); }
+            40.3% { transform: translateX(-1500%); }
+            41.6% { transform: translateX(-1600%); }
+            42.9% { transform: translateX(-1600%); }
+            44.2% { transform: translateX(-1700%); }
+            45.5% { transform: translateX(-1700%); }
+            46.8% { transform: translateX(-1800%); }
+            48.1% { transform: translateX(-1800%); }
+            49.4% { transform: translateX(-1900%); }
+            50.7% { transform: translateX(-1900%); }
+            52% { transform: translateX(-2000%); }
+            53.3% { transform: translateX(-2000%); }
+            54.6% { transform: translateX(-2100%); }
+            55.9% { transform: translateX(-2100%); }
+            57.2% { transform: translateX(-2200%); }
+            58.5% { transform: translateX(-2200%); }
+            59.8% { transform: translateX(-2300%); }
+            61.1% { transform: translateX(-2300%); }
+            62.4% { transform: translateX(-2400%); }
+            63.7% { transform: translateX(-2400%); }
+            65% { transform: translateX(-2500%); }
+            66.3% { transform: translateX(-2500%); }
+            67.6% { transform: translateX(-2600%); }
+            68.9% { transform: translateX(-2600%); }
+            70.2% { transform: translateX(-2700%); }
+            71.5% { transform: translateX(-2700%); }
+            72.8% { transform: translateX(-2800%); }
+            74.1% { transform: translateX(-2800%); }
+            75.4% { transform: translateX(-2900%); }
+            76.7% { transform: translateX(-2900%); }
+            78% { transform: translateX(-3000%); }
+            79.3% { transform: translateX(-3000%); }
+            80.6% { transform: translateX(-3100%); }
+            81.9% { transform: translateX(-3100%); }
+            83.2% { transform: translateX(-3200%); }
+            84.5% { transform: translateX(-3200%); }
+            85.8% { transform: translateX(-3300%); }
+            87.1% { transform: translateX(-3300%); }
+            88.4% { transform: translateX(-3400%); }
+            89.7% { transform: translateX(-3400%); }
+            91% { transform: translateX(-3500%); }
+            92.3% { transform: translateX(-3500%); }
+            93.6% { transform: translateX(-3600%); }
+            94.9% { transform: translateX(-3600%); }
+            96.2% { transform: translateX(-3700%); }
+            97.5% { transform: translateX(-3700%); }
+            100% { transform: translateX(-3700%); }
+        }
+
+        .slider-viewport:hover .slider-track {
+            animation-play-state: paused;
+        }
+
+        .slide-indicator {
+            position: absolute;
+            bottom: 12px;
+            right: 18px;
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            padding: 4px 12px 4px 10px;
+            border-radius: 60px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: #1a3a5a;
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+            pointer-events: none;
+            letter-spacing: 0.03em;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            z-index: 10;
+            animation: pulseGlow 2s ease-in-out infinite;
+        }
+
+        .slide-indicator::after {
+            content: "4s";
+            font-size: 0.6rem;
+            opacity: 0.5;
+            font-weight: 700;
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 4px 12px rgba(74, 138, 244, 0.04); }
+            50% { box-shadow: 0 4px 20px rgba(74, 138, 244, 0.12); }
+        }
+
+        @media (max-width: 1024px) {
+            .slide { padding: 1rem 1.4rem; }
+            .slide h1 { font-size: 1.3rem; }
+            .slide h2 { font-size: 1.05rem; }
+            .slide p { font-size: 0.82rem; }
+            .slide pre { font-size: 0.64rem; padding: 0.35rem 0.6rem; }
+            .slide li { font-size: 0.79rem; }
+            .slide .qa-block .q { font-size: 0.82rem; }
+            .slide .qa-block .a { font-size: 0.78rem; }
+            .slide table { font-size: 0.72rem; }
+        }
+
+        @media (max-width: 768px) {
+            body { padding: 8px; }
+            .frame-card { padding: 10px 12px; border-radius: 28px; }
+            .slider-viewport { border-radius: 20px; }
+            .slide { padding: 0.8rem 1rem; margin: 0 2px; border-radius: 16px; }
+            .slide h1 { font-size: 1.1rem; }
+            .slide h2 { font-size: 0.95rem; }
+            .slide h3 { font-size: 0.88rem; }
+            .slide h4 { font-size: 0.82rem; }
+            .slide p { font-size: 0.76rem; line-height: 1.45; }
+            .slide pre { font-size: 0.58rem; padding: 0.25rem 0.5rem; }
+            .slide code { font-size: 0.68rem; }
+            .slide ul, .slide ol { padding-left: 1rem; }
+            .slide li { font-size: 0.73rem; }
+            .slide li::before { left: -0.9rem; font-size: 0.55rem; }
+            .slide table { font-size: 0.64rem; }
+            .slide table th, .slide table td { padding: 0.15rem 0.3rem; }
+            .slide .qa-block { padding: 0.3rem 0.6rem; }
+            .slide .qa-block .q { font-size: 0.76rem; }
+            .slide .qa-block .a { font-size: 0.72rem; }
+            .slide .highlight-box { padding: 0.3rem 0.6rem; }
+            .slide .slide-number { font-size: 0.55rem; bottom: 6px; left: 12px; }
+            .slide-indicator { bottom: 8px; right: 12px; font-size: 0.55rem; padding: 3px 8px; }
+            .concept-grid { grid-template-columns: 1fr 1fr; gap: 0.3rem; }
+            .concept-card { padding: 0.3rem 0.5rem; }
+            .concept-card h4 { font-size: 0.75rem; }
+            .concept-card p { font-size: 0.68rem; }
+        }
+
+        @media (max-width: 480px) {
+            body { padding: 6px; }
+            .frame-card { padding: 6px 8px; border-radius: 18px; }
+            .slider-viewport { border-radius: 12px; }
+            .slide { padding: 0.6rem 0.7rem; margin: 0 2px; border-radius: 12px; }
+            .slide h1 { font-size: 0.95rem; }
+            .slide h2 { font-size: 0.82rem; padding-left: 0.4rem; }
+            .slide h3 { font-size: 0.76rem; }
+            .slide h4 { font-size: 0.72rem; padding-left: 0.25rem; }
+            .slide p { font-size: 0.68rem; line-height: 1.4; padding-left: 0.1rem; }
+            .slide pre { font-size: 0.52rem; padding: 0.2rem 0.4rem; border-radius: 6px; }
+            .slide code { font-size: 0.6rem; padding: 0.02rem 0.25rem; }
+            .slide ul, .slide ol { padding-left: 0.8rem; }
+            .slide li { font-size: 0.67rem; padding-left: 0.1rem; }
+            .slide li::before { left: -0.7rem; font-size: 0.45rem; }
+            .slide table { font-size: 0.55rem; }
+            .slide table th, .slide table td { padding: 0.1rem 0.2rem; }
+            .slide .qa-block { padding: 0.2rem 0.4rem; border-radius: 6px; }
+            .slide .qa-block .q { font-size: 0.68rem; }
+            .slide .qa-block .a { font-size: 0.64rem; }
+            .slide .highlight-box { padding: 0.2rem 0.4rem; border-radius: 6px; }
+            .slide .slide-number { font-size: 0.45rem; bottom: 4px; left: 8px; }
+            .slide-indicator { bottom: 6px; right: 8px; font-size: 0.5rem; padding: 2px 6px; }
+            .concept-grid { grid-template-columns: 1fr 1fr; gap: 0.2rem; }
+            .concept-card { padding: 0.2rem 0.4rem; border-radius: 6px; }
+            .concept-card h4 { font-size: 0.65rem; }
+            .concept-card p { font-size: 0.58rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="frame-card">
+        <div class="slider-viewport">
+            <div class="slider-track">
+
+                <!-- ===== SLIDE 1: Chapter 6 Title ===== -->
+                <div class="slide">
+                    <h1>🔧 Chapter 6: Synchronization Utilities</h1>
+                    <div class="divider"></div>
+                    <h2>Section 6.1: CountDownLatch – The One-Shot Synchronizer</h2>
+                    <p><code>CountDownLatch</code> is a simple but powerful utility that allows one or more threads to wait until a set of operations in other threads completes.</p>
+                    <h3>Subsection 6.1.1: What is CountDownLatch?</h3>
+                    <pre>public class CountDownLatch {
+            public CountDownLatch(int count);
+            public void await() throws InterruptedException;
+            public boolean await(long timeout, TimeUnit unit) throws InterruptedException;
+            public void countDown();
+            public long getCount();
+        }</pre>
+                    <p><strong>How it works:</strong></p>
+                    <ul>
+                        <li>You initialize the latch with a count (e.g., number of tasks to wait for).</li>
+                        <li>Each thread calls <code>countDown()</code> when it completes its work, decrementing the count.</li>
+                        <li>The waiting thread(s) call <code>await()</code>, which blocks until the count reaches zero.</li>
+                    </ul>
+                    <div class="highlight-box">
+                        <p><strong>Is CountDownLatch reusable?</strong> No! Once the count reaches zero, the latch cannot be reset. If you need a reusable barrier, use <code>CyclicBarrier</code>.</p>
+                    </div>
+                    <div class="slide-number">1 / 56</div>
+                </div>
+
+                <!-- ===== SLIDE 2: CountDownLatch Use Cases ===== -->
+                <div class="slide">
+                    <h3>Subsection 6.1.2: Use Cases for CountDownLatch</h3>
+                    <p><strong>Use Case 1: Waiting for Multiple Tasks to Complete</strong></p>
+                    <pre>public class CountDownLatchExample {
+            public static void main(String[] args) throws InterruptedException {
+                int numberOfTasks = 5;
+                CountDownLatch latch = new CountDownLatch(numberOfTasks);
+                
+                for (int i = 0; i < numberOfTasks; i++) {
+                    new Thread(() -> {
+                        try {
+                            Thread.sleep(ThreadLocalRandom.current().nextInt(1000, 3000));
+                            System.out.println("Task completed by: " + Thread.currentThread().getName());
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        } finally {
+                            latch.countDown();  // Always decrement, even on exception
+                        }
+                    }).start();
+                }
+                
+                System.out.println("Waiting for all tasks to complete...");
+                latch.await();  // Blocks until all tasks are done
+                System.out.println("All tasks completed! Proceeding...");
+            }
+        }</pre>
+                    <div class="slide-number">2 / 56</div>
+                </div>
+
+                <!-- ===== SLIDE 3: CountDownLatch Use Cases 2 & 3 ===== -->
+                <div class="slide">
+                    <p><strong>Use Case 2: Starting Multiple Threads Simultaneously</strong></p>
+                    <pre>CountDownLatch startSignal = new CountDownLatch(1);
+        CountDownLatch doneSignal = new CountDownLatch(numberOfRunners);
+        
+        for (int i = 0; i < numberOfRunners; i++) {
+            new Thread(() -> {
+                try {
+                    startSignal.await();  // Wait for the starting gun
+                    System.out.println("Runner started: " + Thread.currentThread().getName());
+                    Thread.sleep(ThreadLocalRandom.current().nextInt(1000, 3000));
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } finally {
+                    doneSignal.countDown();
+                }
+            }).start();
+        }
+        
+        Thread.sleep(1000);  // Prepare...
+        System.out.println("Starting gun fired!");
+        startSignal.countDown();  // Fire the starting gun
+        doneSignal.await();  // Wait for all runners to finish</pre>
+                    <p><strong>Use Case 3: Initializing Resources</strong></p>
+                    <pre>CountDownLatch initLatch = new CountDownLatch(NUM_THREADS);
+        for (int i = 0; i < NUM_THREADS; i++) {
+            new Thread(() -> {
+                try { loadModule(i); } finally { initLatch.countDown(); }
+            }).start();
+        }
+        initLatch.await();  // Wait for all modules to load
+        System.out.println("All modules loaded. System ready.");</pre>
+                    <div class="slide-number">3 / 56</div>
+                </div>
+
+                <!-- ===== SLIDE 4: CountDownLatch Doubt Clarifiers ===== -->
+                <div class="slide">
+                    <h3>Subsection 6.1.3: The "Doubt Clarifier" – Can multiple threads call await()?</h3>
+                    <p><strong>Yes!</strong> Multiple threads can call <code>await()</code>. They will all block until the count reaches zero. Once the count reaches zero, all waiting threads are released simultaneously.</p>
+                    <pre>CountDownLatch latch = new CountDownLatch(1);
+        for (int i = 0; i < 5; i++) {
+            new Thread(() -> {
+                try { latch.await(); System.out.println("Released!"); }
+                catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+            }).start();
+        }
+        Thread.sleep(1000);
+        latch.countDown();  // All 5 threads are released!</pre>
+                    <div class="divider"></div>
+                    <h3>Subsection 6.1.4: The "Doubt Clarifier" – What if a thread calls countDown() more than once?</h3>
+                    <p>Each call decrements the count. If a thread accidentally calls <code>countDown()</code> twice, the latch may reach zero earlier than expected. Always call <code>countDown()</code> exactly once per task.</p>
+                    <div class="highlight-box">
+                        <p><strong>What if a thread calls countDown() after the latch is already zero?</strong> It has no effect. The count cannot go below zero.</p>
+                    </div>
+                    <div class="slide-number">4 / 56</div>
+                </div>
+
+                <!-- ===== SLIDE 5: CountDownLatch vs Thread.join() ===== -->
+                <div class="slide">
+                    <h3>Subsection 6.1.5: The "Doubt Clarifier" – What is the difference between CountDownLatch and Thread.join()?</h3>
+                    <table>
+                        <tr><th>Feature</th><th>CountDownLatch</th><th>Thread.join()</th></tr>
+                        <tr><td>What it waits for</td><td>A count to reach zero</td><td>A specific thread to terminate</td></tr>
+                        <tr><td>Flexibility</td><td>Can wait for multiple threads, tasks, or events</td><td>Only waits for a single thread</td></tr>
+                        <tr><td>Reusability</td><td>Not reusable (one-shot)</td><td>Not reusable (thread dies)</td></tr>
+                        <tr><td>Interruption</td><td>InterruptedException on await()</td><td>InterruptedException on join()</td></tr>
+                    </table>
+                    <p><strong>Use CountDownLatch</strong> when you need to wait for multiple tasks or events, not just thread termination.</p>
+                    <div class="divider"></div>
+                    <h2>Section 6.2: CyclicBarrier – The Reusable Barrier</h2>
+                    <p><code>CyclicBarrier</code> allows a set of threads to wait for each other to reach a common barrier point. Unlike <code>CountDownLatch</code>, it is reusable.</p>
+                    <div class="slide-number">5 / 56</div>
+                </div>
+
+                <!-- ===== SLIDE 6: CyclicBarrier Use Cases ===== -->
+                <div class="slide">
+                    <h3>Subsection 6.2.1: What is CyclicBarrier?</h3>
+                    <pre>public class CyclicBarrier {
+            public CyclicBarrier(int parties);
+            public CyclicBarrier(int parties, Runnable barrierAction);
+            public int await() throws InterruptedException, BrokenBarrierException;
+            public int await(long timeout, TimeUnit unit) throws InterruptedException, BrokenBarrierException, TimeoutException;
+            public boolean isBroken();
+            public void reset();
+            public int getNumberWaiting();
+        }</pre>
+                    <div class="divider"></div>
+                    <h3>Subsection 6.2.2: Use Cases for CyclicBarrier</h3>
+                    <p><strong>Use Case 1: Parallel Processing (Map-Reduce Style)</strong></p>
+                    <pre>Runnable barrierAction = () -> {
+            System.out.println("Batch completed. Processed: " + processedCount);
+        };
+        CyclicBarrier barrier = new CyclicBarrier(NUM_THREADS, barrierAction);
+        
+        for (int i = 0; i < NUM_THREADS; i++) {
+            new Thread(() -> {
+                try {
+                    while (processedCount < TOTAL_ITEMS) {
+                        // Process batch
+                        barrier.await();  // Wait for all threads to finish this batch
+                    }
+                } catch (Exception e) { e.printStackTrace(); }
+            }).start();
+        }</pre>
+                    <div class="slide-number">6 / 56</div>
+                </div>
+
+                <!-- ===== SLIDE 7: CyclicBarrier Multi-Phase ===== -->
+                <div class="slide">
+                    <p><strong>Use Case 2: Multi-Phase Computation</strong></p>
+                    <pre>CyclicBarrier barrier = new CyclicBarrier(NUM_WORKERS, () -> {
+            System.out.println("=== Phase " + phase + " completed ===");
+            phase++;
+        });
+        
+        for (int i = 0; i < NUM_WORKERS; i++) {
+            new Thread(new Worker(i)).start();
+        }
+        
+        static class Worker implements Runnable {
+            @Override
+            public void run() {
+                try {
+                    while (phase < 3) {
+                        System.out.println("Worker " + id + " working in phase " + phase);
+                        Thread.sleep(ThreadLocalRandom.current().nextInt(500, 1500));
+                        barrier.await();  // Wait for all workers
+                    }
+                } catch (Exception e) { e.printStackTrace(); }
+            }
+        }</pre>
+                    <div class="divider"></div>
+                    <h3>Subsection 6.2.3: The "Doubt Clarifier" – What is the barrierAction?</h3>
+                    <p>The <code>barrierAction</code> is a <code>Runnable</code> that is executed when the barrier is tripped, before any threads are released. It runs in the last thread to call <code>await()</code>.</p>
+                    <div class="slide-number">7 / 56</div>
+                </div>
+
+                <!-- ===== SLIDE 8: BrokenBarrierException + CountDownLatch vs CyclicBarrier ===== -->
+                <div class="slide">
+                    <h3>Subsection 6.2.4: The "Doubt Clarifier" – What is a BrokenBarrierException?</h3>
+                    <p>The barrier is "broken" if:</p>
+                    <ul>
+                        <li>One of the threads is interrupted while waiting (<code>InterruptedException</code>).</li>
+                        <li>A timeout occurs (<code>TimeoutException</code>).</li>
+                        <li>The barrier is explicitly reset (<code>reset()</code>).</li>
+                    </ul>
+                    <p>When broken, all waiting threads receive <code>BrokenBarrierException</code>.</p>
+                    <div class="divider"></div>
+                    <h3>Subsection 6.2.5: The "Doubt Clarifier" – What is the difference between CountDownLatch and CyclicBarrier?</h3>
+                    <table>
+                        <tr><th>Feature</th><th>CountDownLatch</th><th>CyclicBarrier</th></tr>
+                        <tr><td>Reusable</td><td>No (one-shot)</td><td>Yes (cyclic)</td></tr>
+                        <tr><td>Waiting</td><td>Threads wait for the count to reach zero</td><td>Threads wait for each other</td></tr>
+                        <tr><td>Barrier Action</td><td>No</td><td>Yes (optional Runnable)</td></tr>
+                        <tr><td>Threads Released</td><td>All waiting threads when count reaches zero</td><td>All threads when all parties arrive</td></tr>
+                        <tr><td>Use Case</td><td>Wait for tasks to complete</td><td>Wait for threads to reach a common point</td></tr>
+                    </table>
+                    <div class="slide-number">8 / 56</div>
+                </div>
+
+                <!-- ===== SLIDE 9: Semaphore ===== -->
+                <div class="slide">
+                    <h2>Section 6.3: Semaphore – Controlling Access to Resources</h2>
+                    <p><code>Semaphore</code> is a counting semaphore that controls access to a limited number of resources.</p>
+                    <h3>Subsection 6.3.1: What is Semaphore?</h3>
+                    <pre>public class Semaphore {
+            public Semaphore(int permits);
+            public Semaphore(int permits, boolean fair);
+            public void acquire() throws InterruptedException;
+            public void acquire(int permits) throws InterruptedException;
+            public boolean tryAcquire();
+            public boolean tryAcquire(long timeout, TimeUnit unit) throws InterruptedException;
+            public void release();
+            public void release(int permits);
+            public int availablePermits();
+        }</pre>
+                    <p><strong>How it works:</strong></p>
+                    <ul>
+                        <li>A semaphore maintains a set of permits.</li>
+                        <li>Threads call <code>acquire()</code> to obtain a permit (blocking if none available).</li>
+                        <li>Threads call <code>release()</code> to return a permit.</li>
+                    </ul>
+                    <div class="slide-number">9 / 56</div>
+                </div>
+
+                <!-- ===== SLIDE 10: Semaphore Use Cases ===== -->
+                <div class="slide">
+                    <h3>Subsection 6.3.2: Use Cases for Semaphore</h3>
+                    <p><strong>Use Case 1: Limiting Concurrent Access to a Resource</strong></p>
+                    <pre>public class DatabaseConnectionPool {
+            private static final int MAX_CONNECTIONS = 5;
+            private final Semaphore semaphore = new Semaphore(MAX_CONNECTIONS, true);
+            
+            public Connection getConnection() throws InterruptedException {
+                semaphore.acquire();  // Block if no permits available
+                return connections.remove(connections.size() - 1);
+            }
+            
+            public void returnConnection(Connection conn) {
+                connections.add(conn);
+                semaphore.release();  // Return the permit
+            }
+        }</pre>
+                    <p><strong>Use Case 2: Rate Limiting</strong></p>
+                    <pre>public class RateLimiter {
+            private final Semaphore semaphore;
+            public RateLimiter(int maxRequestsPerSecond) {
+                this.semaphore = new Semaphore(maxRequestsPerSecond);
+                scheduler.scheduleAtFixedRate(() -> {
+                    int permitsToAdd = maxRequestsPerSecond - semaphore.availablePermits();
+                    if (permitsToAdd > 0) semaphore.release(permitsToAdd);
+                }, 1, 1, TimeUnit.SECONDS);
+            }
+            public void execute(Runnable task) throws InterruptedException {
+                semaphore.acquire();  // Wait for a permit
+                try { task.run(); } finally { /* permits refilled by scheduler */ }
+            }
+        }</pre>
+                    <div class="slide-number">10 / 56</div>
+                </div>
+
+                <!-- ===== SLIDE 11: Semaphore Doubt Clarifiers ===== -->
+                <div class="slide">
+                    <h3>Subsection 6.3.3: The "Doubt Clarifier" – What is the difference between a binary semaphore and a mutex?</h3>
+                    <table>
+                        <tr><th>Feature</th><th>Binary Semaphore</th><th>Mutex</th></tr>
+                        <tr><td>Owner</td><td>No owner (any thread can release)</td><td>Owner (only the thread that locked can unlock)</td></tr>
+                        <tr><td>Reentrant</td><td>No</td><td>Yes</td></tr>
+                        <tr><td>Priority Inversion</td><td>Can occur</td><td>Can be mitigated with priority inheritance</td></tr>
+                        <tr><td>Use Case</td><td>Signaling</td><td>Mutual exclusion</td></tr>
+                    </table>
+                    <p>In Java, <code>synchronized</code> and <code>ReentrantLock</code> are mutexes. <code>Semaphore(1)</code> is a binary semaphore.</p>
+                    <div class="divider"></div>
+                    <h3>Subsection 6.3.4: The "Doubt Clarifier" – What is a fair semaphore?</h3>
+                    <p>A fair semaphore (<code>new Semaphore(permits, true)</code>) grants permits in the order they were requested (FIFO). This prevents starvation but reduces throughput.</p>
+                    <div class="slide-number">11 / 56</div>
+                </div>
+
+                <!-- ===== SLIDE 12: Exchanger ===== -->
+                <div class="slide">
+                    <h2>Section 6.4: Exchanger – Exchanging Data Between Threads</h2>
+                    <p><code>Exchanger</code> is a synchronization point where two threads can exchange objects.</p>
+                    <h3>Subsection 6.4.1: What is Exchanger?</h3>
+                    <pre>public class Exchanger&lt;V&gt; {
+            public Exchanger();
+            public V exchange(V x) throws InterruptedException;
+            public V exchange(V x, long timeout, TimeUnit unit) throws InterruptedException, TimeoutException;
+        }</pre>
+                    <p><strong>How it works:</strong></p>
+                    <ul>
+                        <li>Two threads call <code>exchange()</code> with an object.</li>
+                        <li>The first thread blocks until the second thread arrives.</li>
+                        <li>When both have arrived, they exchange objects.</li>
+                        <li>Each thread receives the other's object.</li>
+                    </ul>
+                    <div class="divider"></div>
+                    <h3>Subsection 6.4.2: Use Cases for Exchanger</h3>
+                    <p><strong>Producer-Consumer with Buffered Exchange</strong></p>
+                    <pre>Exchanger&lt;List&lt;String&gt;&gt; exchanger = new Exchanger&lt;&gt;();
+        // Producer
+        List&lt;String&gt; buffer = new ArrayList&lt;&gt;();
+        while (true) {
+            for (int i = 0; i < BUFFER_SIZE; i++) buffer.add("Item-" + sequence++);
+            buffer = exchanger.exchange(buffer);  // Exchange full buffer for empty one
+        }
+        // Consumer
+        while (true) {
+            buffer = exchanger.exchange(buffer);  // Exchange empty buffer for full one
+            for (String item : buffer) process(item);
+            buffer.clear();
+        }</pre>
+                    <div class="slide-number">12 / 56</div>
+                </div>
+
+                <!-- ===== SLIDE 13: Exchanger Doubt Clarifiers + Phaser ===== -->
+                <div class="slide">
+                    <div class="highlight-box">
+                        <p><strong>When should I use Exchanger?</strong> Use Exchanger when two threads need to exchange data at a synchronization point. It's useful for producer-consumer patterns with buffer swapping and pipeline algorithms.</p>
+                        <p><strong>What if more than two threads call exchange()?</strong> Exchanger only supports two threads. If a third thread calls <code>exchange()</code>, it will wait forever (no partner). Use <code>CyclicBarrier</code> for more than two threads.</p>
+                    </div>
+                    <div class="divider"></div>
+                    <h2>Section 6.5: Phaser – The Flexible, Reusable Barrier</h2>
+                    <p><code>Phaser</code> is a more flexible version of <code>CyclicBarrier</code> that supports dynamic party registration and multiple phases.</p>
+                    <h3>Subsection 6.5.1: What is Phaser?</h3>
+                    <pre>public class Phaser {
+            public Phaser();
+            public Phaser(int parties);
+            public int register();
+            public int bulkRegister(int parties);
+            public int arrive();
+            public int arriveAndDeregister();
+            public int arriveAndAwaitAdvance();
+            public int awaitAdvance(int phase);
+            public void forceTermination();
+            public boolean isTerminated();
+            public int getPhase();
+            public int getRegisteredParties();
+        }</pre>
+                    <div class="slide-number">13 / 56</div>
+                </div>
+
+                <!-- ===== SLIDE 14: Phaser Use Cases ===== -->
+                <div class="slide">
+                    <h3>Subsection 6.5.2: Use Cases for Phaser</h3>
+                    <p><strong>Use Case 1: Dynamic Number of Tasks</strong></p>
+                    <pre>Phaser phaser = new Phaser();
+        phaser.bulkRegister(INITIAL_TASKS);
+        
+        for (int i = 0; i < INITIAL_TASKS; i++) {
+            new Thread(new Task(i)).start();
+        }
+        
+        phaser.awaitAdvance(phaser.getPhase());
+        System.out.println("All tasks completed!");
+        
+        static class Task implements Runnable {
+            @Override
+            public void run() {
+                // Phase 1: Work
+                phaser.arriveAndAwaitAdvance();  // Signal completion of phase 1
+                // Phase 2: More work
+                phaser.arriveAndAwaitAdvance();  // Signal completion of phase 2
+                // Phase 3: Final work
+                phaser.arriveAndDeregister();  // Signal completion and deregister
+            }
+        }</pre>
+                    <div class="slide-number">14 / 56</div>
+                </div>
+
+                <!-- ===== SLIDE 15: Phaser Dynamic Addition ===== -->
+                <div class="slide">
+                    <p><strong>Use Case 2: Dynamic Addition of Tasks</strong></p>
+                    <pre>Phaser phaser = new Phaser() {
+            @Override
+            protected boolean onAdvance(int phase, int registeredParties) {
+                System.out.println("Phase " + phase + " completed with " + registeredParties + " parties");
+                return registeredParties == 0;  // Terminate when no parties left
+            }
+        };
+        
+        phaser.register();  // Register the main thread
+        for (int i = 0; i < 3; i++) {
+            phaser.register();
+            new Thread(new DynamicTask(i)).start();
+        }
+        
+        while (!phaser.isTerminated()) {
+            phaser.awaitAdvance(phaser.getPhase());
+        }
+        
+        static class DynamicTask implements Runnable {
+            @Override
+            public void run() {
+                // Spawn a subtask
+                if (id < 2) {
+                    phaser.register();
+                    new Thread(new DynamicTask(id + 10)).start();
+                }
+                phaser.arriveAndDeregister();
+            }
+        }</pre>
+                    <div class="slide-number">15 / 56</div>
+                </div>
+
+                <!-- ===== SLIDE 16: Phaser vs CyclicBarrier + CompletableFuture ===== -->
+                <div class="slide">
+                    <h3>Subsection 6.5.3: The "Doubt Clarifier" – What is the difference between Phaser and CyclicBarrier?</h3>
+                    <table>
+                        <tr><th>Feature</th><th>CyclicBarrier</th><th>Phaser</th></tr>
+                        <tr><td>Dynamic Registration</td><td>No</td><td>Yes</td></tr>
+                        <tr><td>Multiple Phases</td><td>Yes (reusable)</td><td>Yes (advance to next phase)</td></tr>
+                        <tr><td>Deregistration</td><td>No</td><td>Yes (arriveAndDeregister())</td></tr>
+                        <tr><td>Parent-Child Hierarchies</td><td>No</td><td>Yes</td></tr>
+                        <tr><td>Termination</td><td>No</td><td>Yes (forceTermination())</td></tr>
+                        <tr><td>Complexity</td><td>Simple</td><td>More complex</td></tr>
+                    </table>
+                    <div class="divider"></div>
+                    <h2>Section 6.6: CompletableFuture – The Future with Superpowers</h2>
+                    <p><code>CompletableFuture</code> is a powerful asynchronous programming API introduced in Java 8. It extends <code>Future</code> with composition, chaining, and exception handling.</p>
+                    <div class="slide-number">16 / 56</div>
+                </div>
+
+                <!-- ===== SLIDE 17: CompletableFuture Basics ===== -->
+                <div class="slide">
+                    <h3>Subsection 6.6.1: What is CompletableFuture?</h3>
+                    <pre>public class CompletableFuture&lt;T&gt; implements Future&lt;T&gt;, CompletionStage&lt;T&gt; {
+            // Creation
+            public static &lt;U&gt; CompletableFuture&lt;U&gt; completedFuture(U value);
+            public static &lt;U&gt; CompletableFuture&lt;U&gt; supplyAsync(Supplier&lt;U&gt; supplier);
+            public static CompletableFuture&lt;Void&gt; runAsync(Runnable runnable);
+            
+            // Chaining
+            public &lt;U&gt; CompletableFuture&lt;U&gt; thenApply(Function&lt;? super T,? extends U&gt; fn);
+            public CompletableFuture&lt;Void&gt; thenAccept(Consumer&lt;? super T&gt; action);
+            public CompletableFuture&lt;Void&gt; thenRun(Runnable action);
+            
+            // Composition
+            public &lt;U&gt; CompletableFuture&lt;U&gt; thenCompose(Function&lt;? super T, ? extends CompletionStage&lt;U&gt;&gt; fn);
+            public &lt;U&gt; CompletableFuture&lt;U&gt; thenCombine(CompletionStage&lt;? extends U&gt; other, BiFunction&lt;? super T,? super U,? extends V&gt; fn);
+            
+            // Exception handling
+            public CompletableFuture&lt;T&gt; exceptionally(Function&lt;Throwable, ? extends T&gt; fn);
+            public &lt;U&gt; CompletableFuture&lt;U&gt; handle(BiFunction&lt;? super T, Throwable, ? extends U&gt; fn);
+            
+            // Waiting
+            public T get() throws InterruptedException, ExecutionException;
+            public T join();  // Unchecked exception
+        }</pre>
+                    <div class="slide-number">17 / 56</div>
+                </div>
+
+                <!-- ===== SLIDE 18: CompletableFuture Use Cases ===== -->
+                <div class="slide">
+                    <h3>Subsection 6.6.2: Use Cases for CompletableFuture</h3>
+                    <p><strong>Use Case 1: Async Task with Result</strong></p>
+                    <pre>CompletableFuture&lt;String&gt; future = CompletableFuture.supplyAsync(() -> {
+            Thread.sleep(2000);
+            return "Hello, World!";
+        });
+        System.out.println("Waiting for result...");
+        String result = future.get();
+        System.out.println("Result: " + result);</pre>
+                    <p><strong>Use Case 2: Chaining Operations</strong></p>
+                    <pre>CompletableFuture&lt;String&gt; future = CompletableFuture.supplyAsync(() -> "Hello")
+            .thenApply(s -> s + " World")
+            .thenApply(String::toUpperCase)
+            .thenApply(s -> s + "!");
+        System.out.println(future.get());  // "HELLO WORLD!"</pre>
+                    <p><strong>Use Case 3: Combining Multiple Futures</strong></p>
+                    <pre>CompletableFuture&lt;Integer&gt; future1 = CompletableFuture.supplyAsync(() -> 10);
+        CompletableFuture&lt;Integer&gt; future2 = CompletableFuture.supplyAsync(() -> 20);
+        CompletableFuture&lt;Integer&gt; combined = future1.thenCombine(future2, (a, b) -> a + b);
+        System.out.println("Result: " + combined.get());  // 30</pre>
+                    <div class="slide-number">18 / 56</div>
+                </div>
+
+                <!-- ===== SLIDE 19: CompletableFuture Exception Handling ===== -->
+                <div class="slide">
+                    <p><strong>Use Case 4: Handling Exceptions</strong></p>
+                    <pre>CompletableFuture&lt;Integer&gt; future = CompletableFuture.supplyAsync(() -> {
+            if (ThreadLocalRandom.current().nextBoolean()) {
+                throw new RuntimeException("Something went wrong!");
+            }
+            return 42;
+        })
+        .exceptionally(throwable -> {
+            System.out.println("Exception caught: " + throwable.getMessage());
+            return -1;  // Fallback value
+        })
+        .handle((result, throwable) -> {
+            if (throwable != null) {
+                System.out.println("Handled exception in handle: " + throwable.getMessage());
+                return -2;
+            }
+            return result;
+        });
+        System.out.println("Result: " + future.get());</pre>
+                    <p><strong>Use Case 5: Waiting for All Futures to Complete</strong></p>
+                    <pre>CompletableFuture&lt;Void&gt; all = CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+        all.join();  // Wait for completion
+        int total = futures.stream().map(CompletableFuture::join).mapToInt(Integer::intValue).sum();</pre>
+                    <div class="slide-number">19 / 56</div>
+                </div>
+
+                <!-- ===== SLIDE 20: CompletableFuture Doubt Clarifiers ===== -->
+                <div class="slide">
+                    <h3>Subsection 6.6.3: The "Doubt Clarifier" – What is the difference between thenApply and thenCompose?</h3>
+                    <table>
+                        <tr><th>Feature</th><th>thenApply</th><th>thenCompose</th></tr>
+                        <tr><td>Return Type</td><td>CompletableFuture&lt;U&gt;</td><td>CompletableFuture&lt;U&gt;</td></tr>
+                        <tr><td>Function Return</td><td>Returns U (plain value)</td><td>Returns CompletableFuture&lt;U&gt;</td></tr>
+                        <tr><td>Analogy</td><td><code>map()</code></td><td><code>flatMap()</code></td></tr>
+                    </table>
+                    <div class="divider"></div>
+                    <h3>Subsection 6.6.4: The "Doubt Clarifier" – What is the difference between thenApply and thenApplyAsync?</h3>
+                    <table>
+                        <tr><th>Feature</th><th>thenApply</th><th>thenApplyAsync</th></tr>
+                        <tr><td>Executor</td><td>Same thread pool as previous stage</td><td>Separate thread pool</td></tr>
+                        <tr><td>Blocking</td><td>May block previous stage</td><td>Non-blocking</td></tr>
+                    </table>
+                    <div class="slide-number">20 / 56</div>
+                </div>
+
+                <!-- ===== SLIDE 21: CompletableFuture get() vs join() + Summary ===== -->
+                <div class="slide">
+                    <h3>Subsection 6.6.5: The "Doubt Clarifier" – What is the difference between get() and join()?</h3>
+                    <table>
+                        <tr><th>Feature</th><th>get()</th><th>join()</th></tr>
+                        <tr><td>Exception Handling</td><td>Throws InterruptedException, ExecutionException</td><td>Throws CompletionException (unchecked)</td></tr>
+                        <tr><td>Use Case</td><td>When you want to handle checked exceptions</td><td>When you're in a context where checked exceptions are annoying</td></tr>
+                    </table>
+                    <div class="divider"></div>
+                    <h3>Subsection 6.6.6: The "Doubt Clarifier" – What is the difference between CompletableFuture and ExecutorService?</h3>
+                    <table>
+                        <tr><th>Feature</th><th>ExecutorService</th><th>CompletableFuture</th></tr>
+                        <tr><td>Blocking</td><td>Yes (submit and get)</td><td>Non-blocking (callbacks)</td></tr>
+                        <tr><td>Composition</td><td>Manual</td><td>Built-in (thenApply, thenCombine)</td></tr>
+                        <tr><td>Exception Handling</td><td>Manual (try-catch around get())</td><td>Built-in (exceptionally, handle)</td></tr>
+                    </table>
+                    <div style="background: linear-gradient(135deg, rgba(74, 138, 244, 0.06), rgba(106, 175, 255, 0.06)); border-radius: 10px; padding: 0.5rem 0.8rem; margin-top: 0.4rem; border: 1px solid rgba(74, 138, 244, 0.08);">
+                        <p style="font-weight: 600; color: #1a3a6a;">Next: Chapter 7 – Explicit Locks (ReentrantLock, ReadWriteLock, StampedLock, Condition)</p>
+                    </div>
+                    <div class="slide-number">21 / 56</div>
+                </div>
+
+                <!-- ===== SLIDE 22: Q&A Bank – Title ===== -->
+                <div class="slide">
+                    <h1>🎯 CHAPTER 6: SYNCHRONIZATION UTILITIES</h1>
+                    <h1 style="font-size: 1.6rem; border-bottom: none; padding-bottom: 0;">THE ULTIMATE Q&A BANK</h1>
+                    <div class="divider"></div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.5rem;">
+                        <div style="background: rgba(74, 138, 244, 0.06); border-radius: 10px; padding: 0.5rem 0.8rem; border: 1px solid rgba(74, 138, 244, 0.08);">
+                            <h4 style="border-left: none; padding-left: 0; color: #1a4a8a;">Part A</h4>
+                            <p style="font-size: 0.82rem;">Conceptual Deep-Dive Questions</p>
+                            <p style="font-size: 0.7rem; opacity: 0.6;">Q1 – Q46</p>
+                        </div>
+                        <div style="background: rgba(244, 138, 74, 0.06); border-radius: 10px; padding: 0.5rem 0.8rem; border: 1px solid rgba(244, 138, 74, 0.08);">
+                            <h4 style="border-left: none; padding-left: 0; color: #8a4a1a;">Part B</h4>
+                            <p style="font-size: 0.82rem;">Classic Interview Questions (Code-Based)</p>
+                            <p style="font-size: 0.7rem; opacity: 0.6;">Q47 – Q56</p>
+                        </div>
+                    </div>
+                    <div class="slide-number">22 / 56</div>
+                </div>
+
+                <!-- ===== SLIDES 23-44: Part A Conceptual Questions ===== -->
+                <!-- SLIDE 23: Q1-Q4 -->
+                <div class="slide">
+                    <span class="category-tag">Part A: Conceptual Deep-Dive</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q1:</strong> What is CountDownLatch and when would you use it?</p>
+                        <p class="a"><strong>A:</strong> CountDownLatch is a synchronization utility that allows one or more threads to wait until a set of operations in other threads completes. Use cases: waiting for multiple tasks to complete, starting multiple threads simultaneously, resource initialization.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q2:</strong> What is the difference between CountDownLatch and Thread.join()?</p>
+                        <p class="a"><strong>A:</strong> CountDownLatch waits for a count to reach zero (can wait for multiple threads/tasks). Thread.join() waits for a specific thread to terminate. One-liner: "Use CountDownLatch when you need to wait for multiple tasks or events, not just thread termination."</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q3:</strong> Can CountDownLatch be reused after the count reaches zero?</p>
+                        <p class="a"><strong>A:</strong> No. Once the count reaches zero, the latch cannot be reset. If you need a reusable barrier, use CyclicBarrier.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q4:</strong> What happens if a thread calls countDown() more times than the initial count?</p>
+                        <p class="a"><strong>A:</strong> The count cannot go below zero. Subsequent calls to countDown() have no effect.</p>
+                    </div>
+                    <div class="slide-number">23 / 56</div>
+                </div>
+
+                <!-- SLIDE 24: Q5-Q9 -->
+                <div class="slide">
+                    <span class="category-tag">Part A: Conceptual Deep-Dive</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q5:</strong> What happens if a thread calls await() on a CountDownLatch that has already reached zero?</p>
+                        <p class="a"><strong>A:</strong> The await() method returns immediately without blocking.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q6:</strong> Can multiple threads call await() on the same CountDownLatch?</p>
+                        <p class="a"><strong>A:</strong> Yes. All threads calling await() will block until the count reaches zero. When the count reaches zero, all waiting threads are released simultaneously.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q7:</strong> What is the difference between CountDownLatch and CyclicBarrier?</p>
+                        <p class="a"><strong>A:</strong> CountDownLatch is one-shot (not reusable) and threads wait for the count to reach zero. CyclicBarrier is reusable and threads wait for each other to reach a common point.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q8:</strong> What is CyclicBarrier and when would you use it?</p>
+                        <p class="a"><strong>A:</strong> CyclicBarrier allows a set of threads to wait for each other to reach a common barrier point. Use cases: parallel processing, multi-phase computations, simulations.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q9:</strong> What is the barrierAction in CyclicBarrier? When is it executed?</p>
+                        <p class="a"><strong>A:</strong> The barrierAction is a Runnable that is executed when the barrier is tripped, before any threads are released. It runs in the last thread to call await().</p>
+                    </div>
+                    <div class="slide-number">24 / 56</div>
+                </div>
+
+                <!-- SLIDE 25: Q10-Q14 -->
+                <div class="slide">
+                    <span class="category-tag">Part A: Conceptual Deep-Dive</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q10:</strong> What is a BrokenBarrierException and when does it occur?</p>
+                        <p class="a"><strong>A:</strong> The barrier is "broken" if: (1) a thread is interrupted while waiting, (2) a timeout occurs, (3) the barrier is explicitly reset. When broken, all waiting threads receive BrokenBarrierException.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q11:</strong> What happens when a thread is interrupted while waiting at a CyclicBarrier?</p>
+                        <p class="a"><strong>A:</strong> The interrupted thread throws InterruptedException. The barrier is broken. All other waiting threads throw BrokenBarrierException.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q12:</strong> Can CyclicBarrier be reused after all threads have passed it?</p>
+                        <p class="a"><strong>A:</strong> Yes. The barrier resets automatically when all parties have arrived. After all threads are released, the barrier can be used again for the next phase.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q13:</strong> What happens if fewer threads than the parties count call await()?</p>
+                        <p class="a"><strong>A:</strong> The barrier will never be tripped. The waiting threads will block indefinitely. Use await(timeout, unit) to avoid indefinite blocking.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q14:</strong> Can a thread deregister from a CyclicBarrier?</p>
+                        <p class="a"><strong>A:</strong> No. CyclicBarrier does not support dynamic deregistration. If you need this, use Phaser.</p>
+                    </div>
+                    <div class="slide-number">25 / 56</div>
+                </div>
+
+                <!-- SLIDE 26: Q15-Q19 -->
+                <div class="slide">
+                    <span class="category-tag">Part A: Conceptual Deep-Dive</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q15:</strong> What is a Semaphore and when would you use it?</p>
+                        <p class="a"><strong>A:</strong> A Semaphore is a counting semaphore that controls access to a limited number of resources. Use cases: database connection pools, rate limiting, bounded collections.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q16:</strong> What is the difference between a binary semaphore and a mutex?</p>
+                        <p class="a"><strong>A:</strong> Binary semaphore has no owner (any thread can release) and is not reentrant. Mutex has an owner (only the thread that locked can unlock) and is reentrant.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q17:</strong> What is the difference between acquire() and tryAcquire()?</p>
+                        <p class="a"><strong>A:</strong> acquire() blocks until a permit is available. tryAcquire() returns immediately (non-blocking) with a boolean indicating success. tryAcquire() also supports timeouts.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q18:</strong> What is a "fair" semaphore? When would you use it?</p>
+                        <p class="a"><strong>A:</strong> A fair semaphore grants permits in FIFO order. Use it when starvation is a concern. It reduces throughput, so use it only when fairness is critical.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q19:</strong> What happens if a thread calls release() without first calling acquire()?</p>
+                        <p class="a"><strong>A:</strong> The semaphore's permit count increases. This is allowed but is almost always a programming error. Always call release() in a finally block after a successful acquire().</p>
+                    </div>
+                    <div class="slide-number">26 / 56</div>
+                </div>
+
+                <!-- SLIDE 27: Q20-Q24 -->
+                <div class="slide">
+                    <span class="category-tag">Part A: Conceptual Deep-Dive</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q20:</strong> What is the difference between Semaphore and CountDownLatch?</p>
+                        <p class="a"><strong>A:</strong> Semaphore controls access to a resource pool (permits can increase/decrease). CountDownLatch waits for events to complete (count only decreases). Semaphore is reusable; CountDownLatch is one-shot.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q21:</strong> What is Exchanger and when would you use it?</p>
+                        <p class="a"><strong>A:</strong> Exchanger is a synchronization point where two threads can exchange objects. Use cases: producer-consumer with buffer swapping, pipeline algorithms, two-thread collaboration.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q22:</strong> What happens if only one thread calls exchange()?</p>
+                        <p class="a"><strong>A:</strong> The thread blocks indefinitely until another thread calls exchange(). Use exchange(x, timeout, unit) to avoid indefinite blocking.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q23:</strong> Can more than two threads use the same Exchanger?</p>
+                        <p class="a"><strong>A:</strong> No. Exchanger only supports two threads. If a third thread calls exchange(), it will wait forever. Use CyclicBarrier for more than two threads.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q24:</strong> What is the difference between Exchanger and BlockingQueue?</p>
+                        <p class="a"><strong>A:</strong> Exchanger is for exactly two threads exchanging data. BlockingQueue is for producer-consumer patterns with any number of threads. Exchanger blocks both threads; BlockingQueue blocks the producer or consumer.</p>
+                    </div>
+                    <div class="slide-number">27 / 56</div>
+                </div>
+
+                <!-- SLIDE 28: Q25-Q30 -->
+                <div class="slide">
+                    <span class="category-tag">Part A: Conceptual Deep-Dive</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q25:</strong> What is Phaser and when would you use it?</p>
+                        <p class="a"><strong>A:</strong> Phaser is a more flexible CyclicBarrier that supports dynamic party registration and multiple phases. Use cases: dynamic number of tasks, multi-phase computations, hierarchical synchronization.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q26:</strong> What is the difference between Phaser and CyclicBarrier?</p>
+                        <p class="a"><strong>A:</strong> Phaser supports dynamic registration, deregistration, parent-child hierarchies, and termination. CyclicBarrier is simpler but less flexible.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q27:</strong> What is the difference between arrive(), arriveAndAwaitAdvance(), and arriveAndDeregister()?</p>
+                        <p class="a"><strong>A:</strong> arrive() arrives but doesn't wait. arriveAndAwaitAdvance() arrives and waits for others. arriveAndDeregister() arrives and deregisters from the phaser (won't participate in future phases).</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q28:</strong> What is onAdvance() and how is it used?</p>
+                        <p class="a"><strong>A:</strong> onAdvance() is a protected method that can be overridden. It's called when all parties have arrived and the phaser is about to advance. Return true to terminate the phaser.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q29:</strong> Can a thread register with a Phaser after the phaser has advanced?</p>
+                        <p class="a"><strong>A:</strong> Yes. Dynamic registration allows threads to join at any time, even in later phases.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q30:</strong> What is the difference between Phaser and CountDownLatch?</p>
+                        <p class="a"><strong>A:</strong> Phaser is reusable, supports dynamic registration, deregistration, and parent-child hierarchies. CountDownLatch is one-shot with no dynamic registration.</p>
+                    </div>
+                    <div class="slide-number">28 / 56</div>
+                </div>
+
+                <!-- SLIDE 29: Q31-Q36 -->
+                <div class="slide">
+                    <span class="category-tag">Part A: Conceptual Deep-Dive</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q31:</strong> What is CompletableFuture and how does it differ from Future?</p>
+                        <p class="a"><strong>A:</strong> CompletableFuture supports non-blocking composition, chaining, and exception handling. Future only supports blocking get() and manual cancellation.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q32:</strong> What is the difference between thenApply, thenAccept, and thenRun?</p>
+                        <p class="a"><strong>A:</strong> thenApply transforms the result (returns a value). thenAccept consumes the result (returns void). thenRun runs an action without using the result.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q33:</strong> What is the difference between thenApply and thenCompose?</p>
+                        <p class="a"><strong>A:</strong> thenApply expects a function that returns a plain value. thenCompose expects a function that returns a CompletableFuture (flattens nested futures). Analogy: map() vs flatMap().</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q34:</strong> What is the difference between thenApply and thenApplyAsync?</p>
+                        <p class="a"><strong>A:</strong> thenApply uses the same thread pool as the previous stage. thenApplyAsync uses a separate thread pool (non-blocking).</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q35:</strong> What is the difference between get() and join()?</p>
+                        <p class="a"><strong>A:</strong> get() throws checked exceptions (InterruptedException, ExecutionException). join() throws CompletionException (unchecked).</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q36:</strong> What is CompletableFuture.allOf() and when would you use it?</p>
+                        <p class="a"><strong>A:</strong> allOf() waits for all given CompletableFuture instances to complete. Use it for aggregating results from multiple asynchronous tasks.</p>
+                    </div>
+                    <div class="slide-number">29 / 56</div>
+                </div>
+
+                <!-- SLIDE 30: Q37-Q42 -->
+                <div class="slide">
+                    <span class="category-tag">Part A: Conceptual Deep-Dive</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q37:</strong> What is CompletableFuture.anyOf() and when would you use it?</p>
+                        <p class="a"><strong>A:</strong> anyOf() completes when any of the given CompletableFuture instances completes. Use it for race conditions where you want the fastest response.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q38:</strong> What is exceptionally() and how does it handle exceptions?</p>
+                        <p class="a"><strong>A:</strong> exceptionally() provides a fallback value when an exception occurs in the pipeline. It's called only on exceptions.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q39:</strong> What is the difference between exceptionally() and handle()?</p>
+                        <p class="a"><strong>A:</strong> exceptionally() is called only on exception. handle() is called on both success and failure. handle() can change the return type.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q40:</strong> What is the difference between CompletableFuture and ExecutorService?</p>
+                        <p class="a"><strong>A:</strong> CompletableFuture is non-blocking with built-in composition and exception handling. ExecutorService is blocking with manual composition. One-liner: "CompletableFuture is a more powerful version of Future that allows non-blocking composition and exception handling."</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q41:</strong> Can you cancel a CompletableFuture?</p>
+                        <p class="a"><strong>A:</strong> Yes, using future.cancel(mayInterruptIfRunning). However, cancellation only works if the task supports interruption.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q42:</strong> What is the difference between complete() and completeExceptionally()?</p>
+                        <p class="a"><strong>A:</strong> complete() completes the future with a normal value. completeExceptionally() completes the future with an exception. Both set isDone() to true.</p>
+                    </div>
+                    <div class="slide-number">30 / 56</div>
+                </div>
+
+                <!-- SLIDE 31: Q43-Q46 -->
+                <div class="slide">
+                    <span class="category-tag">Part A: Conceptual Deep-Dive</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q43:</strong> What is a CompletionStage?</p>
+                        <p class="a"><strong>A:</strong> CompletionStage is the interface that defines the chaining methods (thenApply, thenAccept, thenCompose, etc.). CompletableFuture implements CompletionStage.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q44:</strong> Compare CountDownLatch, CyclicBarrier, Semaphore, and Phaser.</p>
+                        <p class="a"><strong>A:</strong> CountDownLatch = one-shot, wait for events. CyclicBarrier = reusable, wait for threads. Semaphore = control resource access. Phaser = dynamic, multi-phase coordination.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q45:</strong> When would you use each synchronization utility?</p>
+                        <p class="a"><strong>A:</strong> CountDownLatch = wait for N tasks to complete. CyclicBarrier = parallel processing with phases. Semaphore = limit concurrent access. Exchanger = two-thread data exchange. Phaser = dynamic tasks with multiple phases. CompletableFuture = async non-blocking pipelines.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q46:</strong> What is the difference between CompletableFuture and Future?</p>
+                        <p class="a"><strong>A:</strong> CompletableFuture is non-blocking with built-in composition and exception handling. Future only supports blocking get() and manual cancellation.</p>
+                    </div>
+                    <div class="slide-number">31 / 56</div>
+                </div>
+
+                <!-- ===== SLIDES 32-44: Part B Code-Based Questions ===== -->
+                <!-- SLIDE 32: Q47-Q48 -->
+                <div class="slide">
+                    <span class="category-tag">Part B: Classic Interview Questions (Code-Based)</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q47:</strong> Write a program using CountDownLatch to wait for 5 threads to complete.</p>
+                        <p class="a"><strong>A:</strong></p>
+                        <pre>public class CountDownLatchDemo {
+            public static void main(String[] args) throws InterruptedException {
+                CountDownLatch latch = new CountDownLatch(5);
+                for (int i = 0; i < 5; i++) {
+                    final int id = i;
+                    new Thread(() -> {
+                        try {
+                            Thread.sleep(ThreadLocalRandom.current().nextInt(500, 1500));
+                            System.out.println("Task " + id + " completed");
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        } finally {
+                            latch.countDown();
+                        }
+                    }).start();
+                }
+                System.out.println("Waiting for tasks...");
+                latch.await();
+                System.out.println("All tasks completed!");
+            }
+        }</pre>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q48:</strong> Write a program using CyclicBarrier to synchronize 3 threads at a barrier.</p>
+                        <p class="a"><strong>A:</strong></p>
+                        <pre>public class CyclicBarrierDemo {
+            public static void main(String[] args) {
+                CyclicBarrier barrier = new CyclicBarrier(3, () -> {
+                    System.out.println("All threads reached the barrier!");
+                });
+                for (int i = 0; i < 3; i++) {
+                    final int id = i;
+                    new Thread(() -> {
+                        try {
+                            System.out.println("Thread " + id + " working...");
+                            Thread.sleep(ThreadLocalRandom.current().nextInt(500, 1500));
+                            System.out.println("Thread " + id + " waiting at barrier");
+                            barrier.await();
+                            System.out.println("Thread " + id + " continued");
+                        } catch (Exception e) { e.printStackTrace(); }
+                    }).start();
+                }
+            }
+        }</pre>
+                    </div>
+                    <div class="slide-number">32 / 56</div>
+                </div>
+
+                <!-- SLIDE 33: Q49-Q50 -->
+                <div class="slide">
+                    <span class="category-tag">Part B: Classic Interview Questions (Code-Based)</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q49:</strong> Write a connection pool using Semaphore to limit concurrent connections to 5.</p>
+                        <p class="a"><strong>A:</strong></p>
+                        <pre>public class ConnectionPool {
+            private final Semaphore semaphore = new Semaphore(5);
+            private final List&lt;Connection&gt; connections = new ArrayList&lt;&gt;();
+            
+            public ConnectionPool() {
+                for (int i = 0; i < 5; i++) {
+                    connections.add(new Connection());
+                }
+            }
+            
+            public Connection getConnection() throws InterruptedException {
+                semaphore.acquire();
+                synchronized (connections) {
+                    return connections.remove(connections.size() - 1);
+                }
+            }
+            
+            public void returnConnection(Connection conn) {
+                synchronized (connections) {
+                    connections.add(conn);
+                }
+                semaphore.release();
+            }
+        }</pre>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q50:</strong> Write a producer-consumer using Exchanger with buffer swapping.</p>
+                        <p class="a"><strong>A:</strong></p>
+                        <pre>public class ExchangerDemo {
+            private static final Exchanger&lt;List&lt;String&gt;&gt; exchanger = new Exchanger&lt;&gt;();
+            private static final int BUFFER_SIZE = 5;
+            
+            public static void main(String[] args) {
+                Thread producer = new Thread(() -> {
+                    List&lt;String&gt; buffer = new ArrayList&lt;&gt;(BUFFER_SIZE);
+                    try {
+                        for (int i = 0; i < 20; i++) {
+                            buffer.add("Item-" + i);
+                            if (buffer.size() == BUFFER_SIZE) {
+                                System.out.println("Producer exchanging full buffer");
+                                buffer = exchanger.exchange(buffer);
+                                System.out.println("Producer received empty buffer");
+                            }
+                        }
+                    } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+                });
+                // Consumer similar...
+            }
+        }</pre>
+                    </div>
+                    <div class="slide-number">33 / 56</div>
+                </div>
+
+                <!-- SLIDE 34: Q51-Q52 -->
+                <div class="slide">
+                    <span class="category-tag">Part B: Classic Interview Questions (Code-Based)</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q51:</strong> Write a multi-phase computation using Phaser with dynamic party registration.</p>
+                        <p class="a"><strong>A:</strong></p>
+                        <pre>public class PhaserDemo {
+            private static final Phaser phaser = new Phaser() {
+                @Override
+                protected boolean onAdvance(int phase, int registeredParties) {
+                    System.out.println("Phase " + phase + " completed with " + registeredParties + " parties");
+                    return registeredParties == 0;
+                }
+            };
+            
+            public static void main(String[] args) {
+                for (int i = 0; i < 3; i++) {
+                    phaser.register();
+                    new Thread(new Task(i)).start();
+                }
+                while (!phaser.isTerminated()) {
+                    phaser.awaitAdvance(phaser.getPhase());
+                }
+            }
+            
+            static class Task implements Runnable {
+                @Override
+                public void run() {
+                    try {
+                        // Phase 1
+                        phaser.arriveAndAwaitAdvance();
+                        // Phase 2
+                        phaser.arriveAndAwaitAdvance();
+                        // Phase 3
+                        phaser.arriveAndDeregister();
+                    } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+                }
+            }
+        }</pre>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q52:</strong> Write a program using CompletableFuture to chain operations asynchronously.</p>
+                        <p class="a"><strong>A:</strong></p>
+                        <pre>public class CompletableFutureDemo {
+            public static void main(String[] args) throws Exception {
+                CompletableFuture&lt;String&gt; future = CompletableFuture.supplyAsync(() -> {
+                    System.out.println("Fetching user data...");
+                    try { Thread.sleep(1000); } catch (InterruptedException e) {}
+                    return "user-123";
+                })
+                .thenApply(userId -> {
+                    System.out.println("Fetching profile for " + userId + "...");
+                    try { Thread.sleep(500); } catch (InterruptedException e) {}
+                    return "Profile of " + userId;
+                })
+                .thenApply(profile -> {
+                    System.out.println("Formatting profile...");
+                    return "[" + profile + "]";
+                })
+                .exceptionally(throwable -> {
+                    System.out.println("Error: " + throwable.getMessage());
+                    return "[Error]";
+                });
+                System.out.println("Result: " + future.join());
+            }
+        }</pre>
+                    </div>
+                    <div class="slide-number">34 / 56</div>
+                </div>
+
+                <!-- SLIDE 35: Q53-Q56 -->
+                <div class="slide">
+                    <span class="category-tag">Part B: Classic Interview Questions (Code-Based)</span>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q53:</strong> What is wrong with this code?</p>
+                        <pre>public class WrongLatch {
+            public static void main(String[] args) throws InterruptedException {
+                CountDownLatch latch = new CountDownLatch(3);
+                for (int i = 0; i < 4; i++) {
+                    new Thread(() -> latch.countDown()).start();
+                }
+                latch.await();
+                System.out.println("All tasks done!");
+            }
+        }</pre>
+                        <p class="a"><strong>A:</strong> The latch is initialized with 3, but 4 threads call countDown(). The latch reaches zero after 3 threads. The 4th thread is unnecessary. Better to initialize the latch with 4.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q54:</strong> What is wrong with this code?</p>
+                        <pre>public class WrongBarrier {
+            public static void main(String[] args) {
+                CyclicBarrier barrier = new CyclicBarrier(3);
+                for (int i = 0; i < 2; i++) {
+                    new Thread(() -> {
+                        try { barrier.await(); }
+                        catch (Exception e) { e.printStackTrace(); }
+                    }).start();
+                }
+            }
+        }</pre>
+                        <p class="a"><strong>A:</strong> The barrier is created with 3 parties, but only 2 threads call await(). The barrier will never be tripped, and the threads will block indefinitely. Fix: initialize the barrier with 2, or add a third thread.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q55:</strong> What is wrong with this code?</p>
+                        <pre>public class WrongSemaphore {
+            public static void main(String[] args) throws InterruptedException {
+                Semaphore semaphore = new Semaphore(1);
+                semaphore.acquire();
+                // Critical section
+                // Forgot to call release()!
+            }
+        }</pre>
+                        <p class="a"><strong>A:</strong> The thread acquires a permit but never releases it. The semaphore becomes exhausted, and other threads will block forever. Fix: always call release() in a finally block.</p>
+                    </div>
+                    <div class="qa-block">
+                        <p class="q"><strong>Q56:</strong> What is wrong with this code?</p>
+                        <pre>public class WrongCompletableFuture {
+            public static void main(String[] args) {
+                CompletableFuture.supplyAsync(() -> {
+                    if (true) throw new RuntimeException("Error!");
+                    return 42;
+                })
+                .thenApply(result -> result * 2);
+            }
+        }</pre>
+                        <p class="a"><strong>A:</strong> The exception is never handled. The thenApply stage will not execute. The exception is silently swallowed. Fix: add exceptionally() or handle().</p>
+                    </div>
+                    <div class="slide-number">35 / 56</div>
+                </div>
+
+                <!-- ===== SLIDE 36: End of Q&A ===== -->
+                <div class="slide">
+                    <h1>📌 End of Chapter 6 – Complete Q&A Bank</h1>
+                    <div class="divider"></div>
+                    <p>We have covered:</p>
+                    <ul>
+                        <li><strong>56 comprehensive questions</strong> covering every aspect of Chapter 6.</li>
+                        <li><strong>Conceptual deep-dives</strong> (CountDownLatch, CyclicBarrier, Semaphore, Exchanger, Phaser, CompletableFuture).</li>
+                        <li><strong>Code-based interview questions</strong> (connection pools, producer-consumer, multi-phase computations).</li>
+                        <li><strong>Common pitfalls and how to avoid them.</strong></li>
+                    </ul>
+                    <div style="background: linear-gradient(135deg, rgba(74, 138, 244, 0.06), rgba(106, 175, 255, 0.06)); border-radius: 10px; padding: 0.5rem 0.8rem; margin-top: 0.4rem; border: 1px solid rgba(74, 138, 244, 0.08);">
+                        <p style="font-weight: 600; color: #1a3a6a;">Next: Chapter 7 – Explicit Locks (ReentrantLock, ReadWriteLock, StampedLock, Condition)</p>
+                    </div>
+                    <div class="slide-number">36 / 56</div>
+                </div>
+
+            </div>
+
+            <div class="slide-indicator">auto slide</div>
+        </div>
+    </div>
+</body>
+</html>

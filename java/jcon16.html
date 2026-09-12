@@ -1,0 +1,1553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Java Executors & ThreadPool - Complete Guide</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        java: '#5382A1',
+                        javaDark: '#3A6D8C',
+                        executor: '#7C3AED',
+                        executorLight: '#8B5CF6',
+                        fixedPool: '#059669',
+                        cachedPool: '#DC2626',
+                        scheduledPool: '#D97706',
+                        singlePool: '#7C3AED'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .code-block {
+            font-family: 'Consolas', 'Monaco', monospace;
+            background-color: #282c34;
+            color: #abb2bf;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            overflow-x: auto;
+            position: relative;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        .copy-btn {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: all 0.2s ease;
+        }
+        .copy-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        .nav-link {
+            position: relative;
+            transition: color 0.3s ease;
+        }
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: -4px;
+            left: 0;
+            background-color: #8B5CF6;
+            transition: width 0.3s ease;
+        }
+        .nav-link:hover::after {
+            width: 100%;
+        }
+        .concept-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border-left: 4px solid #7C3AED;
+        }
+        .concept-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .pool-type-card {
+            transition: all 0.3s ease;
+        }
+        .pool-type-card:hover {
+            transform: scale(1.02);
+        }
+        .thread-visual {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            margin: 2px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .thread-busy { background-color: #DC2626; }
+        .thread-idle { background-color: #059669; }
+        .thread-created { background-color: #D97706; }
+        .thread-destroyed { background-color: #6B7280; }
+        .comparison-table tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+        .method-signature {
+            font-family: 'Consolas', monospace;
+            background-color: #F3F4F6;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+        }
+        .pool-visualization {
+            transition: all 0.3s ease;
+        }
+        .pool-visualization:hover {
+            transform: scale(1.05);
+        }
+        .step-indicator {
+            width: 2rem;
+            height: 2rem;
+            border-radius: 50%;
+            background-color: #7C3AED;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 1rem;
+        }
+        .task-queue {
+            border: 2px dashed #6B7280;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            min-height: 100px;
+        }
+        .task-item {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem;
+            margin: 0.25rem 0;
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(-100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-executor to-executorLight text-white shadow-lg sticky top-0 z-10">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="flex items-center mb-4 md:mb-0">
+                    <i class="fas fa-cogs text-4xl mr-3"></i>
+                    <div>
+                        <h1 class="text-2xl md:text-3xl font-bold">Java Executors & ThreadPool</h1>
+                        <p class="text-sm text-purple-100">Complete Guide to Executor Framework</p>
+                    </div>
+                </div>
+                <nav class="flex flex-wrap justify-center gap-3 md:gap-6">
+                    <a href="#overview" class="nav-link text-white font-medium">Overview</a>
+                    <a href="#threadpools" class="nav-link text-white font-medium">ThreadPools</a>
+                    <a href="#scheduled" class="nav-link text-white font-medium">Scheduled</a>
+                    <a href="#forkjoin" class="nav-link text-white font-medium">ForkJoin</a>
+                    <a href="#best-practices" class="nav-link text-white font-medium">Best Practices</a>
+                    <a href="#advanced" class="nav-link text-white font-medium">Advanced</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8">
+        <!-- Overview Section -->
+        <section id="overview" class="mb-16 scroll-mt-20">
+            <div class="bg-white rounded-xl shadow-md p-6 md:p-8">
+                <h2 class="text-2xl md:text-3xl font-bold text-executor mb-4">Executor Framework Overview</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <p class="mb-4 text-lg">
+                            The Java Executor Framework provides a high-level replacement for working with threads directly. 
+                            It simplifies thread management and provides thread pooling capabilities.
+                        </p>
+                        <div class="bg-purple-50 p-4 rounded-lg border border-purple-200 mb-4">
+                            <h3 class="font-bold text-purple-700 mb-2"><i class="fas fa-star mr-2"></i>Key Benefits</h3>
+                            <ul class="list-disc pl-5 space-y-1">
+                                <li>Simplified thread management</li>
+                                <li>Improved performance through thread reuse</li>
+                                <li>Better resource management</li>
+                                <li>Built-in thread pooling</li>
+                                <li>Task submission and execution separation</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-center">
+                        <div class="bg-gradient-to-br from-executor to-executorLight text-white rounded-xl p-6 max-w-md w-full">
+                            <h3 class="text-xl font-bold mb-4 text-center">Executor Hierarchy</h3>
+                            <div class="space-y-3">
+                                <div class="bg-white bg-opacity-10 p-3 rounded-lg">
+                                    <h4 class="font-bold">Executor</h4>
+                                    <p class="text-sm">Base interface for executing tasks</p>
+                                </div>
+                                <div class="text-center">
+                                    <i class="fas fa-arrow-down text-white"></i>
+                                </div>
+                                <div class="bg-white bg-opacity-10 p-3 rounded-lg">
+                                    <h4 class="font-bold">ExecutorService</h4>
+                                    <p class="text-sm">Extended interface with lifecycle methods</p>
+                                </div>
+                                <div class="text-center">
+                                    <i class="fas fa-arrow-down text-white"></i>
+                                </div>
+                                <div class="bg-white bg-opacity-10 p-3 rounded-lg">
+                                    <h4 class="font-bold">ThreadPoolExecutor</h4>
+                                    <p class="text-sm">Most common implementation</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Basic Executor Example -->
+                <div class="mt-8">
+                    <h3 class="text-xl font-bold text-executor mb-4">Basic Executor Usage</h3>
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                        <pre><code class="java">import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
+public class BasicExecutorExample {
+    
+    public static void main(String[] args) {
+        // Create a thread pool with 4 threads
+        ExecutorService executor = Executors.newFixedThreadPool(4);
+        
+        // Submit 10 tasks to the executor
+        for (int i = 1; i <= 10; i++) {
+            final int taskId = i;
+            executor.submit(() -> {
+                System.out.println("Task " + taskId + " executed by " + 
+                                 Thread.currentThread().getName());
+                try {
+                    Thread.sleep(1000); // Simulate work
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            });
+        }
+        
+        // Initiate orderly shutdown
+        executor.shutdown();
+        
+        try {
+            // Wait for all tasks to complete or timeout after 1 minute
+            if (!executor.awaitTermination(1, TimeUnit.MINUTES)) {
+                // Force shutdown if tasks don't complete in time
+                executor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            executor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+        
+        System.out.println("All tasks completed");
+    }
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ThreadPools Section -->
+        <section id="threadpools" class="mb-16 scroll-mt-20">
+            <h2 class="text-2xl md:text-3xl font-bold text-executor mb-6">ThreadPool Types</h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
+                <!-- Fixed ThreadPool -->
+                <div class="pool-type-card concept-card bg-white rounded-xl shadow-md p-6" style="border-left-color: #059669;">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-green-500 text-white p-2 rounded-lg mr-3">
+                            <i class="fas fa-th-large"></i>
+                        </div>
+                        <h3 class="text-xl font-bold">FixedThreadPool</h3>
+                    </div>
+                    <p class="mb-4">Fixed number of threads that reuse a shared unbounded queue.</p>
+                    
+                    <div class="space-y-2 mb-4">
+                        <div class="flex justify-between">
+                            <span class="font-medium">Threads:</span>
+                            <span class="text-green-600">Fixed</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="font-medium">Queue:</span>
+                            <span class="text-green-600">Unbounded</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="font-medium">Use Case:</span>
+                            <span class="text-green-600">CPU-intensive tasks</span>
+                        </div>
+                    </div>
+                    
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                        <pre><code class="java">ExecutorService fixedPool = 
+    Executors.newFixedThreadPool(4);</code></pre>
+                    </div>
+                </div>
+
+                <!-- Cached ThreadPool -->
+                <div class="pool-type-card concept-card bg-white rounded-xl shadow-md p-6" style="border-left-color: #DC2626;">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-red-500 text-white p-2 rounded-lg mr-3">
+                            <i class="fas fa-bolt"></i>
+                        </div>
+                        <h3 class="text-xl font-bold">CachedThreadPool</h3>
+                    </div>
+                    <p class="mb-4">Creates new threads as needed, reuses idle threads.</p>
+                    
+                    <div class="space-y-2 mb-4">
+                        <div class="flex justify-between">
+                            <span class="font-medium">Threads:</span>
+                            <span class="text-red-600">Dynamic</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="font-medium">Queue:</span>
+                            <span class="text-red-600">Synchronous</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="font-medium">Use Case:</span>
+                            <span class="text-red-600">Short-lived async tasks</span>
+                        </div>
+                    </div>
+                    
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                        <pre><code class="java">ExecutorService cachedPool = 
+    Executors.newCachedThreadPool();</code></pre>
+                    </div>
+                </div>
+
+                <!-- Single ThreadPool -->
+                <div class="pool-type-card concept-card bg-white rounded-xl shadow-md p-6" style="border-left-color: #7C3AED;">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-purple-500 text-white p-2 rounded-lg mr-3">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <h3 class="text-xl font-bold">SingleThreadExecutor</h3>
+                    </div>
+                    <p class="mb-4">Single worker thread with unbounded queue.</p>
+                    
+                    <div class="space-y-2 mb-4">
+                        <div class="flex justify-between">
+                            <span class="font-medium">Threads:</span>
+                            <span class="text-purple-600">Single</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="font-medium">Queue:</span>
+                            <span class="text-purple-600">Unbounded</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="font-medium">Use Case:</span>
+                            <span class="text-purple-600">Sequential processing</span>
+                        </div>
+                    </div>
+                    
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                        <pre><code class="java">ExecutorService singleThread = 
+    Executors.newSingleThreadExecutor();</code></pre>
+                    </div>
+                </div>
+
+                <!-- Work Stealing Pool -->
+                <div class="pool-type-card concept-card bg-white rounded-xl shadow-md p-6" style="border-left-color: #D97706;">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-orange-500 text-white p-2 rounded-lg mr-3">
+                            <i class="fas fa-people-arrows"></i>
+                        </div>
+                        <h3 class="text-xl font-bold">WorkStealingPool</h3>
+                    </div>
+                    <p class="mb-4">Uses work-stealing algorithm for fork/join tasks.</p>
+                    
+                    <div class="space-y-2 mb-4">
+                        <div class="flex justify-between">
+                            <span class="font-medium">Threads:</span>
+                            <span class="text-orange-600">CPU cores</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="font-medium">Queue:</span>
+                            <span class="text-orange-600">Work-stealing</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="font-medium">Use Case:</span>
+                            <span class="text-orange-600">Recursive tasks</span>
+                        </div>
+                    </div>
+                    
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                        <pre><code class="java">ExecutorService workStealing = 
+    Executors.newWorkStealingPool();</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed ThreadPool Examples -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                <!-- FixedThreadPool Example -->
+                <div class="concept-card bg-white rounded-xl shadow-md p-6">
+                    <h3 class="text-xl font-bold text-executor mb-4">FixedThreadPool Example</h3>
+                    
+                    <div class="code-block mb-4">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                        <pre><code class="java">import java.util.concurrent.*;
+
+public class FixedThreadPoolExample {
+    
+    public static void main(String[] args) throws InterruptedException {
+        // Create fixed thread pool with 3 threads
+        ExecutorService executor = Executors.newFixedThreadPool(3);
+        
+        System.out.println("FixedThreadPool with 3 threads created");
+        
+        // Submit 10 tasks
+        for (int i = 1; i <= 10; i++) {
+            final int taskId = i;
+            executor.submit(() -> {
+                String threadName = Thread.currentThread().getName();
+                System.out.println("Task " + taskId + " started by " + threadName);
+                
+                try {
+                    // Simulate work
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                
+                System.out.println("Task " + taskId + " completed by " + threadName);
+            });
+        }
+        
+        // Shutdown gracefully
+        executor.shutdown();
+        
+        // Wait for all tasks to complete
+        boolean terminated = executor.awaitTermination(30, TimeUnit.SECONDS);
+        if (terminated) {
+            System.out.println("All tasks completed successfully");
+        } else {
+            System.out.println("Timeout - some tasks may not have completed");
+            executor.shutdownNow();
+        }
+    }
+}</code></pre>
+                    </div>
+                    
+                    <div class="bg-green-50 p-3 rounded-lg border border-green-200">
+                        <h4 class="font-bold text-green-700 mb-1"><i class="fas fa-lightbulb mr-1"></i>Observation</h4>
+                        <p class="text-sm">You'll see only 3 thread names repeating, demonstrating thread reuse.</p>
+                    </div>
+                </div>
+
+                <!-- CachedThreadPool Example -->
+                <div class="concept-card bg-white rounded-xl shadow-md p-6">
+                    <h3 class="text-xl font-bold text-executor mb-4">CachedThreadPool Example</h3>
+                    
+                    <div class="code-block mb-4">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                        <pre><code class="java">import java.util.concurrent.*;
+
+public class CachedThreadPoolExample {
+    
+    public static void main(String[] args) throws InterruptedException {
+        // Create cached thread pool
+        ExecutorService executor = Executors.newCachedThreadPool();
+        
+        System.out.println("CachedThreadPool created - will create threads as needed");
+        
+        // Submit tasks with different durations
+        for (int i = 1; i <= 15; i++) {
+            final int taskId = i;
+            final long sleepTime = (i % 3 == 0) ? 4000 : 1000; // Mix of short and long tasks
+            
+            executor.submit(() -> {
+                String threadName = Thread.currentThread().getName();
+                System.out.println("Task " + taskId + " started by " + threadName + 
+                                 " (sleep: " + sleepTime + "ms)");
+                
+                try {
+                    Thread.sleep(sleepTime);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                
+                System.out.println("Task " + taskId + " completed by " + threadName);
+            });
+            
+            // Small delay between task submissions
+            Thread.sleep(100);
+        }
+        
+        // Monitor thread creation
+        Thread monitor = new Thread(() -> {
+            while (!executor.isShutdown()) {
+                Thread[] threads = new Thread[Thread.activeCount()];
+                Thread.enumerate(threads);
+                long poolThreads = java.util.Arrays.stream(threads)
+                    .filter(t -> t != null && t.getName().startsWith("pool-"))
+                    .count();
+                System.out.println("Active pool threads: " + poolThreads);
+                
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    break;
+                }
+            }
+        });
+        monitor.setDaemon(true);
+        monitor.start();
+        
+        // Shutdown after some time
+        Thread.sleep(10000);
+        executor.shutdown();
+        
+        boolean terminated = executor.awaitTermination(5, TimeUnit.SECONDS);
+        if (!terminated) {
+            executor.shutdownNow();
+        }
+    }
+}</code></pre>
+                    </div>
+                    
+                    <div class="bg-red-50 p-3 rounded-lg border border-red-200">
+                        <h4 class="font-bold text-red-700 mb-1"><i class="fas fa-exclamation-triangle mr-1"></i>Warning</h4>
+                        <p class="text-sm">CachedThreadPool can create unlimited threads - use with caution!</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ThreadPool Visualization -->
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h3 class="text-xl font-bold text-executor mb-4">ThreadPool Visualization</h3>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <div class="pool-visualization bg-green-50 p-4 rounded-lg text-center">
+                        <h4 class="font-bold text-green-700 mb-3">FixedThreadPool</h4>
+                        <div class="flex justify-center flex-wrap mb-3">
+                            <div class="thread-visual thread-busy">T1</div>
+                            <div class="thread-visual thread-idle">T2</div>
+                            <div class="thread-visual thread-busy">T3</div>
+                            <div class="thread-visual thread-idle">T4</div>
+                        </div>
+                        <p class="text-sm">Fixed number of threads, unbounded queue</p>
+                    </div>
+                    
+                    <div class="pool-visualization bg-red-50 p-4 rounded-lg text-center">
+                        <h4 class="font-bold text-red-700 mb-3">CachedThreadPool</h4>
+                        <div class="flex justify-center flex-wrap mb-3">
+                            <div class="thread-visual thread-busy">T1</div>
+                            <div class="thread-visual thread-busy">T2</div>
+                            <div class="thread-visual thread-busy">T3</div>
+                            <div class="thread-visual thread-created">T4</div>
+                            <div class="thread-visual thread-created">T5</div>
+                        </div>
+                        <p class="text-sm">Creates threads as needed, synchronous handoff</p>
+                    </div>
+                    
+                    <div class="pool-visualization bg-purple-50 p-4 rounded-lg text-center">
+                        <h4 class="font-bold text-purple-700 mb-3">SingleThreadExecutor</h4>
+                        <div class="flex justify-center mb-3">
+                            <div class="thread-visual thread-busy">T1</div>
+                        </div>
+                        <div class="task-queue">
+                            <div class="task-item">Task 1</div>
+                            <div class="task-item">Task 2</div>
+                            <div class="task-item">Task 3</div>
+                        </div>
+                        <p class="text-sm mt-2">Single thread, unbounded queue</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Scheduled Executors Section -->
+        <section id="scheduled" class="mb-16 scroll-mt-20">
+            <h2 class="text-2xl md:text-3xl font-bold text-executor mb-6">Scheduled Executors</h2>
+            
+            <div class="bg-white rounded-xl shadow-md p-6 mb-8">
+                <div class="flex items-center mb-4">
+                    <div class="bg-orange-500 text-white p-2 rounded-lg mr-3">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <h3 class="text-xl font-bold">ScheduledThreadPoolExecutor</h3>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <p class="mb-4">
+                            Scheduled executors allow you to schedule tasks to run after a delay or periodically.
+                        </p>
+                        
+                        <div class="space-y-4 mb-4">
+                            <div class="bg-orange-50 p-3 rounded-lg border border-orange-200">
+                                <h4 class="font-bold text-orange-700 mb-1">schedule()</h4>
+                                <p class="text-sm">Executes task once after specified delay</p>
+                                <code class="method-signature">schedule(Runnable command, long delay, TimeUnit unit)</code>
+                            </div>
+                            
+                            <div class="bg-orange-50 p-3 rounded-lg border border-orange-200">
+                                <h4 class="font-bold text-orange-700 mb-1">scheduleAtFixedRate()</h4>
+                                <p class="text-sm">Executes task periodically at fixed rate</p>
+                                <code class="method-signature">scheduleAtFixedRate(Runnable command, long initialDelay, long period, TimeUnit unit)</code>
+                            </div>
+                            
+                            <div class="bg-orange-50 p-3 rounded-lg border border-orange-200">
+                                <h4 class="font-bold text-orange-700 mb-1">scheduleWithFixedDelay()</h4>
+                                <p class="text-sm">Executes task periodically with fixed delay between executions</p>
+                                <code class="method-signature">scheduleWithFixedDelay(Runnable command, long initialDelay, long delay, TimeUnit unit)</code>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <div class="code-block">
+                            <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                            <pre><code class="java">import java.util.concurrent.*;
+
+public class ScheduledExecutorExample {
+    
+    public static void main(String[] args) throws InterruptedException {
+        // Create scheduled executor with 2 threads
+        ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
+        
+        System.out.println("ScheduledExecutor started at: " + java.time.LocalTime.now());
+        
+        // Schedule a one-time task to run after 3 seconds
+        ScheduledFuture<?> oneTimeTask = scheduler.schedule(() -> {
+            System.out.println("One-time task executed at: " + java.time.LocalTime.now());
+        }, 3, TimeUnit.SECONDS);
+        
+        // Schedule a task to run every 2 seconds after initial 1 second delay
+        ScheduledFuture<?> fixedRateTask = scheduler.scheduleAtFixedRate(() -> {
+            System.out.println("Fixed-rate task executed at: " + java.time.LocalTime.now());
+        }, 1, 2, TimeUnit.SECONDS);
+        
+        // Schedule a task with fixed delay between executions
+        ScheduledFuture<?> fixedDelayTask = scheduler.scheduleWithFixedDelay(() -> {
+            System.out.println("Fixed-delay task started at: " + java.time.LocalTime.now());
+            try {
+                Thread.sleep(1000); // Simulate work
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            System.out.println("Fixed-delay task completed at: " + java.time.LocalTime.now());
+        }, 1, 3, TimeUnit.SECONDS);
+        
+        // Let it run for 15 seconds
+        Thread.sleep(15000);
+        
+        // Cancel the periodic tasks
+        fixedRateTask.cancel(false);
+        fixedDelayTask.cancel(false);
+        
+        // Shutdown the scheduler
+        scheduler.shutdown();
+        boolean terminated = scheduler.awaitTermination(5, TimeUnit.SECONDS);
+        if (!terminated) {
+            scheduler.shutdownNow();
+        }
+        
+        System.out.println("ScheduledExecutor completed");
+    }
+}</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Real-world Scheduled Example -->
+            <div class="concept-card bg-white rounded-xl shadow-md p-6">
+                <h3 class="text-xl font-bold text-executor mb-4">Real-world: Task Scheduler with Monitoring</h3>
+                
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                    <pre><code class="java">import java.util.concurrent.*;
+import java.time.LocalTime;
+import java.util.concurrent.atomic.AtomicInteger;
+
+public class TaskSchedulerExample {
+    private final ScheduledExecutorService scheduler;
+    private final AtomicInteger taskCounter;
+    private final AtomicInteger successCounter;
+    private final AtomicInteger failureCounter;
+    
+    public TaskSchedulerExample() {
+        this.scheduler = Executors.newScheduledThreadPool(3);
+        this.taskCounter = new AtomicInteger(0);
+        this.successCounter = new AtomicInteger(0);
+        this.failureCounter = new AtomicInteger(0);
+    }
+    
+    public void scheduleDatabaseCleanup() {
+        // Run every hour, starting after 1 minute
+        scheduler.scheduleAtFixedRate(() -> {
+            int taskId = taskCounter.incrementAndGet();
+            System.out.println("[" + LocalTime.now() + "] Task " + taskId + ": Starting database cleanup");
+            
+            try {
+                // Simulate database cleanup
+                Thread.sleep(5000);
+                successCounter.incrementAndGet();
+                System.out.println("[" + LocalTime.now() + "] Task " + taskId + ": Database cleanup completed successfully");
+            } catch (InterruptedException e) {
+                failureCounter.incrementAndGet();
+                System.out.println("[" + LocalTime.now() + "] Task " + taskId + ": Database cleanup interrupted");
+                Thread.currentThread().interrupt();
+            } catch (Exception e) {
+                failureCounter.incrementAndGet();
+                System.out.println("[" + LocalTime.now() + "] Task " + taskId + ": Database cleanup failed: " + e.getMessage());
+            }
+        }, 1, 60, TimeUnit.MINUTES);
+    }
+    
+    public void scheduleHealthCheck() {
+        // Run every 30 seconds, starting after 10 seconds
+        scheduler.scheduleAtFixedRate(() -> {
+            System.out.println("[" + LocalTime.now() + "] Health check: System is healthy");
+        }, 10, 30, TimeUnit.SECONDS);
+    }
+    
+    public void scheduleMetricsReport() {
+        // Run every 5 minutes, starting after 2 minutes
+        scheduler.scheduleAtFixedRate(() -> {
+            int total = taskCounter.get();
+            int success = successCounter.get();
+            int failure = failureCounter.get();
+            
+            System.out.println("=== METRICS REPORT ===");
+            System.out.println("Total tasks: " + total);
+            System.out.println("Successful: " + success);
+            System.out.println("Failed: " + failure);
+            System.out.println("Success rate: " + (total > 0 ? (success * 100.0 / total) : 0) + "%");
+            System.out.println("======================");
+        }, 2, 5, TimeUnit.MINUTES);
+    }
+    
+    public void start() {
+        scheduleDatabaseCleanup();
+        scheduleHealthCheck();
+        scheduleMetricsReport();
+        System.out.println("Task scheduler started at: " + LocalTime.now());
+    }
+    
+    public void stop() throws InterruptedException {
+        System.out.println("Shutting down task scheduler...");
+        scheduler.shutdown();
+        
+        if (scheduler.awaitTermination(10, TimeUnit.SECONDS)) {
+            System.out.println("Task scheduler shutdown completed");
+        } else {
+            System.out.println("Forcing shutdown...");
+            scheduler.shutdownNow();
+        }
+    }
+    
+    public static void main(String[] args) throws InterruptedException {
+        TaskSchedulerExample scheduler = new TaskSchedulerExample();
+        scheduler.start();
+        
+        // Let it run for 2 minutes in demo
+        Thread.sleep(120000);
+        
+        scheduler.stop();
+    }
+}</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- ForkJoin Section -->
+        <section id="forkjoin" class="mb-16 scroll-mt-20">
+            <h2 class="text-2xl md:text-3xl font-bold text-executor mb-6">ForkJoin Framework</h2>
+            
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <div class="flex items-center mb-4">
+                    <div class="bg-blue-500 text-white p-2 rounded-lg mr-3">
+                        <i class="fas fa-code-branch"></i>
+                    </div>
+                    <h3 class="text-xl font-bold">Work-Stealing Algorithm</h3>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-6">
+                    <div>
+                        <p class="mb-4">
+                            The ForkJoin framework is designed for recursive, divide-and-conquer algorithms 
+                            that can be broken down into smaller sub-tasks.
+                        </p>
+                        
+                        <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-4">
+                            <h4 class="font-bold text-blue-700 mb-2"><i class="fas fa-info-circle mr-2"></i>Key Concepts</h4>
+                            <ul class="list-disc pl-5 space-y-1 text-sm">
+                                <li><strong>Fork</strong>: Split task into smaller sub-tasks</li>
+                                <li><strong>Join</strong>: Combine results from sub-tasks</li>
+                                <li><strong>Work-stealing</strong>: Idle threads steal work from busy threads</li>
+                                <li><strong>RecursiveTask</strong>: Returns a result</li>
+                                <li><strong>RecursiveAction</strong>: No result returned</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <div class="code-block">
+                            <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                            <pre><code class="java">import java.util.concurrent.*;
+
+public class ForkJoinBasicExample {
+    
+    public static void main(String[] args) {
+        // Create ForkJoinPool (uses available processors by default)
+        ForkJoinPool forkJoinPool = new ForkJoinPool();
+        
+        // Example: Calculate sum of array using ForkJoin
+        long[] numbers = new long[1000];
+        for (int i = 0; i < numbers.length; i++) {
+            numbers[i] = i + 1;
+        }
+        
+        SumTask task = new SumTask(numbers, 0, numbers.length);
+        Long result = forkJoinPool.invoke(task);
+        
+        System.out.println("Sum of 1 to 1000: " + result);
+        System.out.println("Theoretical sum: " + (1000L * 1001L / 2L));
+        
+        forkJoinPool.shutdown();
+    }
+    
+    // RecursiveTask for calculating sum
+    static class SumTask extends RecursiveTask<Long> {
+        private static final int THRESHOLD = 100; // Split if more than 100 elements
+        private final long[] array;
+        private final int start;
+        private final int end;
+        
+        SumTask(long[] array, int start, int end) {
+            this.array = array;
+            this.start = start;
+            this.end = end;
+        }
+        
+        @Override
+        protected Long compute() {
+            int length = end - start;
+            
+            // If small enough, compute directly
+            if (length <= THRESHOLD) {
+                long sum = 0;
+                for (int i = start; i < end; i++) {
+                    sum += array[i];
+                }
+                return sum;
+            }
+            
+            // Split task into two sub-tasks
+            int mid = start + length / 2;
+            SumTask leftTask = new SumTask(array, start, mid);
+            SumTask rightTask = new SumTask(array, mid, end);
+            
+            // Fork the left task (execute asynchronously)
+            leftTask.fork();
+            
+            // Compute right task and then join with left
+            Long rightResult = rightTask.compute();
+            Long leftResult = leftTask.join();
+            
+            return leftResult + rightResult;
+        }
+    }
+}</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Advanced ForkJoin Example -->
+                <div class="concept-card bg-white rounded-xl shadow-md p-6">
+                    <h3 class="text-xl font-bold text-executor mb-4">Advanced: Parallel Array Processing</h3>
+                    
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                        <pre><code class="java">import java.util.concurrent.*;
+import java.util.Arrays;
+import java.util.Random;
+
+public class ParallelArrayProcessing {
+    
+    public static void main(String[] args) {
+        // Create large array
+        int size = 10_000_000;
+        int[] array = new int[size];
+        Random random = new Random();
+        
+        // Fill with random numbers
+        for (int i = 0; i < size; i++) {
+            array[i] = random.nextInt(1000);
+        }
+        
+        ForkJoinPool pool = new ForkJoinPool();
+        
+        // Measure sequential processing time
+        long startTime = System.currentTimeMillis();
+        long sequentialSum = sequentialSum(array);
+        long sequentialTime = System.currentTimeMillis() - startTime;
+        
+        // Measure parallel processing time
+        startTime = System.currentTimeMillis();
+        ParallelSumTask parallelTask = new ParallelSumTask(array, 0, array.length);
+        long parallelSum = pool.invoke(parallelTask);
+        long parallelTime = System.currentTimeMillis() - startTime;
+        
+        System.out.println("Sequential sum: " + sequentialSum + " in " + sequentialTime + "ms");
+        System.out.println("Parallel sum: " + parallelSum + " in " + parallelTime + "ms");
+        System.out.println("Speedup: " + (sequentialTime / (double) parallelTime) + "x");
+        
+        pool.shutdown();
+    }
+    
+    static long sequentialSum(int[] array) {
+        long sum = 0;
+        for (int value : array) {
+            sum += value;
+        }
+        return sum;
+    }
+    
+    static class ParallelSumTask extends RecursiveTask<Long> {
+        private static final int THRESHOLD = 10_000;
+        private final int[] array;
+        private final int start;
+        private final int end;
+        
+        ParallelSumTask(int[] array, int start, int end) {
+            this.array = array;
+            this.start = start;
+            this.end = end;
+        }
+        
+        @Override
+        protected Long compute() {
+            int length = end - start;
+            
+            if (length <= THRESHOLD) {
+                // Base case: compute sequentially
+                long sum = 0;
+                for (int i = start; i < end; i++) {
+                    sum += array[i];
+                }
+                return sum;
+            }
+            
+            // Recursive case: split and conquer
+            int mid = start + length / 2;
+            ParallelSumTask leftTask = new ParallelSumTask(array, start, mid);
+            ParallelSumTask rightTask = new ParallelSumTask(array, mid, end);
+            
+            leftTask.fork();
+            long rightResult = rightTask.compute();
+            long leftResult = leftTask.join();
+            
+            return leftResult + rightResult;
+        }
+    }
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Best Practices Section -->
+        <section id="best-practices" class="mb-16 scroll-mt-20">
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-2xl md:text-3xl font-bold text-executor mb-6">Best Practices</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-green-50 p-4 rounded-lg border border-green-200">
+                        <h3 class="font-bold text-green-700 mb-2"><i class="fas fa-cogs mr-2"></i>Choose Right Pool Size</h3>
+                        <p class="text-sm">For CPU-intensive tasks: number of cores. For I/O-intensive tasks: larger pools.</p>
+                        <code class="method-signature block mt-2">int cores = Runtime.getRuntime().availableProcessors();</code>
+                    </div>
+                    
+                    <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                        <h3 class="font-bold text-blue-700 mb-2"><i class="fas fa-power-off mr-2"></i>Proper Shutdown</h3>
+                        <p class="text-sm">Always shutdown executors and handle termination properly.</p>
+                        <code class="method-signature block mt-2">executor.shutdown() + awaitTermination()</code>
+                    </div>
+                    
+                    <div class="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                        <h3 class="font-bold text-purple-700 mb-2"><i class="fas fa-exclamation-triangle mr-2"></i>Handle Exceptions</h3>
+                        <p class="text-sm">Task exceptions are wrapped in ExecutionException - handle them properly.</p>
+                        <code class="method-signature block mt-2">future.get() catches ExecutionException</code>
+                    </div>
+                    
+                    <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                        <h3 class="font-bold text-yellow-700 mb-2"><i class="fas fa-tachometer-alt mr-2"></i>Monitor Performance</h3>
+                        <p class="text-sm">Use ThreadPoolExecutor methods to monitor pool health and performance.</p>
+                        <code class="method-signature block mt-2">getActiveCount(), getQueue().size()</code>
+                    </div>
+                    
+                    <div class="bg-red-50 p-4 rounded-lg border border-red-200">
+                        <h3 class="font-bold text-red-700 mb-2"><i class="fas fa-ban mr-2"></i>Avoid CachedThreadPool</h3>
+                        <p class="text-sm">In production, avoid CachedThreadPool due to potential unbounded thread creation.</p>
+                    </div>
+                    
+                    <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-200">
+                        <h3 class="font-bold text-indigo-700 mb-2"><i class="fas fa-tasks mr-2"></i>Use Callable for Results</h3>
+                        <p class="text-sm">Use Callable instead of Runnable when you need return values or exception handling.</p>
+                        <code class="method-signature block mt-2">Future<T> future = executor.submit(callable);</code>
+                    </div>
+                </div>
+
+                <!-- Proper Shutdown Pattern -->
+                <div class="bg-gray-100 p-6 rounded-lg mb-6">
+                    <h3 class="text-xl font-bold text-executor mb-4">Proper Executor Shutdown Pattern</h3>
+                    
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                        <pre><code class="java">import java.util.concurrent.*;
+
+public class ProperShutdownExample {
+    
+    public static void shutdownExecutor(ExecutorService executor, long timeout, TimeUnit unit) {
+        if (executor == null) return;
+        
+        // Disable new tasks from being submitted
+        executor.shutdown();
+        
+        try {
+            // Wait a while for existing tasks to terminate
+            if (!executor.awaitTermination(timeout, unit)) {
+                // Cancel currently executing tasks
+                executor.shutdownNow();
+                
+                // Wait a while for tasks to respond to being cancelled
+                if (!executor.awaitTermination(timeout, unit)) {
+                    System.err.println("Executor did not terminate");
+                }
+            }
+        } catch (InterruptedException ie) {
+            // (Re-)Cancel if current thread also interrupted
+            executor.shutdownNow();
+            
+            // Preserve interrupt status
+            Thread.currentThread().interrupt();
+        }
+    }
+    
+    public static void main(String[] args) {
+        ExecutorService executor = Executors.newFixedThreadPool(4);
+        
+        // Submit some tasks
+        for (int i = 0; i < 10; i++) {
+            final int taskId = i;
+            executor.submit(() -> {
+                try {
+                    Thread.sleep(2000);
+                    System.out.println("Task " + taskId + " completed");
+                } catch (InterruptedException e) {
+                    System.out.println("Task " + taskId + " interrupted");
+                    Thread.currentThread().interrupt();
+                }
+            });
+        }
+        
+        // Proper shutdown
+        shutdownExecutor(executor, 5, TimeUnit.SECONDS);
+    }
+}</code></pre>
+                    </div>
+                </div>
+
+                <!-- Pool Size Calculation -->
+                <div class="concept-card bg-white rounded-xl shadow-md p-6">
+                    <h3 class="text-xl font-bold text-executor mb-4">Optimal ThreadPool Size Calculation</h3>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="font-bold text-lg mb-3">CPU-bound Tasks</h4>
+                            <div class="code-block">
+                                <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                                <pre><code class="java">// For CPU-intensive tasks
+int cpuCores = Runtime.getRuntime().availableProcessors();
+int poolSize = cpuCores + 1; // Little's Law: N + 1
+
+ExecutorService executor = 
+    Executors.newFixedThreadPool(poolSize);</code></pre>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h4 class="font-bold text-lg mb-3">I/O-bound Tasks</h4>
+                            <div class="code-block">
+                                <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                                <pre><code class="java">// For I/O-intensive tasks
+int cpuCores = Runtime.getRuntime().availableProcessors();
+double waitTime = 0.8; // 80% waiting for I/O
+double computeTime = 0.2; // 20% computing
+
+int poolSize = (int) (cpuCores * (1 + waitTime / computeTime));
+
+ExecutorService executor = 
+    Executors.newFixedThreadPool(poolSize);</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Advanced Topics Section -->
+        <section id="advanced" class="mb-16 scroll-mt-20">
+            <h2 class="text-2xl md:text-3xl font-bold text-executor mb-6">Advanced Topics</h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Custom ThreadPoolExecutor -->
+                <div class="concept-card bg-white rounded-xl shadow-md p-6">
+                    <h3 class="text-xl font-bold text-executor mb-4">Custom ThreadPoolExecutor</h3>
+                    
+                    <div class="code-block mb-4">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                        <pre><code class="java">import java.util.concurrent.*;
+import java.util.concurrent.atomic.*;
+
+public class CustomThreadPoolExample {
+    
+    public static void main(String[] args) {
+        // Create custom ThreadPoolExecutor with monitoring
+        int corePoolSize = 2;
+        int maxPoolSize = 4;
+        long keepAliveTime = 60L;
+        TimeUnit unit = TimeUnit.SECONDS;
+        BlockingQueue<Runnable> workQueue = new LinkedBlockingQueue<>(10);
+        
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(
+            corePoolSize, maxPoolSize, keepAliveTime, unit, workQueue,
+            new CustomThreadFactory(), new CustomRejectionHandler()
+        );
+        
+        // Add monitoring hook
+        executor.setRejectedExecutionHandler(new MonitoringRejectionHandler(executor));
+        
+        // Submit tasks
+        for (int i = 1; i <= 20; i++) {
+            final int taskId = i;
+            try {
+                executor.submit(() -> {
+                    System.out.println("Executing task " + taskId + " by " + 
+                                     Thread.currentThread().getName());
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                });
+            } catch (RejectedExecutionException e) {
+                System.out.println("Task " + taskId + " rejected: " + e.getMessage());
+            }
+        }
+        
+        // Monitor thread pool
+        ScheduledExecutorService monitor = Executors.newSingleThreadScheduledExecutor();
+        monitor.scheduleAtFixedRate(() -> {
+            System.out.printf("Pool: %d active, %d completed, %d queued%n",
+                executor.getActiveCount(),
+                executor.getCompletedTaskCount(),
+                executor.getQueue().size());
+        }, 1, 1, TimeUnit.SECONDS);
+        
+        // Shutdown
+        try {
+            Thread.sleep(10000);
+            monitor.shutdown();
+            executor.shutdown();
+            executor.awaitTermination(10, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+    
+    static class CustomThreadFactory implements ThreadFactory {
+        private final AtomicInteger counter = new AtomicInteger(1);
+        
+        @Override
+        public Thread newThread(Runnable r) {
+            Thread thread = new Thread(r, "CustomThread-" + counter.getAndIncrement());
+            thread.setDaemon(false);
+            thread.setPriority(Thread.NORM_PRIORITY);
+            return thread;
+        }
+    }
+    
+    static class CustomRejectionHandler implements RejectedExecutionHandler {
+        @Override
+        public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
+            System.out.println("Task rejected: " + r.toString());
+            throw new RejectedExecutionException("Task rejected - queue full");
+        }
+    }
+    
+    static class MonitoringRejectionHandler implements RejectedExecutionHandler {
+        private final ThreadPoolExecutor executor;
+        
+        MonitoringRejectionHandler(ThreadPoolExecutor executor) {
+            this.executor = executor;
+        }
+        
+        @Override
+        public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
+            System.err.printf("REJECTED: Active: %d, Pool: %d, Max: %d, Queue: %d%n",
+                executor.getActiveCount(),
+                executor.getPoolSize(),
+                executor.getMaximumPoolSize(),
+                executor.getQueue().size());
+            throw new RejectedExecutionException("Task rejected - system overloaded");
+        }
+    }
+}</code></pre>
+                    </div>
+                </div>
+
+                <!-- CompletableFuture Integration -->
+                <div class="concept-card bg-white rounded-xl shadow-md p-6">
+                    <h3 class="text-xl font-bold text-executor mb-4">CompletableFuture with Executors</h3>
+                    
+                    <div class="code-block">
+                        <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                        <pre><code class="java">import java.util.concurrent.*;
+import java.util.*;
+
+public class CompletableFutureExample {
+    
+    public static void main(String[] args) throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(4);
+        
+        // Basic CompletableFuture
+        CompletableFuture<String> future1 = CompletableFuture.supplyAsync(() -> {
+            sleep(1000);
+            return "Result from Task 1";
+        }, executor);
+        
+        // Chain tasks
+        CompletableFuture<String> future2 = future1.thenApply(result -> {
+            return result + " -> Processed by Task 2";
+        });
+        
+        // Combine multiple futures
+        CompletableFuture<String> future3 = CompletableFuture.supplyAsync(() -> {
+            sleep(500);
+            return "Result from Task 3";
+        }, executor);
+        
+        CompletableFuture<String> future4 = CompletableFuture.supplyAsync(() -> {
+            sleep(800);
+            return "Result from Task 4";
+        }, executor);
+        
+        CompletableFuture<String> combined = future3.thenCombine(future4, (res3, res4) -> {
+            return res3 + " + " + res4;
+        });
+        
+        // Handle exceptions
+        CompletableFuture<String> future5 = CompletableFuture.supplyAsync(() -> {
+            if (Math.random() > 0.5) {
+                throw new RuntimeException("Simulated error");
+            }
+            return "Success from Task 5";
+        }, executor).exceptionally(ex -> {
+            return "Recovered from: " + ex.getMessage();
+        });
+        
+        // Wait for all futures
+        CompletableFuture<Void> allFutures = CompletableFuture.allOf(
+            future2, combined, future5
+        );
+        
+        // Get results
+        String result2 = future2.get();
+        String resultCombined = combined.get();
+        String result5 = future5.get();
+        
+        System.out.println("Future 2: " + result2);
+        System.out.println("Combined: " + resultCombined);
+        System.out.println("Future 5: " + result5);
+        
+        executor.shutdown();
+    }
+    
+    private static void sleep(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ThreadPool Monitoring -->
+            <div class="concept-card bg-white rounded-xl shadow-md p-6 mt-8">
+                <h3 class="text-xl font-bold text-executor mb-4">ThreadPool Monitoring & Metrics</h3>
+                
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy Code</button>
+                    <pre><code class="java">import java.util.concurrent.*;
+import java.util.concurrent.atomic.*;
+
+public class ThreadPoolMonitor {
+    private final ThreadPoolExecutor executor;
+    private final AtomicLong totalTasks = new AtomicLong();
+    private final AtomicLong completedTasks = new AtomicLong();
+    private final AtomicLong failedTasks = new AtomicLong();
+    
+    public ThreadPoolMonitor(int corePoolSize, int maxPoolSize, int queueSize) {
+        this.executor = new ThreadPoolExecutor(
+            corePoolSize, maxPoolSize, 60L, TimeUnit.SECONDS,
+            new LinkedBlockingQueue<>(queueSize),
+            new MonitoringThreadFactory(),
+            new MonitoringRejectionHandler()
+        );
+    }
+    
+    public void submitTask(Runnable task) {
+        totalTasks.incrementAndGet();
+        executor.submit(() -> {
+            try {
+                task.run();
+                completedTasks.incrementAndGet();
+            } catch (Exception e) {
+                failedTasks.incrementAndGet();
+                System.err.println("Task failed: " + e.getMessage());
+            }
+        });
+    }
+    
+    public void printMetrics() {
+        System.out.println("=== THREAD POOL METRICS ===");
+        System.out.println("Active threads: " + executor.getActiveCount());
+        System.out.println("Pool size: " + executor.getPoolSize());
+        System.out.println("Core pool size: " + executor.getCorePoolSize());
+        System.out.println("Max pool size: " + executor.getMaximumPoolSize());
+        System.out.println("Queue size: " + executor.getQueue().size());
+        System.out.println("Completed tasks: " + executor.getCompletedTaskCount());
+        System.out.println("Total submitted: " + totalTasks.get());
+        System.out.println("Successfully completed: " + completedTasks.get());
+        System.out.println("Failed: " + failedTasks.get());
+        System.out.println("===========================");
+    }
+    
+    public void shutdown() throws InterruptedException {
+        executor.shutdown();
+        if (!executor.awaitTermination(10, TimeUnit.SECONDS)) {
+            executor.shutdownNow();
+        }
+    }
+    
+    static class MonitoringThreadFactory implements ThreadFactory {
+        private final AtomicInteger counter = new AtomicInteger(1);
+        
+        @Override
+        public Thread newThread(Runnable r) {
+            Thread thread = new Thread(r, "MonitorThread-" + counter.getAndIncrement());
+            thread.setUncaughtExceptionHandler((t, e) -> {
+                System.err.println("Uncaught exception in thread " + t.getName() + ": " + e.getMessage());
+            });
+            return thread;
+        }
+    }
+    
+    static class MonitoringRejectionHandler implements RejectedExecutionHandler {
+        @Override
+        public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
+            System.err.println("Task rejected - thread pool overloaded");
+        }
+    }
+    
+    public static void main(String[] args) throws InterruptedException {
+        ThreadPoolMonitor monitor = new ThreadPoolMonitor(2, 4, 5);
+        
+        // Submit tasks
+        for (int i = 0; i < 20; i++) {
+            final int taskId = i;
+            monitor.submitTask(() -> {
+                System.out.println("Executing task " + taskId);
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            });
+            
+            // Print metrics every 3 tasks
+            if (i % 3 == 0) {
+                monitor.printMetrics();
+            }
+            
+            Thread.sleep(100);
+        }
+        
+        // Final metrics
+        Thread.sleep(2000);
+        monitor.printMetrics();
+        monitor.shutdown();
+    }
+}</code></pre>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-executorLight text-white py-8">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-4 md:mb-0">
+                    <h2 class="text-xl font-bold mb-2">Java Executors & ThreadPool Guide</h2>
+                    <p class="text-purple-100">Mastering Concurrent Task Execution</p>
+                </div>
+                <div class="flex space-x-4">
+                    <a href="#" class="text-white hover:text-purple-200 transition-colors">
+                        <i class="fab fa-github text-2xl"></i>
+                    </a>
+                    <a href="#" class="text-white hover:text-purple-200 transition-colors">
+                        <i class="fab fa-twitter text-2xl"></i>
+                    </a>
+                    <a href="#" class="text-white hover:text-purple-200 transition-colors">
+                        <i class="fab fa-linkedin text-2xl"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="border-t border-purple-700 mt-6 pt-6 text-center text-purple-200">
+                <p>&copy; 2023 Java Executors Guide. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Initialize syntax highlighting
+        hljs.highlightAll();
+        
+        // Copy code functionality
+        function copyCode(button) {
+            const codeBlock = button.parentElement;
+            const code = codeBlock.querySelector('code').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                button.style.background = 'rgba(34, 197, 94, 0.8)';
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.style.background = 'rgba(255, 255, 255, 0.1)';
+                }, 2000);
+            });
+        }
+
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+        
+        // Add animation to concept cards on scroll
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+        
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        }, observerOptions);
+        
+        document.querySelectorAll('.concept-card').forEach(el => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(20px)';
+            el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            observer.observe(el);
+        });
+
+        // Thread pool visualization animation
+        function animateThreadPools() {
+            const threads = document.querySelectorAll('.thread-visual');
+            
+            setInterval(() => {
+                threads.forEach(thread => {
+                    if (Math.random() > 0.7) {
+                        if (thread.classList.contains('thread-busy')) {
+                            thread.classList.replace('thread-busy', 'thread-idle');
+                        } else if (thread.classList.contains('thread-idle')) {
+                            thread.classList.replace('thread-idle', 'thread-busy');
+                        }
+                    }
+                });
+            }, 2000);
+        }
+        
+        // Task queue animation
+        function animateTaskQueue() {
+            const queue = document.querySelector('.task-queue');
+            if (!queue) return;
+            
+            setInterval(() => {
+                if (queue.children.length < 5) {
+                    const task = document.createElement('div');
+                    task.className = 'task-item';
+                    task.textContent = `Task ${queue.children.length + 1}`;
+                    queue.appendChild(task);
+                } else {
+                    if (queue.children.length > 0) {
+                        queue.removeChild(queue.firstChild);
+                    }
+                }
+            }, 1500);
+        }
+        
+        // Initialize animations when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            animateThreadPools();
+            animateTaskQueue();
+        });
+    </script>
+</body>
+</html>
