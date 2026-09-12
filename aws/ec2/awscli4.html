@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EC2 Chapter 3.3.3 · Handwritten Notes</title>
+
+    <!-- Google Fonts – clear handwriting -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Gloria+Hallelujah&family=Architects+Daughter&family=Reenie+Beanie&display=swap" rel="stylesheet" />
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: #f7f0e7;
+            background-image: radial-gradient(circle at 30% 20%, #fcf7f0 0%, #eee7dd 100%);
+            display: flex;
+            justify-content: center;
+            padding: 2.5rem 1.5rem;
+            font-family: 'Patrick Hand', 'Architects Daughter', cursive;
+        }
+
+        .notes-container {
+            max-width: 1100px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 2.8rem;
+            animation: floatUp 0.9s ease-out;
+        }
+
+        .note {
+            background: #fffcf5;
+            padding: 2.5rem 3.5rem;
+            border-radius: 28px 28px 28px 10px;
+            box-shadow: 0 12px 36px rgba(0,0,0,0.06), 0 2px 10px rgba(0,0,0,0.03), inset 0 -2px 0 rgba(0,0,0,0.02);
+            position: relative;
+            transition: transform 0.3s ease, box-shadow 0.35s ease;
+            transform-origin: left center;
+            border-left: 8px solid transparent;
+            animation: notePop 0.6s ease both;
+            animation-delay: calc(var(--i, 0) * 0.035s);
+        }
+
+        .note:nth-child(1) { border-left-color: #f0b8b8; }
+        .note:nth-child(2) { border-left-color: #aad0c4; }
+        .note:nth-child(3) { border-left-color: #f5d4aa; }
+        .note:nth-child(4) { border-left-color: #cfb8e0; }
+        .note:nth-child(5) { border-left-color: #b8cce0; }
+        .note:nth-child(6) { border-left-color: #e8c8b8; }
+        .note:nth-child(7) { border-left-color: #b8d9c8; }
+        .note:nth-child(8) { border-left-color: #f0c8c8; }
+        .note:nth-child(9) { border-left-color: #d4c8e8; }
+        .note:nth-child(10) { border-left-color: #c8dce8; }
+        .note:nth-child(11) { border-left-color: #e8d4b8; }
+
+        .note:hover {
+            transform: rotate(-0.8deg) scale(1.015);
+            box-shadow: 0 24px 48px rgba(0,0,0,0.09), 0 4px 16px rgba(0,0,0,0.05);
+        }
+
+        .note-title {
+            font-family: 'Gloria Hallelujah', 'Patrick Hand', cursive;
+            font-size: 2.2rem;
+            font-weight: 500;
+            color: #2f2216;
+            letter-spacing: 0.8px;
+            margin-bottom: 0.3rem;
+            line-height: 1.25;
+            display: inline-block;
+            position: relative;
+        }
+
+        .note-title::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: -4px;
+            width: 100%;
+            height: 8px;
+            background: repeating-linear-gradient(90deg, transparent, transparent 6px, rgba(240,184,184,0.4) 6px, rgba(240,184,184,0.4) 12px);
+            border-radius: 20px;
+            opacity: 0.8;
+        }
+
+        .note-subtitle {
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.3rem;
+            color: #5a4a3a;
+            margin: -0.1rem 0 1rem 0;
+            font-weight: 400;
+            opacity: 0.85;
+        }
+
+        .note-body {
+            font-family: 'Architects Daughter', 'Patrick Hand', cursive;
+            font-size: 1.35rem;
+            line-height: 1.85;
+            color: #2a1f15;
+            margin: 0.9rem 0 0.4rem 0;
+            font-weight: 400;
+            letter-spacing: 0.4px;
+        }
+
+        .note-body strong {
+            font-weight: 700;
+            color: #a05545;
+            background: rgba(240,184,184,0.15);
+            padding: 0 8px;
+            border-radius: 16px;
+            font-style: normal;
+        }
+
+        .note-body em {
+            color: #5a8a78;
+            font-style: italic;
+            text-decoration: underline wavy #aad0c4 3px;
+            font-weight: 500;
+        }
+
+        .note-body .chip {
+            background: #f0e9e0;
+            padding: 0.1rem 1.2rem;
+            border-radius: 40px;
+            display: inline-block;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.15rem;
+            color: #3d3226;
+            border: 1px dashed #cbb8a8;
+            margin: 2px 0;
+            font-weight: 400;
+        }
+
+        .note-body .chip-blue { background: #dce8f0; border-color: #aac0d0; }
+        .note-body .chip-green { background: #d8ece0; border-color: #a0c8b8; }
+        .note-body .chip-pink { background: #f0dcd8; border-color: #d8b8b0; }
+        .note-body .chip-purple { background: #e4d8ec; border-color: #c8b8d8; }
+        .note-body .chip-gold { background: #f0e8d0; border-color: #d8c8a8; }
+        .note-body .chip-teal { background: #c8e8dc; border-color: #88c8b8; }
+        .note-body .chip-orange { background: #f0dcc8; border-color: #d8b898; }
+        .note-body .chip-red { background: #f0d8d8; border-color: #d8b0b0; }
+
+        .code-block {
+            background: #1e1a16;
+            color: #e8e0d8;
+            padding: 1.2rem 1.8rem;
+            border-radius: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.82rem;
+            line-height: 1.7;
+            margin: 0.8rem 0 1rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            border-left: 4px solid #f0b8b8;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .code-block .comment { color: #7a8a7a; }
+        .code-block .keyword { color: #f0b8b8; }
+        .code-block .string { color: #b8d9c8; }
+        .code-block .function { color: #c8b8e8; }
+        .code-block .tag { color: #f5d4aa; }
+        .code-block .number { color: #f5d4aa; }
+        .code-block .bold { color: #f0e0c8; font-weight: bold; }
+
+        .ascii-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1rem 1.5rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.58rem;
+            line-height: 1.5;
+            color: #2a1f15;
+            border: 1px solid #e0d8ce;
+            margin: 0.8rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .ascii-box .highlight { color: #a05545; font-weight: bold; }
+        .ascii-box .title { color: #2f2216; font-weight: bold; text-decoration: underline; }
+
+        .styled-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 0.92rem;
+            background: #f8f4ec;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        }
+
+        .styled-table th {
+            background: #2f2216;
+            color: #f5efe8;
+            padding: 0.7rem 1rem;
+            text-align: left;
+            font-weight: 500;
+            font-size: 0.88rem;
+        }
+
+        .styled-table td {
+            padding: 0.7rem 1rem;
+            border-bottom: 1px solid #e8e0d6;
+            color: #2a1f15;
+        }
+
+        .styled-table tr:last-child td { border-bottom: none; }
+        .styled-table tr:hover td { background: #f0e9e0; }
+
+        .note-body ul, .note-body ol {
+            padding-left: 2rem;
+            margin: 0.5rem 0;
+        }
+        .note-body li { margin-bottom: 0.3rem; }
+
+        .def-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1.2rem 1.8rem;
+            margin: 0.8rem 0;
+            border-left: 6px solid #aad0c4;
+        }
+        .def-box strong { color: #a05545; }
+
+        .qa-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1rem 1.8rem;
+            margin: 0.8rem 0;
+            border-left: 6px solid #cfb8e0;
+        }
+        .qa-box .q { font-weight: 600; color: #a05545; font-size: 1.2rem; }
+        .qa-box .a { color: #3d6b5a; margin-top: 0.3rem; padding-left: 0.5rem; }
+
+        .note-meta {
+            margin-top: 1.5rem;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.05rem;
+            color: #9f8875;
+            display: flex;
+            align-items: center;
+            gap: 1.2rem;
+            flex-wrap: wrap;
+        }
+
+        .note-meta span {
+            background: #f1eae1;
+            padding: 0.3rem 1.4rem;
+            border-radius: 60px;
+            font-size: 1rem;
+            color: #4d3b2b;
+            box-shadow: inset 0 1px 4px rgba(0,0,0,0.02);
+            font-weight: 400;
+            letter-spacing: 0.3px;
+        }
+
+        .note-pin {
+            position: absolute;
+            top: -12px;
+            right: 34px;
+            font-size: 2.6rem;
+            opacity: 0.25;
+            transform: rotate(25deg);
+            filter: drop-shadow(0 3px 6px rgba(0,0,0,0.06));
+            transition: opacity 0.25s;
+        }
+        .note:hover .note-pin { opacity: 0.8; }
+
+        .region-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.5rem;
+            margin: 0.5rem 0;
+        }
+        .region-item {
+            background: #f8f4ec;
+            padding: 0.4rem 0.8rem;
+            border-radius: 8px;
+            border-left: 3px solid #b8cce0;
+            font-size: 0.85rem;
+        }
+        .region-item .code { font-weight: 700; color: #a05545; }
+        .region-item .name { font-size: 0.8rem; color: #3d6b5a; }
+
+        .output-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.5rem;
+            margin: 0.5rem 0;
+        }
+        .output-card {
+            background: #f8f4ec;
+            padding: 0.5rem 0.8rem;
+            border-radius: 8px;
+            border-top: 3px solid #b8cce0;
+            text-align: center;
+            font-size: 0.85rem;
+        }
+        .output-card .format { font-weight: 700; color: #a05545; font-size: 1.1rem; }
+        .output-card .use { font-size: 0.8rem; color: #3d6b5a; }
+
+        @keyframes floatUp {
+            0% { opacity: 0; transform: translateY(50px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes notePop {
+            0% { opacity: 0; transform: scale(0.92) rotate(-3deg); }
+            80% { opacity: 1; transform: scale(1.015) rotate(0.8deg); }
+            100% { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+
+        @media (max-width: 700px) {
+            .note { padding: 1.8rem 1.8rem; }
+            .note-title { font-size: 1.8rem; }
+            .note-body { font-size: 1.15rem; line-height: 1.7; }
+            .note-body .chip { font-size: 1rem; padding: 0 0.8rem; }
+            .code-block { font-size: 0.7rem; padding: 1rem; }
+            .note-pin { font-size: 2rem; top: -8px; right: 18px; }
+            .styled-table { font-size: 0.8rem; }
+            .styled-table th, .styled-table td { padding: 0.5rem 0.7rem; }
+            .notes-container { gap: 2rem; }
+            .ascii-box { font-size: 0.45rem; padding: 0.8rem 1rem; }
+            .qa-box { padding: 0.8rem 1.2rem; }
+            .def-box { padding: 0.8rem 1.2rem; }
+            .region-grid { grid-template-columns: 1fr 1fr; }
+            .output-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="notes-container">
+
+        <!-- ============================================================ -->
+        <!-- NOTE 1: Chapter Title -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:0">
+            <div class="note-pin">🌍</div>
+            <h2 class="note-title">3.3.3 Configuring Default Region and Output Format</h2>
+            <div class="note-body">
+                Once your AWS CLI is installed and your credentials are configured, the next essential step is to properly set your <strong>default region</strong> and <strong>output format</strong>. These two settings control where your CLI commands are executed and how the results are displayed, making your workflow <strong>more efficient and predictable</strong>.
+            </div>
+            <div class="note-meta">
+                <span>🌍 region</span>
+                <span>📊 output</span>
+                <span>⚙️ configure</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 2: Understanding AWS Region -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:1">
+            <div class="note-pin">📍</div>
+            <h2 class="note-title">Understanding the AWS Region</h2>
+            <div class="note-body">
+                An AWS Region is a <strong>geographical area</strong> that contains a cluster of data centers. Each Region is <strong>isolated</strong> from the others, and resources created in one Region do not exist in another unless explicitly replicated.
+                <br /><br />
+                When you run an AWS CLI command, you must specify which Region to target. The CLI uses a <strong>region provider chain</strong> to determine this:
+                <br /><br />
+                <div class="def-box" style="border-left-color:#b8cce0;">
+                    <strong>🔗 Region Provider Chain (Highest to Lowest):</strong>
+                    <ol>
+                        <li><strong>Command-line option:</strong> <span class="chip">--region</span> parameter</li>
+                        <li><strong>Environment variable:</strong> <span class="chip">AWS_DEFAULT_REGION</span></li>
+                        <li><strong>CLI configuration file:</strong> <span class="chip">~/.aws/config</span></li>
+                        <li><strong>EC2 instance metadata:</strong> (if running on an EC2 instance)</li>
+                        <li><strong>Default fallback:</strong> currently <span class="chip">us-east-1</span> for most commands</li>
+                    </ol>
+                </div>
+                <br />
+                <strong>Why Setting a Default Region Matters:</strong>
+                <table class="styled-table">
+                    <thead><tr><th>Benefit</th><th>Description</th></tr></thead>
+                    <tbody>
+                        <tr><td><strong>Convenience</strong></td><td>You don't need to specify <span class="chip">--region</span> in every command</td></tr>
+                        <tr><td><strong>Consistency</strong></td><td>Ensures resources are created in the intended location</td></tr>
+                        <tr><td><strong>Performance</strong></td><td>Commands are faster when targeting a nearby Region</td></tr>
+                        <tr><td><strong>Compliance</strong></td><td>Helps enforce data residency requirements</td></tr>
+                        <tr><td><strong>Cost Control</strong></td><td>Different Regions have different pricing models</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="note-meta">
+                <span>📍 region</span>
+                <span>🔗 provider chain</span>
+                <span>🌍 us-east-1</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 3: Output Formats -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:2">
+            <div class="note-pin">📊</div>
+            <h2 class="note-title">Understanding Output Formats</h2>
+            <div class="note-body">
+                The AWS CLI supports <strong>three primary output formats</strong>, each serving different use cases.
+                <br /><br />
+                <div class="output-grid">
+                    <div class="output-card" style="border-top-color:#b8cce0;">
+                        <div class="format">📋 json</div>
+                        <div class="use">Best for: <strong>Scripting, automation, debugging</strong></div>
+                        <div style="font-size:0.75rem; color:#7a8a7a;">Machine-readable ✅ | Human-readable ⚠️</div>
+                        <div style="font-size:0.75rem; margin-top:0.3rem; background:#dce8f0; padding:0.2rem 0.5rem; border-radius:12px; display:inline-block;">Recommended</div>
+                    </div>
+                    <div class="output-card" style="border-top-color:#f5d4aa;">
+                        <div class="format">📄 text</div>
+                        <div class="use">Best for: <strong>Basic parsing (grep, awk)</strong></div>
+                        <div style="font-size:0.75rem; color:#7a8a7a;">Machine-readable ✅ | Human-readable ❌</div>
+                    </div>
+                    <div class="output-card" style="border-top-color:#aad0c4;">
+                        <div class="format">📊 table</div>
+                        <div class="use">Best for: <strong>Human reading, quick checks</strong></div>
+                        <div style="font-size:0.75rem; color:#7a8a7a;">Machine-readable ❌ | Human-readable ✅</div>
+                    </div>
+                </div>
+                <br />
+                <div class="def-box" style="border-left-color:#aad0c4;">
+                    <strong>💡 Recommendation:</strong> Use <span class="chip chip-green">json</span> as your default output format. It's the most complete and is required for proper use of <span class="chip">jq</span> and other JSON processing tools. Use <span class="chip">table</span> for quick visual checks and <span class="chip">text</span> for simple shell script parsing.
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>📊 output</span>
+                <span>📋 json</span>
+                <span>📄 text</span>
+                <span>📊 table</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 4: Output Examples -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:3">
+            <div class="note-pin">📝</div>
+            <h2 class="note-title">Example: Same Command, Different Outputs</h2>
+            <div class="note-body">
+                <strong>JSON Output (Recommended for Most Users):</strong>
+                <div class="code-block" style="font-size:0.75rem;">
+                    aws ec2 describe-instances --region us-east-1 --output json
+                </div>
+                <div class="code-block" style="color:#b8d9c8; font-size:0.75rem;">
+                    {
+                        "Reservations": [
+                            {
+                                "Instances": [
+                                    {
+                                        "InstanceId": "i-1234567890abcdef0",
+                                        "InstanceType": "t3.micro",
+                                        "State": {
+                                            "Name": "running"
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                </div>
+                <br />
+                <strong>Text Output (For Basic Parsing):</strong>
+                <div class="code-block" style="font-size:0.75rem;">
+                    aws ec2 describe-instances --region us-east-1 --output text
+                </div>
+                <div class="code-block" style="color:#b8d9c8; font-size:0.7rem;">
+                    RESERVATIONS  r-1234567890abcdef0  123456789012  default
+                    INSTANCES  i-1234567890abcdef0  ami-1234567890abcdef0  t3.micro  ...
+                    STATE  16  running
+                </div>
+                <br />
+                <strong>Table Output (For Human Reading):</strong>
+                <div class="code-block" style="font-size:0.75rem;">
+                    aws ec2 describe-instances --region us-east-1 --output table
+                </div>
+                <div class="code-block" style="color:#b8d9c8; font-size:0.65rem;">
+                    -----------------------------------------------------------------------------------------
+                    |                              DescribeInstances                                       |
+                    +---------------------------------------------------------------------------------------+
+                    ||                                 Instances                                           ||
+                    |+-----------------------+------------------------+---------------------+--------------+|
+                    ||      InstanceId       |     InstanceType       |        State        |  ImageId     ||
+                    |+-----------------------+------------------------+---------------------+--------------+|
+                    ||  i-1234567890abcdef0  |  t3.micro              |  running            |  ami-123...  ||
+                    |+-----------------------+------------------------+---------------------+--------------+|
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>📝 examples</span>
+                <span>📋 json</span>
+                <span>📄 text</span>
+                <span>📊 table</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 5: Three Ways to Configure -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:4">
+            <div class="note-pin">🛠️</div>
+            <h2 class="note-title">Three Ways to Configure Region and Output</h2>
+            <div class="note-body">
+                <strong>Method 1: Interactive Configuration (aws configure)</strong>
+                <div class="code-block">
+                    aws configure
+                </div>
+                <div class="code-block" style="color:#b8d9c8; font-size:0.8rem;">
+                    AWS Access Key ID [None]: AKIAIOSFODNN7EXAMPLE
+                    AWS Secret Access Key [None]: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+                    <span class="bold">Default region name [None]: us-east-1</span>
+                    <span class="bold">Default output format [None]: json</span>
+                </div>
+                <br />
+                <strong>Method 2: Direct File Editing</strong>
+                <div class="code-block">
+                    <span class="comment"># ~/.aws/config (Linux/macOS)</span>
+                    <span class="comment"># C:\Users\USERNAME\.aws\config (Windows)</span>
+
+                    [default]
+                    region = us-east-1
+                    output = json
+                </div>
+                <div class="def-box" style="border-left-color:#b8cce0;">
+                    <strong>🔒 Permissions:</strong> On Linux/macOS, ensure the config file has appropriate permissions: <span class="chip">chmod 600 ~/.aws/config</span>
+                </div>
+                <br />
+                <strong>Method 3: Command-Line Update (aws configure set)</strong>
+                <div class="code-block">
+                    aws configure set region us-west-2
+                    aws configure set output table
+
+                    <span class="comment"># For a named profile</span>
+                    aws configure set region eu-central-1 --profile dev-env
+                    aws configure set output yaml --profile prod-env
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🛠️ methods</span>
+                <span>⚙️ aws configure</span>
+                <span>📂 file edit</span>
+                <span>🔧 aws configure set</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 6: Common AWS Regions -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:5">
+            <div class="note-pin">🌍</div>
+            <h2 class="note-title">Common AWS Regions and Their Use Cases</h2>
+            <div class="note-body">
+                <div class="region-grid">
+                    <div class="region-item" style="border-left-color:#b8cce0;">
+                        <div class="code">us-east-1</div>
+                        <div class="name">US East (N. Virginia)</div>
+                        <div style="font-size:0.7rem; color:#7a8a7a;">Default choice, lowest cost, newest services first</div>
+                    </div>
+                    <div class="region-item" style="border-left-color:#aad0c4;">
+                        <div class="code">us-east-2</div>
+                        <div class="name">US East (Ohio)</div>
+                        <div style="font-size:0.7rem; color:#7a8a7a;">US workloads, slightly lower cost</div>
+                    </div>
+                    <div class="region-item" style="border-left-color:#f5d4aa;">
+                        <div class="code">us-west-2</div>
+                        <div class="name">US West (Oregon)</div>
+                        <div style="font-size:0.7rem; color:#7a8a7a;">US West Coast, high availability</div>
+                    </div>
+                    <div class="region-item" style="border-left-color:#cfb8e0;">
+                        <div class="code">eu-west-1</div>
+                        <div class="name">Europe (Ireland)</div>
+                        <div style="font-size:0.7rem; color:#7a8a7a;">EU data residency (GDPR), low cost</div>
+                    </div>
+                    <div class="region-item" style="border-left-color:#e8c8b8;">
+                        <div class="code">eu-central-1</div>
+                        <div class="name">Europe (Frankfurt)</div>
+                        <div style="font-size:0.7rem; color:#7a8a7a;">EU data residency, strong compliance</div>
+                    </div>
+                    <div class="region-item" style="border-left-color:#b8d9c8;">
+                        <div class="code">ap-southeast-1</div>
+                        <div class="name">Asia Pacific (Singapore)</div>
+                        <div style="font-size:0.7rem; color:#7a8a7a;">APAC users, low latency</div>
+                    </div>
+                    <div class="region-item" style="border-left-color:#d4c8e8;">
+                        <div class="code">ap-northeast-1</div>
+                        <div class="name">Asia Pacific (Tokyo)</div>
+                        <div style="font-size:0.7rem; color:#7a8a7a;">Japan users, low latency</div>
+                    </div>
+                    <div class="region-item" style="border-left-color:#f0dcc8;">
+                        <div class="code">sa-east-1</div>
+                        <div class="name">South America (São Paulo)</div>
+                        <div style="font-size:0.7rem; color:#7a8a7a;">South America users (higher cost)</div>
+                    </div>
+                </div>
+                <br />
+                <div class="def-box" style="border-left-color:#f5d4aa;">
+                    <strong>💡 Pro Tip:</strong> If you're unsure which region to use, start with <span class="chip">us-east-1</span>. It has the <strong>widest service availability</strong> and often the <strong>lowest prices</strong>.
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🌍 regions</span>
+                <span>📍 us-east-1</span>
+                <span>💰 cost</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 7: Advanced Configuration -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:6">
+            <div class="note-pin">🔧</div>
+            <h2 class="note-title">Advanced Configuration Options</h2>
+            <div class="note-body">
+                <strong>Setting Region via Environment Variables</strong>
+                <br />
+                Environment variables <strong>override</strong> the configuration files:
+                <div class="code-block">
+                    <span class="comment"># Linux/macOS</span>
+                    <span class="keyword">export</span> AWS_DEFAULT_REGION=ap-southeast-1
+                    <span class="keyword">export</span> AWS_DEFAULT_OUTPUT=table
+
+                    <span class="comment"># Windows Command Prompt</span>
+                    setx AWS_DEFAULT_REGION ap-southeast-1
+                    setx AWS_DEFAULT_OUTPUT table
+
+                    <span class="comment"># Windows PowerShell</span>
+                    $Env:AWS_DEFAULT_REGION = "ap-southeast-1"
+                    $Env:AWS_DEFAULT_OUTPUT = "table"
+                </div>
+                <div class="def-box" style="border-left-color:#f0b8b8;">
+                    <strong>⚠️ Important:</strong> The environment variable <span class="chip">AWS_DEFAULT_REGION</span> was <span class="chip">AWS_REGION</span> in earlier versions. While both may work, <span class="chip">AWS_DEFAULT_REGION</span> is recommended for compatibility with the AWS CLI.
+                </div>
+                <br />
+                <strong>Using a Profile-Specific Region</strong>
+                <br />
+                Your <span class="chip">~/.aws/config</span> file can contain multiple profiles with different regions:
+                <div class="code-block">
+                    [default]
+                    region = us-east-1
+                    output = json
+
+                    [profile dev]
+                    region = us-west-2
+                    output = json
+
+                    [profile prod]
+                    region = eu-west-1
+                    output = table
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🔧 advanced</span>
+                <span>🌐 env vars</span>
+                <span>👥 profiles</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 8: Verifying Configuration -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:7">
+            <div class="note-pin">✅</div>
+            <h2 class="note-title">Verifying Your Configuration</h2>
+            <div class="note-body">
+                <strong>Method 1: List your current configuration settings</strong>
+                <div class="code-block">
+                    aws configure list
+                </div>
+                <strong>Expected Output:</strong>
+                <div class="code-block" style="color:#b8d9c8; font-size:0.75rem;">
+                      Name                    Value             Type    Location
+                      ----                    -----             ----    --------
+                   profile                &lt;not set&gt;             None    None
+                access_key     ****************XSHC shared-credentials-file
+                secret_key     ****************XSHC shared-credentials-file
+                    region                us-east-1      config-file    ~/.aws/config
+                </div>
+                <br />
+                <strong>Method 2: Run a simple command to test</strong>
+                <div class="code-block">
+                    aws ec2 describe-regions --output table
+                </div>
+                <div class="def-box" style="border-left-color:#aad0c4;">
+                    <strong>✅ This lists all available regions</strong> and confirms your CLI is working correctly.
+                </div>
+                <br />
+                <strong>Method 3: Check your current identity</strong>
+                <div class="code-block">
+                    aws sts get-caller-identity
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>✅ verify</span>
+                <span>📋 aws configure list</span>
+                <span>🔍 describe-regions</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 9: Quick Reference -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:8">
+            <div class="note-pin">📋</div>
+            <h2 class="note-title">Quick Reference: Configuration Commands</h2>
+            <div class="ascii-box">
+                <span class="title">REGION &amp; OUTPUT FORMAT CONFIGURATION COMMANDS</span>
+                ┌─────────────────────────────────────────────────────────────────────────────────┐
+                │              REGION &amp; OUTPUT FORMAT CONFIGURATION COMMANDS                      │
+                ├─────────────────────────────────────────────────────────────────────────────────┤
+                │                                                                                 │
+                │  🔹 SET DEFAULT REGION                                                         │
+                │  ┌─────────────────────────────────────────────────────────────────────────┐   │
+                │  │  aws configure set region &lt;region&gt;                                       │   │
+                │  │  aws configure set region us-west-2                                     │   │
+                │  │  aws configure set region eu-central-1 --profile prod                  │   │
+                │  └─────────────────────────────────────────────────────────────────────────┘   │
+                │                                                                                 │
+                │  🔹 SET DEFAULT OUTPUT FORMAT                                                  │
+                │  ┌─────────────────────────────────────────────────────────────────────────┐   │
+                │  │  aws configure set output &lt;format&gt;                                      │   │
+                │  │  aws configure set output table                                         │   │
+                │  │  aws configure set output json --profile dev                           │   │
+                │  └─────────────────────────────────────────────────────────────────────────┘   │
+                │                                                                                 │
+                │  🔹 OVERRIDE FOR A SINGLE COMMAND                                             │
+                │  ┌─────────────────────────────────────────────────────────────────────────┐   │
+                │  │  aws ec2 describe-instances --region us-east-1 --output table           │   │
+                │  └─────────────────────────────────────────────────────────────────────────┘   │
+                │                                                                                 │
+                │  🔹 VIEW CURRENT CONFIGURATION                                                │
+                │  ┌─────────────────────────────────────────────────────────────────────────┐   │
+                │  │  aws configure list                                                      │   │
+                │  │  aws configure list --profile dev                                       │   │
+                │  └─────────────────────────────────────────────────────────────────────────┘   │
+                │                                                                                 │
+                │  🔹 EDIT CONFIG FILES MANUALLY                                               │
+                │  ┌─────────────────────────────────────────────────────────────────────────┐   │
+                │  │  ~/.aws/config          # Linux/macOS                                   │   │
+                │  │  C:\Users\USERNAME\.aws\config    # Windows                             │   │
+                │  └─────────────────────────────────────────────────────────────────────────┘   │
+                │                                                                                 │
+                └─────────────────────────────────────────────────────────────────────────────────┘
+            </div>
+            <div class="note-meta">
+                <span>📋 quick reference</span>
+                <span>🔧 commands</span>
+                <span>🌍 region</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 10: Key Takeaways -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:9">
+            <div class="note-pin">📝</div>
+            <h2 class="note-title">Key Takeaways</h2>
+            <div class="note-body">
+                <ul>
+                    <li><strong>Set a default region</strong> to avoid specifying <span class="chip">--region</span> in every command. <span class="chip">us-east-1</span> is a common starting point.</li>
+                    <br />
+                    <li><strong>Set <span class="chip">json</span> as your default output format</strong> for scripting and automation. It's the most complete and machine-readable format.</li>
+                    <br />
+                    <li><strong>Configuration priority:</strong> Command-line options → Environment variables → Config file → EC2 metadata → Default.</li>
+                    <br />
+                    <li>Use <strong>named profiles</strong> to manage different regions and settings for different accounts or environments.</li>
+                    <br />
+                    <li>Verify your configuration with <span class="chip">aws configure list</span> or <span class="chip">aws sts get-caller-identity</span>.</li>
+                    <br />
+                    <li><strong>Region choice affects</strong> latency, cost, compliance, and service availability.</li>
+                    <br />
+                    <li>You can <strong>override</strong> the default region for a single command using <span class="chip">--region &lt;region&gt;</span>.</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>📝 takeaways</span>
+                <span>🌍 region</span>
+                <span>📊 output</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 11: Review Questions -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:10">
+            <div class="note-pin">❓</div>
+            <h2 class="note-title">Review Questions</h2>
+            <div class="note-body">
+
+                <div class="qa-box">
+                    <div class="q">Q1: What are the three output formats supported by the AWS CLI and when would you use each?</div>
+                    <div class="a"><strong>Answer:</strong> The AWS CLI supports <span class="chip">json</span>, <span class="chip">text</span>, and <span class="chip">table</span> output formats:
+                        <ul>
+                            <li><strong>json</strong> — recommended for most use cases, especially scripting and automation. Most complete and machine-readable.</li>
+                            <li><strong>table</strong> — best for human reading when you want a quick, formatted view of the data.</li>
+                            <li><strong>text</strong> — useful for basic shell script parsing where you need simple, space-delimited output.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#f5d4aa;">
+                    <div class="q">Q2: What is the purpose of setting a default region in the AWS CLI?</div>
+                    <div class="a"><strong>Answer:</strong> Setting a default region allows you to avoid specifying the <span class="chip">--region</span> parameter in every command. It also ensures <strong>consistency</strong> across your commands and helps enforce <strong>data residency</strong> requirements. The default region determines where resources are created unless overridden. If no default region is set, the CLI may fall back to <span class="chip">us-east-1</span> for some commands.</div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#b8cce0;">
+                    <div class="q">Q3: What is the precedence order for determining the AWS region in the CLI?</div>
+                    <div class="a"><strong>Answer:</strong> The AWS CLI determines the region using the following precedence order (highest to lowest):
+                        <ol>
+                            <li><strong>Command-line option:</strong> <span class="chip">--region</span> parameter</li>
+                            <li><strong>Environment variable:</strong> <span class="chip">AWS_DEFAULT_REGION</span></li>
+                            <li><strong>CLI configuration file:</strong> <span class="chip">~/.aws/config</span></li>
+                            <li><strong>EC2 instance metadata:</strong> if running on an EC2 instance with an IAM role</li>
+                            <li><strong>Default fallback:</strong> typically <span class="chip">us-east-1</span></li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#cfb8e0;">
+                    <div class="q">Q4: How can you verify your current AWS CLI configuration settings?</div>
+                    <div class="a"><strong>Answer:</strong> You can verify your configuration using:
+                        <ul>
+                            <li><span class="chip">aws configure list</span> — displays the source of each configuration value</li>
+                            <li><span class="chip">aws sts get-caller-identity</span> — confirms your credentials are valid</li>
+                            <li><span class="chip">aws ec2 describe-regions --output table</span> — lists all available regions and confirms the CLI is working correctly</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#aad0c4;">
+                    <div class="q">Q5: How can you set a different default region for a specific profile?</div>
+                    <div class="a"><strong>Answer:</strong> You can set a profile-specific region by editing the <span class="chip">~/.aws/config</span> file and adding the region setting under the profile section. Alternatively, use the command:
+                        <div class="code-block" style="font-size:0.75rem;">
+                            aws configure set region &lt;region&gt; --profile &lt;profile-name&gt;
+                        </div>
+                        <strong>Example:</strong> <span class="chip">aws configure set region eu-west-1 --profile prod</span> sets the region to <span class="chip">eu-west-1</span> for the <span class="chip">prod</span> profile.
+                    </div>
+                </div>
+
+            </div>
+            <div class="note-meta">
+                <span>❓ Q&A</span>
+                <span>📝 review</span>
+                <span>🧠 learning</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 12: Next Steps -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:11">
+            <div class="note-pin">🚀</div>
+            <h2 class="note-title">Next Steps</h2>
+            <div class="note-body">
+                <span style="font-size:2rem;">📖</span> Proceed to the next section:
+                <br /><br />
+                <span class="chip chip-purple" style="font-size:1.4rem;">3.4: Amazon EC2 Key Pairs</span>
+                <br /><br />
+                <div class="quote-box" style="border-left-color:#aad0c4;">
+                    "Configuring the right region and output format transforms the AWS CLI from a <strong>tool</strong> into a <strong>trusted companion</strong> — making every command <strong>faster, cleaner, and more predictable</strong>."
+                    <div class="author">— AWS CLI Best Practices</div>
+                </div>
+                <br />
+                <div style="text-align:center; font-size:2.5rem; opacity:0.3; letter-spacing:10px;">
+                    ❖ ❖ ❖
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🚀 next</span>
+                <span>📖 3.4</span>
+                <span>🔑 Key Pairs</span>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

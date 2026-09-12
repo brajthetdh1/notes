@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EC2 Chapter 8.4 · Handwritten Notes</title>
+
+    <!-- Google Fonts – clear handwriting -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Gloria+Hallelujah&family=Architects+Daughter&family=Reenie+Beanie&display=swap" rel="stylesheet" />
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: #f7f0e7;
+            background-image: radial-gradient(circle at 30% 20%, #fcf7f0 0%, #eee7dd 100%);
+            display: flex;
+            justify-content: center;
+            padding: 2.5rem 1.5rem;
+            font-family: 'Patrick Hand', 'Architects Daughter', cursive;
+        }
+
+        .notes-container {
+            max-width: 1100px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 2.8rem;
+            animation: floatUp 0.9s ease-out;
+        }
+
+        .note {
+            background: #fffcf5;
+            padding: 2.5rem 3.5rem;
+            border-radius: 28px 28px 28px 10px;
+            box-shadow: 0 12px 36px rgba(0,0,0,0.06), 0 2px 10px rgba(0,0,0,0.03), inset 0 -2px 0 rgba(0,0,0,0.02);
+            position: relative;
+            transition: transform 0.3s ease, box-shadow 0.35s ease;
+            transform-origin: left center;
+            border-left: 8px solid transparent;
+            animation: notePop 0.6s ease both;
+            animation-delay: calc(var(--i, 0) * 0.02s);
+        }
+
+        .note:nth-child(1) { border-left-color: #f0b8b8; }
+        .note:nth-child(2) { border-left-color: #aad0c4; }
+        .note:nth-child(3) { border-left-color: #f5d4aa; }
+        .note:nth-child(4) { border-left-color: #cfb8e0; }
+        .note:nth-child(5) { border-left-color: #b8cce0; }
+        .note:nth-child(6) { border-left-color: #e8c8b8; }
+        .note:nth-child(7) { border-left-color: #b8d9c8; }
+        .note:nth-child(8) { border-left-color: #f0c8c8; }
+        .note:nth-child(9) { border-left-color: #d4c8e8; }
+        .note:nth-child(10) { border-left-color: #c8dce8; }
+        .note:nth-child(11) { border-left-color: #e8d4b8; }
+        .note:nth-child(12) { border-left-color: #b8d4d4; }
+        .note:nth-child(13) { border-left-color: #f0d4c8; }
+        .note:nth-child(14) { border-left-color: #c8bcd4; }
+        .note:nth-child(15) { border-left-color: #d4e0b8; }
+
+        .note:hover {
+            transform: rotate(-0.8deg) scale(1.015);
+            box-shadow: 0 24px 48px rgba(0,0,0,0.09), 0 4px 16px rgba(0,0,0,0.05);
+        }
+
+        .note-title {
+            font-family: 'Gloria Hallelujah', 'Patrick Hand', cursive;
+            font-size: 2.2rem;
+            font-weight: 500;
+            color: #2f2216;
+            letter-spacing: 0.8px;
+            margin-bottom: 0.3rem;
+            line-height: 1.25;
+            display: inline-block;
+            position: relative;
+        }
+
+        .note-title::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: -4px;
+            width: 100%;
+            height: 8px;
+            background: repeating-linear-gradient(90deg, transparent, transparent 6px, rgba(240,184,184,0.4) 6px, rgba(240,184,184,0.4) 12px);
+            border-radius: 20px;
+            opacity: 0.8;
+        }
+
+        .note-subtitle {
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.3rem;
+            color: #5a4a3a;
+            margin: -0.1rem 0 1rem 0;
+            font-weight: 400;
+            opacity: 0.85;
+        }
+
+        .note-body {
+            font-family: 'Architects Daughter', 'Patrick Hand', cursive;
+            font-size: 1.35rem;
+            line-height: 1.85;
+            color: #2a1f15;
+            margin: 0.9rem 0 0.4rem 0;
+            font-weight: 400;
+            letter-spacing: 0.4px;
+        }
+
+        .note-body strong {
+            font-weight: 700;
+            color: #a05545;
+            background: rgba(240,184,184,0.15);
+            padding: 0 8px;
+            border-radius: 16px;
+            font-style: normal;
+        }
+
+        .note-body em {
+            color: #5a8a78;
+            font-style: italic;
+            text-decoration: underline wavy #aad0c4 3px;
+            font-weight: 500;
+        }
+
+        .note-body .chip {
+            background: #f0e9e0;
+            padding: 0.1rem 1.2rem;
+            border-radius: 40px;
+            display: inline-block;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.15rem;
+            color: #3d3226;
+            border: 1px dashed #cbb8a8;
+            margin: 2px 0;
+            font-weight: 400;
+        }
+
+        .note-body .chip-blue { background: #dce8f0; border-color: #aac0d0; }
+        .note-body .chip-green { background: #d8ece0; border-color: #a0c8b8; }
+        .note-body .chip-pink { background: #f0dcd8; border-color: #d8b8b0; }
+        .note-body .chip-purple { background: #e4d8ec; border-color: #c8b8d8; }
+        .note-body .chip-gold { background: #f0e8d0; border-color: #d8c8a8; }
+        .note-body .chip-teal { background: #c8e8dc; border-color: #88c8b8; }
+        .note-body .chip-orange { background: #f0dcc8; border-color: #d8b898; }
+        .note-body .chip-red { background: #f0d8d8; border-color: #d8b0b0; }
+
+        .code-block {
+            background: #1e1a16;
+            color: #e8e0d8;
+            padding: 1.2rem 1.8rem;
+            border-radius: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.7rem;
+            line-height: 1.7;
+            margin: 0.8rem 0 1rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            border-left: 4px solid #f0b8b8;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .code-block .comment { color: #7a8a7a; }
+        .code-block .keyword { color: #f0b8b8; }
+        .code-block .string { color: #b8d9c8; }
+        .code-block .function { color: #c8b8e8; }
+        .code-block .tag { color: #f5d4aa; }
+        .code-block .number { color: #f5d4aa; }
+        .code-block .bold { color: #f0e0c8; font-weight: bold; }
+
+        .ascii-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1rem 1.5rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.38rem;
+            line-height: 1.5;
+            color: #2a1f15;
+            border: 1px solid #e0d8ce;
+            margin: 0.8rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .ascii-box .highlight { color: #a05545; font-weight: bold; }
+        .ascii-box .title { color: #2f2216; font-weight: bold; text-decoration: underline; }
+
+        .styled-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 0.7rem;
+            background: #f8f4ec;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        }
+
+        .styled-table th {
+            background: #2f2216;
+            color: #f5efe8;
+            padding: 0.4rem 0.5rem;
+            text-align: left;
+            font-weight: 500;
+            font-size: 0.65rem;
+        }
+
+        .styled-table td {
+            padding: 0.4rem 0.5rem;
+            border-bottom: 1px solid #e8e0d6;
+            color: #2a1f15;
+            font-size: 0.65rem;
+        }
+
+        .styled-table tr:last-child td { border-bottom: none; }
+        .styled-table tr:hover td { background: #f0e9e0; }
+
+        .note-body ul, .note-body ol {
+            padding-left: 2rem;
+            margin: 0.5rem 0;
+        }
+        .note-body li { margin-bottom: 0.3rem; }
+
+        .def-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1.2rem 1.8rem;
+            margin: 0.8rem 0;
+            border-left: 6px solid #aad0c4;
+        }
+        .def-box strong { color: #a05545; }
+
+        .qa-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1rem 1.8rem;
+            margin: 0.8rem 0;
+            border-left: 6px solid #cfb8e0;
+        }
+        .qa-box .q { font-weight: 600; color: #a05545; font-size: 1.2rem; }
+        .qa-box .a { color: #3d6b5a; margin-top: 0.3rem; padding-left: 0.5rem; }
+
+        .note-meta {
+            margin-top: 1.5rem;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.05rem;
+            color: #9f8875;
+            display: flex;
+            align-items: center;
+            gap: 1.2rem;
+            flex-wrap: wrap;
+        }
+
+        .note-meta span {
+            background: #f1eae1;
+            padding: 0.3rem 1.4rem;
+            border-radius: 60px;
+            font-size: 1rem;
+            color: #4d3b2b;
+            box-shadow: inset 0 1px 4px rgba(0,0,0,0.02);
+            font-weight: 400;
+            letter-spacing: 0.3px;
+        }
+
+        .note-pin {
+            position: absolute;
+            top: -12px;
+            right: 34px;
+            font-size: 2.6rem;
+            opacity: 0.25;
+            transform: rotate(25deg);
+            filter: drop-shadow(0 3px 6px rgba(0,0,0,0.06));
+            transition: opacity 0.25s;
+        }
+        .note:hover .note-pin { opacity: 0.8; }
+
+        .strategy-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.3rem;
+            margin: 0.5rem 0;
+        }
+        .strategy-card {
+            background: #f8f4ec;
+            padding: 0.4rem 0.5rem;
+            border-radius: 8px;
+            border-left: 4px solid #b8cce0;
+            font-size: 0.68rem;
+        }
+        .strategy-card .name { font-weight: 700; color: #a05545; }
+        .strategy-card .goal { color: #3d6b5a; }
+
+        .cluster-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.3rem;
+            margin: 0.5rem 0;
+        }
+        .cluster-item {
+            background: #f8f4ec;
+            padding: 0.3rem 0.5rem;
+            border-radius: 6px;
+            border-left: 3px solid #aad0c4;
+            font-size: 0.68rem;
+        }
+        .cluster-item .c { font-weight: 700; color: #a05545; }
+
+        .limit-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.3rem;
+            margin: 0.5rem 0;
+        }
+        .limit-item {
+            background: #f8f4ec;
+            padding: 0.3rem 0.5rem;
+            border-radius: 6px;
+            border-left: 3px solid #f0b8b8;
+            font-size: 0.68rem;
+        }
+        .limit-item .l { font-weight: 700; color: #a05545; }
+
+        .workaround-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.3rem;
+            margin: 0.5rem 0;
+        }
+        .workaround-item {
+            background: #f8f4ec;
+            padding: 0.3rem 0.5rem;
+            border-radius: 6px;
+            border-left: 3px solid #f5d4aa;
+            font-size: 0.65rem;
+        }
+        .workaround-item .w { font-weight: 700; color: #a05545; }
+
+        @keyframes floatUp {
+            0% { opacity: 0; transform: translateY(50px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes notePop {
+            0% { opacity: 0; transform: scale(0.92) rotate(-3deg); }
+            80% { opacity: 1; transform: scale(1.015) rotate(0.8deg); }
+            100% { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+
+        @media (max-width: 700px) {
+            .note { padding: 1.8rem 1.8rem; }
+            .note-title { font-size: 1.8rem; }
+            .note-body { font-size: 1.15rem; line-height: 1.7; }
+            .note-body .chip { font-size: 1rem; padding: 0 0.8rem; }
+            .code-block { font-size: 0.6rem; padding: 1rem; }
+            .note-pin { font-size: 2rem; top: -8px; right: 18px; }
+            .styled-table { font-size: 0.6rem; }
+            .styled-table th, .styled-table td { padding: 0.3rem 0.4rem; font-size: 0.6rem; }
+            .notes-container { gap: 2rem; }
+            .ascii-box { font-size: 0.32rem; padding: 0.8rem 1rem; }
+            .qa-box { padding: 0.8rem 1.2rem; }
+            .def-box { padding: 0.8rem 1.2rem; }
+            .strategy-grid { grid-template-columns: 1fr; }
+            .cluster-grid { grid-template-columns: 1fr; }
+            .limit-grid { grid-template-columns: 1fr; }
+            .workaround-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="notes-container">
+
+        <!-- ============================================================ -->
+        <!-- NOTE 1: Chapter Title -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:0">
+            <div class="note-pin">🏗️</div>
+            <h2 class="note-title">8.4 Placement Groups</h2>
+            <div class="note-body">
+                A placement group is a logical construct that allows you to control the <strong>physical placement</strong> of your EC2 instances relative to each other within an Availability Zone. By influencing how instances are distributed across the underlying hardware, placement groups enable you to optimize for specific application needs, such as <strong>low-latency network performance</strong>, <strong>high throughput</strong>, or <strong>fault isolation</strong>.
+                <br /><br />
+                Placement groups are optional; if you don't launch your instances into one, EC2 attempts to spread them across underlying hardware to minimize correlated failures.
+            </div>
+            <div class="note-meta">
+                <span>🏗️ placement</span>
+                <span>📊 groups</span>
+                <span>⚡ EC2</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 2: Three Primary Strategies -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:1">
+            <div class="note-pin">🎯</div>
+            <h2 class="note-title">The Three Primary Placement Strategies</h2>
+            <div class="note-body">
+                <div class="strategy-grid">
+                    <div class="strategy-card" style="border-left-color:#b8cce0;">
+                        <div class="name">📦 Cluster</div>
+                        <div class="goal">Low latency, high throughput</div>
+                        <div style="font-size:0.6rem; color:#7a8a7a;">Same AZ, capacity constrained</div>
+                        <div style="font-size:0.6rem; margin-top:0.2rem;"><strong>Best for:</strong> HPC, tightly coupled workloads</div>
+                    </div>
+                    <div class="strategy-card" style="border-left-color:#f5d4aa;">
+                        <div class="name">🧩 Partition</div>
+                        <div class="goal">Fault isolation for large systems</div>
+                        <div style="font-size:0.6rem; color:#7a8a7a;">7 partitions per AZ</div>
+                        <div style="font-size:0.6rem; margin-top:0.2rem;"><strong>Best for:</strong> Hadoop, Cassandra, Kafka</div>
+                    </div>
+                    <div class="strategy-card" style="border-left-color:#aad0c4;">
+                        <div class="name">🔀 Spread</div>
+                        <div class="goal">Maximum fault tolerance</div>
+                        <div style="font-size:0.6rem; color:#7a8a7a;">7 instances per AZ per group</div>
+                        <div style="font-size:0.6rem; margin-top:0.2rem;"><strong>Best for:</strong> Critical small clusters</div>
+                    </div>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🎯 strategies</span>
+                <span>📦 cluster</span>
+                <span>🧩 partition</span>
+                <span>🔀 spread</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 3: 8.4.1 Cluster Placement Group -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:2">
+            <div class="note-pin">📦</div>
+            <h2 class="note-title">8.4.1 Cluster Placement Group</h2>
+            <div class="note-subtitle">Low Latency, High Throughput</div>
+            <div class="note-body">
+                <strong>📖 Complete Theory</strong>
+                <br />
+                A cluster placement group packs instances close together inside a <strong>single Availability Zone</strong>, placing them in the same high-bisection bandwidth segment of the network. This enables workloads to achieve the <strong>low-latency network performance</strong> and <strong>high throughput</strong> necessary for tightly-coupled node-to-node communication.
+                <br /><br />
+                <strong>Performance Benefits:</strong>
+                <ul>
+                    <li>Up to <span class="chip chip-green">10 Gbps</span> for single-flow traffic (vs. 5 Gbps outside the group)</li>
+                    <li>Lower latency between instances</li>
+                    <li>Enhanced networking support (ENA)</li>
+                </ul>
+                <br />
+                <strong>Key Characteristics:</strong>
+                <div class="cluster-grid">
+                    <div class="cluster-item" style="border-left-color:#b8cce0;">
+                        <div class="c">📍 Single AZ</div>
+                        <div style="font-size:0.6rem;">All instances in same Availability Zone</div>
+                    </div>
+                    <div class="cluster-item" style="border-left-color:#f0b8b8;">
+                        <div class="c">🚫 Not Supported</div>
+                        <div style="font-size:0.6rem;">T-series (burstable), M7i-flex, Mac1</div>
+                    </div>
+                    <div class="cluster-item" style="border-left-color:#f5d4aa;">
+                        <div class="c">🚀 Launch Best Practice</div>
+                        <div style="font-size:0.6rem;">Launch all instances in a single request, use same instance type</div>
+                    </div>
+                    <div class="cluster-item" style="border-left-color:#aad0c4;">
+                        <div class="c">🔒 Capacity</div>
+                        <div style="font-size:0.6rem;">Use On-Demand Capacity Reservation to guarantee capacity</div>
+                    </div>
+                </div>
+                <br />
+                <strong>When to Use:</strong>
+                <ul>
+                    <li>High-Performance Computing (HPC)</li>
+                    <li>Tightly-coupled Big Data workloads</li>
+                    <li>Database clusters requiring minimal latency</li>
+                    <li>Financial trading systems</li>
+                </ul>
+            </div>
+            <div class="note-body">
+                <strong>Creating a Cluster Placement Group (CLI):</strong>
+                <div class="code-block" style="font-size:0.6rem;">
+                    <span class="comment"># Create the placement group</span>
+                    aws ec2 create-placement-group \
+                        --group-name my-hpc-cluster \
+                        --strategy cluster
+
+                    <span class="comment"># Launch instances into the group</span>
+                    aws ec2 run-instances \
+                        --image-id ami-0abcdef1234567890 \
+                        --instance-type c5n.18xlarge \
+                        --placement GroupName=my-hpc-cluster \
+                        --key-name my-key \
+                        --count 4
+                </div>
+                <br />
+                <div class="def-box" style="border-left-color:#f0b8b8;">
+                    <strong>⚠️ Important Limitation:</strong> Traffic to the internet or over AWS Direct Connect is limited to <span class="chip">5 Gbps</span> for instances in a cluster placement group.
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>📦 cluster</span>
+                <span>⚡ 10 Gbps</span>
+                <span>📍 single AZ</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 4: 8.4.2 Partition Placement Group -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:3">
+            <div class="note-pin">🧩</div>
+            <h2 class="note-title">8.4.2 Partition Placement Group</h2>
+            <div class="note-subtitle">Hardware Isolation for Large Distributed Systems</div>
+            <div class="note-body">
+                <strong>📖 Complete Theory</strong>
+                <br />
+                A partition placement group divides your instances into logical groups called <strong>partitions</strong>. Each partition is placed on its own set of racks, where each rack has independent network and power sources. This ensures that instances in one partition <strong>do not share</strong> the underlying hardware with instances in other partitions.
+                <br /><br />
+                <div class="ascii-box">
+                    <span class="title">PARTITION PLACEMENT GROUP</span>
+                    ┌─────────────────────────────────────────────────────────────────────────────────────┐
+                    │                    PARTITION PLACEMENT GROUP                                      │
+                    ├─────────────────────────────────────────────────────────────────────────────────────┤
+                    │                                                                                     │
+                    │  ┌─────────────────────────────────────────────────────────────────────────────────┐│
+                    │  │  PARTITION PLACEMENT GROUP (Single Availability Zone)                          ││
+                    │  │                                                                                 ││
+                    │  │  ┌─────────────────────────────────────────────────────────────────────────┐   ││
+                    │  │  │  Rack Set 1 (Network/Power A)          │  Rack Set 2 (Network/Power B)  │   ││
+                    │  │  │  ┌────────────────────────────────┐   │  ┌───────────────────────────┐   │   ││
+                    │  │  │  │  Partition 1                   │   │  │  Partition 2              │   │   ││
+                    │  │  │  │  ┌──────┐  ┌──────┐  ┌──────┐│   │  │  ┌──────┐  ┌──────┐      │   │   ││
+                    │  │  │  │  │ EC2  │  │ EC2  │  │ EC2  ││   │  │  │ EC2  │  │ EC2  │      │   │   ││
+                    │  │  │  │  └──────┘  └──────┘  └──────┘│   │  │  └──────┘  └──────┘      │   │   ││
+                    │  │  │  └────────────────────────────────┘   │  └───────────────────────────┘   │   ││
+                    │  │  └──────────────────────────────────────────┼────────────────────────────────┘   ││
+                    │  │                                             │                                    ││
+                    │  └─────────────────────────────────────────────────────────────────────────────────┘│
+                    │                                                                                     │
+                    └─────────────────────────────────────────────────────────────────────────────────────┘
+                </div>
+                <br />
+                <strong>Key Characteristics:</strong>
+                <div class="cluster-grid">
+                    <div class="cluster-item" style="border-left-color:#b8cce0;">
+                        <div class="c">🔒 Hardware Isolation</div>
+                        <div style="font-size:0.6rem;">Each partition on separate racks with independent power/network</div>
+                    </div>
+                    <div class="cluster-item" style="border-left-color:#aad0c4;">
+                        <div class="c">🌍 Multi-AZ Support</div>
+                        <div style="font-size:0.6rem;">Can span multiple Availability Zones</div>
+                    </div>
+                    <div class="cluster-item" style="border-left-color:#f5d4aa;">
+                        <div class="c">📊 Partition Limit</div>
+                        <div style="font-size:0.6rem;">Maximum of <span class="chip">7 partitions</span> per AZ</div>
+                    </div>
+                    <div class="cluster-item" style="border-left-color:#cfb8e0;">
+                        <div class="c">👁️ Visibility</div>
+                        <div style="font-size:0.6rem;">See which instances are in which partition — topology-aware apps</div>
+                    </div>
+                </div>
+                <br />
+                <strong>When to Use:</strong>
+                <ul>
+                    <li>Hadoop HDFS — data replication across racks</li>
+                    <li>Apache Cassandra — replicas on different partitions</li>
+                    <li>Apache Kafka — brokers distributed across partitions</li>
+                    <li>HBase — region servers isolated across hardware</li>
+                </ul>
+            </div>
+            <div class="note-body">
+                <strong>Creating a Partition Placement Group (CLI):</strong>
+                <div class="code-block" style="font-size:0.6rem;">
+                    <span class="comment"># Create with 5 partitions</span>
+                    aws ec2 create-placement-group \
+                        --group-name HDFS-Group-A \
+                        --strategy partition \
+                        --partition-count 5
+
+                    <span class="comment"># Launch into specific partition</span>
+                    aws ec2 run-instances \
+                        --image-id ami-0abcdef1234567890 \
+                        --instance-type c5.xlarge \
+                        --placement "GroupName=HDFS-Group-A, PartitionNumber=3" \
+                        --key-name my-key \
+                        --count 2
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🧩 partition</span>
+                <span>🔒 rack isolation</span>
+                <span>📊 7 partitions</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 5: 8.4.3 Spread Placement Group -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:4">
+            <div class="note-pin">🔀</div>
+            <h2 class="note-title">8.4.3 Spread Placement Group</h2>
+            <div class="note-subtitle">Maximum Fault Tolerance for Critical Workloads</div>
+            <div class="note-body">
+                <strong>📖 Complete Theory</strong>
+                <br />
+                A spread placement group places a small group of instances across <strong>distinct underlying hardware</strong> to reduce the risk of simultaneous failures. This strategy provides the <strong>highest level of fault tolerance</strong> for critical components.
+                <br /><br />
+                <strong>Key Characteristics:</strong>
+                <div class="cluster-grid">
+                    <div class="cluster-item" style="border-left-color:#b8cce0;">
+                        <div class="c">🔒 Hardware Isolation</div>
+                        <div style="font-size:0.6rem;">Each instance on a distinct physical rack with independent power/network</div>
+                    </div>
+                    <div class="cluster-item" style="border-left-color:#f0b8b8;">
+                        <div class="c">📊 Instance Limit</div>
+                        <div style="font-size:0.6rem;">Maximum of <span class="chip">7 running instances</span> per AZ per group</div>
+                    </div>
+                    <div class="cluster-item" style="border-left-color:#aad0c4;">
+                        <div class="c">🌍 Multi-AZ Support</div>
+                        <div style="font-size:0.6rem;">Can span multiple Availability Zones (21 instances in 3 AZs)</div>
+                    </div>
+                    <div class="cluster-item" style="border-left-color:#f5d4aa;">
+                        <div class="c">💰 No Cost</div>
+                        <div style="font-size:0.6rem;">No additional charge for using spread placement groups</div>
+                    </div>
+                </div>
+                <br />
+                <strong>When to Use:</strong>
+                <ul>
+                    <li>Database clusters (MongoDB, Cassandra, Redis) — replicas on different hardware</li>
+                    <li>Quorum-based systems (ZooKeeper, etcd) — prevent quorum loss</li>
+                    <li>Active-active failover pairs</li>
+                    <li>Critical application tiers (control-plane nodes, load balancers)</li>
+                    <li>Payment processing systems</li>
+                </ul>
+            </div>
+            <div class="note-body">
+                <strong>Creating a Spread Placement Group (CLI):</strong>
+                <div class="code-block" style="font-size:0.6rem;">
+                    <span class="comment"># Create spread placement group</span>
+                    aws ec2 create-placement-group \
+                        --group-name critical-db-spread \
+                        --strategy spread \
+                        --spread-level rack
+
+                    <span class="comment"># Launch instances</span>
+                    aws ec2 run-instances \
+                        --image-id ami-0abcdef1234567890 \
+                        --instance-type r5.2xlarge \
+                        --count 1 \
+                        --placement GroupName=critical-db-spread \
+                        --key-name my-key
+                </div>
+                <br />
+                <div class="def-box" style="border-left-color:#f0b8b8;">
+                    <strong>⚠️ The 7-Instance Limit:</strong> If you attempt to launch an eighth instance in the same AZ and same spread group, the launch will <strong>fail</strong>.
+                </div>
+                <br />
+                <strong>Workarounds:</strong>
+                <div class="workaround-grid">
+                    <div class="workaround-item" style="border-left-color:#b8cce0;">
+                        <div class="w">🌍 Use multiple AZs</div>
+                        <div style="font-size:0.55rem;">3 AZs = up to 21 instances</div>
+                    </div>
+                    <div class="workaround-item" style="border-left-color:#f5d4aa;">
+                        <div class="w">📊 Multiple groups</div>
+                        <div style="font-size:0.55rem;">Separate groups for different tiers</div>
+                    </div>
+                    <div class="workaround-item" style="border-left-color:#aad0c4;">
+                        <div class="w">🧩 Partition groups</div>
+                        <div style="font-size:0.55rem;">For larger systems needing isolation</div>
+                    </div>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🔀 spread</span>
+                <span>🔒 max fault tolerance</span>
+                <span>📊 7 instances/AZ</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 6: Managing Placement Groups -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:5">
+            <div class="note-pin">🛠️</div>
+            <h2 class="note-title">Managing Placement Groups</h2>
+            <div class="note-body">
+                <strong>Common CLI Commands:</strong>
+                <div class="code-block" style="font-size:0.6rem;">
+                    <span class="comment"># Create a cluster placement group</span>
+                    aws ec2 create-placement-group \
+                        --group-name my-cluster \
+                        --strategy cluster
+
+                    <span class="comment"># Create a partition placement group with 5 partitions</span>
+                    aws ec2 create-placement-group \
+                        --group-name HDFS-Group-A \
+                        --strategy partition \
+                        --partition-count 5
+
+                    <span class="comment"># Create a spread placement group</span>
+                    aws ec2 create-placement-group \
+                        --group-name critical-db-spread \
+                        --strategy spread
+
+                    <span class="comment"># Describe all placement groups</span>
+                    aws ec2 describe-placement-groups
+
+                    <span class="comment"># Launch instances into a placement group</span>
+                    aws ec2 run-instances --placement "GroupName=my-cluster" ...
+                </div>
+                <br />
+                <strong>Important Rules and Limitations:</strong>
+                <div class="limit-grid">
+                    <div class="limit-item" style="border-left-color:#b8cce0;">
+                        <div class="l">📌 One Group Per Instance</div>
+                        <div style="font-size:0.6rem;">An instance can only be in one placement group</div>
+                    </div>
+                    <div class="limit-item" style="border-left-color:#f5d4aa;">
+                        <div class="l">📊 Max Groups Per Region</div>
+                        <div style="font-size:0.6rem;">500 placement groups per Region</div>
+                    </div>
+                    <div class="limit-item" style="border-left-color:#f0b8b8;">
+                        <div class="l">🚫 No Dedicated Hosts</div>
+                        <div style="font-size:0.6rem;">Cannot launch Dedicated Hosts in placement groups</div>
+                    </div>
+                    <div class="limit-item" style="border-left-color:#cfb8e0;">
+                        <div class="l">🚫 No Modifications</div>
+                        <div style="font-size:0.6rem;">Cannot change placement group after launch</div>
+                    </div>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🛠️ management</span>
+                <span>📋 CLI</span>
+                <span>⚠️ limitations</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 7: Key Takeaways -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:6">
+            <div class="note-pin">📝</div>
+            <h2 class="note-title">Key Takeaways</h2>
+            <div class="note-body">
+                <ul>
+                    <li><strong>Cluster</strong> — Low latency, high throughput within a single AZ. Up to <span class="chip">10 Gbps</span> single-flow traffic. Best for HPC and tightly coupled workloads.</li>
+                    <br />
+                    <li><strong>Partition</strong> — Rack-level isolation for large distributed systems. <span class="chip">7 partitions per AZ</span>. Best for Hadoop, Cassandra, and Kafka.</li>
+                    <br />
+                    <li><strong>Spread</strong> — Maximum fault tolerance for critical small clusters. <span class="chip">7 instances per AZ</span>. Best for database clusters and quorum systems.</li>
+                    <br />
+                    <li><strong>One group per instance</strong> — An instance can only belong to one placement group at a time.</li>
+                    <br />
+                    <li><strong>No modifications</strong> — You cannot change an instance's placement group after launch.</li>
+                    <br />
+                    <li><strong>Capacity constraints</strong> — Cluster groups can experience "insufficient capacity" errors if adding instances later.</li>
+                    <br />
+                    <li><strong>No cost</strong> — Placement groups are free to use.</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>📝 takeaways</span>
+                <span>🏗️ placement</span>
+                <span>📊 strategies</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 8: Review Questions -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:7">
+            <div class="note-pin">❓</div>
+            <h2 class="note-title">Review Questions</h2>
+            <div class="note-body">
+
+                <div class="qa-box">
+                    <div class="q">Q1: What are the three main placement strategies in AWS and what is each used for?</div>
+                    <div class="a"><strong>Answer:</strong> The three strategies are <strong>Cluster</strong> (for low latency and high throughput within a single AZ, ideal for HPC), <strong>Partition</strong> (for fault isolation in large distributed systems like HDFS and Kafka), and <strong>Spread</strong> (for maximum fault tolerance for a small number of critical instances).</div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#f5d4aa;">
+                    <div class="q">Q2: What is the key limitation of a cluster placement group?</div>
+                    <div class="a"><strong>Answer:</strong> A cluster placement group <strong>cannot span multiple Availability Zones</strong>; all instances must be in the same AZ. Additionally, you may receive <span class="chip">capacity errors</span> if you try to add instances later, so it's best to launch all required instances at once.</div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#b8cce0;">
+                    <div class="q">Q3: What is the maximum number of running instances in a spread placement group?</div>
+                    <div class="a"><strong>Answer:</strong> A spread placement group supports a maximum of <span class="chip">7 running instances</span> per Availability Zone. If your Region has three AZs, you could have up to <span class="chip">21 instances</span> in a single spread group.</div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#cfb8e0;">
+                    <div class="q">Q4: Why would you use a partition placement group instead of a spread placement group?</div>
+                    <div class="a"><strong>Answer:</strong> Partition placement groups are designed for <strong>large-scale, replicated workloads</strong> (like HDFS or Kafka) that require fault isolation for many instances across up to <span class="chip">7 partitions per AZ</span>. Spread placement groups are limited to only <span class="chip">7 instances per AZ</span> and are better suited for a small number of critical components.</div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#aad0c4;">
+                    <div class="q">Q5: What are the workarounds for the 7-instance-per-AZ limit in a spread placement group?</div>
+                    <div class="a"><strong>Answer:</strong> You can either:
+                        <ul>
+                            <li><strong>Use multiple AZs</strong> — 3 AZs = up to 21 instances</li>
+                            <li><strong>Create multiple spread groups</strong> — separate groups for different tiers</li>
+                            <li><strong>Switch to partition placement groups</strong> — for larger systems needing hardware isolation</li>
+                        </ul>
+                    </div>
+                </div>
+
+            </div>
+            <div class="note-meta">
+                <span>❓ Q&A</span>
+                <span>📝 review</span>
+                <span>🧠 learning</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 9: Next Steps -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:8">
+            <div class="note-pin">🚀</div>
+            <h2 class="note-title">Next Steps</h2>
+            <div class="note-body">
+                <span style="font-size:2rem;">📖</span> Proceed to the next chapter:
+                <br /><br />
+                <span class="chip chip-purple" style="font-size:1.4rem;">Chapter 9: Amazon EBS (Elastic Block Store)</span>
+                <br /><br />
+                <div class="quote-box" style="border-left-color:#aad0c4;">
+                    "Placement groups give you <strong>control</strong> over the physical fabric of the cloud — whether you need <strong>speed</strong>, <strong>isolation</strong>, or <strong>resilience</strong>, there's a strategy for that."
+                    <div class="author">— AWS EC2 Principles</div>
+                </div>
+                <br />
+                <div style="text-align:center; font-size:2.5rem; opacity:0.3; letter-spacing:10px;">
+                    ❖ ❖ ❖
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🚀 next</span>
+                <span>📖 Chapter 9</span>
+                <span>💾 EBS</span>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

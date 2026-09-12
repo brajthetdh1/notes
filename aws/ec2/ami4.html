@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EC2 Chapter 4.3.1 · Handwritten Notes</title>
+
+    <!-- Google Fonts – clear handwriting -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Gloria+Hallelujah&family=Architects+Daughter&family=Reenie+Beanie&display=swap" rel="stylesheet" />
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: #f7f0e7;
+            background-image: radial-gradient(circle at 30% 20%, #fcf7f0 0%, #eee7dd 100%);
+            display: flex;
+            justify-content: center;
+            padding: 2.5rem 1.5rem;
+            font-family: 'Patrick Hand', 'Architects Daughter', cursive;
+        }
+
+        .notes-container {
+            max-width: 1100px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 2.8rem;
+            animation: floatUp 0.9s ease-out;
+        }
+
+        .note {
+            background: #fffcf5;
+            padding: 2.5rem 3.5rem;
+            border-radius: 28px 28px 28px 10px;
+            box-shadow: 0 12px 36px rgba(0,0,0,0.06), 0 2px 10px rgba(0,0,0,0.03), inset 0 -2px 0 rgba(0,0,0,0.02);
+            position: relative;
+            transition: transform 0.3s ease, box-shadow 0.35s ease;
+            transform-origin: left center;
+            border-left: 8px solid transparent;
+            animation: notePop 0.6s ease both;
+            animation-delay: calc(var(--i, 0) * 0.05s);
+        }
+
+        .note:nth-child(1) { border-left-color: #f0b8b8; }
+        .note:nth-child(2) { border-left-color: #aad0c4; }
+        .note:nth-child(3) { border-left-color: #f5d4aa; }
+        .note:nth-child(4) { border-left-color: #cfb8e0; }
+        .note:nth-child(5) { border-left-color: #b8cce0; }
+        .note:nth-child(6) { border-left-color: #e8c8b8; }
+        .note:nth-child(7) { border-left-color: #b8d9c8; }
+        .note:nth-child(8) { border-left-color: #f0c8c8; }
+
+        .note:hover {
+            transform: rotate(-0.8deg) scale(1.015);
+            box-shadow: 0 24px 48px rgba(0,0,0,0.09), 0 4px 16px rgba(0,0,0,0.05);
+        }
+
+        .note-title {
+            font-family: 'Gloria Hallelujah', 'Patrick Hand', cursive;
+            font-size: 2.2rem;
+            font-weight: 500;
+            color: #2f2216;
+            letter-spacing: 0.8px;
+            margin-bottom: 0.3rem;
+            line-height: 1.25;
+            display: inline-block;
+            position: relative;
+        }
+
+        .note-title::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: -4px;
+            width: 100%;
+            height: 8px;
+            background: repeating-linear-gradient(90deg, transparent, transparent 6px, rgba(240,184,184,0.4) 6px, rgba(240,184,184,0.4) 12px);
+            border-radius: 20px;
+            opacity: 0.8;
+        }
+
+        .note-subtitle {
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.3rem;
+            color: #5a4a3a;
+            margin: -0.1rem 0 1rem 0;
+            font-weight: 400;
+            opacity: 0.85;
+        }
+
+        .note-body {
+            font-family: 'Architects Daughter', 'Patrick Hand', cursive;
+            font-size: 1.35rem;
+            line-height: 1.85;
+            color: #2a1f15;
+            margin: 0.9rem 0 0.4rem 0;
+            font-weight: 400;
+            letter-spacing: 0.4px;
+        }
+
+        .note-body strong {
+            font-weight: 700;
+            color: #a05545;
+            background: rgba(240,184,184,0.15);
+            padding: 0 8px;
+            border-radius: 16px;
+            font-style: normal;
+        }
+
+        .note-body em {
+            color: #5a8a78;
+            font-style: italic;
+            text-decoration: underline wavy #aad0c4 3px;
+            font-weight: 500;
+        }
+
+        .note-body .chip {
+            background: #f0e9e0;
+            padding: 0.1rem 1.2rem;
+            border-radius: 40px;
+            display: inline-block;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.15rem;
+            color: #3d3226;
+            border: 1px dashed #cbb8a8;
+            margin: 2px 0;
+            font-weight: 400;
+        }
+
+        .note-body .chip-blue { background: #dce8f0; border-color: #aac0d0; }
+        .note-body .chip-green { background: #d8ece0; border-color: #a0c8b8; }
+        .note-body .chip-pink { background: #f0dcd8; border-color: #d8b8b0; }
+        .note-body .chip-purple { background: #e4d8ec; border-color: #c8b8d8; }
+        .note-body .chip-gold { background: #f0e8d0; border-color: #d8c8a8; }
+        .note-body .chip-teal { background: #c8e8dc; border-color: #88c8b8; }
+        .note-body .chip-orange { background: #f0dcc8; border-color: #d8b898; }
+        .note-body .chip-red { background: #f0d8d8; border-color: #d8b0b0; }
+
+        .code-block {
+            background: #1e1a16;
+            color: #e8e0d8;
+            padding: 1.2rem 1.8rem;
+            border-radius: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            line-height: 1.7;
+            margin: 0.8rem 0 1rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            border-left: 4px solid #f0b8b8;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .code-block .comment { color: #7a8a7a; }
+        .code-block .keyword { color: #f0b8b8; }
+        .code-block .string { color: #b8d9c8; }
+        .code-block .function { color: #c8b8e8; }
+        .code-block .tag { color: #f5d4aa; }
+        .code-block .number { color: #f5d4aa; }
+        .code-block .bold { color: #f0e0c8; font-weight: bold; }
+
+        .ascii-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1rem 1.5rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.55rem;
+            line-height: 1.5;
+            color: #2a1f15;
+            border: 1px solid #e0d8ce;
+            margin: 0.8rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .ascii-box .highlight { color: #a05545; font-weight: bold; }
+        .ascii-box .title { color: #2f2216; font-weight: bold; text-decoration: underline; }
+
+        .styled-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 0.95rem;
+            background: #f8f4ec;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        }
+
+        .styled-table th {
+            background: #2f2216;
+            color: #f5efe8;
+            padding: 0.7rem 1rem;
+            text-align: left;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .styled-table td {
+            padding: 0.7rem 1rem;
+            border-bottom: 1px solid #e8e0d6;
+            color: #2a1f15;
+        }
+
+        .styled-table tr:last-child td { border-bottom: none; }
+        .styled-table tr:hover td { background: #f0e9e0; }
+
+        .note-body ul, .note-body ol {
+            padding-left: 2rem;
+            margin: 0.5rem 0;
+        }
+        .note-body li { margin-bottom: 0.3rem; }
+
+        .def-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1.2rem 1.8rem;
+            margin: 0.8rem 0;
+            border-left: 6px solid #aad0c4;
+        }
+        .def-box strong { color: #a05545; }
+
+        .qa-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1rem 1.8rem;
+            margin: 0.8rem 0;
+            border-left: 6px solid #cfb8e0;
+        }
+        .qa-box .q { font-weight: 600; color: #a05545; font-size: 1.2rem; }
+        .qa-box .a { color: #3d6b5a; margin-top: 0.3rem; padding-left: 0.5rem; }
+
+        .note-meta {
+            margin-top: 1.5rem;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.05rem;
+            color: #9f8875;
+            display: flex;
+            align-items: center;
+            gap: 1.2rem;
+            flex-wrap: wrap;
+        }
+
+        .note-meta span {
+            background: #f1eae1;
+            padding: 0.3rem 1.4rem;
+            border-radius: 60px;
+            font-size: 1rem;
+            color: #4d3b2b;
+            box-shadow: inset 0 1px 4px rgba(0,0,0,0.02);
+            font-weight: 400;
+            letter-spacing: 0.3px;
+        }
+
+        .note-pin {
+            position: absolute;
+            top: -12px;
+            right: 34px;
+            font-size: 2.6rem;
+            opacity: 0.25;
+            transform: rotate(25deg);
+            filter: drop-shadow(0 3px 6px rgba(0,0,0,0.06));
+            transition: opacity 0.25s;
+        }
+        .note:hover .note-pin { opacity: 0.8; }
+
+        .path-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.8rem;
+            margin: 0.5rem 0;
+        }
+        .path-card {
+            background: #f8f4ec;
+            padding: 0.8rem 1rem;
+            border-radius: 12px;
+            border-left: 4px solid #b8cce0;
+            font-size: 0.9rem;
+        }
+        .path-card .name { font-weight: 700; color: #a05545; font-size: 1.1rem; }
+        .path-card .desc { color: #3d6b5a; }
+
+        .tab-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 0.4rem;
+            margin: 0.5rem 0;
+        }
+        .tab-item {
+            background: #f8f4ec;
+            padding: 0.3rem 0.6rem;
+            border-radius: 6px;
+            border-left: 3px solid #f5d4aa;
+            text-align: center;
+            font-size: 0.82rem;
+        }
+        .tab-item .tab { font-weight: 700; color: #a05545; }
+
+        @keyframes floatUp {
+            0% { opacity: 0; transform: translateY(50px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes notePop {
+            0% { opacity: 0; transform: scale(0.92) rotate(-3deg); }
+            80% { opacity: 1; transform: scale(1.015) rotate(0.8deg); }
+            100% { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+
+        @media (max-width: 700px) {
+            .note { padding: 1.8rem 1.8rem; }
+            .note-title { font-size: 1.8rem; }
+            .note-body { font-size: 1.15rem; line-height: 1.7; }
+            .note-body .chip { font-size: 1rem; padding: 0 0.8rem; }
+            .code-block { font-size: 0.7rem; padding: 1rem; }
+            .note-pin { font-size: 2rem; top: -8px; right: 18px; }
+            .styled-table { font-size: 0.8rem; }
+            .styled-table th, .styled-table td { padding: 0.5rem 0.7rem; }
+            .notes-container { gap: 2rem; }
+            .ascii-box { font-size: 0.45rem; padding: 0.8rem 1rem; }
+            .qa-box { padding: 0.8rem 1.2rem; }
+            .def-box { padding: 0.8rem 1.2rem; }
+            .path-grid { grid-template-columns: 1fr; }
+            .tab-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="notes-container">
+
+        <!-- ============================================================ -->
+        <!-- NOTE 1: Chapter Title -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:0">
+            <div class="note-pin">🖥️</div>
+            <h2 class="note-title">4.3.1 Using the EC2 Console to Find an AMI</h2>
+            <div class="note-body">
+                The EC2 console provides a <strong>user-friendly interface</strong> for discovering and selecting AMIs. There are <strong>two main paths</strong>: selecting an AMI during the instance launch process, or searching for an AMI through the dedicated AMI page. Both approaches are effective, and the choice depends on your workflow.
+            </div>
+            <div class="note-meta">
+                <span>🖥️ console</span>
+                <span>🔍 finding AMIs</span>
+                <span>🚀 launch wizard</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 2: Path 1 – Launch Instance Wizard -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:1">
+            <div class="note-pin">🚀</div>
+            <h2 class="note-title">Path 1: The Launch Instance Wizard</h2>
+            <div class="note-subtitle">Quick Start</div>
+            <div class="note-body">
+                The Launch Instance wizard is the <strong>most direct path</strong> if you're planning to launch an instance immediately. It guides you through all the required configuration steps, starting with the AMI selection.
+                <br /><br />
+                <strong>1. Open the EC2 Console and Set Your Region</strong>
+                <ul>
+                    <li>Sign in to the AWS Management Console and navigate to the EC2 service at <span class="chip">https://console.aws.amazon.com/ec2/</span>.</li>
+                    <li>Select the <strong>AWS Region</strong> where you want to launch your instance. <span class="chip chip-pink">AMI IDs are unique to each Region</span>.</li>
+                </ul>
+                <br />
+                <strong>2. Start the Launch Instance Wizard</strong>
+                <ul>
+                    <li>From the EC2 Dashboard, click the <span class="chip">Launch instance</span> button.</li>
+                </ul>
+                <br />
+                <strong>3. Navigate the AMI Section</strong>
+                <ul>
+                    <li>In the launch wizard, find the <span class="chip">Application and OS Images (Amazon Machine Image)</span> section.</li>
+                    <li>You'll see several tabs to help you find the right image.</li>
+                </ul>
+            </div>
+            <div class="ascii-box">
+                <span class="title">LAUNCH INSTANCE WIZARD - AMI SELECTION</span>
+                ┌───────────────────────────────────────────────────────────────────────────────────────────────────┐
+                │                          LAUNCH INSTANCE WIZARD - AMI SELECTION                                   │
+                ├───────────────────────────────────────────────────────────────────────────────────────────────────┤
+                │                                                                                                   │
+                │  Application and OS Images (Amazon Machine Image)                                                │
+                │  ┌─────────────────────────────────────────────────────────────────────────────────────────────┐ │
+                │  │  Quick Start │ My AMIs │ AWS Marketplace │ Community AMIs                                    │ │
+                │  │                                                                                             │ │
+                │  │  [Search for AMIs...]                                                                      │ │
+                │  │                                                                                             │ │
+                │  │  ☑ Free tier only                                                                          │ │
+                │  │                                                                                             │ │
+                │  │  ┌─────────────────────────────────────────────────────────────────────────────────────┐   │ │
+                │  │  │  Amazon Linux 2023 AMI           Free tier eligible   ami-0abcdef1234567890          │   │ │
+                │  │  │  Ubuntu Server 22.04 LTS         Free tier eligible   ami-0fedcba9876543210          │   │ │
+                │  │  │  Windows Server 2022 Base        ami-0a1b2c3d4e5f67890                               │   │ │
+                │  │  │  ...                                                                                  │   │ │
+                │  │  └─────────────────────────────────────────────────────────────────────────────────────┘   │ │
+                │  │                                                                                             │ │
+                │  │  [Browse more AMIs]                                                                        │ │
+                │  └─────────────────────────────────────────────────────────────────────────────────────────────┘ │
+                │                                                                                                   │
+                └───────────────────────────────────────────────────────────────────────────────────────────────────┘
+            </div>
+            <div class="note-body">
+                <strong>4. Using the Quick Start Tab</strong>
+                <ul>
+                    <li>The <span class="chip">Quick Start</span> tab is the default view. It lists <strong>popular, commonly used AMIs</strong> organized by operating system.</li>
+                    <li>Select the <span class="chip">Free tier only</span> checkbox to filter for AMIs eligible for the AWS Free Tier.</li>
+                </ul>
+                <br />
+                <strong>5. Using the Other Tabs</strong>
+                <div class="tab-grid">
+                    <div class="tab-item" style="border-left-color:#b8cce0;">
+                        <div class="tab">My AMIs</div>
+                        <div style="font-size:0.7rem; color:#3d6b5a;">Private AMIs you own or shared with you</div>
+                    </div>
+                    <div class="tab-item" style="border-left-color:#aad0c4;">
+                        <div class="tab">AWS Marketplace</div>
+                        <div style="font-size:0.7rem; color:#3d6b5a;">Third-party AMIs with commercial software</div>
+                    </div>
+                    <div class="tab-item" style="border-left-color:#f5d4aa;">
+                        <div class="tab">Community AMIs</div>
+                        <div style="font-size:0.7rem; color:#3d6b5a;">Public AMIs shared by other users</div>
+                    </div>
+                </div>
+                <br />
+                <div class="def-box" style="border-left-color:#f0b8b8;">
+                    <strong>⚠️ Important:</strong> Community AMIs are <strong>not verified</strong> by AWS and should be used <strong>with caution</strong>.
+                </div>
+                <br />
+                <strong>6. Search and Select</strong>
+                <ul>
+                    <li>Use the <span class="chip">Search</span> bar to find AMIs by keyword (e.g., "Ubuntu" or "Nginx").</li>
+                    <li>When you find an AMI, choose <span class="chip">Select</span> to use it for your instance launch.</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>🚀 launch wizard</span>
+                <span>📋 Quick Start</span>
+                <span>🛒 Marketplace</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 3: Path 2 – AMI Page -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:2">
+            <div class="note-pin">📋</div>
+            <h2 class="note-title">Path 2: The AMI Page</h2>
+            <div class="note-subtitle">Dedicated Search</div>
+            <div class="note-body">
+                For <strong>more advanced searching</strong> or for finding an AMI to use in a future launch, the dedicated AMI page provides more granular filtering and search capabilities.
+                <br /><br />
+                <strong>1. Open the AMI Page</strong>
+                <ul>
+                    <li>In the EC2 console, from the navigation pane, choose <span class="chip">AMI</span>.</li>
+                </ul>
+                <br />
+                <strong>2. Set Your Region</strong>
+                <ul>
+                    <li>Ensure the correct Region is selected. AMI IDs are unique to each Region.</li>
+                </ul>
+                <br />
+                <strong>3. Use the Initial Filter</strong>
+                <ul>
+                    <li><span class="chip">Public images:</span> Shows AMIs that are publicly accessible.</li>
+                    <li><span class="chip">Private images:</span> Shows AMIs that are shared with you privately.</li>
+                </ul>
+                <br />
+                <strong>4. Refine Your Search with Filters</strong>
+                <ul>
+                    <li>Use the <span class="chip">Search</span> bar to apply specific filters.</li>
+                    <li><strong>Example:</strong> To view only AWS-provided AMIs, select <span class="chip">Owner alias</span> → <span class="chip">=</span> → <span class="chip">amazon</span>.</li>
+                    <li><strong>Example:</strong> To filter by OS, select <span class="chip">Platform</span> → <span class="chip">=</span> → <span class="chip">windows</span> or <span class="chip">linux</span>.</li>
+                </ul>
+                <br />
+                <strong>5. Customize the Display</strong>
+                <ul>
+                    <li>Click the <span class="chip">Preferences (gear)</span> icon to add or remove columns.</li>
+                    <li>Useful columns: <span class="chip">Root device type</span> (EBS-backed vs instance store-backed) and <span class="chip">Virtualization type</span>.</li>
+                </ul>
+                <br />
+                <strong>6. Review AMI Details</strong>
+                <ul>
+                    <li>Click on any AMI to view its properties in the <span class="chip">Details</span> tab.</li>
+                    <li>Critical information: <span class="chip">Root device type</span>, <span class="chip">Architecture</span>, and <span class="chip">Owner</span>.</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>📋 AMI page</span>
+                <span>🔍 filters</span>
+                <span>📊 details</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 4: Key Considerations -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:3">
+            <div class="note-pin">📝</div>
+            <h2 class="note-title">Key Considerations When Selecting an AMI</h2>
+            <div class="note-body">
+                <ul>
+                    <li>
+                        <span class="chip chip-blue">🌍 Region:</span>
+                        <br />
+                        The AMI <strong>must exist</strong> in the same Region where you plan to launch the instance.
+                    </li>
+                    <br />
+                    <li>
+                        <span class="chip chip-green">💾 Root Device Type:</span>
+                        <br />
+                        For most use cases, <strong>EBS-backed AMIs</strong> are preferred. They allow you to stop and start the instance without losing data on the root volume.
+                    </li>
+                    <br />
+                    <li>
+                        <span class="chip chip-gold">🔒 Trusted Source:</span>
+                        <br />
+                        For production environments, always prefer AMIs from <strong>trusted sources</strong>.
+                    </li>
+                    <br />
+                    <li>
+                        <span class="chip chip-purple">✅ Verified Provider:</span>
+                        <br />
+                        In the Community AMIs tab, look for the <span class="chip">Verified provider</span> label. This indicates the AMI is from Amazon or a verified partner.
+                    </li>
+                    <br />
+                    <li>
+                        <span class="chip chip-teal">☁️ AWS-Provided:</span>
+                        <br />
+                        Use the filter <span class="chip">Owner alias = amazon</span> to find official AWS AMIs.
+                    </li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>📝 considerations</span>
+                <span>🌍 region</span>
+                <span>💾 EBS</span>
+                <span>🔒 trusted</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 5: Key Takeaways -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:4">
+            <div class="note-pin">📝</div>
+            <h2 class="note-title">Key Takeaways</h2>
+            <div class="note-body">
+                <ul>
+                    <li>The EC2 console offers <strong>two main paths</strong> to find an AMI: the <span class="chip">Launch Instance</span> wizard and the dedicated <span class="chip">AMI</span> page.</li>
+                    <br />
+                    <li>The <span class="chip">Quick Start</span> tab in the Launch Instance wizard lists <strong>popular, commonly used AMIs</strong>.</li>
+                    <br />
+                    <li>The <span class="chip">AMI</span> page provides <strong>advanced filtering</strong> capabilities for more precise searches.</li>
+                    <br />
+                    <li><span class="chip">Community AMIs</span> are <span class="chip chip-pink">not verified</span> by AWS — use <strong>caution</strong>.</li>
+                    <br />
+                    <li>Always select an AMI from the <strong>same Region</strong> where you plan to launch your instance.</li>
+                    <br />
+                    <li>For production workloads, prefer <span class="chip">EBS-backed</span> AMIs from <strong>trusted providers</strong> (<span class="chip">Owner alias = amazon</span> or <span class="chip">aws-marketplace</span>).</li>
+                    <br />
+                    <li>Use the <span class="chip">Details</span> tab to review critical AMI properties like <span class="chip">Root device type</span>, <span class="chip">Architecture</span>, and <span class="chip">Owner</span>.</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>📝 takeaways</span>
+                <span>🖥️ console</span>
+                <span>🔍 finding</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 6: Review Questions -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:5">
+            <div class="note-pin">❓</div>
+            <h2 class="note-title">Review Questions</h2>
+            <div class="note-body">
+
+                <div class="qa-box">
+                    <div class="q">Q1: What are the two main paths to find an AMI in the EC2 console?</div>
+                    <div class="a"><strong>Answer:</strong> The two main paths are:
+                        <ul>
+                            <li><strong>Path 1:</strong> The <span class="chip">Launch Instance</span> wizard — best for immediate instance launches.</li>
+                            <li><strong>Path 2:</strong> The dedicated <span class="chip">AMI</span> page — best for advanced searching and future launches.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#f5d4aa;">
+                    <div class="q">Q2: What tabs are available in the "Application and OS Images" section of the Launch Instance wizard?</div>
+                    <div class="a"><strong>Answer:</strong> The tabs are:
+                        <ul>
+                            <li><span class="chip">Quick Start</span> — popular, commonly used AMIs</li>
+                            <li><span class="chip">My AMIs</span> — private AMIs you own or shared with you</li>
+                            <li><span class="chip">AWS Marketplace</span> — third-party AMIs with commercial software</li>
+                            <li><span class="chip">Community AMIs</span> — public AMIs shared by other users (not verified by AWS)</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#b8cce0;">
+                    <div class="q">Q3: How can you filter the AMI list to show only AWS-provided AMIs in the AMI page?</div>
+                    <div class="a"><strong>Answer:</strong> In the AMI page search bar, select <span class="chip">Owner alias</span>, choose the <span class="chip">=</span> operator, and enter <span class="chip">amazon</span> as the value. This will filter the list to show only AMIs provided by AWS.</div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#cfb8e0;">
+                    <div class="q">Q4: Why is it important to check the AMI's root device type before selecting it?</div>
+                    <div class="a"><strong>Answer:</strong> The root device type determines whether the root volume is <strong>persistent</strong> (EBS-backed) or <strong>ephemeral</strong> (instance store-backed). EBS-backed AMIs allow you to <strong>stop and start</strong> the instance without losing data on the root volume, which is <strong>critical for production workloads</strong>.</div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#aad0c4;">
+                    <div class="q">Q5: What should you look for in the Community AMIs tab to ensure you are using a trusted AMI?</div>
+                    <div class="a"><strong>Answer:</strong> Look for the <span class="chip">Verified provider</span> label. This indicates that the AMI is from <strong>Amazon or a verified partner</strong>, providing a higher level of trust and security.</div>
+                </div>
+
+            </div>
+            <div class="note-meta">
+                <span>❓ Q&A</span>
+                <span>📝 review</span>
+                <span>🧠 learning</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 7: Next Steps -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:6">
+            <div class="note-pin">🚀</div>
+            <h2 class="note-title">Next Steps</h2>
+            <div class="note-body">
+                <span style="font-size:2rem;">📖</span> Proceed to the next section:
+                <br /><br />
+                <span class="chip chip-purple" style="font-size:1.4rem;">4.3.2: Finding AMIs with the AWS CLI</span>
+                <br /><br />
+                <div class="quote-box" style="border-left-color:#aad0c4;">
+                    "Mastering the <strong>console</strong> is the first step — mastering the <strong>CLI</strong> is where the <strong>real power</strong> begins."
+                    <div class="author">— AWS CLI Best Practices</div>
+                </div>
+                <br />
+                <div style="text-align:center; font-size:2.5rem; opacity:0.3; letter-spacing:10px;">
+                    ❖ ❖ ❖
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🚀 next</span>
+                <span>📖 4.3.2</span>
+                <span>💻 CLI</span>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

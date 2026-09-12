@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EC2 Chapter 4.1 · Handwritten Notes</title>
+
+    <!-- Google Fonts – clear handwriting -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Gloria+Hallelujah&family=Architects+Daughter&family=Reenie+Beanie&display=swap" rel="stylesheet" />
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: #f7f0e7;
+            background-image: radial-gradient(circle at 30% 20%, #fcf7f0 0%, #eee7dd 100%);
+            display: flex;
+            justify-content: center;
+            padding: 2.5rem 1.5rem;
+            font-family: 'Patrick Hand', 'Architects Daughter', cursive;
+        }
+
+        .notes-container {
+            max-width: 1100px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 2.8rem;
+            animation: floatUp 0.9s ease-out;
+        }
+
+        .note {
+            background: #fffcf5;
+            padding: 2.5rem 3.5rem;
+            border-radius: 28px 28px 28px 10px;
+            box-shadow: 0 12px 36px rgba(0,0,0,0.06), 0 2px 10px rgba(0,0,0,0.03), inset 0 -2px 0 rgba(0,0,0,0.02);
+            position: relative;
+            transition: transform 0.3s ease, box-shadow 0.35s ease;
+            transform-origin: left center;
+            border-left: 8px solid transparent;
+            animation: notePop 0.6s ease both;
+            animation-delay: calc(var(--i, 0) * 0.05s);
+        }
+
+        .note:nth-child(1) { border-left-color: #f0b8b8; }
+        .note:nth-child(2) { border-left-color: #aad0c4; }
+        .note:nth-child(3) { border-left-color: #f5d4aa; }
+        .note:nth-child(4) { border-left-color: #cfb8e0; }
+        .note:nth-child(5) { border-left-color: #b8cce0; }
+        .note:nth-child(6) { border-left-color: #e8c8b8; }
+        .note:nth-child(7) { border-left-color: #b8d9c8; }
+
+        .note:hover {
+            transform: rotate(-0.8deg) scale(1.015);
+            box-shadow: 0 24px 48px rgba(0,0,0,0.09), 0 4px 16px rgba(0,0,0,0.05);
+        }
+
+        .note-title {
+            font-family: 'Gloria Hallelujah', 'Patrick Hand', cursive;
+            font-size: 2.2rem;
+            font-weight: 500;
+            color: #2f2216;
+            letter-spacing: 0.8px;
+            margin-bottom: 0.3rem;
+            line-height: 1.25;
+            display: inline-block;
+            position: relative;
+        }
+
+        .note-title::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: -4px;
+            width: 100%;
+            height: 8px;
+            background: repeating-linear-gradient(90deg, transparent, transparent 6px, rgba(240,184,184,0.4) 6px, rgba(240,184,184,0.4) 12px);
+            border-radius: 20px;
+            opacity: 0.8;
+        }
+
+        .note-subtitle {
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.3rem;
+            color: #5a4a3a;
+            margin: -0.1rem 0 1rem 0;
+            font-weight: 400;
+            opacity: 0.85;
+        }
+
+        .note-body {
+            font-family: 'Architects Daughter', 'Patrick Hand', cursive;
+            font-size: 1.35rem;
+            line-height: 1.85;
+            color: #2a1f15;
+            margin: 0.9rem 0 0.4rem 0;
+            font-weight: 400;
+            letter-spacing: 0.4px;
+        }
+
+        .note-body strong {
+            font-weight: 700;
+            color: #a05545;
+            background: rgba(240,184,184,0.15);
+            padding: 0 8px;
+            border-radius: 16px;
+            font-style: normal;
+        }
+
+        .note-body em {
+            color: #5a8a78;
+            font-style: italic;
+            text-decoration: underline wavy #aad0c4 3px;
+            font-weight: 500;
+        }
+
+        .note-body .chip {
+            background: #f0e9e0;
+            padding: 0.1rem 1.2rem;
+            border-radius: 40px;
+            display: inline-block;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.15rem;
+            color: #3d3226;
+            border: 1px dashed #cbb8a8;
+            margin: 2px 0;
+            font-weight: 400;
+        }
+
+        .note-body .chip-blue { background: #dce8f0; border-color: #aac0d0; }
+        .note-body .chip-green { background: #d8ece0; border-color: #a0c8b8; }
+        .note-body .chip-pink { background: #f0dcd8; border-color: #d8b8b0; }
+        .note-body .chip-purple { background: #e4d8ec; border-color: #c8b8d8; }
+        .note-body .chip-gold { background: #f0e8d0; border-color: #d8c8a8; }
+        .note-body .chip-teal { background: #c8e8dc; border-color: #88c8b8; }
+        .note-body .chip-orange { background: #f0dcc8; border-color: #d8b898; }
+        .note-body .chip-red { background: #f0d8d8; border-color: #d8b0b0; }
+
+        .code-block {
+            background: #1e1a16;
+            color: #e8e0d8;
+            padding: 1.2rem 1.8rem;
+            border-radius: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            line-height: 1.7;
+            margin: 0.8rem 0 1rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            border-left: 4px solid #f0b8b8;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .code-block .comment { color: #7a8a7a; }
+        .code-block .keyword { color: #f0b8b8; }
+        .code-block .string { color: #b8d9c8; }
+        .code-block .function { color: #c8b8e8; }
+        .code-block .tag { color: #f5d4aa; }
+        .code-block .number { color: #f5d4aa; }
+        .code-block .bold { color: #f0e0c8; font-weight: bold; }
+
+        .ascii-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1rem 1.5rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.6rem;
+            line-height: 1.5;
+            color: #2a1f15;
+            border: 1px solid #e0d8ce;
+            margin: 0.8rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .ascii-box .highlight { color: #a05545; font-weight: bold; }
+        .ascii-box .title { color: #2f2216; font-weight: bold; text-decoration: underline; }
+
+        .styled-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 0.95rem;
+            background: #f8f4ec;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        }
+
+        .styled-table th {
+            background: #2f2216;
+            color: #f5efe8;
+            padding: 0.7rem 1rem;
+            text-align: left;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .styled-table td {
+            padding: 0.7rem 1rem;
+            border-bottom: 1px solid #e8e0d6;
+            color: #2a1f15;
+        }
+
+        .styled-table tr:last-child td { border-bottom: none; }
+        .styled-table tr:hover td { background: #f0e9e0; }
+
+        .note-body ul, .note-body ol {
+            padding-left: 2rem;
+            margin: 0.5rem 0;
+        }
+        .note-body li { margin-bottom: 0.3rem; }
+
+        .def-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1.2rem 1.8rem;
+            margin: 0.8rem 0;
+            border-left: 6px solid #aad0c4;
+        }
+        .def-box strong { color: #a05545; }
+
+        .qa-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1rem 1.8rem;
+            margin: 0.8rem 0;
+            border-left: 6px solid #cfb8e0;
+        }
+        .qa-box .q { font-weight: 600; color: #a05545; font-size: 1.2rem; }
+        .qa-box .a { color: #3d6b5a; margin-top: 0.3rem; padding-left: 0.5rem; }
+
+        .note-meta {
+            margin-top: 1.5rem;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.05rem;
+            color: #9f8875;
+            display: flex;
+            align-items: center;
+            gap: 1.2rem;
+            flex-wrap: wrap;
+        }
+
+        .note-meta span {
+            background: #f1eae1;
+            padding: 0.3rem 1.4rem;
+            border-radius: 60px;
+            font-size: 1rem;
+            color: #4d3b2b;
+            box-shadow: inset 0 1px 4px rgba(0,0,0,0.02);
+            font-weight: 400;
+            letter-spacing: 0.3px;
+        }
+
+        .note-pin {
+            position: absolute;
+            top: -12px;
+            right: 34px;
+            font-size: 2.6rem;
+            opacity: 0.25;
+            transform: rotate(25deg);
+            filter: drop-shadow(0 3px 6px rgba(0,0,0,0.06));
+            transition: opacity 0.25s;
+        }
+        .note:hover .note-pin { opacity: 0.8; }
+
+        .component-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.8rem;
+            margin: 0.5rem 0;
+        }
+        .component-card {
+            background: #f8f4ec;
+            padding: 0.6rem 1rem;
+            border-radius: 12px;
+            border-left: 4px solid #b8cce0;
+            font-size: 0.9rem;
+        }
+        .component-card .name { font-weight: 700; color: #a05545; }
+
+        .ami-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.8rem;
+            margin: 0.5rem 0;
+        }
+        .ami-card {
+            background: #f8f4ec;
+            padding: 0.6rem 1rem;
+            border-radius: 12px;
+            border-left: 4px solid #aad0c4;
+            font-size: 0.9rem;
+        }
+        .ami-card .name { font-weight: 700; color: #a05545; }
+        .ami-card .desc { color: #3d6b5a; }
+
+        @keyframes floatUp {
+            0% { opacity: 0; transform: translateY(50px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes notePop {
+            0% { opacity: 0; transform: scale(0.92) rotate(-3deg); }
+            80% { opacity: 1; transform: scale(1.015) rotate(0.8deg); }
+            100% { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+
+        @media (max-width: 700px) {
+            .note { padding: 1.8rem 1.8rem; }
+            .note-title { font-size: 1.8rem; }
+            .note-body { font-size: 1.15rem; line-height: 1.7; }
+            .note-body .chip { font-size: 1rem; padding: 0 0.8rem; }
+            .code-block { font-size: 0.7rem; padding: 1rem; }
+            .note-pin { font-size: 2rem; top: -8px; right: 18px; }
+            .styled-table { font-size: 0.8rem; }
+            .styled-table th, .styled-table td { padding: 0.5rem 0.7rem; }
+            .notes-container { gap: 2rem; }
+            .ascii-box { font-size: 0.48rem; padding: 0.8rem 1rem; }
+            .qa-box { padding: 0.8rem 1.2rem; }
+            .def-box { padding: 0.8rem 1.2rem; }
+            .component-grid { grid-template-columns: 1fr; }
+            .ami-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="notes-container">
+
+        <!-- ============================================================ -->
+        <!-- NOTE 1: Chapter Title -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:0">
+            <div class="note-pin">🖼️</div>
+            <h2 class="note-title">4.1 What is an AMI?</h2>
+            <div class="note-body">
+                <span style="font-size:1.8rem;">📖</span> <strong>Definition</strong>
+                <br /><br />
+                An <strong>Amazon Machine Image (AMI)</strong> is a foundational template that contains the software configuration required to launch an Amazon EC2 instance. It serves as the <strong>blueprint</strong> for your virtual servers in the AWS cloud.
+                <br /><br />
+                When you launch an EC2 instance, you must specify an AMI, and your instance becomes a <strong>running copy</strong> of that AMI. You can launch <strong>multiple instances</strong> from a single AMI, all with identical configurations.
+            </div>
+            <div class="note-meta">
+                <span>🖼️ AMI</span>
+                <span>📋 blueprint</span>
+                <span>🖥️ EC2</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 2: Core Components -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:1">
+            <div class="note-pin">🏗️</div>
+            <h2 class="note-title">Core Components of an AMI</h2>
+            <div class="note-body">
+                An AMI comprises <strong>three main elements</strong> that work together to define the environment of every instance launched from it:
+                <br /><br />
+                <div class="component-grid">
+                    <div class="component-card" style="border-left-color:#b8cce0;">
+                        <div class="name">💾 Root Volume Template</div>
+                        <div style="font-size:0.85rem;">Includes the operating system, application server, and any pre-installed applications. Defines the root device for the instance.</div>
+                        <br />
+                        <div style="font-size:0.8rem; background:#dce8f0; padding:0.2rem 0.6rem; border-radius:10px; display:inline-block; color:#1f4a6a;">
+                            EBS-backed or Instance Store-backed
+                        </div>
+                    </div>
+                    <div class="component-card" style="border-left-color:#aad0c4;">
+                        <div class="name">🔑 Launch Permissions</div>
+                        <div style="font-size:0.85rem;">Control which AWS accounts are authorized to use the AMI to launch instances. Crucial for security and governance, especially when sharing AMIs.</div>
+                    </div>
+                    <div class="component-card" style="border-left-color:#f5d4aa;">
+                        <div class="name">📋 Block Device Mapping</div>
+                        <div style="font-size:0.85rem;">Specifies the volumes (EBS volumes and instance store volumes) to attach to the instance when it's launched. Defines the configuration of the storage devices.</div>
+                    </div>
+                </div>
+                <br />
+                <div class="def-box" style="border-left-color:#f0b8b8;">
+                    <strong>⚠️ Important:</strong> The root device can be:
+                    <ul>
+                        <li><span class="chip chip-blue">Amazon EBS-backed:</span> Root device is an EBS volume that persists independently of the instance.</li>
+                        <li><span class="chip chip-gold">Instance Store-backed:</span> Root device is an instance store volume created from a template in S3.</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🏗️ components</span>
+                <span>💾 root volume</span>
+                <span>🔑 permissions</span>
+                <span>📋 block mapping</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 3: AMI Categories -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:2">
+            <div class="note-pin">🎯</div>
+            <h2 class="note-title">AMI Categories</h2>
+            <div class="note-body">
+                There are <strong>several sources</strong> of AMIs, each suited to different use cases:
+                <br /><br />
+                <div class="ami-grid">
+                    <div class="ami-card" style="border-left-color:#b8cce0;">
+                        <div class="name">☁️ AWS-Provided AMIs</div>
+                        <div class="desc">Official, pre-configured images maintained by AWS.</div>
+                        <div style="font-size:0.8rem; margin-top:0.3rem;">
+                            <strong>Examples:</strong> Amazon Linux 2023, Windows Server, Ubuntu
+                            <br />
+                            <strong>Best for:</strong> Getting started quickly with a secure, supported base OS.
+                        </div>
+                    </div>
+                    <div class="ami-card" style="border-left-color:#aad0c4;">
+                        <div class="name">🛒 AWS Marketplace AMIs</div>
+                        <div class="desc">Pre-built solutions from third-party vendors, available for free or with a software license fee.</div>
+                        <div style="font-size:0.8rem; margin-top:0.3rem;">
+                            <strong>Examples:</strong> WordPress, database servers, security appliances
+                            <br />
+                            <strong>Best for:</strong> Deploying complex, popular applications without manual setup.
+                        </div>
+                    </div>
+                    <div class="ami-card" style="border-left-color:#f5d4aa;">
+                        <div class="name">👥 Community AMIs</div>
+                        <div class="desc">Public images created and shared by other AWS users.</div>
+                        <div style="font-size:0.8rem; margin-top:0.3rem;">
+                            <strong>Best for:</strong> Learning, experimentation.
+                            <br />
+                            <span class="chip chip-pink">⚠️ Caution:</span> Not verified by AWS; always review carefully before use in production.
+                        </div>
+                    </div>
+                    <div class="ami-card" style="border-left-color:#cfb8e0;">
+                        <div class="name">🔧 Custom AMIs</div>
+                        <div class="desc">Images you create yourself from an existing EC2 instance.</div>
+                        <div style="font-size:0.8rem; margin-top:0.3rem;">
+                            <strong>Best for:</strong> Standardizing production environments, speeding up deployments, and implementing <strong>"golden images"</strong> with your exact configuration.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🎯 categories</span>
+                <span>☁️ AWS</span>
+                <span>🛒 Marketplace</span>
+                <span>👥 community</span>
+                <span>🔧 custom</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 4: Why AMIs Are Critical -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:3">
+            <div class="note-pin">💡</div>
+            <h2 class="note-title">Why AMIs Are Critical for EC2</h2>
+            <div class="note-body">
+                <ul>
+                    <li>
+                        <span class="chip chip-blue">✅ Consistency:</span>
+                        <br />
+                        AMIs enable you to launch multiple servers with the <strong>exact same configuration</strong>, eliminating configuration drift.
+                    </li>
+                    <br />
+                    <li>
+                        <span class="chip chip-green">⚡ Speed:</span>
+                        <br />
+                        They accelerate deployment by allowing you to launch instances with <strong>pre-installed software</strong>, avoiding manual setup and configuration.
+                    </li>
+                    <br />
+                    <li>
+                        <span class="chip chip-gold">📈 Scalability:</span>
+                        <br />
+                        Custom AMIs allow for rapid scaling. You can update your application on a single instance, create a new AMI, and then scale your fleet using that <strong>new, up-to-date template</strong>.
+                    </li>
+                </ul>
+                <br />
+                <div class="def-box" style="border-left-color:#b8cce0;">
+                    <strong>📌 Key Insight:</strong> For production environments, creating <span class="chip chip-purple">custom AMIs</span> is a <strong>best practice</strong> to ensure consistency, fast scaling, and efficient deployments.
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>💡 importance</span>
+                <span>✅ consistency</span>
+                <span>⚡ speed</span>
+                <span>📈 scalability</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 5: Key Takeaways -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:4">
+            <div class="note-pin">📝</div>
+            <h2 class="note-title">Key Takeaways</h2>
+            <div class="note-body">
+                <ul>
+                    <li><strong>AMI is the Blueprint:</strong> It is the template that defines the <strong>OS, software, and configuration</strong> for an EC2 instance.</li>
+                    <br />
+                    <li><strong>Three Core Parts:</strong> An AMI consists of a <strong>root volume template</strong>, <strong>launch permissions</strong>, and a <strong>block device mapping</strong>.</li>
+                    <br />
+                    <li><strong>Four Main Sources:</strong> You can use <strong>AWS-provided</strong>, <strong>Marketplace</strong>, <strong>Community</strong>, or <strong>Custom</strong> AMIs.</li>
+                    <br />
+                    <li><strong>Custom AMIs for Production:</strong> For production environments, creating custom AMIs is a <span class="chip chip-green">best practice</span> to ensure consistency, fast scaling, and efficient deployments.</li>
+                    <br />
+                    <li><strong>Region-Specific:</strong> An AMI is <strong>specific to an AWS Region</strong>. To use it in another Region, you must <span class="chip">copy it</span>.</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>📝 takeaways</span>
+                <span>🖼️ AMI</span>
+                <span>🔧 custom</span>
+                <span>🌍 region-specific</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 6: Review Questions -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:5">
+            <div class="note-pin">❓</div>
+            <h2 class="note-title">Review Questions</h2>
+            <div class="note-body">
+
+                <div class="qa-box">
+                    <div class="q">Q1: What does AMI stand for and what is its primary purpose?</div>
+                    <div class="a"><strong>Answer:</strong> AMI stands for <strong>Amazon Machine Image</strong>. Its primary purpose is to provide a <strong>template</strong> containing the software configuration (OS, application server, applications) required to launch an EC2 instance. It serves as the <strong>blueprint</strong> for creating virtual servers.</div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#f5d4aa;">
+                    <div class="q">Q2: What are the three main components of an AMI?</div>
+                    <div class="a"><strong>Answer:</strong>
+                        <ul>
+                            <li><strong>One or more EBS snapshots</strong> or a template for the root volume (contains the OS and applications)</li>
+                            <li><strong>Launch permissions</strong> (controls which AWS accounts can use the AMI)</li>
+                            <li>A <strong>block device mapping</strong> (specifies the volumes to attach to the instance at launch)</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#b8cce0;">
+                    <div class="q">Q3: What is the difference between an AMI and an EC2 instance?</div>
+                    <div class="a"><strong>Answer:</strong> An AMI is a <strong>static template or blueprint</strong> that contains the configuration information needed to launch a server. An EC2 instance is a <strong>running virtual server</strong>, which is a live copy of the AMI you chose for launch. You can launch <strong>multiple instances</strong> from a single AMI.</div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#cfb8e0;">
+                    <div class="q">Q4: What are the four main sources of AMIs?</div>
+                    <div class="a"><strong>Answer:</strong>
+                        <ul>
+                            <li><strong>AWS-Provided AMIs:</strong> Official images maintained by Amazon (e.g., Amazon Linux, Windows)</li>
+                            <li><strong>AWS Marketplace AMIs:</strong> Pre-built, often commercial, solutions from vendors</li>
+                            <li><strong>Community AMIs:</strong> Public images shared by other users</li>
+                            <li><strong>Custom AMIs:</strong> Images you create yourself from an existing instance</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="qa-box" style="border-left-color:#aad0c4;">
+                    <div class="q">Q5: Why would you create a Custom AMI?</div>
+                    <div class="a"><strong>Answer:</strong> Creating a Custom AMI is a best practice for:
+                        <ul>
+                            <li><strong>Consistency:</strong> Ensuring all instances are identical and free from configuration drift</li>
+                            <li><strong>Speed:</strong> Rapidly launching instances with your application and configurations pre-installed</li>
+                            <li><strong>Scalability:</strong> Quickly scaling your environment by launching identical instances based on your custom template</li>
+                        </ul>
+                    </div>
+                </div>
+
+            </div>
+            <div class="note-meta">
+                <span>❓ Q&A</span>
+                <span>📝 review</span>
+                <span>🧠 learning</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 7: Next Steps -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:6">
+            <div class="note-pin">🚀</div>
+            <h2 class="note-title">Next Steps</h2>
+            <div class="note-body">
+                <span style="font-size:2rem;">📖</span> Proceed to the next section:
+                <br /><br />
+                <span class="chip chip-purple" style="font-size:1.4rem;">4.2: AMI Categories and Sources</span>
+                <br /><br />
+                <div class="quote-box" style="border-left-color:#aad0c4;">
+                    "AMIs are the <strong>blueprints</strong> of the cloud — they transform a <strong>blank server</strong> into a <strong>production-ready</strong> environment in minutes."
+                    <div class="author">— AWS EC2 Principles</div>
+                </div>
+                <br />
+                <div style="text-align:center; font-size:2.5rem; opacity:0.3; letter-spacing:10px;">
+                    ❖ ❖ ❖
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🚀 next</span>
+                <span>📖 4.2</span>
+                <span>📋 AMI sources</span>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

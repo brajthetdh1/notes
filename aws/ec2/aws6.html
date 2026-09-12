@@ -1,0 +1,1275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Practical 6 · Auto Scaling Architecture · Handwritten Notes</title>
+
+    <!-- Google Fonts – clear handwriting -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Gloria+Hallelujah&family=Architects+Daughter&family=Reenie+Beanie&display=swap" rel="stylesheet" />
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: #f7f0e7;
+            background-image: radial-gradient(circle at 30% 20%, #fcf7f0 0%, #eee7dd 100%);
+            display: flex;
+            justify-content: center;
+            padding: 2.5rem 1.5rem;
+            font-family: 'Patrick Hand', 'Architects Daughter', cursive;
+        }
+
+        .notes-container {
+            max-width: 1100px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 2.8rem;
+            animation: floatUp 0.9s ease-out;
+        }
+
+        .note {
+            background: #fffcf5;
+            padding: 2.5rem 3.5rem;
+            border-radius: 28px 28px 28px 10px;
+            box-shadow: 0 12px 36px rgba(0,0,0,0.06), 0 2px 10px rgba(0,0,0,0.03), inset 0 -2px 0 rgba(0,0,0,0.02);
+            position: relative;
+            transition: transform 0.3s ease, box-shadow 0.35s ease;
+            transform-origin: left center;
+            border-left: 8px solid transparent;
+            animation: notePop 0.6s ease both;
+            animation-delay: calc(var(--i, 0) * 0.025s);
+        }
+
+        .note:nth-child(1) { border-left-color: #f0b8b8; }
+        .note:nth-child(2) { border-left-color: #aad0c4; }
+        .note:nth-child(3) { border-left-color: #f5d4aa; }
+        .note:nth-child(4) { border-left-color: #cfb8e0; }
+        .note:nth-child(5) { border-left-color: #b8cce0; }
+        .note:nth-child(6) { border-left-color: #e8c8b8; }
+        .note:nth-child(7) { border-left-color: #b8d9c8; }
+        .note:nth-child(8) { border-left-color: #f0c8c8; }
+        .note:nth-child(9) { border-left-color: #d4c8e8; }
+        .note:nth-child(10) { border-left-color: #c8dce8; }
+        .note:nth-child(11) { border-left-color: #e8d4b8; }
+        .note:nth-child(12) { border-left-color: #b8d4d4; }
+        .note:nth-child(13) { border-left-color: #f0d4c8; }
+        .note:nth-child(14) { border-left-color: #c8bcd4; }
+        .note:nth-child(15) { border-left-color: #d4e0b8; }
+        .note:nth-child(16) { border-left-color: #e8c8d4; }
+        .note:nth-child(17) { border-left-color: #c8dcc8; }
+        .note:nth-child(18) { border-left-color: #f0dcc8; }
+        .note:nth-child(19) { border-left-color: #d4c8d4; }
+        .note:nth-child(20) { border-left-color: #c8dce8; }
+        .note:nth-child(21) { border-left-color: #e8d4c8; }
+        .note:nth-child(22) { border-left-color: #b8c8d4; }
+        .note:nth-child(23) { border-left-color: #d4dcc8; }
+        .note:nth-child(24) { border-left-color: #e8c8b8; }
+        .note:nth-child(25) { border-left-color: #c8d4d4; }
+        .note:nth-child(26) { border-left-color: #d4c8b8; }
+        .note:nth-child(27) { border-left-color: #b8d4c8; }
+        .note:nth-child(28) { border-left-color: #e8d4d4; }
+
+        .note:hover {
+            transform: rotate(-0.8deg) scale(1.015);
+            box-shadow: 0 24px 48px rgba(0,0,0,0.09), 0 4px 16px rgba(0,0,0,0.05);
+        }
+
+        .note-title {
+            font-family: 'Gloria Hallelujah', 'Patrick Hand', cursive;
+            font-size: 2.2rem;
+            font-weight: 500;
+            color: #2f2216;
+            letter-spacing: 0.8px;
+            margin-bottom: 0.3rem;
+            line-height: 1.25;
+            display: inline-block;
+            position: relative;
+        }
+
+        .note-title::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: -4px;
+            width: 100%;
+            height: 8px;
+            background: repeating-linear-gradient(90deg, transparent, transparent 6px, rgba(240,184,184,0.4) 6px, rgba(240,184,184,0.4) 12px);
+            border-radius: 20px;
+            opacity: 0.8;
+        }
+
+        .note-subtitle {
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.3rem;
+            color: #5a4a3a;
+            margin: -0.1rem 0 1rem 0;
+            font-weight: 400;
+            opacity: 0.85;
+        }
+
+        .note-body {
+            font-family: 'Architects Daughter', 'Patrick Hand', cursive;
+            font-size: 1.35rem;
+            line-height: 1.85;
+            color: #2a1f15;
+            margin: 0.9rem 0 0.4rem 0;
+            font-weight: 400;
+            letter-spacing: 0.4px;
+        }
+
+        .note-body strong {
+            font-weight: 700;
+            color: #a05545;
+            background: rgba(240,184,184,0.15);
+            padding: 0 8px;
+            border-radius: 16px;
+            font-style: normal;
+        }
+
+        .note-body em {
+            color: #5a8a78;
+            font-style: italic;
+            text-decoration: underline wavy #aad0c4 3px;
+            font-weight: 500;
+        }
+
+        .note-body .chip {
+            background: #f0e9e0;
+            padding: 0.1rem 1.2rem;
+            border-radius: 40px;
+            display: inline-block;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.15rem;
+            color: #3d3226;
+            border: 1px dashed #cbb8a8;
+            margin: 2px 0;
+            font-weight: 400;
+        }
+
+        .note-body .chip-blue { background: #dce8f0; border-color: #aac0d0; }
+        .note-body .chip-green { background: #d8ece0; border-color: #a0c8b8; }
+        .note-body .chip-pink { background: #f0dcd8; border-color: #d8b8b0; }
+        .note-body .chip-purple { background: #e4d8ec; border-color: #c8b8d8; }
+        .note-body .chip-gold { background: #f0e8d0; border-color: #d8c8a8; }
+        .note-body .chip-orange { background: #f0dcc8; border-color: #d8b898; }
+        .note-body .chip-teal { background: #c8e8dc; border-color: #88c8b8; }
+
+        .code-block {
+            background: #1e1a16;
+            color: #e8e0d8;
+            padding: 1.2rem 1.8rem;
+            border-radius: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.78rem;
+            line-height: 1.7;
+            margin: 0.8rem 0 1rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            border-left: 4px solid #f0b8b8;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .code-block .comment { color: #7a8a7a; }
+        .code-block .keyword { color: #f0b8b8; }
+        .code-block .string { color: #b8d9c8; }
+        .code-block .function { color: #c8b8e8; }
+        .code-block .tag { color: #f5d4aa; }
+        .code-block .number { color: #f5d4aa; }
+
+        .ascii-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1rem 1.5rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.62rem;
+            line-height: 1.5;
+            color: #2a1f15;
+            border: 1px solid #e0d8ce;
+            margin: 0.8rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .ascii-box .highlight { color: #a05545; font-weight: bold; }
+        .ascii-box .title { color: #2f2216; font-weight: bold; text-decoration: underline; }
+
+        .styled-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.05rem;
+            background: #f8f4ec;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        }
+
+        .styled-table th {
+            background: #2f2216;
+            color: #f5efe8;
+            padding: 0.7rem 1rem;
+            text-align: left;
+            font-weight: 500;
+            font-size: 1rem;
+        }
+
+        .styled-table td {
+            padding: 0.7rem 1rem;
+            border-bottom: 1px solid #e8e0d6;
+            color: #2a1f15;
+        }
+
+        .styled-table tr:last-child td { border-bottom: none; }
+        .styled-table tr:hover td { background: #f0e9e0; }
+
+        .note-body ul, .note-body ol {
+            padding-left: 2rem;
+            margin: 0.5rem 0;
+        }
+        .note-body li { margin-bottom: 0.3rem; }
+
+        .def-box {
+            background: #f8f4ec;
+            border-radius: 16px;
+            padding: 1.2rem 1.8rem;
+            margin: 0.8rem 0;
+            border-left: 6px solid #aad0c4;
+        }
+        .def-box strong { color: #a05545; }
+
+        .note-meta {
+            margin-top: 1.5rem;
+            font-family: 'Architects Daughter', cursive;
+            font-size: 1.05rem;
+            color: #9f8875;
+            display: flex;
+            align-items: center;
+            gap: 1.2rem;
+            flex-wrap: wrap;
+        }
+
+        .note-meta span {
+            background: #f1eae1;
+            padding: 0.3rem 1.4rem;
+            border-radius: 60px;
+            font-size: 1rem;
+            color: #4d3b2b;
+            box-shadow: inset 0 1px 4px rgba(0,0,0,0.02);
+            font-weight: 400;
+            letter-spacing: 0.3px;
+        }
+
+        .note-pin {
+            position: absolute;
+            top: -12px;
+            right: 34px;
+            font-size: 2.6rem;
+            opacity: 0.25;
+            transform: rotate(25deg);
+            filter: drop-shadow(0 3px 6px rgba(0,0,0,0.06));
+            transition: opacity 0.25s;
+        }
+        .note:hover .note-pin { opacity: 0.8; }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.8rem;
+            margin: 0.8rem 0;
+        }
+        .status-item {
+            background: #f8f4ec;
+            padding: 0.6rem 1.2rem;
+            border-radius: 12px;
+            border-left: 4px solid #aad0c4;
+            font-size: 1rem;
+        }
+        .status-item .task { font-weight: 600; color: #2f2216; }
+        .status-item .status { color: #5a8a78; }
+
+        .summary-table td:first-child { font-weight: 600; color: #a05545; }
+
+        @keyframes floatUp {
+            0% { opacity: 0; transform: translateY(50px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes notePop {
+            0% { opacity: 0; transform: scale(0.92) rotate(-3deg); }
+            80% { opacity: 1; transform: scale(1.015) rotate(0.8deg); }
+            100% { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+
+        @media (max-width: 700px) {
+            .note { padding: 1.8rem 1.8rem; }
+            .note-title { font-size: 1.8rem; }
+            .note-body { font-size: 1.15rem; line-height: 1.7; }
+            .note-body .chip { font-size: 1rem; padding: 0 0.8rem; }
+            .code-block { font-size: 0.65rem; padding: 1rem; }
+            .note-pin { font-size: 2rem; top: -8px; right: 18px; }
+            .styled-table { font-size: 0.9rem; }
+            .styled-table th, .styled-table td { padding: 0.5rem 0.7rem; }
+            .notes-container { gap: 2rem; }
+            .ascii-box { font-size: 0.5rem; padding: 0.8rem 1rem; }
+            .status-grid { grid-template-columns: 1fr; }
+            .def-box { padding: 0.8rem 1.2rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="notes-container">
+
+        <!-- ============================================================ -->
+        <!-- NOTE 1: Practical Overview -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:0">
+            <div class="note-pin">🎯</div>
+            <h2 class="note-title">Comprehensive Practical 6</h2>
+            <div class="note-subtitle">Production-Ready Auto Scaling Architecture</div>
+            <div class="note-body">
+                <strong>Duration:</strong> 90-120 minutes
+                <br /><br />
+                <strong>Learning Objectives:</strong>
+                <ul>
+                    <li>✅ Create a custom VPC with public and private subnets across 2 Availability Zones</li>
+                    <li>✅ Set up Internet Gateway and NAT Gateway for internet access</li>
+                    <li>✅ Create a Launch Template with a custom AMI and User Data</li>
+                    <li>✅ Deploy an Application Load Balancer (ALB) in public subnets</li>
+                    <li>✅ Create an Auto Scaling Group with <span class="chip">min=2, desired=2, max=5</span></li>
+                    <li>✅ Attach the ASG to the ALB Target Group</li>
+                    <li>✅ Configure Step Scaling Policy based on CPU utilization</li>
+                    <li>✅ Enable Instance Warm-up and Cooldown periods</li>
+                    <li>✅ Perform load testing to trigger scaling</li>
+                    <li>✅ Simulate AZ failure and observe ASG rebalancing</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>🎯 practical</span>
+                <span>⏱️ 90-120 min</span>
+                <span>🔄 Auto Scaling</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 2: Architecture Overview -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:1">
+            <div class="note-pin">🏗️</div>
+            <h2 class="note-title">Architecture Overview</h2>
+            <div class="ascii-box">
+                <span class="title">PRODUCTION-READY AUTO SCALING ARCHITECTURE</span>
+                ┌─────────────────────────────────────────────────────────────────────────────────────┐
+                │                    PRODUCTION-READY AUTO SCALING ARCHITECTURE                     │
+                ├─────────────────────────────────────────────────────────────────────────────────────┤
+                │                                                                                     │
+                │  Internet                                                                          │
+                │     │                                                                              │
+                │     ▼                                                                              │
+                │  ┌─────────────────────────────────────────────────────────────────────────────────┐│
+                │  │                    Internet Gateway (IGW)                                      ││
+                │  └─────────────────────────────────────────────────────────────────────────────────┘│
+                │     │                                                                              │
+                │     ▼                                                                              │
+                │  ┌─────────────────────────────────────────────────────────────────────────────────┐│
+                │  │                    Application Load Balancer (ALB)                             ││
+                │  │                    (Public Subnets: AZ-a, AZ-b)                                ││
+                │  └─────────────────────────────────────────────────────────────────────────────────┘│
+                │     │                                                                              │
+                │     ▼                                                                              │
+                │  ┌─────────────────────────────────────────────────────────────────────────────────┐│
+                │  │                    Target Group                                                ││
+                │  └─────────────────────────────────────────────────────────────────────────────────┘│
+                │     │                                                                              │
+                │     ▼                                                                              │
+                │  ┌─────────────────────────────────────────────────────────────────────────────────┐│
+                │  │                    Auto Scaling Group (ASG)                                    ││
+                │  │                    ┌─────────────────────────┐  ┌─────────────────────────┐   ││
+                │  │                    │  EC2 Instance (AZ-a)    │  │  EC2 Instance (AZ-b)    │   ││
+                │  │                    │  (Private Subnet)       │  │  (Private Subnet)       │   ││
+                │  │                    └─────────────────────────┘  └─────────────────────────┘   ││
+                │  └─────────────────────────────────────────────────────────────────────────────────┘│
+                │     │                                                                              │
+                │     ▼                                                                              │
+                │  ┌─────────────────────────────────────────────────────────────────────────────────┐│
+                │  │                    NAT Gateway (AZ-a)                                          ││
+                │  │                    (For private subnet internet access)                        ││
+                │  └─────────────────────────────────────────────────────────────────────────────────┘│
+                │                                                                                     │
+                └─────────────────────────────────────────────────────────────────────────────────────┘
+            </div>
+            <div class="note-body">
+                <strong>Key Components:</strong>
+                <ul>
+                    <li><span class="chip chip-blue">VPC:</span> 10.0.0.0/16 with 4 subnets (2 public, 2 private)</li>
+                    <li><span class="chip chip-green">Internet Gateway:</span> For public internet access</li>
+                    <li><span class="chip chip-gold">NAT Gateway:</span> For private subnet internet access</li>
+                    <li><span class="chip chip-purple">ALB:</span> Internet-facing, in public subnets</li>
+                    <li><span class="chip chip-pink">ASG:</span> Min=2, Desired=2, Max=5 in private subnets</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>🏗️ architecture</span>
+                <span>🌐 VPC</span>
+                <span>⚖️ ALB</span>
+                <span>🔄 ASG</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 3: P6.1 – Create Custom VPC -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:2">
+            <div class="note-pin">🌐</div>
+            <h2 class="note-title">P6.1 Create Custom VPC</h2>
+            <div class="note-subtitle">Public/Private Subnets (2 AZs)</div>
+            <div class="note-body">
+                <strong>📖 Theory: Why a Custom VPC?</strong>
+                <br />
+                A custom VPC gives you full control over your network architecture, including CIDR blocks, subnet configurations, and routing tables. For production workloads, you should <strong>isolate your application servers in private subnets</strong> while keeping load balancers in public subnets.
+                <br /><br />
+                <strong>Step 1: Create the VPC</strong>
+            </div>
+            <div class="code-block">
+                <span class="comment"># Create VPC with CIDR 10.0.0.0/16</span>
+                aws ec2 create-vpc \
+                    --cidr-block 10.0.0.0/16 \
+                    --tag-specifications 'ResourceType=vpc,Tags=[{Key=Name,Value=production-vpc}]'
+
+                <span class="comment"># Note the VPC ID from the output</span>
+                VPC_ID=$(aws ec2 describe-vpcs --filters "Name=tag:Name,Values=production-vpc" --query 'Vpcs[0].VpcId' --output text)
+                echo "VPC ID: $VPC_ID"
+            </div>
+            <div class="note-body">
+                <strong>Step 2: Create Subnets (2 Public, 2 Private)</strong>
+            </div>
+            <div class="code-block">
+                <span class="comment"># Get Availability Zones</span>
+                AZS=($(aws ec2 describe-availability-zones --query 'AvailabilityZones[0:2].[ZoneName]' --output text))
+
+                <span class="comment"># Public Subnet A (AZ-a)</span>
+                SUBNET_PUB_A=$(aws ec2 create-subnet \
+                    --vpc-id $VPC_ID \
+                    --cidr-block 10.0.1.0/24 \
+                    --availability-zone ${AZS[0]} \
+                    --tag-specifications 'ResourceType=subnet,Tags=[{Key=Name,Value=public-subnet-a}]' \
+                    --query 'Subnet.SubnetId' --output text)
+
+                <span class="comment"># Private Subnet A (AZ-a)</span>
+                SUBNET_PRIV_A=$(aws ec2 create-subnet \
+                    --vpc-id $VPC_ID \
+                    --cidr-block 10.0.3.0/24 \
+                    --availability-zone ${AZS[0]} \
+                    --tag-specifications 'ResourceType=subnet,Tags=[{Key=Name,Value=private-subnet-a}]' \
+                    --query 'Subnet.SubnetId' --output text)
+            </div>
+            <div class="note-body">
+                <strong>Step 3: Enable Auto-Assign Public IP</strong>
+            </div>
+            <div class="code-block">
+                aws ec2 modify-subnet-attribute \
+                    --subnet-id $SUBNET_PUB_A \
+                    --map-public-ip-on-launch
+            </div>
+            <div class="note-body">
+                <strong>Step 4: Create and Attach Internet Gateway</strong>
+            </div>
+            <div class="code-block">
+                IGW_ID=$(aws ec2 create-internet-gateway \
+                    --tag-specifications 'ResourceType=internet-gateway,Tags=[{Key=Name,Value=production-igw}]' \
+                    --query 'InternetGateway.InternetGatewayId' --output text)
+
+                aws ec2 attach-internet-gateway \
+                    --internet-gateway-id $IGW_ID \
+                    --vpc-id $VPC_ID
+            </div>
+            <div class="note-body">
+                <strong>Step 5: Create Route Tables</strong>
+            </div>
+            <div class="code-block">
+                <span class="comment"># Public Route Table</span>
+                RT_PUB=$(aws ec2 create-route-table --vpc-id $VPC_ID --tag-specifications 'ResourceType=route-table,Tags=[{Key=Name,Value=public-rt}]' --query 'RouteTable.RouteTableId' --output text)
+                aws ec2 create-route --route-table-id $RT_PUB --destination-cidr-block 0.0.0.0/0 --gateway-id $IGW_ID
+                aws ec2 associate-route-table --route-table-id $RT_PUB --subnet-id $SUBNET_PUB_A
+            </div>
+            <div class="note-body">
+                <strong>✅ Verification Checklist:</strong>
+                <ul>
+                    <li>□ VPC created with CIDR 10.0.0.0/16</li>
+                    <li>□ 4 subnets created (2 public, 2 private across 2 AZs)</li>
+                    <li>□ Internet Gateway created and attached</li>
+                    <li>□ Public route table has route to IGW</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>🌐 VPC</span>
+                <span>📊 10.0.0.0/16</span>
+                <span>🔀 4 subnets</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 4: P6.2 – NAT Gateway -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:3">
+            <div class="note-pin">🔒</div>
+            <h2 class="note-title">P6.2 Set Up NAT Gateway</h2>
+            <div class="note-body">
+                <strong>📖 Theory: Why NAT Gateway?</strong>
+                <br />
+                NAT Gateway allows instances in private subnets to access the internet (for updates, downloads) while <strong>preventing inbound connections from the internet</strong>. This is critical for security.
+                <br /><br />
+                <strong>Step 1: Allocate Elastic IP for NAT Gateway</strong>
+            </div>
+            <div class="code-block">
+                EIP_ALLOC=$(aws ec2 allocate-address \
+                    --domain vpc \
+                    --tag-specifications 'ResourceType=elastic-ip,Tags=[{Key=Name,Value=nat-eip}]' \
+                    --query 'AllocationId' --output text)
+            </div>
+            <div class="note-body">
+                <strong>Step 2: Create NAT Gateway in Public Subnet A</strong>
+            </div>
+            <div class="code-block">
+                NAT_GW=$(aws ec2 create-nat-gateway \
+                    --subnet-id $SUBNET_PUB_A \
+                    --allocation-id $EIP_ALLOC \
+                    --tag-specifications 'ResourceType=natgateway,Tags=[{Key=Name,Value=production-nat}]' \
+                    --query 'NatGateway.NatGatewayId' --output text)
+
+                <span class="comment"># Wait for NAT Gateway to become available</span>
+                aws ec2 wait nat-gateway-available --nat-gateway-ids $NAT_GW
+            </div>
+            <div class="note-body">
+                <strong>Step 3: Add Route to Private Route Table</strong>
+            </div>
+            <div class="code-block">
+                aws ec2 create-route \
+                    --route-table-id $RT_PRIV \
+                    --destination-cidr-block 0.0.0.0/0 \
+                    --nat-gateway-id $NAT_GW
+            </div>
+            <div class="note-body">
+                <strong>✅ Verification Checklist:</strong>
+                <ul>
+                    <li>□ Elastic IP allocated for NAT Gateway</li>
+                    <li>□ NAT Gateway created in public subnet A</li>
+                    <li>□ Private route table has route to NAT Gateway</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>🔒 NAT Gateway</span>
+                <span>🌐 private subnet</span>
+                <span>🔐 security</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 5: P6.3 – Launch Template -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:4">
+            <div class="note-pin">📋</div>
+            <h2 class="note-title">P6.3 Create Launch Template</h2>
+            <div class="note-subtitle">Custom AMI + User Data</div>
+            <div class="note-body">
+                <strong>📖 Theory: Why a Launch Template?</strong>
+                <br />
+                A Launch Template defines the configuration for EC2 instances launched by the Auto Scaling Group. It includes the <strong>AMI, instance type, security groups, IAM role, and User Data</strong> scripts.
+                <br /><br />
+                <strong>Step 1: Create Security Group for Web Servers</strong>
+            </div>
+            <div class="code-block">
+                SG_WEB=$(aws ec2 create-security-group \
+                    --group-name web-server-sg \
+                    --description "Security group for web servers" \
+                    --vpc-id $VPC_ID \
+                    --tag-specifications 'ResourceType=security-group,Tags=[{Key=Name,Value=web-server-sg}]' \
+                    --query 'GroupId' --output text)
+
+                aws ec2 authorize-security-group-ingress \
+                    --group-id $SG_WEB \
+                    --protocol tcp \
+                    --port 80 \
+                    --source-group $SG_WEB
+            </div>
+            <div class="note-body">
+                <strong>Step 2: Create IAM Role for EC2 Instances</strong>
+            </div>
+            <div class="code-block">
+                aws iam create-role --role-name web-server-role --assume-role-policy-document file://trust-policy.json
+                aws iam attach-role-policy --role-name web-server-role --policy-arn arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+                aws iam create-instance-profile --instance-profile-name web-server-instance-profile
+                aws iam add-role-to-instance-profile --instance-profile-name web-server-instance-profile --role-name web-server-role
+            </div>
+            <div class="note-body">
+                <strong>Step 3: Create the Launch Template</strong>
+            </div>
+            <div class="code-block">
+                aws ec2 create-launch-template \
+                    --launch-template-name web-app-template \
+                    --version-description "v1.0 - Production web server" \
+                    --launch-template-data '{
+                        "ImageId": "'"$AMI_ID"'",
+                        "InstanceType": "t3.micro",
+                        "KeyName": "MyKeyPair",
+                        "SecurityGroupIds": ["'"$SG_WEB"'"],
+                        "IamInstanceProfile": {"Name": "web-server-instance-profile"},
+                        "UserData": "'"$(base64 -w0 <<'EOF'
+            #!/bin/bash
+            TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" 2>/dev/null)
+            INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id 2>/dev/null)
+            AZ=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/placement/availability-zone 2>/dev/null)
+            cat > /var/www/html/index.html <<HTML
+            <h1>✅ Auto Scaling Demo</h1>
+            <p><strong>Instance ID:</strong> $INSTANCE_ID</p>
+            <p><strong>Availability Zone:</strong> $AZ</p>
+            HTML
+            sudo systemctl restart httpd
+            EOF
+            )"'
+                    }'
+            </div>
+            <div class="note-body">
+                <strong>✅ Verification Checklist:</strong>
+                <ul>
+                    <li>□ Security group created for web servers</li>
+                    <li>□ IAM role and instance profile created</li>
+                    <li>□ Launch Template created with custom AMI and User Data</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>📋 Launch Template</span>
+                <span>🖥️ t3.micro</span>
+                <span>📦 User Data</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 6: P6.4 – Create ALB -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:5">
+            <div class="note-pin">⚖️</div>
+            <h2 class="note-title">P6.4 Create Application Load Balancer (ALB)</h2>
+            <div class="note-subtitle">Public Subnets</div>
+            <div class="note-body">
+                <strong>📖 Theory: Why an ALB?</strong>
+                <br />
+                An Application Load Balancer distributes incoming HTTP/HTTPS traffic across multiple targets in different Availability Zones, improving <strong>availability and fault tolerance</strong>.
+                <br /><br />
+                <strong>Step 1: Create Security Group for ALB</strong>
+            </div>
+            <div class="code-block">
+                SG_ALB=$(aws ec2 create-security-group \
+                    --group-name alb-sg \
+                    --description "Security group for ALB" \
+                    --vpc-id $VPC_ID \
+                    --tag-specifications 'ResourceType=security-group,Tags=[{Key=Name,Value=alb-sg}]' \
+                    --query 'GroupId' --output text)
+
+                aws ec2 authorize-security-group-ingress \
+                    --group-id $SG_ALB \
+                    --protocol tcp \
+                    --port 80 \
+                    --cidr 0.0.0.0/0
+
+                aws ec2 authorize-security-group-ingress \
+                    --group-id $SG_WEB \
+                    --protocol tcp \
+                    --port 80 \
+                    --source-group $SG_ALB
+            </div>
+            <div class="note-body">
+                <strong>Step 2: Create Target Group</strong>
+            </div>
+            <div class="code-block">
+                TG_ARN=$(aws elbv2 create-target-group \
+                    --name webapp-tg \
+                    --protocol HTTP \
+                    --port 80 \
+                    --vpc-id $VPC_ID \
+                    --health-check-path /index.html \
+                    --query 'TargetGroups[0].TargetGroupArn' --output text)
+            </div>
+            <div class="note-body">
+                <strong>Step 3: Create ALB</strong>
+            </div>
+            <div class="code-block">
+                ALB_ARN=$(aws elbv2 create-load-balancer \
+                    --name webapp-alb \
+                    --type application \
+                    --scheme internet-facing \
+                    --subnets $SUBNET_PUB_A $SUBNET_PUB_B \
+                    --security-groups $SG_ALB \
+                    --query 'LoadBalancers[0].LoadBalancerArn' --output text)
+
+                aws elbv2 wait load-balancer-available --load-balancer-arns $ALB_ARN
+            </div>
+            <div class="note-body">
+                <strong>Step 4: Create Listener</strong>
+            </div>
+            <div class="code-block">
+                LISTENER_ARN=$(aws elbv2 create-listener \
+                    --load-balancer-arn $ALB_ARN \
+                    --protocol HTTP \
+                    --port 80 \
+                    --default-actions Type=forward,TargetGroupArn=$TG_ARN \
+                    --query 'Listeners[0].ListenerArn' --output text)
+
+                ALB_DNS=$(aws elbv2 describe-load-balancers --load-balancer-arns $ALB_ARN --query 'LoadBalancers[0].DNSName' --output text)
+                echo "ALB DNS Name: $ALB_DNS"
+            </div>
+            <div class="note-body">
+                <strong>✅ Verification Checklist:</strong>
+                <ul>
+                    <li>□ ALB security group allows HTTP from anywhere</li>
+                    <li>□ Web server SG allows HTTP from ALB SG</li>
+                    <li>□ Target Group created with health check path</li>
+                    <li>□ ALB created in public subnets</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>⚖️ ALB</span>
+                <span>🌐 internet-facing</span>
+                <span>🔀 target group</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 7: P6.5 – Create Auto Scaling Group -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:6">
+            <div class="note-pin">🔄</div>
+            <h2 class="note-title">P6.5 Create Auto Scaling Group</h2>
+            <div class="note-subtitle">min=2, desired=2, max=5</div>
+            <div class="note-body">
+                <strong>📖 Theory: Auto Scaling Group Basics</strong>
+                <br />
+                An Auto Scaling Group manages a collection of EC2 instances, maintaining the desired number of healthy instances and <strong>automatically replacing any that fail</strong>.
+                <br /><br />
+                <strong>Step 1: Create the ASG</strong>
+            </div>
+            <div class="code-block">
+                ASG_NAME="web-app-asg"
+                aws autoscaling create-auto-scaling-group \
+                    --auto-scaling-group-name $ASG_NAME \
+                    --launch-template LaunchTemplateName=web-app-template,Version='$Latest' \
+                    --min-size 2 \
+                    --max-size 5 \
+                    --desired-capacity 2 \
+                    --vpc-zone-identifier "$SUBNET_PRIV_A,$SUBNET_PRIV_B" \
+                    --health-check-type ELB \
+                    --health-check-grace-period 300 \
+                    --tags "Key=Name,Value=web-app-prod,PropagateAtLaunch=true" \
+                           "Key=Environment,Value=Production,PropagateAtLaunch=true"
+            </div>
+            <div class="note-body">
+                <strong>Step 2: Verify ASG Status</strong>
+            </div>
+            <div class="code-block">
+                aws autoscaling describe-auto-scaling-groups \
+                    --auto-scaling-group-names $ASG_NAME \
+                    --query 'AutoScalingGroups[0].Instances[*].[InstanceId,LifecycleState,HealthStatus]' \
+                    --output table
+
+                INSTANCE_COUNT=$(aws autoscaling describe-auto-scaling-groups \
+                    --auto-scaling-group-names $ASG_NAME \
+                    --query 'AutoScalingGroups[0].Instances[?LifecycleState==`InService`] | length(@)' --output text)
+                echo "In-service instances: $INSTANCE_COUNT"
+            </div>
+            <div class="note-body">
+                <strong>✅ Verification Checklist:</strong>
+                <ul>
+                    <li>□ ASG created with <span class="chip">min=2, desired=2, max=5</span></li>
+                    <li>□ ASG launched instances in both private subnets</li>
+                    <li>□ All instances are "InService" and "Healthy"</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>🔄 ASG</span>
+                <span>📊 min=2</span>
+                <span>📈 max=5</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 8: P6.6 – Attach ASG to ALB -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:7">
+            <div class="note-pin">🔗</div>
+            <h2 class="note-title">P6.6 Attach ASG to ALB Target Group</h2>
+            <div class="note-body">
+                <strong>📖 Theory: ASG + ALB Integration</strong>
+                <br />
+                When you attach an Auto Scaling Group to a Target Group, instances are <strong>automatically registered</strong> with the Target Group when launched and <strong>deregistered</strong> when terminated.
+                <br /><br />
+                <strong>Step 1: Attach Target Group to ASG</strong>
+            </div>
+            <div class="code-block">
+                aws autoscaling attach-load-balancer-target-groups \
+                    --auto-scaling-group-name $ASG_NAME \
+                    --target-group-arns $TG_ARN
+            </div>
+            <div class="note-body">
+                <strong>Step 2: Verify Integration</strong>
+            </div>
+            <div class="code-block">
+                aws elbv2 describe-target-health \
+                    --target-group-arn $TG_ARN \
+                    --query 'TargetHealthDescriptions[*].[Target.Id,TargetHealth.State]' \
+                    --output table
+
+                curl -s http://$ALB_DNS | head -20
+            </div>
+            <div class="note-body">
+                <strong>✅ Verification Checklist:</strong>
+                <ul>
+                    <li>□ Target Group attached to Auto Scaling Group</li>
+                    <li>□ Instances are automatically registered with Target Group</li>
+                    <li>□ ALB is distributing traffic to healthy instances</li>
+                    <li>□ Web page is accessible via ALB DNS</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>🔗 ASG + ALB</span>
+                <span>🔄 auto-registration</span>
+                <span>✅ health checks</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 9: P6.7 – Step Scaling Policy -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:8">
+            <div class="note-pin">📊</div>
+            <h2 class="note-title">P6.7 Configure Step Scaling Policy</h2>
+            <div class="note-subtitle">CPU > 70% → Add 1 | CPU < 30% → Remove 1</div>
+            <div class="note-body">
+                <strong>📖 Theory: Step Scaling Policies</strong>
+                <br />
+                Step scaling policies allow you to define multiple scaling adjustments based on the severity of the metric deviation.
+                <br /><br />
+                <strong>Step 1: Create CloudWatch Alarms</strong>
+            </div>
+            <div class="code-block">
+                <span class="comment"># CPU high alarm (scale out trigger)</span>
+                aws cloudwatch put-metric-alarm \
+                    --alarm-name "$ASG_NAME-high-cpu" \
+                    --metric-name CPUUtilization \
+                    --namespace AWS/EC2 \
+                    --statistic Average \
+                    --period 60 \
+                    --evaluation-periods 2 \
+                    --threshold 70 \
+                    --comparison-operator GreaterThanThreshold \
+                    --dimensions Name=AutoScalingGroupName,Value=$ASG_NAME
+
+                <span class="comment"># CPU low alarm (scale in trigger)</span>
+                aws cloudwatch put-metric-alarm \
+                    --alarm-name "$ASG_NAME-low-cpu" \
+                    --metric-name CPUUtilization \
+                    --namespace AWS/EC2 \
+                    --statistic Average \
+                    --period 60 \
+                    --evaluation-periods 2 \
+                    --threshold 30 \
+                    --comparison-operator LessThanThreshold \
+                    --dimensions Name=AutoScalingGroupName,Value=$ASG_NAME
+            </div>
+            <div class="note-body">
+                <strong>Step 2: Create Scaling Policies</strong>
+            </div>
+            <div class="code-block">
+                <span class="comment"># Scale out policy (add 1 instance)</span>
+                aws autoscaling put-scaling-policy \
+                    --auto-scaling-group-name $ASG_NAME \
+                    --policy-name scale-out-step \
+                    --policy-type StepScaling \
+                    --adjustment-type ChangeInCapacity \
+                    --step-adjustments '[{"MetricIntervalLowerBound":0.0,"MetricIntervalUpperBound":100.0,"ScalingAdjustment":1}]' \
+                    --estimated-instance-warmup 120
+
+                <span class="comment"># Scale in policy (remove 1 instance)</span>
+                aws autoscaling put-scaling-policy \
+                    --auto-scaling-group-name $ASG_NAME \
+                    --policy-name scale-in-step \
+                    --policy-type StepScaling \
+                    --adjustment-type ChangeInCapacity \
+                    --step-adjustments '[{"MetricIntervalLowerBound":-100.0,"MetricIntervalUpperBound":0.0,"ScalingAdjustment":-1}]' \
+                    --estimated-instance-warmup 120
+            </div>
+            <div class="note-body">
+                <strong>✅ Verification Checklist:</strong>
+                <ul>
+                    <li>□ CPU high alarm created (threshold: 70%)</li>
+                    <li>□ CPU low alarm created (threshold: 30%)</li>
+                    <li>□ Scale out policy configured (add 1 instance)</li>
+                    <li>□ Scale in policy configured (remove 1 instance)</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>📊 scaling</span>
+                <span>📈 CPU > 70%</span>
+                <span>📉 CPU < 30%</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 10: P6.8 – Warm-up and Cooldown -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:9">
+            <div class="note-pin">⏱️</div>
+            <h2 class="note-title">P6.8 Enable Warm-up and Cooldown</h2>
+            <div class="note-body">
+                <strong>📖 Theory: Warm-up and Cooldown</strong>
+                <ul>
+                    <li><span class="chip chip-blue">Instance Warm-up:</span> Time for a new instance to become fully initialized before it's counted in metrics (prevents over-scaling)</li>
+                    <li><span class="chip chip-gold">Cooldown:</span> Time to wait after a scaling activity before another scaling activity can start (prevents flapping)</li>
+                </ul>
+                <br />
+                <strong>Step 1: Update ASG with Default Instance Warmup</strong>
+            </div>
+            <div class="code-block">
+                aws autoscaling update-auto-scaling-group \
+                    --auto-scaling-group-name $ASG_NAME \
+                    --default-instance-warmup 120
+            </div>
+            <div class="note-body">
+                <strong>Step 2: Verify Warm-up Configuration</strong>
+            </div>
+            <div class="code-block">
+                aws autoscaling describe-auto-scaling-groups \
+                    --auto-scaling-group-names $ASG_NAME \
+                    --query 'AutoScalingGroups[0].DefaultInstanceWarmup' \
+                    --output text
+            </div>
+            <div class="note-body">
+                <strong>✅ Verification Checklist:</strong>
+                <ul>
+                    <li>□ Default Instance Warmup set to 120 seconds</li>
+                    <li>□ Cooldown configured (if using simple scaling)</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>⏱️ warm-up</span>
+                <span>🔄 cooldown</span>
+                <span>📊 120s</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 11: P6.9 – Load Test -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:10">
+            <div class="note-pin">⚡</div>
+            <h2 class="note-title">P6.9 Perform Load Test</h2>
+            <div class="note-subtitle">Trigger Scaling with Apache Bench</div>
+            <div class="note-body">
+                <strong>📖 Theory: Load Testing</strong>
+                <br />
+                Apache Bench (ab) is a simple tool for generating load to test how your Auto Scaling Group responds.
+                <br /><br />
+                <strong>Step 1: Install Apache Bench</strong>
+            </div>
+            <div class="code-block">
+                <span class="comment"># On Amazon Linux</span>
+                sudo dnf install -y httpd-tools
+            </div>
+            <div class="note-body">
+                <strong>Step 2: Run Load Test</strong>
+            </div>
+            <div class="code-block">
+                ALB_DNS=$(aws elbv2 describe-load-balancers --names webapp-alb --query 'LoadBalancers[0].DNSName' --output text)
+                ab -n 10000 -c 100 http://$ALB_DNS/index.html
+            </div>
+            <div class="note-body">
+                <strong>Step 3: Monitor Scaling</strong>
+            </div>
+            <div class="code-block">
+                <span class="comment"># Monitor ASG instances</span>
+                while true; do
+                    clear
+                    echo "=== ASG Status ==="
+                    aws autoscaling describe-auto-scaling-groups \
+                        --auto-scaling-group-names $ASG_NAME \
+                        --query 'AutoScalingGroups[0].[DesiredCapacity,MinSize,MaxSize,Instances[*].[InstanceId,LifecycleState,HealthStatus]]' \
+                        --output table
+                    sleep 10
+                done
+            </div>
+            <div class="note-body">
+                <strong>Step 4: Observe Scaling Out</strong>
+                <br />
+                After 1-2 minutes of load:
+                <ul>
+                    <li>CPU alarm enters <span class="chip chip-pink">ALARM</span> state</li>
+                    <li>ASG launches additional instances</li>
+                    <li>Desired capacity increases from 2 to 3+</li>
+                </ul>
+                <br />
+                <strong>Step 5: Observe Scaling In</strong>
+                <br />
+                After the load test completes:
+                <ul>
+                    <li>Low CPU alarm triggers</li>
+                    <li>ASG removes instances</li>
+                    <li>Desired capacity returns to 2</li>
+                </ul>
+            </div>
+            <div class="note-body">
+                <strong>✅ Verification Checklist:</strong>
+                <ul>
+                    <li>□ Load test executed successfully</li>
+                    <li>□ CPU alarm triggered (scale out)</li>
+                    <li>□ ASG launched additional instances</li>
+                    <li>□ After load drops, ASG scaled back in</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>⚡ load test</span>
+                <span>📊 ab -n 10000</span>
+                <span>🔄 scale out</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 12: P6.10 – AZ Failure Simulation -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:11">
+            <div class="note-pin">💥</div>
+            <h2 class="note-title">P6.10 Simulate AZ Failure</h2>
+            <div class="note-subtitle">Observe ASG Rebalancing</div>
+            <div class="note-body">
+                <strong>📖 Theory: AZ Failure Simulation</strong>
+                <br />
+                Simulating an Availability Zone failure tests your application's resilience. When instances in one AZ become unavailable, the ASG should <strong>launch replacements in the remaining AZs</strong>.
+                <br /><br />
+                <strong>Step 1: Identify Instances and AZs</strong>
+            </div>
+            <div class="code-block">
+                aws autoscaling describe-auto-scaling-groups \
+                    --auto-scaling-group-names $ASG_NAME \
+                    --query 'AutoScalingGroups[0].Instances[*].[InstanceId,AvailabilityZone]' \
+                    --output table
+
+                INSTANCE_IN_AZ_A=$(aws autoscaling describe-auto-scaling-groups \
+                    --auto-scaling-group-names $ASG_NAME \
+                    --query 'AutoScalingGroups[0].Instances[?AvailabilityZone==`'${AZS[0]}'`].[InstanceId]' \
+                    --output text)
+            </div>
+            <div class="note-body">
+                <strong>Step 2: Simulate AZ Failure</strong>
+            </div>
+            <div class="code-block">
+                aws ec2 terminate-instances --instance-ids $INSTANCE_IN_AZ_A
+            </div>
+            <div class="note-body">
+                <strong>Step 3: Monitor ASG Rebalancing</strong>
+            </div>
+            <div class="code-block">
+                while true; do
+                    clear
+                    echo "=== ASG Rebalancing Monitor ==="
+                    aws autoscaling describe-auto-scaling-groups \
+                        --auto-scaling-group-names $ASG_NAME \
+                        --query 'AutoScalingGroups[0].[DesiredCapacity,Instances[*].[InstanceId,AvailabilityZone,LifecycleState]]' \
+                        --output table
+                    sleep 10
+                done
+            </div>
+            <div class="note-body">
+                <strong>Expected Behavior:</strong>
+                <ol>
+                    <li>The terminated instance goes from running → terminated</li>
+                    <li>ASG detects the instance is no longer healthy</li>
+                    <li>ASG launches a new instance in the same AZ (or another AZ)</li>
+                    <li>ASG returns to desired capacity (2 instances)</li>
+                    <li>New instances are registered with the Target Group</li>
+                </ol>
+            </div>
+            <div class="note-body">
+                <strong>✅ Verification Checklist:</strong>
+                <ul>
+                    <li>□ Instance terminated successfully</li>
+                    <li>□ ASG detected the instance failure</li>
+                    <li>□ ASG launched a replacement instance</li>
+                    <li>□ ASG returned to desired capacity</li>
+                    <li>□ ALB is distributing traffic to healthy instances</li>
+                    <li>□ Application remains accessible</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>💥 AZ failure</span>
+                <span>🔄 rebalancing</span>
+                <span>✅ resilience</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 13: Practical Summary -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:12">
+            <div class="note-pin">📊</div>
+            <h2 class="note-title">Practical Summary</h2>
+            <div class="note-body">
+                <table class="styled-table">
+                    <thead><tr><th>Task</th><th>Status</th><th>Notes</th></tr></thead>
+                    <tbody>
+                        <tr><td>P6.1: Custom VPC</td><td><span class="chip chip-green">☐ Complete</span></td><td>2 public + 2 private subnets across 2 AZs</td></tr>
+                        <tr><td>P6.2: IGW + NAT Gateway</td><td><span class="chip chip-green">☐ Complete</span></td><td>Internet access for private subnets</td></tr>
+                        <tr><td>P6.3: Launch Template</td><td><span class="chip chip-green">☐ Complete</span></td><td>Custom AMI + User Data</td></tr>
+                        <tr><td>P6.4: ALB in Public Subnets</td><td><span class="chip chip-green">☐ Complete</span></td><td>Application Load Balancer deployed</td></tr>
+                        <tr><td>P6.5: Auto Scaling Group</td><td><span class="chip chip-green">☐ Complete</span></td><td>min=2, desired=2, max=5</td></tr>
+                        <tr><td>P6.6: Attach ASG to ALB</td><td><span class="chip chip-green">☐ Complete</span></td><td>Instances auto-register with Target Group</td></tr>
+                        <tr><td>P6.7: Step Scaling Policy</td><td><span class="chip chip-green">☐ Complete</span></td><td>CPU > 70% → Add 1, CPU < 30% → Remove 1</td></tr>
+                        <tr><td>P6.8: Warm-up and Cooldown</td><td><span class="chip chip-green">☐ Complete</span></td><td>120s warm-up enabled</td></tr>
+                        <tr><td>P6.9: Load Test</td><td><span class="chip chip-green">☐ Complete</span></td><td>ASG scaled out and in</td></tr>
+                        <tr><td>P6.10: AZ Failure Simulation</td><td><span class="chip chip-green">☐ Complete</span></td><td>ASG rebalanced successfully</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="note-meta">
+                <span>📊 summary</span>
+                <span>✅ all tasks</span>
+                <span>🔄 complete</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 14: Key Takeaways -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:13">
+            <div class="note-pin">🧠</div>
+            <h2 class="note-title">Key Takeaways</h2>
+            <div class="note-body">
+                <ul>
+                    <li><strong>Custom VPC</strong> with public/private subnets provides <strong>security isolation</strong> for production workloads</li>
+                    <br />
+                    <li><strong>NAT Gateway</strong> enables private instances to access the internet while remaining protected from inbound traffic</li>
+                    <br />
+                    <li><strong>Launch Templates</strong> standardize instance configurations with versioning support</li>
+                    <br />
+                    <li><strong>Application Load Balancer</strong> distributes traffic across instances in multiple AZs</li>
+                    <br />
+                    <li><strong>Auto Scaling Groups</strong> maintain desired capacity and automatically replace unhealthy instances</li>
+                    <br />
+                    <li><strong>Step Scaling Policies</strong> provide granular control based on metric severity</li>
+                    <br />
+                    <li><strong>Instance Warm-up</strong> prevents over-scaling by allowing instances to initialize before being counted</li>
+                    <br />
+                    <li><strong>AZ Failures</strong> are handled automatically by ASG rebalancing</li>
+                    <br />
+                    <li><strong>Load Testing</strong> validates your scaling policies and application resilience</li>
+                    <br />
+                    <li><strong>Monitoring</strong> is essential for understanding scaling behavior and troubleshooting issues</li>
+                </ul>
+            </div>
+            <div class="note-meta">
+                <span>🧠 takeaways</span>
+                <span>🔄 Auto Scaling</span>
+                <span>✅ best practices</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 15: Cleanup -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:14">
+            <div class="note-pin">🧹</div>
+            <h2 class="note-title">Cleanup</h2>
+            <div class="note-body">
+                <strong>🧹 Cleanup Instructions:</strong>
+            </div>
+            <div class="code-block">
+                <span class="comment"># Delete Auto Scaling Group</span>
+                aws autoscaling delete-auto-scaling-group --auto-scaling-group-name $ASG_NAME --force-delete
+
+                <span class="comment"># Delete Load Balancer</span>
+                aws elbv2 delete-load-balancer --load-balancer-arn $ALB_ARN
+
+                <span class="comment"># Delete Target Group</span>
+                aws elbv2 delete-target-group --target-group-arn $TG_ARN
+
+                <span class="comment"># Delete Launch Template</span>
+                aws ec2 delete-launch-template --launch-template-name web-app-template
+
+                <span class="comment"># Delete NAT Gateway</span>
+                aws ec2 delete-nat-gateway --nat-gateway-id $NAT_GW
+
+                <span class="comment"># Release Elastic IP</span>
+                aws ec2 release-address --allocation-id $EIP_ALLOC
+
+                <span class="comment"># Delete Security Groups</span>
+                aws ec2 delete-security-group --group-id $SG_WEB
+                aws ec2 delete-security-group --group-id $SG_ALB
+
+                <span class="comment"># Delete Route Tables</span>
+                aws ec2 disassociate-route-table --association-id $(aws ec2 describe-route-tables --filters "Name=vpc-id,Values=$VPC_ID" "Name=tag:Name,Values=public-rt" --query 'RouteTables[0].Associations[0].RouteTableAssociationId' --output text)
+                aws ec2 delete-route-table --route-table-id $RT_PUB
+                aws ec2 delete-route-table --route-table-id $RT_PRIV
+
+                <span class="comment"># Detach and delete Internet Gateway</span>
+                aws ec2 detach-internet-gateway --internet-gateway-id $IGW_ID --vpc-id $VPC_ID
+                aws ec2 delete-internet-gateway --internet-gateway-id $IGW_ID
+
+                <span class="comment"># Delete subnets</span>
+                aws ec2 delete-subnet --subnet-id $SUBNET_PUB_A
+                aws ec2 delete-subnet --subnet-id $SUBNET_PRIV_A
+                aws ec2 delete-subnet --subnet-id $SUBNET_PUB_B
+                aws ec2 delete-subnet --subnet-id $SUBNET_PRIV_B
+
+                <span class="comment"># Delete VPC</span>
+                aws ec2 delete-vpc --vpc-id $VPC_ID
+
+                <span class="comment"># Delete IAM role</span>
+                aws iam remove-role-from-instance-profile --instance-profile-name web-server-instance-profile --role-name web-server-role
+                aws iam delete-instance-profile --instance-profile-name web-server-instance-profile
+                aws iam detach-role-policy --role-name web-server-role --policy-arn arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+                aws iam delete-role --role-name web-server-role
+            </div>
+            <div class="note-meta">
+                <span>🧹 cleanup</span>
+                <span>🗑️ delete resources</span>
+                <span>💰 avoid charges</span>
+            </div>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- NOTE 16: Next Steps -->
+        <!-- ============================================================ -->
+        <div class="note" style="--i:15">
+            <div class="note-pin">🚀</div>
+            <h2 class="note-title">Next Steps</h2>
+            <div class="note-body">
+                <span style="font-size:2rem;">📖</span> Proceed to the next practical:
+                <br /><br />
+                <span class="chip chip-purple" style="font-size:1.4rem;">Practical 7: Multi-Region Disaster Recovery with Route 53</span>
+                <br /><br />
+                <div class="def-box" style="border-left-color:#f5d4aa;">
+                    <em>"Auto Scaling isn't just about scaling — it's about <strong>building resilience</strong>, ensuring <strong>cost efficiency</strong>, and delivering a <strong>consistent experience</strong> to your users, no matter what."</em>
+                    <br />
+                    <span style="opacity:0.7;">— AWS Auto Scaling Principles</span>
+                </div>
+                <br />
+                <div style="text-align:center; font-size:2.5rem; opacity:0.3; letter-spacing:10px;">
+                    ❖ ❖ ❖
+                </div>
+            </div>
+            <div class="note-meta">
+                <span>🚀 next</span>
+                <span>📖 Practical 7</span>
+                <span>🌐 Route 53</span>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>
