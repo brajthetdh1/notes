@@ -1,0 +1,1528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chapter 5 · Ultimate Q&A Bank · Liveness Hazards</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,600;14..32,700&display=swap" rel="stylesheet" />
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(145deg, #eef2f7 0%, #d5dee9 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            padding: 14px;
+        }
+
+        .frame-card {
+            width: 100%;
+            height: calc(100vh - 28px);
+            max-height: calc(100vh - 28px);
+            background: rgba(255, 255, 255, 0.55);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 44px;
+            box-shadow: 0 30px 60px -16px rgba(0, 20, 30, 0.3), 0 12px 32px -8px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+            padding: 28px 34px;
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .scroll-viewport {
+            flex: 1;
+            width: 100%;
+            overflow: hidden;
+            border-radius: 36px;
+            position: relative;
+            background: rgba(255, 255, 255, 0.06);
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.02);
+            min-height: 0;
+        }
+
+        .scroll-content {
+            display: flex;
+            flex-direction: column;
+            gap: 1.8rem;
+            padding: 2.4rem 2.8rem 3.2rem 2.8rem;
+            animation: slowScroll 700s linear infinite;
+            will-change: transform;
+        }
+
+        .scroll-viewport:hover .scroll-content {
+            animation-play-state: paused;
+        }
+
+        @keyframes slowScroll {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(-50%); }
+        }
+
+        .content-item {
+            background: rgba(255, 255, 255, 0.78);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            border-radius: 28px;
+            padding: 2.2rem 2.8rem;
+            border: 1px solid rgba(255, 255, 255, 0.85);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.02);
+            transition: transform 0.2s ease, box-shadow 0.25s ease;
+            color: #14212e;
+        }
+
+        .content-item:hover {
+            transform: scale(1.005);
+            box-shadow: 0 12px 32px rgba(0, 20, 40, 0.08);
+            background: rgba(255, 255, 255, 0.92);
+        }
+
+        .content-item .section-tag {
+            display: inline-block;
+            background: rgba(40, 80, 140, 0.07);
+            padding: 0.15rem 1.2rem;
+            border-radius: 60px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #1a3a5e;
+            letter-spacing: 0.05em;
+            border: 1px solid rgba(255,255,255,0.3);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+        }
+
+        .content-item h1 {
+            font-weight: 700;
+            font-size: 2.4rem;
+            letter-spacing: -0.02em;
+            margin: 0.2rem 0 0.4rem 0;
+            color: #0a1725;
+            line-height: 1.2;
+        }
+
+        .content-item h2 {
+            font-weight: 600;
+            font-size: 1.9rem;
+            letter-spacing: -0.01em;
+            margin: 0.8rem 0 0.4rem 0;
+            color: #0f2033;
+            line-height: 1.3;
+        }
+
+        .content-item h3 {
+            font-weight: 600;
+            font-size: 1.5rem;
+            margin: 0.6rem 0 0.3rem 0;
+            color: #142b42;
+            line-height: 1.3;
+        }
+
+        .content-item h4 {
+            font-weight: 600;
+            font-size: 1.2rem;
+            margin: 0.5rem 0 0.2rem 0;
+            color: #1a334d;
+            line-height: 1.4;
+        }
+
+        .content-item p {
+            font-weight: 400;
+            font-size: 1.15rem;
+            line-height: 1.8;
+            color: #1d2d3f;
+            opacity: 0.9;
+            margin: 0.3rem 0;
+        }
+
+        .content-item .code-block {
+            background: rgba(10, 20, 40, 0.04);
+            border-radius: 18px;
+            padding: 1rem 1.6rem;
+            margin: 0.7rem 0;
+            font-family: 'Menlo', 'Consolas', 'Monaco', monospace;
+            font-size: 1rem;
+            border-left: 4px solid rgba(50, 100, 200, 0.25);
+            color: #1a2a3e;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            line-height: 1.7;
+        }
+
+        .content-item .code-block .kw { color: #a626a4; font-weight: 600; }
+        .content-item .code-block .str { color: #50a14f; }
+        .content-item .code-block .cmt { color: #6a7a8e; font-style: italic; }
+        .content-item .code-block .typ { color: #4078c0; }
+        .content-item .code-block .fnc { color: #986801; }
+        .content-item .code-block .num { color: #986801; }
+
+        .content-item .meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-top: 0.8rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #3b4f64;
+            opacity: 0.6;
+        }
+
+        .content-item .meta i {
+            font-style: normal;
+            background: rgba(0,0,0,0.02);
+            padding: 0.15rem 1.2rem;
+            border-radius: 40px;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .content-item .divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(60, 80, 120, 0.08), transparent);
+            margin: 1.2rem 0;
+        }
+
+        .content-item .highlight-box {
+            background: rgba(255, 240, 200, 0.3);
+            border-radius: 18px;
+            padding: 1rem 1.6rem;
+            margin: 0.7rem 0;
+            border-left: 4px solid #e6b800;
+        }
+
+        .content-item .highlight-box strong {
+            color: #1a2a3e;
+        }
+
+        .content-item ul, .content-item ol {
+            padding-left: 1.8rem;
+            margin: 0.3rem 0;
+        }
+
+        .content-item li {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            color: #1d2d3f;
+            opacity: 0.88;
+            margin: 0.15rem 0;
+        }
+
+        .content-item table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0.7rem 0;
+            font-size: 1rem;
+        }
+
+        .content-item th {
+            background: rgba(40, 80, 140, 0.06);
+            font-weight: 600;
+            padding: 0.6rem 1rem;
+            text-align: left;
+            border: 1px solid rgba(0,0,0,0.04);
+            font-size: 1rem;
+        }
+
+        .content-item td {
+            padding: 0.6rem 1rem;
+            border: 1px solid rgba(0,0,0,0.04);
+            font-size: 0.98rem;
+        }
+
+        .content-item code {
+            font-family: 'Menlo', 'Consolas', 'Monaco', monospace;
+            font-size: 0.95em;
+            background: rgba(0,0,0,0.03);
+            padding: 0.1rem 0.4rem;
+            border-radius: 6px;
+        }
+
+        .qa-number {
+            display: inline-block;
+            background: rgba(40, 80, 140, 0.08);
+            padding: 0.1rem 0.9rem;
+            border-radius: 60px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #1a3a5e;
+            margin-right: 0.5rem;
+        }
+
+        .topic-badge {
+            display: inline-block;
+            background: rgba(40, 80, 140, 0.06);
+            padding: 0.05rem 0.8rem;
+            border-radius: 60px;
+            font-size: 0.7rem;
+            font-weight: 500;
+            color: #1a3a5e;
+            margin-right: 0.3rem;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        @media (max-width: 900px) {
+            .frame-card { padding: 20px 24px; border-radius: 32px; }
+            .scroll-content { padding: 1.8rem 2rem 2.4rem 2rem; gap: 1.4rem; }
+            .content-item { padding: 1.8rem 2rem; }
+            .content-item h1 { font-size: 2rem; }
+            .content-item h2 { font-size: 1.6rem; }
+            .content-item h3 { font-size: 1.3rem; }
+            .content-item h4 { font-size: 1.1rem; }
+            .content-item p { font-size: 1.05rem; }
+            .content-item .code-block { font-size: 0.9rem; padding: 0.8rem 1.2rem; }
+            .content-item li { font-size: 1rem; }
+        }
+
+        @media (max-width: 600px) {
+            body { padding: 8px; }
+            .frame-card { padding: 14px 16px; border-radius: 24px; }
+            .scroll-viewport { border-radius: 20px; }
+            .scroll-content { gap: 1.2rem; padding: 1.4rem 1.4rem 2rem 1.4rem; }
+            .content-item { padding: 1.4rem 1.6rem; border-radius: 20px; }
+            .content-item h1 { font-size: 1.6rem; }
+            .content-item h2 { font-size: 1.3rem; }
+            .content-item h3 { font-size: 1.1rem; }
+            .content-item h4 { font-size: 1rem; }
+            .content-item p { font-size: 0.95rem; }
+            .content-item .code-block { font-size: 0.8rem; padding: 0.6rem 0.9rem; }
+            .content-item li { font-size: 0.92rem; }
+            .content-item .meta { font-size: 0.75rem; }
+            .content-item table { font-size: 0.85rem; }
+            .content-item th, .content-item td { font-size: 0.82rem; padding: 0.4rem 0.6rem; }
+            .content-item .section-tag { font-size: 0.65rem; padding: 0.1rem 0.8rem; }
+            .qa-number { font-size: 0.7rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="frame-card">
+    <div class="scroll-viewport">
+        <div class="scroll-content">
+
+            <!-- ============================================================ -->
+            <!-- CHAPTER 5: LIVENESS HAZARDS – THE ULTIMATE Q&A BANK          -->
+            <!-- ============================================================ -->
+
+            <div class="content-item">
+                <div class="section-tag">Chapter 5 · Ultimate Q&A Bank</div>
+                <h1>LIVENESS HAZARDS – THE ULTIMATE Q&A BANK</h1>
+                <p>50+ conceptual and code-based questions covering deadlock, starvation, livelock, thread exhaustion, and more.</p>
+                <div class="meta"><i>Complete reference</i> <i>Interview preparation</i></div>
+            </div>
+
+            <!-- ============================================================ -->
+            <!-- PART A: CONCEPTUAL DEEP-DIVE QUESTIONS                        -->
+            <!-- ============================================================ -->
+
+            <div class="content-item">
+                <div class="section-tag">Part A · Conceptual</div>
+                <h2>Topic 5.1: Deadlock Fundamentals</h2>
+            </div>
+
+            <!-- Q1 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q1</span> <span class="topic-badge">deadlock</span> <strong>What are the four conditions required for deadlock? Explain each with a real-world analogy.</strong></p>
+                <p><strong>A:</strong> The four Coffman conditions must all be present for deadlock to occur:</p>
+                <table>
+                    <tr><th>Condition</th><th>Real-World Analogy</th><th>Java Example</th></tr>
+                    <tr><td><strong>1. Mutual Exclusion</strong></td><td>A printer can only be used by one person at a time.</td><td>A <code>synchronized</code> lock on an object.</td></tr>
+                    <tr><td><strong>2. Hold and Wait</strong></td><td>You hold a pen while waiting for a paper.</td><td>Thread holds lock X while waiting for lock Y.</td></tr>
+                    <tr><td><strong>3. No Preemption</strong></td><td>You cannot forcibly take the pen from someone else's hand.</td><td>A thread holds a lock until it voluntarily releases it.</td></tr>
+                    <tr><td><strong>4. Circular Wait</strong></td><td>Person A waits for a paper held by Person B; Person B waits for a pen held by Person A.</td><td>Thread A waits for lock Y held by Thread B; Thread B waits for lock X held by Thread A.</td></tr>
+                </table>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – If I break just one condition, can deadlock occur?</strong><br />
+                No. Deadlock requires all four conditions. This is why breaking any one condition is a valid prevention strategy.</div>
+                <div class="meta"><i>5 min read</i> <i>deadlock</i> <i>Coffman</i></div>
+            </div>
+
+            <!-- Q2 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q2</span> <span class="topic-badge">deadlock</span> <strong>Can deadlock occur with just one lock?</strong></p>
+                <p><strong>A:</strong> No. A single lock cannot cause deadlock because there is no circular wait. However, a single thread can deadlock itself if it calls <code>Thread.currentThread().join()</code>. This is a self-deadlock, but not a classic deadlock.</p>
+                <p><strong>Example of Self-Deadlock:</strong></p>
+                <div class="code-block"><span class="kw">public static void</span> main(String[] args) <span class="kw">throws</span> InterruptedException {
+    Thread.currentThread().join();  <span class="cmt">// Thread waits for itself to finish!</span>
+}</div>
+                <p>The thread is waiting for itself to terminate, which will never happen. This is technically a deadlock (or at least a permanent hang), but not a classic multi-threaded deadlock.</p>
+                <div class="meta"><i>3 min read</i> <i>deadlock</i> <i>self-deadlock</i></div>
+            </div>
+
+            <!-- Q3 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q3</span> <span class="topic-badge">deadlock</span> <strong>What is the difference between deadlock and a "hung" thread?</strong></p>
+                <table>
+                    <tr><th>Term</th><th>Definition</th><th>Cause</th></tr>
+                    <tr><td><strong>Deadlock</strong></td><td>Two or more threads are blocked forever, each waiting for a resource held by another.</td><td>Circular dependency of locks.</td></tr>
+                    <tr><td><strong>Hung Thread</strong></td><td>A single thread is stuck indefinitely, but no circular dependency exists.</td><td>Infinite loop, blocking I/O with no timeout, or waiting for a signal that never arrives.</td></tr>
+                </table>
+                <p><strong>Example of a Hung Thread:</strong></p>
+                <div class="code-block">Thread t = <span class="kw">new</span> Thread(() -> {
+    <span class="kw">while</span> (<span class="kw">true</span>) {
+        <span class="cmt">// Infinite loop</span>
+    }
+});
+t.start();</div>
+                <p>The thread is not deadlocked; it's just stuck in an infinite loop. It's hung.</p>
+                <div class="meta"><i>3 min read</i> <i>deadlock</i> <i>hung-thread</i></div>
+            </div>
+
+            <!-- Q4 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q4</span> <span class="topic-badge">deadlock</span> <strong>Can deadlock occur with ReentrantLock? Can it occur with synchronized?</strong></p>
+                <p><strong>A:</strong> Yes to both. Deadlock is a logic error, not a lock-specific issue.</p>
+                <p><strong>With <code>synchronized</code>:</strong></p>
+                <div class="code-block"><span class="kw">synchronized</span> (lock1) {
+    <span class="kw">synchronized</span> (lock2) {
+        <span class="cmt">// ...</span>
+    }
+}</div>
+                <p><strong>With <code>ReentrantLock</code>:</strong></p>
+                <div class="code-block">lock1.lock();
+<span class="kw">try</span> {
+    lock2.lock();
+    <span class="kw">try</span> {
+        <span class="cmt">// ...</span>
+    } <span class="kw">finally</span> {
+        lock2.unlock();
+    }
+} <span class="kw">finally</span> {
+    lock1.unlock();
+}</div>
+                <p>Both can deadlock if threads acquire locks in different orders.</p>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – Is ReentrantLock more deadlock-prone than synchronized?</strong><br />
+                No. <code>ReentrantLock</code> actually provides tools to prevent deadlock (<code>tryLock()</code>, <code>lockInterruptibly()</code>). <code>synchronized</code> offers no such escape hatch.</div>
+                <div class="meta"><i>3 min read</i> <i>deadlock</i> <i>ReentrantLock</i> <i>synchronized</i></div>
+            </div>
+
+            <!-- Q5 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q5</span> <span class="topic-badge">deadlock</span> <strong>What is the difference between deadlock and a "livelock"?</strong></p>
+                <table>
+                    <tr><th>Feature</th><th>Deadlock</th><th>Livelock</th></tr>
+                    <tr><td>Thread State</td><td>BLOCKED</td><td>RUNNABLE</td></tr>
+                    <tr><td>CPU Usage</td><td>Minimal (threads are parked)</td><td>High (threads are spinning)</td></tr>
+                    <tr><td>Visibility</td><td>Easy to detect (thread dump shows BLOCKED)</td><td>Harder to detect (threads appear RUNNABLE)</td></tr>
+                    <tr><td>Resolution</td><td>Restart application or break the cycle</td><td>Improve retry logic with backoff</td></tr>
+                    <tr><td>Analogy</td><td>Two cars stuck at an intersection, neither moving.</td><td>Two cars constantly backing up and pulling forward, never passing.</td></tr>
+                </table>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – Which is worse?</strong><br />
+                Deadlock is easier to detect but requires a restart or intervention. Livelock is harder to detect but can be fixed with proper backoff logic.</div>
+                <div class="meta"><i>4 min read</i> <i>deadlock</i> <i>livelock</i></div>
+            </div>
+
+            <!-- Topic 5.2 -->
+            <div class="content-item">
+                <div class="section-tag">Part A · Conceptual</div>
+                <h2>Topic 5.2: Deadlock Detection</h2>
+            </div>
+
+            <!-- Q6 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q6</span> <span class="topic-badge">detection</span> <strong>How do you detect deadlock in a running Java application?</strong></p>
+                <p><strong>A:</strong> There are multiple ways:</p>
+                <p><strong>Method 1: Thread Dump (Most Common)</strong></p>
+                <div class="code-block"><span class="cmt"># Linux/Unix</span>
+kill -3 &lt;pid&gt;
+
+<span class="cmt"># Windows</span>
+Ctrl+Break <span class="kw">in</span> the console
+
+<span class="cmt"># Using jstack</span>
+jstack &lt;pid&gt; > threaddump.txt</div>
+                <p>The JVM explicitly prints deadlock information:</p>
+                <div class="code-block">Found one Java-level deadlock:
+=============================
+"Thread-B":
+  waiting to lock accountX (held by "Thread-A")
+"Thread-A":
+  waiting to lock accountY (held by "Thread-B")</div>
+                <p><strong>Method 2: Programmatic Detection</strong></p>
+                <div class="code-block">ThreadMXBean bean = ManagementFactory.getThreadMXBean();
+<span class="kw">long</span>[] deadlockedThreads = bean.findDeadlockedThreads();
+<span class="kw">if</span> (deadlockedThreads != <span class="kw">null</span>) {
+    <span class="kw">for</span> (<span class="kw">long</span> id : deadlockedThreads) {
+        ThreadInfo info = bean.getThreadInfo(id);
+        System.out.println(<span class="str">"Deadlocked: "</span> + info.getThreadName());
+    }
+}</div>
+                <p><strong>Method 3: VisualVM / JConsole</strong> - GUI tools with built-in deadlock detection.</p>
+                <p><strong>Method 4: JFR (Java Flight Recorder)</strong> - Continuously records JVM events, including lock contention and deadlocks.</p>
+                <div class="meta"><i>5 min read</i> <i>detection</i> <i>thread-dump</i></div>
+            </div>
+
+            <!-- Q7 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q7</span> <span class="topic-badge">detection</span> <strong>What does findDeadlockedThreads() detect that findMonitorDeadlockedThreads() doesn't?</strong></p>
+                <table>
+                    <tr><th>Method</th><th>Detects</th></tr>
+                    <tr><td><code>findMonitorDeadlockedThreads()</code></td><td>Detects deadlocks caused by <code>synchronized</code> locks (intrinsic monitors) only.</td></tr>
+                    <tr><td><code>findDeadlockedThreads()</code> (Java 5+)</td><td>Detects deadlocks caused by <code>synchronized</code> <strong>and</strong> <code>ReentrantLock</code> (<code>java.util.concurrent</code> locks).</td></tr>
+                </table>
+                <div class="highlight-box"><strong>Interview Tip:</strong> Always use <code>findDeadlockedThreads()</code> because it detects both types of locks.</div>
+                <div class="meta"><i>2 min read</i> <i>detection</i> <i>ThreadMXBean</i></div>
+            </div>
+
+            <!-- Q8 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q8</span> <span class="topic-badge">detection</span> <strong>What is the "thread dump" and how do you read it for deadlocks?</strong></p>
+                <p><strong>A:</strong> A thread dump shows the stack trace of every thread, along with its state and the locks it holds or is waiting for.</p>
+                <p><strong>Example Thread Dump:</strong></p>
+                <div class="code-block"><span class="str">"Thread-1"</span> #12 prio=5 os_prio=0 tid=0x00007f8b8800a000 nid=0x3e2e waiting <span class="kw">for</span> monitor entry [0x00007f8b6a1f5000]
+   java.lang.Thread.State: BLOCKED (on object monitor)
+    at BankAccount.transfer(BankAccount.java:15)
+    - waiting to lock &lt;0x000000076b5a1234&gt; (a BankAccount)
+    - locked &lt;0x000000076b5a1230&gt; (a BankAccount)
+
+<span class="str">"Thread-2"</span> #13 prio=5 os_prio=0 tid=0x00007f8b8800b800 nid=0x3e2f waiting <span class="kw">for</span> monitor entry [0x00007f8b6a0f4000]
+   java.lang.Thread.State: BLOCKED (on object monitor)
+    at BankAccount.transfer(BankAccount.java:15)
+    - waiting to lock &lt;0x000000076b5a1230&gt; (a BankAccount)
+    - locked &lt;0x000000076b5a1234&gt; (a BankAccount)</div>
+                <p><strong>How to read it:</strong></p>
+                <ul>
+                    <li>Look for threads in <code>BLOCKED</code> state.</li>
+                    <li>Look for "waiting to lock" and "locked" entries.</li>
+                    <li>If Thread-1 is waiting for a lock held by Thread-2, and Thread-2 is waiting for a lock held by Thread-1, you have a deadlock.</li>
+                </ul>
+                <div class="meta"><i>4 min read</i> <i>detection</i> <i>thread-dump</i></div>
+            </div>
+
+            <!-- Topic 5.3 -->
+            <div class="content-item">
+                <div class="section-tag">Part A · Conceptual</div>
+                <h2>Topic 5.3: Deadlock Prevention</h2>
+            </div>
+
+            <!-- Q9 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q9</span> <span class="topic-badge">prevention</span> <strong>What are the main strategies for preventing deadlock?</strong></p>
+                <p><strong>A:</strong> Break one of the four Coffman conditions:</p>
+                <table>
+                    <tr><th>Strategy</th><th>Condition Broken</th><th>Implementation</th></tr>
+                    <tr><td><strong>Lock Ordering</strong></td><td>Circular Wait</td><td>Always acquire locks in a consistent global order.</td></tr>
+                    <tr><td><strong>tryLock() with Timeout</strong></td><td>Hold and Wait</td><td>If a thread can't acquire all locks, it releases everything and retries.</td></tr>
+                    <tr><td><strong>Avoid Nested Locks</strong></td><td>Hold and Wait</td><td>Restructure code to hold only one lock at a time.</td></tr>
+                    <tr><td><strong>Use Higher-Level Abstractions</strong></td><td>All</td><td>Use <code>ConcurrentHashMap</code>, <code>BlockingQueue</code>, <code>AtomicInteger</code> to avoid explicit locking.</td></tr>
+                </table>
+                <div class="meta"><i>4 min read</i> <i>prevention</i> <i>strategies</i></div>
+            </div>
+
+            <!-- Q10 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q10</span> <span class="topic-badge">prevention</span> <strong>How does lock ordering prevent deadlock?</strong></p>
+                <p><strong>A:</strong> Lock ordering ensures that all threads acquire locks in the same order. This breaks the circular wait condition.</p>
+                <p><strong>Example:</strong></p>
+                <div class="code-block"><span class="kw">public class</span> BankAccount {
+    <span class="kw">private final int</span> id;  <span class="cmt">// Unique ID</span>
+    <span class="kw">private int</span> balance;
+    
+    <span class="kw">public void</span> transfer(BankAccount target, <span class="kw">int</span> amount) {
+        BankAccount first = <span class="kw">this</span>.id &lt; target.id ? <span class="kw">this</span> : target;
+        BankAccount second = <span class="kw">this</span>.id &lt; target.id ? target : <span class="kw">this</span>;
+        
+        <span class="kw">synchronized</span> (first) {
+            <span class="kw">synchronized</span> (second) {
+                <span class="kw">this</span>.balance -= amount;
+                target.balance += amount;
+            }
+        }
+    }
+}</div>
+                <p>Now Thread A (transfer X→Y) and Thread B (transfer Y→X) both lock the account with the smaller ID first. No circular wait → no deadlock.</p>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – What if two accounts have the same ID?</strong><br />
+                They shouldn't. Account IDs must be unique. If you can't guarantee uniqueness, use a third lock (e.g., a global <code>ReentrantLock</code>) as a tie-breaker.</div>
+                <div class="meta"><i>4 min read</i> <i>prevention</i> <i>lock-ordering</i></div>
+            </div>
+
+            <!-- Q11 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q11</span> <span class="topic-badge">prevention</span> <strong>How does tryLock() with timeout prevent deadlock?</strong></p>
+                <p><strong>A:</strong> A thread attempts to acquire all locks. If it can't acquire all locks within the timeout, it releases any locks it has acquired and retries later. This breaks the "Hold and Wait" condition.</p>
+                <p><strong>Example:</strong></p>
+                <div class="code-block"><span class="kw">public boolean</span> transfer(BankAccount target, <span class="kw">int</span> amount) {
+    <span class="kw">try</span> {
+        <span class="kw">if</span> (<span class="kw">this</span>.lock.tryLock(1, TimeUnit.SECONDS)) {
+            <span class="kw">try</span> {
+                <span class="kw">if</span> (target.lock.tryLock(1, TimeUnit.SECONDS)) {
+                    <span class="kw">try</span> {
+                        <span class="kw">this</span>.balance -= amount;
+                        target.balance += amount;
+                        <span class="kw">return true</span>;
+                    } <span class="kw">finally</span> {
+                        target.lock.unlock();
+                    }
+                }
+            } <span class="kw">finally</span> {
+                <span class="kw">this</span>.lock.unlock();
+            }
+        }
+    } <span class="kw">catch</span> (InterruptedException e) {
+        Thread.currentThread().interrupt();
+    }
+    <span class="kw">return false</span>;  <span class="cmt">// Could not acquire both locks</span>
+}</div>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – What if both threads keep timing out?</strong><br />
+                They could livelock. Add random jitter (exponential backoff) to the timeout to break symmetry.</div>
+                <div class="meta"><i>4 min read</i> <i>prevention</i> <i>tryLock</i></div>
+            </div>
+
+            <!-- Q12 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q12</span> <span class="topic-badge">prevention</span> <strong>What is the difference between deadlock avoidance and deadlock prevention?</strong></p>
+                <table>
+                    <tr><th>Term</th><th>Definition</th><th>Example</th></tr>
+                    <tr><td><strong>Deadlock Prevention</strong></td><td>Structuring the code so deadlock cannot occur.</td><td>Lock ordering, <code>tryLock()</code> with timeout.</td></tr>
+                    <tr><td><strong>Deadlock Avoidance</strong></td><td>Detecting potential deadlocks and avoiding them at runtime.</td><td>The Banker's Algorithm (rarely used in practice).</td></tr>
+                </table>
+                <p>In Java, we almost always use <strong>prevention</strong> because avoidance is complex and rarely implemented.</p>
+                <div class="meta"><i>3 min read</i> <i>prevention</i> <i>avoidance</i></div>
+            </div>
+
+            <!-- Q13 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q13</span> <span class="topic-badge">prevention</span> <strong>What is the "Banker's Algorithm" and is it used in Java?</strong></p>
+                <p><strong>A:</strong> The Banker's Algorithm is a deadlock avoidance algorithm used in operating systems. It checks if granting a resource request would lead to a deadlock. If so, the request is denied.</p>
+                <p><strong>Is it used in Java?</strong> No. Java does not implement the Banker's Algorithm. Instead, Java provides prevention strategies (lock ordering, <code>tryLock()</code>, higher-level abstractions).</p>
+                <div class="meta"><i>2 min read</i> <i>prevention</i> <i>Banker's-Algorithm</i></div>
+            </div>
+
+            <!-- Topic 5.4 -->
+            <div class="content-item">
+                <div class="section-tag">Part A · Conceptual</div>
+                <h2>Topic 5.4: Starvation</h2>
+            </div>
+
+            <!-- Q14 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q14</span> <span class="topic-badge">starvation</span> <strong>What is thread starvation? What causes it?</strong></p>
+                <p><strong>A:</strong> Thread starvation occurs when a thread is unable to make progress because it cannot acquire necessary resources.</p>
+                <p><strong>Causes:</strong></p>
+                <ul>
+                    <li><strong>Priority Inversion:</strong> High-priority threads consume all CPU time, starving low-priority threads.</li>
+                    <li><strong>Resource Hoarding:</strong> A thread holds a resource for a very long time, causing others to wait.</li>
+                    <li><strong>Poor Thread Pool Design:</strong> A long-running task occupies a thread, causing other tasks to wait.</li>
+                    <li><strong>Deadlock (worst form of starvation):</strong> Threads wait forever.</li>
+                </ul>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – Is starvation a common problem in modern applications?</strong><br />
+                Modern OS schedulers use dynamic priority adjustments (they boost threads that have waited a long time). Starvation is rare on modern systems but can still happen in poorly designed applications.</div>
+                <div class="meta"><i>4 min read</i> <i>starvation</i> <i>priority-inversion</i></div>
+            </div>
+
+            <!-- Q15 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q15</span> <span class="topic-badge">starvation</span> <strong>What is the difference between starvation and deadlock?</strong></p>
+                <table>
+                    <tr><th>Feature</th><th>Starvation</th><th>Deadlock</th></tr>
+                    <tr><td>Thread State</td><td>RUNNABLE (but not making progress)</td><td>BLOCKED</td></tr>
+                    <tr><td>Resource Availability</td><td>Resources are available but not scheduled</td><td>Resources are held by other threads</td></tr>
+                    <tr><td>Progress</td><td>Slow or no progress</td><td>No progress (blocked)</td></tr>
+                    <tr><td>Resolution</td><td>Adjust priorities, use thread pools</td><td>Restart application or break cycle</td></tr>
+                </table>
+                <p><strong>Example of Starvation:</strong></p>
+                <div class="code-block">Thread low = <span class="kw">new</span> Thread(() -> {
+    <span class="kw">while</span> (<span class="kw">true</span>) {
+        System.out.println(<span class="str">"Low priority thread"</span>);
+    }
+});
+low.setPriority(Thread.MIN_PRIORITY);
+
+Thread high = <span class="kw">new</span> Thread(() -> {
+    <span class="kw">while</span> (<span class="kw">true</span>) {
+        <span class="cmt">// CPU hog</span>
+    }
+});
+high.setPriority(Thread.MAX_PRIORITY);</div>
+                <p>The low-priority thread may never print anything because the high-priority thread consumes all CPU time.</p>
+                <div class="meta"><i>4 min read</i> <i>starvation</i> <i>deadlock</i></div>
+            </div>
+
+            <!-- Q16 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q16</span> <span class="topic-badge">starvation</span> <strong>How can you prevent starvation?</strong></p>
+                <p><strong>A:</strong></p>
+                <ul>
+                    <li>Use thread pools (<code>Executors.newFixedThreadPool()</code>) to limit the number of threads.</li>
+                    <li>Avoid setting priorities (let the OS scheduler decide).</li>
+                    <li>Use fair locks (<code>new ReentrantLock(true)</code>) to ensure threads get locks in order.</li>
+                    <li>Use timeouts to prevent indefinite waiting.</li>
+                    <li>Design threads with cooperative scheduling (<code>yield</code> or <code>sleep</code> periodically).</li>
+                </ul>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – Should I use thread priorities?</strong><br />
+                Avoid them. Thread priorities are OS-dependent and can cause starvation. In most applications, the default priority (<code>NORM_PRIORITY</code>) is the right choice.</div>
+                <div class="meta"><i>3 min read</i> <i>starvation</i> <i>prevention</i></div>
+            </div>
+
+            <!-- Topic 5.5 -->
+            <div class="content-item">
+                <div class="section-tag">Part A · Conceptual</div>
+                <h2>Topic 5.5: Livelock</h2>
+            </div>
+
+            <!-- Q17 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q17</span> <span class="topic-badge">livelock</span> <strong>What is livelock? Give a real-world example.</strong></p>
+                <p><strong>A:</strong> Livelock occurs when threads are not blocked but constantly change state in response to each other, making no progress.</p>
+                <p><strong>Real-World Analogy:</strong> Two people trying to pass each other in a narrow corridor. Both step left, then both step right, then both step left again, never passing each other.</p>
+                <p><strong>Java Example:</strong></p>
+                <div class="code-block"><span class="kw">public class</span> LivelockExample {
+    <span class="kw">private final</span> Lock lock1 = <span class="kw">new</span> ReentrantLock();
+    <span class="kw">private final</span> Lock lock2 = <span class="kw">new</span> ReentrantLock();
+    
+    <span class="kw">public void</span> methodA() {
+        <span class="kw">while</span> (<span class="kw">true</span>) {
+            <span class="kw">if</span> (lock1.tryLock()) {
+                <span class="kw">try</span> {
+                    <span class="kw">if</span> (lock2.tryLock()) {
+                        <span class="kw">try</span> {
+                            <span class="cmt">// Do work</span>
+                            <span class="kw">return</span>;
+                        } <span class="kw">finally</span> {
+                            lock2.unlock();
+                        }
+                    }
+                } <span class="kw">finally</span> {
+                    lock1.unlock();
+                }
+            }
+            <span class="cmt">// Retry immediately</span>
+        }
+    }
+    
+    <span class="kw">public void</span> methodB() {
+        <span class="kw">while</span> (<span class="kw">true</span>) {
+            <span class="kw">if</span> (lock2.tryLock()) {
+                <span class="kw">try</span> {
+                    <span class="kw">if</span> (lock1.tryLock()) {
+                        <span class="kw">try</span> {
+                            <span class="cmt">// Do work</span>
+                            <span class="kw">return</span>;
+                        } <span class="kw">finally</span> {
+                            lock1.unlock();
+                        }
+                    }
+                } <span class="kw">finally</span> {
+                    lock2.unlock();
+                }
+            }
+            <span class="cmt">// Retry immediately</span>
+        }
+    }
+}</div>
+                <p>Thread A acquires lock1, fails to acquire lock2, releases lock1, retries. Thread B acquires lock2, fails to acquire lock1, releases lock2, retries. They keep doing this forever.</p>
+                <div class="meta"><i>5 min read</i> <i>livelock</i> <i>example</i></div>
+            </div>
+
+            <!-- Q18 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q18</span> <span class="topic-badge">livelock</span> <strong>How is livelock different from deadlock?</strong></p>
+                <table>
+                    <tr><th>Feature</th><th>Deadlock</th><th>Livelock</th></tr>
+                    <tr><td>Thread State</td><td>BLOCKED</td><td>RUNNABLE</td></tr>
+                    <tr><td>CPU Usage</td><td>Minimal</td><td>High (threads are spinning)</td></tr>
+                    <tr><td>Detection</td><td>Easy (thread dump shows BLOCKED)</td><td>Hard (threads appear RUNNABLE)</td></tr>
+                    <tr><td>Resolution</td><td>Restart application</td><td>Improve retry logic</td></tr>
+                </table>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – Which is harder to detect?</strong><br />
+                Livelock is harder to detect because threads appear to be running (RUNNABLE). You need to look at CPU usage and logs to see that no progress is being made.</div>
+                <div class="meta"><i>3 min read</i> <i>livelock</i> <i>deadlock</i></div>
+            </div>
+
+            <!-- Q19 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q19</span> <span class="topic-badge">livelock</span> <strong>How can you prevent livelock?</strong></p>
+                <p><strong>A:</strong></p>
+                <p><strong>Strategy 1: Exponential Backoff with Jitter</strong></p>
+                <p>Instead of retrying immediately, wait an increasing amount of time.</p>
+                <div class="code-block"><span class="kw">private static final int</span> MAX_RETRIES = 10;
+<span class="kw">private static final int</span> BASE_DELAY_MS = 100;
+
+<span class="kw">public void</span> methodA() {
+    <span class="kw">int</span> retries = 0;
+    <span class="kw">while</span> (retries &lt; MAX_RETRIES) {
+        <span class="kw">if</span> (lock1.tryLock()) {
+            <span class="kw">try</span> {
+                <span class="kw">if</span> (lock2.tryLock()) {
+                    <span class="kw">try</span> {
+                        <span class="cmt">// Do work</span>
+                        <span class="kw">return</span>;
+                    } <span class="kw">finally</span> {
+                        lock2.unlock();
+                    }
+                }
+            } <span class="kw">finally</span> {
+                lock1.unlock();
+            }
+        }
+        retries++;
+        <span class="kw">long</span> delay = BASE_DELAY_MS * (<span class="kw">long</span>) Math.pow(2, retries);  <span class="cmt">// Exponential backoff</span>
+        delay += ThreadLocalRandom.current().nextLong(0, delay / 2);  <span class="cmt">// Jitter</span>
+        <span class="kw">try</span> {
+            Thread.sleep(delay);
+        } <span class="kw">catch</span> (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            <span class="kw">return</span>;
+        }
+    }
+}</div>
+                <p><strong>Strategy 2: Use Lock Ordering</strong> – If both threads acquire locks in the same order, livelock cannot occur.</p>
+                <p><strong>Strategy 3: Use a Random Delay</strong> – Even a small random delay can break symmetry.</p>
+                <div class="code-block">Thread.sleep(ThreadLocalRandom.current().nextInt(10, 100));</div>
+                <div class="meta"><i>4 min read</i> <i>livelock</i> <i>prevention</i> <i>backoff</i></div>
+            </div>
+
+            <!-- Q20 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q20</span> <span class="topic-badge">livelock</span> <strong>What is "spinning" and how does it relate to livelock?</strong></p>
+                <p><strong>A:</strong> Spinning is when a thread repeatedly checks a condition in a loop without yielding CPU time.</p>
+                <div class="code-block"><span class="kw">while</span> (!condition) {
+    <span class="cmt">// Spin</span>
+}</div>
+                <p>Spinning can cause livelock if two threads spin and never meet the condition. It also wastes CPU cycles.</p>
+                <p><strong>The Fix:</strong> Use <code>Thread.sleep()</code> or <code>LockSupport.parkNanos()</code> to yield between checks.</p>
+                <div class="meta"><i>2 min read</i> <i>livelock</i> <i>spinning</i></div>
+            </div>
+
+            <!-- Topic 5.6 -->
+            <div class="content-item">
+                <div class="section-tag">Part A · Conceptual</div>
+                <h2>Topic 5.6: Thread Exhaustion</h2>
+            </div>
+
+            <!-- Q21 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q21</span> <span class="topic-badge">exhaustion</span> <strong>What is thread exhaustion? What causes it?</strong></p>
+                <p><strong>A:</strong> Thread exhaustion occurs when an application creates too many threads, consuming all available memory or reaching the OS thread limit.</p>
+                <p><strong>Causes:</strong></p>
+                <ul>
+                    <li>Creating a new thread for every request (without a thread pool).</li>
+                    <li>Not properly shutting down threads (thread leaks).</li>
+                    <li>Creating many threads for a single operation (e.g., 1000 threads for 1000 database queries).</li>
+                </ul>
+                <p><strong>Consequences:</strong></p>
+                <ul>
+                    <li><code>OutOfMemoryError</code> (native memory exhaustion).</li>
+                    <li>OS thread limit reached (thousands of threads).</li>
+                    <li>Poor performance (excessive context switching).</li>
+                </ul>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – What is the OS thread limit?</strong><br />
+                It varies by OS:<br />
+                Linux: Usually 32768 (default) but can be increased.<br />
+                Windows: Usually 2048 (per process).<br />
+                macOS: Usually 2048.</div>
+                <div class="meta"><i>3 min read</i> <i>exhaustion</i> <i>thread-limit</i></div>
+            </div>
+
+            <!-- Q22 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q22</span> <span class="topic-badge">exhaustion</span> <strong>How can you prevent thread exhaustion?</strong></p>
+                <p><strong>A:</strong></p>
+                <ul>
+                    <li>Use thread pools: <code>Executors.newFixedThreadPool()</code> limits the number of threads.</li>
+                    <li>Use bounded thread pools: <code>new ThreadPoolExecutor(core, max, timeout, queue)</code>.</li>
+                    <li>Monitor thread count: Use <code>Thread.activeCount()</code> or JMX.</li>
+                    <li>Use Virtual Threads (Java 21+): Millions of threads with minimal overhead.</li>
+                </ul>
+                <p><strong>Example:</strong></p>
+                <div class="code-block"><span class="cmt">// Bad: Creates a new thread for every request</span>
+<span class="kw">new</span> Thread(() -> processRequest()).start();
+
+<span class="cmt">// Good: Reuses threads from a pool</span>
+ExecutorService executor = Executors.newFixedThreadPool(100);
+executor.execute(<span class="kw">this</span>::processRequest);</div>
+                <div class="meta"><i>3 min read</i> <i>exhaustion</i> <i>prevention</i></div>
+            </div>
+
+            <!-- Topic 5.7 -->
+            <div class="content-item">
+                <div class="section-tag">Part A · Conceptual</div>
+                <h2>Topic 5.7: Advanced Questions</h2>
+            </div>
+
+            <!-- Q23 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q23</span> <span class="topic-badge">advanced</span> <strong>What is "priority inversion" and how does it relate to starvation?</strong></p>
+                <p><strong>A:</strong> Priority inversion occurs when a low-priority thread holds a resource needed by a high-priority thread. The high-priority thread blocks, and the low-priority thread runs, causing starvation.</p>
+                <p><strong>Example:</strong></p>
+                <ul>
+                    <li>Thread A (High Priority) needs lock X.</li>
+                    <li>Thread B (Low Priority) holds lock X and is running.</li>
+                    <li>Thread A blocks, waiting for lock X.</li>
+                    <li>Thread C (Medium Priority) runs and consumes CPU, preventing Thread B from running and releasing lock X.</li>
+                </ul>
+                <p>Thread A never makes progress. This is priority inversion.</p>
+                <p><strong>The Fix:</strong> Use priority inheritance (the OS temporarily boosts Thread B's priority to Thread A's level).</p>
+                <div class="highlight-box"><strong>Java Note:</strong> Java does not implement priority inheritance. Avoid using thread priorities.</div>
+                <div class="meta"><i>4 min read</i> <i>priority-inversion</i> <i>starvation</i></div>
+            </div>
+
+            <!-- Q24 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q24</span> <span class="topic-badge">advanced</span> <strong>What is a "deadlock" in a database context?</strong></p>
+                <p><strong>A:</strong> Database deadlocks occur when two transactions each hold locks on resources that the other needs.</p>
+                <p><strong>Example:</strong></p>
+                <ul>
+                    <li>Transaction A updates Table X, then tries to update Table Y.</li>
+                    <li>Transaction B updates Table Y, then tries to update Table X.</li>
+                </ul>
+                <p>Both transactions block. The database detects the deadlock and rolls back one transaction.</p>
+                <p><strong>How to handle in Java:</strong></p>
+                <ul>
+                    <li>Use <code>@Transactional</code> with a retry mechanism.</li>
+                    <li>Catch <code>DeadlockLoserDataAccessException</code> (Spring) and retry.</li>
+                </ul>
+                <div class="meta"><i>3 min read</i> <i>database-deadlock</i> <i>transaction</i></div>
+            </div>
+
+            <!-- Q25 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q25</span> <span class="topic-badge">advanced</span> <strong>What is the difference between synchronized and ReentrantLock in terms of deadlock prevention?</strong></p>
+                <table>
+                    <tr><th>Feature</th><th>synchronized</th><th>ReentrantLock</th></tr>
+                    <tr><td>Lock Ordering</td><td>Can be used</td><td>Can be used</td></tr>
+                    <tr><td><code>tryLock()</code> with Timeout</td><td>Not available</td><td>Available</td></tr>
+                    <tr><td><code>lockInterruptibly()</code></td><td>Not available</td><td>Available</td></tr>
+                    <tr><td>Deadlock Prevention</td><td>Only lock ordering</td><td><code>tryLock()</code>, lock ordering, interruptible locks</td></tr>
+                </table>
+                <div class="highlight-box"><strong>Interview Tip:</strong> <code>ReentrantLock</code> provides more tools for deadlock prevention. Use it when you need these features.</div>
+                <div class="meta"><i>3 min read</i> <i>advanced</i> <i>ReentrantLock</i> <i>synchronized</i></div>
+            </div>
+
+            <!-- Q26 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q26</span> <span class="topic-badge">advanced</span> <strong>What is the "dining philosophers" problem and how does it relate to deadlock?</strong></p>
+                <p><strong>A:</strong> The dining philosophers problem is a classic concurrency problem:</p>
+                <ul>
+                    <li>Five philosophers sit at a round table.</li>
+                    <li>Each has a fork on their left and a fork on their right.</li>
+                    <li>To eat, a philosopher needs both forks.</li>
+                    <li>If each philosopher picks up the left fork simultaneously, all will wait for the right fork → deadlock.</li>
+                </ul>
+                <p><strong>Solutions:</strong></p>
+                <ul>
+                    <li><strong>Lock Ordering:</strong> Philosophers pick up the fork with the lower ID first.</li>
+                    <li><strong>Mutex:</strong> A single lock controls access to all forks.</li>
+                    <li><strong>Lazy Pickup:</strong> Wait until both forks are available.</li>
+                </ul>
+                <p>This problem mirrors the bank transfer deadlock (multiple resources, each held by one thread).</p>
+                <div class="meta"><i>4 min read</i> <i>dining-philosophers</i> <i>deadlock</i></div>
+            </div>
+
+            <!-- Q27 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q27</span> <span class="topic-badge">advanced</span> <strong>What is the "readers-writers" problem and how does it relate to liveness?</strong></p>
+                <p><strong>A:</strong> The readers-writers problem involves multiple threads accessing a shared resource:</p>
+                <ul>
+                    <li><strong>Readers:</strong> Only read the data (can read concurrently).</li>
+                    <li><strong>Writers:</strong> Read and write (need exclusive access).</li>
+                </ul>
+                <p><strong>Liveness Issues:</strong></p>
+                <ul>
+                    <li><strong>Writer Starvation:</strong> If readers keep coming, writers may never get a chance to write.</li>
+                    <li><strong>Reader Starvation:</strong> If writers keep coming, readers may be starved.</li>
+                </ul>
+                <p><strong>Solution:</strong> Use <code>ReentrantReadWriteLock</code> with a fair policy.</p>
+                <div class="meta"><i>3 min read</i> <i>readers-writers</i> <i>starvation</i></div>
+            </div>
+
+            <!-- Q28 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q28</span> <span class="topic-badge">advanced</span> <strong>What is "lock ordering" and why is it the most effective deadlock prevention?</strong></p>
+                <p><strong>A:</strong> Lock ordering is the practice of acquiring locks in a consistent global order. It breaks the circular wait condition.</p>
+                <p><strong>Why it's effective:</strong></p>
+                <ul>
+                    <li>Simple to implement.</li>
+                    <li>No runtime overhead (unlike <code>tryLock()</code> which requires retries).</li>
+                    <li>Prevents deadlock by design.</li>
+                </ul>
+                <p><strong>Example:</strong></p>
+                <div class="code-block"><span class="cmt">// Always lock by ID</span>
+BankAccount first = <span class="kw">this</span>.id &lt; target.id ? <span class="kw">this</span> : target;
+BankAccount second = <span class="kw">this</span>.id &lt; target.id ? target : <span class="kw">this</span>;
+<span class="kw">synchronized</span> (first) {
+    <span class="kw">synchronized</span> (second) {
+        <span class="cmt">// ...</span>
+    }
+}</div>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – What if I can't assign a unique ID?</strong><br />
+                Use a third lock (e.g., a global <code>ReentrantLock</code>) as a tie-breaker, or use <code>System.identityHashCode()</code>.</div>
+                <div class="meta"><i>3 min read</i> <i>lock-ordering</i> <i>prevention</i></div>
+            </div>
+
+            <!-- Q29 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q29</span> <span class="topic-badge">advanced</span> <strong>What is "tryLock" and how does it help with deadlock prevention?</strong></p>
+                <p><strong>A:</strong> <code>tryLock()</code> attempts to acquire a lock without blocking indefinitely. It returns <code>true</code> if successful, <code>false</code> otherwise.</p>
+                <p><strong>How it helps:</strong></p>
+                <ul>
+                    <li>A thread can attempt to acquire all locks.</li>
+                    <li>If any lock acquisition fails, it releases any locks it has.</li>
+                    <li>It retries after a delay.</li>
+                </ul>
+                <p><strong>Example:</strong></p>
+                <div class="code-block"><span class="kw">if</span> (lock1.tryLock()) {
+    <span class="kw">try</span> {
+        <span class="kw">if</span> (lock2.tryLock()) {
+            <span class="kw">try</span> {
+                <span class="cmt">// Critical section</span>
+                <span class="kw">return true</span>;
+            } <span class="kw">finally</span> {
+                lock2.unlock();
+            }
+        }
+    } <span class="kw">finally</span> {
+        lock1.unlock();
+    }
+}
+<span class="kw">return false</span>;  <span class="cmt">// Could not acquire both locks</span></div>
+                <div class="meta"><i>3 min read</i> <i>tryLock</i> <i>prevention</i></div>
+            </div>
+
+            <!-- Q30 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q30</span> <span class="topic-badge">advanced</span> <strong>What is "fairness" in locks and how does it affect liveness?</strong></p>
+                <p><strong>A:</strong> Fairness determines whether threads acquire locks in the order they requested them.</p>
+                <table>
+                    <tr><th>Policy</th><th>Behavior</th><th>Liveness Impact</th></tr>
+                    <tr><td><strong>Fair Lock</strong> (<code>new ReentrantLock(true)</code>)</td><td>Threads get the lock in the order they requested.</td><td>Prevents starvation but reduces throughput.</td></tr>
+                    <tr><td><strong>Unfair Lock</strong> (<code>new ReentrantLock(false)</code>)</td><td>Threads compete for the lock; the OS scheduler decides.</td><td>Higher throughput but can cause starvation.</td></tr>
+                </table>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – Should I use fair locks?</strong><br />
+                Rarely. Fair locks are slower because they require more bookkeeping. In most applications, the performance cost outweighs the benefit.</div>
+                <div class="meta"><i>3 min read</i> <i>fairness</i> <i>starvation</i></div>
+            </div>
+
+            <!-- Topic 5.8 -->
+            <div class="content-item">
+                <div class="section-tag">Part A · Conceptual</div>
+                <h2>Topic 5.8: Common Pitfalls and Interview Traps</h2>
+            </div>
+
+            <!-- Q31 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q31</span> <span class="topic-badge">pitfall</span> <strong>What is wrong with this code?</strong></p>
+                <div class="code-block"><span class="kw">public class</span> DeadlockExample {
+    <span class="kw">private final</span> Object lock1 = <span class="kw">new</span> Object();
+    <span class="kw">private final</span> Object lock2 = <span class="kw">new</span> Object();
+    
+    <span class="kw">public void</span> methodA() {
+        <span class="kw">synchronized</span> (lock1) {
+            <span class="kw">synchronized</span> (lock2) {
+                <span class="cmt">// Do work</span>
+            }
+        }
+    }
+    
+    <span class="kw">public void</span> methodB() {
+        <span class="kw">synchronized</span> (lock2) {
+            <span class="kw">synchronized</span> (lock1) {
+                <span class="cmt">// Do work</span>
+            }
+        }
+    }
+}</div>
+                <p><strong>Answer:</strong> This is a classic deadlock. Thread A locks <code>lock1</code> then <code>lock2</code>. Thread B locks <code>lock2</code> then <code>lock1</code>. If both threads run simultaneously, they will deadlock.</p>
+                <p><strong>Fix:</strong> Make both threads lock in the same order (lock1 then lock2).</p>
+                <div class="meta"><i>2 min read</i> <i>pitfall</i> <i>deadlock</i></div>
+            </div>
+
+            <!-- Q32 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q32</span> <span class="topic-badge">pitfall</span> <strong>What is wrong with this code?</strong></p>
+                <div class="code-block"><span class="kw">public class</span> LivelockExample {
+    <span class="kw">private final</span> Lock lock1 = <span class="kw">new</span> ReentrantLock();
+    <span class="kw">private final</span> Lock lock2 = <span class="kw">new</span> ReentrantLock();
+    
+    <span class="kw">public void</span> methodA() {
+        <span class="kw">while</span> (<span class="kw">true</span>) {
+            <span class="kw">if</span> (lock1.tryLock()) {
+                <span class="kw">try</span> {
+                    <span class="kw">if</span> (lock2.tryLock()) {
+                        <span class="kw">try</span> {
+                            <span class="cmt">// Do work</span>
+                            <span class="kw">return</span>;
+                        } <span class="kw">finally</span> {
+                            lock2.unlock();
+                        }
+                    }
+                } <span class="kw">finally</span> {
+                    lock1.unlock();
+                }
+            }
+        }
+    }
+}</div>
+                <p><strong>Answer:</strong> This is a livelock. If Thread A acquires <code>lock1</code>, fails to acquire <code>lock2</code>, releases <code>lock1</code>, and retries immediately, it may keep doing this forever. Thread B has the same behavior.</p>
+                <p><strong>Fix:</strong> Add exponential backoff with jitter to prevent immediate retries.</p>
+                <div class="meta"><i>2 min read</i> <i>pitfall</i> <i>livelock</i></div>
+            </div>
+
+            <!-- Q33 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q33</span> <span class="topic-badge">pitfall</span> <strong>What is wrong with this code?</strong></p>
+                <div class="code-block"><span class="kw">public class</span> StarvationExample {
+    <span class="kw">public static void</span> main(String[] args) {
+        <span class="cmt">// Low priority thread</span>
+        Thread low = <span class="kw">new</span> Thread(() -> {
+            <span class="kw">while</span> (<span class="kw">true</span>) {
+                System.out.println(<span class="str">"Low priority running"</span>);
+            }
+        });
+        low.setPriority(Thread.MIN_PRIORITY);
+        
+        <span class="cmt">// High priority thread (CPU hog)</span>
+        Thread high = <span class="kw">new</span> Thread(() -> {
+            <span class="kw">while</span> (<span class="kw">true</span>) {
+                <span class="cmt">// Busy loop</span>
+            }
+        });
+        high.setPriority(Thread.MAX_PRIORITY);
+        
+        low.start();
+        high.start();
+    }
+}</div>
+                <p><strong>Answer:</strong> The low-priority thread may be starved because the high-priority thread consumes all CPU time.</p>
+                <p><strong>Fix:</strong> Avoid setting thread priorities. Let the OS scheduler handle it.</p>
+                <div class="meta"><i>2 min read</i> <i>pitfall</i> <i>starvation</i></div>
+            </div>
+
+            <!-- Q34 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q34</span> <span class="topic-badge">pitfall</span> <strong>What is wrong with this code?</strong></p>
+                <div class="code-block"><span class="kw">public class</span> ThreadExhaustion {
+    <span class="kw">public static void</span> main(String[] args) {
+        <span class="kw">while</span> (<span class="kw">true</span>) {
+            <span class="kw">new</span> Thread(() -> {
+                <span class="kw">try</span> {
+                    Thread.sleep(Long.MAX_VALUE);
+                } <span class="kw">catch</span> (InterruptedException e) {}
+            }).start();
+        }
+    }
+}</div>
+                <p><strong>Answer:</strong> This creates threads indefinitely, eventually causing <code>OutOfMemoryError</code> or hitting the OS thread limit.</p>
+                <p><strong>Fix:</strong> Use a thread pool (<code>Executors.newFixedThreadPool()</code>).</p>
+                <div class="meta"><i>2 min read</i> <i>pitfall</i> <i>exhaustion</i></div>
+            </div>
+
+            <!-- Q35 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q35</span> <span class="topic-badge">pitfall</span> <strong>What is wrong with this code?</strong></p>
+                <div class="code-block"><span class="kw">public class</span> DeadlockDetection {
+    <span class="kw">public static void</span> main(String[] args) {
+        ThreadMXBean bean = ManagementFactory.getThreadMXBean();
+        <span class="kw">long</span>[] deadlocked = bean.findMonitorDeadlockedThreads();
+        <span class="kw">if</span> (deadlocked != <span class="kw">null</span>) {
+            System.out.println(<span class="str">"Deadlock detected!"</span>);
+        }
+    }
+}</div>
+                <p><strong>Answer:</strong> <code>findMonitorDeadlockedThreads()</code> only detects deadlocks caused by <code>synchronized</code> locks. It does not detect deadlocks caused by <code>ReentrantLock</code>.</p>
+                <p><strong>Fix:</strong> Use <code>findDeadlockedThreads()</code> instead.</p>
+                <div class="meta"><i>2 min read</i> <i>pitfall</i> <i>detection</i></div>
+            </div>
+
+            <!-- ============================================================ -->
+            <!-- PART B: CLASSIC INTERVIEW QUESTIONS (CODE-BASED)             -->
+            <!-- ============================================================ -->
+
+            <div class="content-item">
+                <div class="section-tag">Part B · Code-Based</div>
+                <h2>Classic Interview Questions (Code-Based)</h2>
+            </div>
+
+            <!-- Q36 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q36</span> <span class="topic-badge">interview</span> <strong>Write a method that transfers money between two accounts without deadlock.</strong></p>
+                <p><strong>A:</strong></p>
+                <div class="code-block"><span class="kw">public class</span> BankAccount {
+    <span class="kw">private final int</span> id;
+    <span class="kw">private int</span> balance;
+    <span class="kw">private final</span> Lock lock = <span class="kw">new</span> ReentrantLock();
+    
+    <span class="kw">public</span> BankAccount(<span class="kw">int</span> id, <span class="kw">int</span> balance) {
+        <span class="kw">this</span>.id = id;
+        <span class="kw">this</span>.balance = balance;
+    }
+    
+    <span class="kw">public boolean</span> transfer(BankAccount target, <span class="kw">int</span> amount) {
+        <span class="cmt">// Get two accounts in consistent order</span>
+        BankAccount first = <span class="kw">this</span>.id &lt; target.id ? <span class="kw">this</span> : target;
+        BankAccount second = <span class="kw">this</span>.id &lt; target.id ? target : <span class="kw">this</span>;
+        
+        <span class="cmt">// Lock in order</span>
+        first.lock.lock();
+        <span class="kw">try</span> {
+            second.lock.lock();
+            <span class="kw">try</span> {
+                <span class="kw">if</span> (<span class="kw">this</span>.balance &lt; amount) {
+                    <span class="kw">return false</span>;  <span class="cmt">// Insufficient funds</span>
+                }
+                <span class="kw">this</span>.balance -= amount;
+                target.balance += amount;
+                <span class="kw">return true</span>;
+            } <span class="kw">finally</span> {
+                second.lock.unlock();
+            }
+        } <span class="kw">finally</span> {
+            first.lock.unlock();
+        }
+    }
+}</div>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – What if two accounts have the same ID?</strong><br />
+                They shouldn't. If they do, use a third lock as a tie-breaker or use <code>System.identityHashCode()</code>.</div>
+                <div class="meta"><i>4 min read</i> <i>interview</i> <i>bank-transfer</i></div>
+            </div>
+
+            <!-- Q37 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q37</span> <span class="topic-badge">interview</span> <strong>Write a method that transfers money between two accounts using tryLock() with timeout.</strong></p>
+                <p><strong>A:</strong></p>
+                <div class="code-block"><span class="kw">public class</span> BankAccount {
+    <span class="kw">private final</span> Lock lock = <span class="kw">new</span> ReentrantLock();
+    <span class="kw">private int</span> balance;
+    
+    <span class="kw">public boolean</span> transfer(BankAccount target, <span class="kw">int</span> amount, <span class="kw">long</span> timeout, TimeUnit unit) {
+        <span class="kw">long</span> stopTime = System.nanoTime() + unit.toNanos(timeout);
+        
+        <span class="kw">while</span> (System.nanoTime() &lt; stopTime) {
+            <span class="kw">try</span> {
+                <span class="kw">if</span> (<span class="kw">this</span>.lock.tryLock(100, TimeUnit.MILLISECONDS)) {
+                    <span class="kw">try</span> {
+                        <span class="kw">if</span> (target.lock.tryLock(100, TimeUnit.MILLISECONDS)) {
+                            <span class="kw">try</span> {
+                                <span class="kw">if</span> (<span class="kw">this</span>.balance &lt; amount) {
+                                    <span class="kw">return false</span>;
+                                }
+                                <span class="kw">this</span>.balance -= amount;
+                                target.balance += amount;
+                                <span class="kw">return true</span>;
+                            } <span class="kw">finally</span> {
+                                target.lock.unlock();
+                            }
+                        }
+                    } <span class="kw">finally</span> {
+                        <span class="kw">this</span>.lock.unlock();
+                    }
+                }
+            } <span class="kw">catch</span> (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                <span class="kw">return false</span>;
+            }
+        }
+        <span class="kw">return false</span>;  <span class="cmt">// Timeout</span>
+    }
+}</div>
+                <div class="meta"><i>4 min read</i> <i>interview</i> <i>tryLock</i></div>
+            </div>
+
+            <!-- Q38 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q38</span> <span class="topic-badge">interview</span> <strong>How do you detect deadlocks programmatically?</strong></p>
+                <p><strong>A:</strong></p>
+                <div class="code-block"><span class="kw">public class</span> DeadlockDetector {
+    <span class="kw">public static void</span> checkForDeadlocks() {
+        ThreadMXBean bean = ManagementFactory.getThreadMXBean();
+        <span class="kw">long</span>[] deadlocked = bean.findDeadlockedThreads();
+        
+        <span class="kw">if</span> (deadlocked != <span class="kw">null</span>) {
+            System.out.println(<span class="str">"Deadlock detected!"</span>);
+            ThreadInfo[] infos = bean.getThreadInfo(deadlocked, <span class="kw">true</span>, <span class="kw">true</span>);
+            <span class="kw">for</span> (ThreadInfo info : infos) {
+                System.out.println(<span class="str">"Thread: "</span> + info.getThreadName());
+                System.out.println(<span class="str">"State: "</span> + info.getThreadState());
+                System.out.println(<span class="str">"Lock info: "</span> + info.getLockInfo());
+                <span class="kw">for</span> (MonitorInfo monitor : info.getLockedMonitors()) {
+                    System.out.println(<span class="str">"Locked monitor: "</span> + monitor.getClassName());
+                }
+            }
+        }
+    }
+}</div>
+                <div class="meta"><i>3 min read</i> <i>interview</i> <i>detection</i></div>
+            </div>
+
+            <!-- Q39 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q39</span> <span class="topic-badge">interview</span> <strong>What is the "dining philosophers" solution using lock ordering?</strong></p>
+                <p><strong>A:</strong></p>
+                <div class="code-block"><span class="kw">public class</span> Philosopher <span class="kw">implements</span> Runnable {
+    <span class="kw">private final</span> Fork leftFork;
+    <span class="kw">private final</span> Fork rightFork;
+    <span class="kw">private final int</span> id;
+    
+    <span class="kw">public</span> Philosopher(<span class="kw">int</span> id, Fork left, Fork right) {
+        <span class="kw">this</span>.id = id;
+        <span class="cmt">// Ensure consistent ordering: always take the fork with the lower ID first</span>
+        <span class="kw">this</span>.leftFork = left.id &lt; right.id ? left : right;
+        <span class="kw">this</span>.rightFork = left.id &lt; right.id ? right : left;
+    }
+    
+    <span class="kw">@Override</span>
+    <span class="kw">public void</span> run() {
+        <span class="kw">while</span> (<span class="kw">true</span>) {
+            <span class="kw">synchronized</span> (leftFork) {
+                <span class="kw">synchronized</span> (rightFork) {
+                    <span class="cmt">// Eat</span>
+                }
+            }
+        }
+    }
+}</div>
+                <div class="meta"><i>3 min read</i> <i>interview</i> <i>dining-philosophers</i></div>
+            </div>
+
+            <!-- Q40 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q40</span> <span class="topic-badge">interview</span> <strong>What is the "readers-writers" problem solution?</strong></p>
+                <p><strong>A:</strong></p>
+                <div class="code-block"><span class="kw">public class</span> ReadWriteExample {
+    <span class="kw">private final</span> ReentrantReadWriteLock lock = <span class="kw">new</span> ReentrantReadWriteLock();
+    <span class="kw">private final</span> Lock readLock = lock.readLock();
+    <span class="kw">private final</span> Lock writeLock = lock.writeLock();
+    <span class="kw">private int</span> data = 0;
+    
+    <span class="kw">public int</span> read() {
+        readLock.lock();
+        <span class="kw">try</span> {
+            <span class="kw">return</span> data;
+        } <span class="kw">finally</span> {
+            readLock.unlock();
+        }
+    }
+    
+    <span class="kw">public void</span> write(<span class="kw">int</span> value) {
+        writeLock.lock();
+        <span class="kw">try</span> {
+            data = value;
+        } <span class="kw">finally</span> {
+            writeLock.unlock();
+        }
+    }
+}</div>
+                <div class="meta"><i>3 min read</i> <i>interview</i> <i>readers-writers</i></div>
+            </div>
+
+            <!-- Q41 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q41</span> <span class="topic-badge">interview</span> <strong>What is the difference between deadlock and a TimeoutException?</strong></p>
+                <table>
+                    <tr><th>Feature</th><th>Deadlock</th><th>TimeoutException</th></tr>
+                    <tr><td>Blocking</td><td>Threads block indefinitely</td><td>Threads block for a limited time</td></tr>
+                    <tr><td>Detection</td><td>Thread dump</td><td>Catch the exception</td></tr>
+                    <tr><td>Resolution</td><td>Restart application</td><td>Retry or fallback</td></tr>
+                    <tr><td>Prevention</td><td>Lock ordering, tryLock()</td><td>Always use timeouts</td></tr>
+                </table>
+                <div class="highlight-box"><strong>Interview Tip:</strong> Always use timeouts to prevent indefinite blocking. A TimeoutException is recoverable; a deadlock is not.</div>
+                <div class="meta"><i>3 min read</i> <i>interview</i> <i>TimeoutException</i></div>
+            </div>
+
+            <!-- Q42 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q42</span> <span class="topic-badge">interview</span> <strong>What is the difference between Thread.join() and Thread.sleep() in terms of liveness?</strong></p>
+                <table>
+                    <tr><th>Feature</th><th>Thread.join()</th><th>Thread.sleep()</th></tr>
+                    <tr><td>Blocking</td><td>Waits for another thread to finish</td><td>Pauses the current thread</td></tr>
+                    <tr><td>Liveness Risk</td><td>Deadlock (if thread waits for itself)</td><td>No liveness risk</td></tr>
+                    <tr><td>Interruption</td><td>Throws InterruptedException</td><td>Throws InterruptedException</td></tr>
+                    <tr><td>Use Case</td><td>Wait for task completion</td><td>Delay or yield</td></tr>
+                </table>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – Can Thread.join() cause deadlock?</strong><br />
+                Yes. If a thread calls <code>join()</code> on itself, it waits forever.<br />
+                <div class="code-block">Thread.currentThread().join();  <span class="cmt">// Deadlock!</span></div>
+                Also, if Thread A waits for Thread B, and Thread B waits for Thread A (via <code>join()</code>), that's a deadlock.</div>
+                <div class="meta"><i>3 min read</i> <i>interview</i> <i>join</i> <i>sleep</i></div>
+            </div>
+
+            <!-- Q43 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q43</span> <span class="topic-badge">interview</span> <strong>What is the difference between ReentrantLock and synchronized in terms of interruptibility?</strong></p>
+                <table>
+                    <tr><th>Feature</th><th>synchronized</th><th>ReentrantLock</th></tr>
+                    <tr><td>Interruptible</td><td>No (waiting thread cannot be interrupted)</td><td>Yes (<code>lockInterruptibly()</code>)</td></tr>
+                    <tr><td>Effect</td><td>Thread remains BLOCKED</td><td>Thread can be interrupted and handle the exception</td></tr>
+                </table>
+                <p><strong>Example:</strong></p>
+                <div class="code-block"><span class="cmt">// Not interruptible</span>
+<span class="kw">synchronized</span> (lock) {
+    <span class="cmt">// ...</span>
+}
+
+<span class="cmt">// Interruptible</span>
+lock.lockInterruptibly();
+<span class="kw">try</span> {
+    <span class="cmt">// ...</span>
+} <span class="kw">finally</span> {
+    lock.unlock();
+}</div>
+                <div class="meta"><i>3 min read</i> <i>interview</i> <i>interruptibility</i></div>
+            </div>
+
+            <!-- Q44 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q44</span> <span class="topic-badge">interview</span> <strong>What is the difference between ReentrantLock and synchronized in terms of timeouts?</strong></p>
+                <table>
+                    <tr><th>Feature</th><th>synchronized</th><th>ReentrantLock</th></tr>
+                    <tr><td>Timeout</td><td>Not available</td><td><code>tryLock(timeout, unit)</code></td></tr>
+                    <tr><td>Effect</td><td>Thread waits indefinitely</td><td>Thread waits for a limited time</td></tr>
+                </table>
+                <p><strong>Example:</strong></p>
+                <div class="code-block"><span class="cmt">// Indefinite wait</span>
+<span class="kw">synchronized</span> (lock) {
+    <span class="cmt">// ...</span>
+}
+
+<span class="cmt">// Timed wait</span>
+<span class="kw">if</span> (lock.tryLock(1, TimeUnit.SECONDS)) {
+    <span class="kw">try</span> {
+        <span class="cmt">// ...</span>
+    } <span class="kw">finally</span> {
+        lock.unlock();
+    }
+}</div>
+                <div class="meta"><i>3 min read</i> <i>interview</i> <i>timeout</i></div>
+            </div>
+
+            <!-- Q45 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q45</span> <span class="topic-badge">interview</span> <strong>What is the difference between deadlock and a "blocked" thread?</strong></p>
+                <table>
+                    <tr><th>Feature</th><th>Blocked Thread</th><th>Deadlock</th></tr>
+                    <tr><td>Definition</td><td>A thread waiting for a lock</td><td>A cycle of blocked threads</td></tr>
+                    <tr><td>Cause</td><td>Lock held by another thread</td><td>Circular dependency of locks</td></tr>
+                    <tr><td>Resolution</td><td>Lock is released</td><td>Requires breaking the cycle</td></tr>
+                    <tr><td>Detection</td><td>Thread dump shows BLOCKED</td><td>Thread dump shows a cycle</td></tr>
+                </table>
+                <p>A blocked thread is not necessarily deadlocked. It may become unblocked when the lock is released. Deadlock is a permanent form of blocking.</p>
+                <div class="meta"><i>2 min read</i> <i>interview</i> <i>blocked</i></div>
+            </div>
+
+            <!-- Q46 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q46</span> <span class="topic-badge">interview</span> <strong>What is the difference between deadlock and "resource exhaustion"?</strong></p>
+                <table>
+                    <tr><th>Feature</th><th>Deadlock</th><th>Resource Exhaustion</th></tr>
+                    <tr><td>Cause</td><td>Circular wait</td><td>Too many threads consuming resources</td></tr>
+                    <tr><td>Effect</td><td>Threads block</td><td><code>OutOfMemoryError</code> or OS thread limit</td></tr>
+                    <tr><td>Resolution</td><td>Break the cycle</td><td>Use thread pools, limit threads</td></tr>
+                </table>
+                <p><strong>Example of Resource Exhaustion:</strong></p>
+                <div class="code-block"><span class="kw">while</span> (<span class="kw">true</span>) {
+    <span class="kw">new</span> Thread(() -> {
+        <span class="kw">try</span> {
+            Thread.sleep(10000);
+        } <span class="kw">catch</span> (InterruptedException e) {}
+    }).start();
+}</div>
+                <p>This creates threads until memory is exhausted.</p>
+                <div class="meta"><i>2 min read</i> <i>interview</i> <i>exhaustion</i></div>
+            </div>
+
+            <!-- Q47 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q47</span> <span class="topic-badge">interview</span> <strong>What is the difference between deadlock and "thread starvation" in a thread pool?</strong></p>
+                <table>
+                    <tr><th>Feature</th><th>Deadlock in Thread Pool</th><th>Thread Starvation in Thread Pool</th></tr>
+                    <tr><td>Cause</td><td>Tasks waiting for each other's results</td><td>Not enough threads to process tasks</td></tr>
+                    <tr><td>Effect</td><td>Tasks never complete</td><td>Tasks wait indefinitely</td></tr>
+                    <tr><td>Resolution</td><td>Fix task dependencies</td><td>Increase pool size</td></tr>
+                    <tr><td>Detection</td><td>Thread dump shows BLOCKED</td><td>Thread dump shows WAITING</td></tr>
+                </table>
+                <p><strong>Example of Thread Pool Deadlock:</strong></p>
+                <div class="code-block">ExecutorService pool = Executors.newFixedThreadPool(2);
+Future&lt;?&gt; f1 = pool.submit(() -> {
+    Future&lt;?&gt; f2 = pool.submit(() -> {
+        <span class="cmt">// Inner task</span>
+    });
+    f2.get();  <span class="cmt">// Waits for inner task</span>
+});
+f1.get();  <span class="cmt">// Waits for outer task</span></div>
+                <p>The outer task waits for the inner task, but both tasks share the same pool of 2 threads. Deadlock!</p>
+                <p><strong>The Fix:</strong> Use a larger pool or <code>ForkJoinPool</code>.</p>
+                <div class="meta"><i>3 min read</i> <i>interview</i> <i>thread-pool</i></div>
+            </div>
+
+            <!-- Q48 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q48</span> <span class="topic-badge">interview</span> <strong>What is the difference between "livelock" and "priority inversion"?</strong></p>
+                <table>
+                    <tr><th>Feature</th><th>Livelock</th><th>Priority Inversion</th></tr>
+                    <tr><td>Threads</td><td>Active (RUNNABLE)</td><td>Active (RUNNABLE)</td></tr>
+                    <tr><td>Cause</td><td>Symmetric retry logic</td><td>High-priority thread waits for low-priority thread</td></tr>
+                    <tr><td>Progress</td><td>No progress</td><td>High-priority thread makes no progress</td></tr>
+                    <tr><td>Resolution</td><td>Exponential backoff</td><td>Priority inheritance</td></tr>
+                </table>
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – Which is more common?</strong><br />
+                Livelock is more common in code (<code>tryLock()</code> retries). Priority inversion is more common in OS scheduling and embedded systems.</div>
+                <div class="meta"><i>3 min read</i> <i>interview</i> <i>livelock</i> <i>priority-inversion</i></div>
+            </div>
+
+            <!-- Q49 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q49</span> <span class="topic-badge">interview</span> <strong>What is the "dining philosophers" problem and what are the solutions?</strong></p>
+                <p><strong>A:</strong> The dining philosophers problem is a classic concurrency problem.</p>
+                <p><strong>Problem:</strong> Five philosophers sit at a round table. Each has a fork on each side. To eat, a philosopher needs both forks. If all philosophers pick up the left fork simultaneously, all will wait for the right fork → deadlock.</p>
+                <p><strong>Solutions:</strong></p>
+                <table>
+                    <tr><th>Solution</th><th>Description</th><th>Pros</th><th>Cons</th></tr>
+                    <tr><td><strong>Lock Ordering</strong></td><td>Philosophers pick up the fork with the lower ID first.</td><td>Simple</td><td>Requires unique IDs</td></tr>
+                    <tr><td><strong>Mutex</strong></td><td>A single lock controls access to all forks.</td><td>Simple</td><td>Low concurrency</td></tr>
+                    <tr><td><strong>Lazy Pickup</strong></td><td>Only pick up forks if both are available.</td><td>High concurrency</td><td>Complex</td></tr>
+                    <tr><td><strong>Resource Hierarchy</strong></td><td>Assign a numeric priority to forks.</td><td>Simple</td><td>May cause starvation</td></tr>
+                </table>
+                <div class="meta"><i>4 min read</i> <i>interview</i> <i>dining-philosophers</i></div>
+            </div>
+
+            <!-- Q50 -->
+            <div class="content-item">
+                <p><span class="qa-number">Q50</span> <span class="topic-badge">interview</span> <strong>How would you design a system to detect and recover from deadlock?</strong></p>
+                <p><strong>A:</strong></p>
+                <p><strong>Detection:</strong></p>
+                <ul>
+                    <li>Use <code>ThreadMXBean.findDeadlockedThreads()</code> periodically.</li>
+                    <li>Monitor lock acquisition times (if a lock takes too long, log a warning).</li>
+                </ul>
+                <p><strong>Recovery:</strong></p>
+                <ul>
+                    <li>Interrupt deadlocked threads (<code>thread.interrupt()</code>).</li>
+                    <li>Log the deadlock details (thread dumps).</li>
+                    <li>Restart affected threads or the application.</li>
+                    <li>Use a circuit breaker pattern to prevent cascading failures.</li>
+                </ul>
+                <p><strong>Prevention:</strong></p>
+                <ul>
+                    <li>Use lock ordering.</li>
+                    <li>Use <code>tryLock()</code> with timeouts.</li>
+                    <li>Use higher-level abstractions (<code>ConcurrentHashMap</code>, <code>BlockingQueue</code>).</li>
+                </ul>
+                <div class="meta"><i>4 min read</i> <i>interview</i> <i>detection</i> <i>recovery</i></div>
+            </div>
+
+            <!-- End -->
+            <div class="content-item">
+                <div class="section-tag">Chapter 5 · Complete</div>
+                <h2>End of Q&A Bank</h2>
+                <p>All 50+ questions covering every aspect of Liveness Hazards have been addressed.</p>
+                <p><strong>Topics covered:</strong></p>
+                <ul>
+                    <li>Deadlock Fundamentals (Coffman conditions, self-deadlock, vs hung thread)</li>
+                    <li>Deadlock Detection (thread dumps, jstack, programmatic detection, findDeadlockedThreads)</li>
+                    <li>Deadlock Prevention (lock ordering, tryLock, Banker's Algorithm)</li>
+                    <li>Starvation (causes, priority inversion, prevention)</li>
+                    <li>Livelock (definition, prevention, spinning, vs deadlock)</li>
+                    <li>Thread Exhaustion (causes, prevention, OS limits)</li>
+                    <li>Advanced Topics (dining philosophers, readers-writers, priority inversion)</li>
+                    <li>50 Code-Based Interview Questions</li>
+                </ul>
+                <div class="meta"><i>Complete</i> <i>50+ Q&A</i> <i>reference</i></div>
+            </div>
+
+        </div>
+    </div>
+</div>
+</body>
+</html>
