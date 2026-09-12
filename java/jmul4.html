@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Java Concurrency · Chapter 3 · Thread Safety</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,600;14..32,700&display=swap" rel="stylesheet" />
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(145deg, #eef2f7 0%, #d5dee9 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            padding: 14px;
+        }
+
+        .frame-card {
+            width: 100%;
+            height: calc(100vh - 28px);
+            max-height: calc(100vh - 28px);
+            background: rgba(255, 255, 255, 0.55);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 44px;
+            box-shadow: 0 30px 60px -16px rgba(0, 20, 30, 0.3), 0 12px 32px -8px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+            padding: 28px 34px;
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .scroll-viewport {
+            flex: 1;
+            width: 100%;
+            overflow: hidden;
+            border-radius: 36px;
+            position: relative;
+            background: rgba(255, 255, 255, 0.06);
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.02);
+            min-height: 0;
+        }
+
+        .scroll-content {
+            display: flex;
+            flex-direction: column;
+            gap: 1.8rem;
+            padding: 2.4rem 2.8rem 3.2rem 2.8rem;
+            animation: slowScroll 500s linear infinite;
+            will-change: transform;
+        }
+
+        .scroll-viewport:hover .scroll-content {
+            animation-play-state: paused;
+        }
+
+        @keyframes slowScroll {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(-50%); }
+        }
+
+        .content-item {
+            background: rgba(255, 255, 255, 0.78);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            border-radius: 28px;
+            padding: 2.2rem 2.8rem;
+            border: 1px solid rgba(255, 255, 255, 0.85);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.02);
+            transition: transform 0.2s ease, box-shadow 0.25s ease;
+            color: #14212e;
+        }
+
+        .content-item:hover {
+            transform: scale(1.005);
+            box-shadow: 0 12px 32px rgba(0, 20, 40, 0.08);
+            background: rgba(255, 255, 255, 0.92);
+        }
+
+        .content-item .section-tag {
+            display: inline-block;
+            background: rgba(40, 80, 140, 0.07);
+            padding: 0.15rem 1.2rem;
+            border-radius: 60px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #1a3a5e;
+            letter-spacing: 0.05em;
+            border: 1px solid rgba(255,255,255,0.3);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+        }
+
+        .content-item h1 {
+            font-weight: 700;
+            font-size: 2.4rem;
+            letter-spacing: -0.02em;
+            margin: 0.2rem 0 0.4rem 0;
+            color: #0a1725;
+            line-height: 1.2;
+        }
+
+        .content-item h2 {
+            font-weight: 600;
+            font-size: 1.9rem;
+            letter-spacing: -0.01em;
+            margin: 0.8rem 0 0.4rem 0;
+            color: #0f2033;
+            line-height: 1.3;
+        }
+
+        .content-item h3 {
+            font-weight: 600;
+            font-size: 1.5rem;
+            margin: 0.6rem 0 0.3rem 0;
+            color: #142b42;
+            line-height: 1.3;
+        }
+
+        .content-item h4 {
+            font-weight: 600;
+            font-size: 1.2rem;
+            margin: 0.5rem 0 0.2rem 0;
+            color: #1a334d;
+            line-height: 1.4;
+        }
+
+        .content-item p {
+            font-weight: 400;
+            font-size: 1.15rem;
+            line-height: 1.8;
+            color: #1d2d3f;
+            opacity: 0.9;
+            margin: 0.3rem 0;
+        }
+
+        .content-item .code-block {
+            background: rgba(10, 20, 40, 0.04);
+            border-radius: 18px;
+            padding: 1rem 1.6rem;
+            margin: 0.7rem 0;
+            font-family: 'Menlo', 'Consolas', 'Monaco', monospace;
+            font-size: 1rem;
+            border-left: 4px solid rgba(50, 100, 200, 0.25);
+            color: #1a2a3e;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            line-height: 1.7;
+        }
+
+        .content-item .code-block .kw { color: #a626a4; font-weight: 600; }
+        .content-item .code-block .str { color: #50a14f; }
+        .content-item .code-block .cmt { color: #6a7a8e; font-style: italic; }
+        .content-item .code-block .typ { color: #4078c0; }
+        .content-item .code-block .fnc { color: #986801; }
+        .content-item .code-block .num { color: #986801; }
+
+        .content-item .meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-top: 0.8rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #3b4f64;
+            opacity: 0.6;
+        }
+
+        .content-item .meta i {
+            font-style: normal;
+            background: rgba(0,0,0,0.02);
+            padding: 0.15rem 1.2rem;
+            border-radius: 40px;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .content-item .divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(60, 80, 120, 0.08), transparent);
+            margin: 1.2rem 0;
+        }
+
+        .content-item .highlight-box {
+            background: rgba(255, 240, 200, 0.3);
+            border-radius: 18px;
+            padding: 1rem 1.6rem;
+            margin: 0.7rem 0;
+            border-left: 4px solid #e6b800;
+        }
+
+        .content-item .highlight-box strong {
+            color: #1a2a3e;
+        }
+
+        .content-item ul, .content-item ol {
+            padding-left: 1.8rem;
+            margin: 0.3rem 0;
+        }
+
+        .content-item li {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            color: #1d2d3f;
+            opacity: 0.88;
+            margin: 0.15rem 0;
+        }
+
+        .content-item table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0.7rem 0;
+            font-size: 1rem;
+        }
+
+        .content-item th {
+            background: rgba(40, 80, 140, 0.06);
+            font-weight: 600;
+            padding: 0.6rem 1rem;
+            text-align: left;
+            border: 1px solid rgba(0,0,0,0.04);
+            font-size: 1rem;
+        }
+
+        .content-item td {
+            padding: 0.6rem 1rem;
+            border: 1px solid rgba(0,0,0,0.04);
+            font-size: 0.98rem;
+        }
+
+        .content-item code {
+            font-family: 'Menlo', 'Consolas', 'Monaco', monospace;
+            font-size: 0.95em;
+            background: rgba(0,0,0,0.03);
+            padding: 0.1rem 0.4rem;
+            border-radius: 6px;
+        }
+
+        @media (max-width: 900px) {
+            .frame-card { padding: 20px 24px; border-radius: 32px; }
+            .scroll-content { padding: 1.8rem 2rem 2.4rem 2rem; gap: 1.4rem; }
+            .content-item { padding: 1.8rem 2rem; }
+            .content-item h1 { font-size: 2rem; }
+            .content-item h2 { font-size: 1.6rem; }
+            .content-item h3 { font-size: 1.3rem; }
+            .content-item h4 { font-size: 1.1rem; }
+            .content-item p { font-size: 1.05rem; }
+            .content-item .code-block { font-size: 0.9rem; padding: 0.8rem 1.2rem; }
+            .content-item li { font-size: 1rem; }
+        }
+
+        @media (max-width: 600px) {
+            body { padding: 8px; }
+            .frame-card { padding: 14px 16px; border-radius: 24px; }
+            .scroll-viewport { border-radius: 20px; }
+            .scroll-content { gap: 1.2rem; padding: 1.4rem 1.4rem 2rem 1.4rem; }
+            .content-item { padding: 1.4rem 1.6rem; border-radius: 20px; }
+            .content-item h1 { font-size: 1.6rem; }
+            .content-item h2 { font-size: 1.3rem; }
+            .content-item h3 { font-size: 1.1rem; }
+            .content-item h4 { font-size: 1rem; }
+            .content-item p { font-size: 0.95rem; }
+            .content-item .code-block { font-size: 0.8rem; padding: 0.6rem 0.9rem; }
+            .content-item li { font-size: 0.92rem; }
+            .content-item .meta { font-size: 0.75rem; }
+            .content-item table { font-size: 0.85rem; }
+            .content-item th, .content-item td { font-size: 0.82rem; padding: 0.4rem 0.6rem; }
+            .content-item .section-tag { font-size: 0.65rem; padding: 0.1rem 0.8rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="frame-card">
+    <div class="scroll-viewport">
+        <div class="scroll-content">
+
+            <!-- ============================================================ -->
+            <!-- PART II: THE CORE OF CONCURRENCY – SAFETY, SHARING, LIVENESS  -->
+            <!-- CHAPTER 3: THREAD SAFETY                                     -->
+            <!-- ============================================================ -->
+
+            <div class="content-item">
+                <div class="section-tag">Part II · Core of Concurrency</div>
+                <h1>Chapter 3: Thread Safety</h1>
+                <div class="meta"><i>Atomicity</i> <i>Visibility</i> <i>Ordering</i></div>
+            </div>
+
+            <!-- Section 3.1 -->
+            <div class="content-item">
+                <h3>Section 3.1: What is Thread Safety? – The Formal Definition</h3>
+                <p>Let's start with an absolutely precise definition, then break it down word by word.</p>
+                
+                <h4>Subsection 3.1.1: The Definitive Definition</h4>
+                <div class="highlight-box"><strong>A class is thread-safe if it behaves correctly when accessed from multiple threads, regardless of the scheduling or interleaving of the execution of those threads, and with no additional synchronization or other coordination on the part of the calling code.</strong></div>
+                <p><strong>Let's dissect this:</strong></p>
+                <table>
+                    <tr><th>Phrase</th><th>Meaning</th></tr>
+                    <tr><td>"behaves correctly"</td><td>The class maintains its invariants (e.g., a BankAccount never has a negative balance; a Counter never loses increments).</td></tr>
+                    <tr><td>"regardless of scheduling"</td><td>No matter how the OS scheduler interleaves thread instructions, the invariants hold.</td></tr>
+                    <tr><td>"with no additional synchronization"</td><td>The caller doesn't need to wrap every method call in synchronized. The class protects itself.</td></tr>
+                </table>
+                
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – What is an invariant?</strong><br />
+                An invariant is a condition that must always be true for an object to be in a valid state.<br /><br />
+                <strong>Example:</strong> For a Counter class:
+                <div class="code-block"><span class="kw">public class</span> Counter {
+    <span class="kw">private int</span> count = 0;
+    
+    <span class="cmt">// Invariant: count >= 0 always</span>
+    <span class="kw">public void</span> increment() { count++; }
+    <span class="kw">public int</span> get() { <span class="kw">return</span> count; }
+}</div>
+                The invariant is <code>count &gt;= 0</code>. In a single-threaded environment, this always holds. In a multi-threaded environment without synchronization, the invariant can break (e.g., count might become negative due to race conditions, or you might lose increments).</div>
+                <div class="meta"><i>8 min read</i> <i>definition</i> <i>invariant</i></div>
+            </div>
+
+            <div class="content-item">
+                <h4>Subsection 3.1.2: The Three Pillars of Thread Safety</h4>
+                <p>Thread safety rests on three fundamental properties. You must understand all three:</p>
+                <table>
+                    <tr><th>Pillar</th><th>Definition</th><th>Example of Failure</th></tr>
+                    <tr><td><strong>Atomicity</strong></td><td>Operations appear to happen instantaneously; no other thread sees an intermediate state.</td><td><code>count++</code> (read-modify-write) is not atomic.</td></tr>
+                    <tr><td><strong>Visibility</strong></td><td>Changes made by one thread are guaranteed to be seen by other threads.</td><td>Without <code>volatile</code>, a thread may never see a value written by another thread.</td></tr>
+                    <tr><td><strong>Ordering</strong></td><td>Instructions are not reordered in ways that violate program semantics.</td><td>Without <code>synchronized</code>, the JVM/CPU can reorder <code>ready = true</code> before <code>config = loadConfig()</code>.</td></tr>
+                </table>
+                
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – Are these three properties independent?</strong><br />
+                Yes and no.<br /><br />
+                <ul>
+                    <li><code>synchronized</code> provides all three (atomicity, visibility, ordering) for the critical section.</li>
+                    <li><code>volatile</code> provides visibility and ordering, but not atomicity for compound actions.</li>
+                    <li><code>AtomicInteger</code> provides atomicity and visibility, but ordering is handled by the CAS (Compare-And-Swap) hardware instruction.</li>
+                </ul>
+                You must choose the right tool for the right problem.</div>
+                <div class="meta"><i>6 min read</i> <i>pillars</i> <i>JMM</i></div>
+            </div>
+
+            <div class="content-item">
+                <h4>Subsection 3.1.3: Thread-Safe Classes – Examples</h4>
+                <p><strong>Thread-Safe (Built-in):</strong></p>
+                <ul>
+                    <li><code>java.util.concurrent.ConcurrentHashMap</code></li>
+                    <li><code>java.util.concurrent.CopyOnWriteArrayList</code></li>
+                    <li><code>java.util.concurrent.atomic.AtomicInteger</code></li>
+                    <li><code>java.lang.String</code> (immutable)</li>
+                    <li><code>java.lang.Integer</code> (immutable)</li>
+                </ul>
+                <p><strong>Not Thread-Safe:</strong></p>
+                <ul>
+                    <li><code>java.util.HashMap</code></li>
+                    <li><code>java.util.ArrayList</code></li>
+                    <li><code>java.lang.StringBuilder</code></li>
+                    <li><code>java.text.SimpleDateFormat</code> (not thread-safe; use ThreadLocal or DateTimeFormatter)</li>
+                </ul>
+                
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – Why is SimpleDateFormat not thread-safe?</strong><br />
+                <code>SimpleDateFormat</code> maintains internal state (like a calendar) that is mutated during formatting and parsing. If multiple threads call <code>format()</code> simultaneously, they corrupt each other's state. Use <code>DateTimeFormatter</code> (Java 8+), which is immutable and thread-safe.</div>
+                <div class="meta"><i>4 min read</i> <i>examples</i> <i>SimpleDateFormat</i></div>
+            </div>
+
+            <!-- Section 3.2 -->
+            <div class="content-item">
+                <h3>Section 3.2: Atomicity – The First Pillar</h3>
+                <p>Atomicity is about operations that appear indivisible. Let's dive deep.</p>
+                
+                <h4>Subsection 3.2.1: Atomic Operations – What the JVM Guarantees</h4>
+                <p>The JVM guarantees that the following operations are atomic:</p>
+                <ul>
+                    <li>Reads and writes to <code>volatile</code> variables (including <code>long</code> and <code>double</code>).</li>
+                    <li>Reads and writes to all primitive types except <code>long</code> and <code>double</code> (on 32-bit JVMs, <code>long</code>/<code>double</code> are not atomic unless <code>volatile</code>).</li>
+                    <li>Reads and writes to reference variables (the reference itself, not the object).</li>
+                    <li>All operations in a <code>synchronized</code> block (the block as a whole is atomic).</li>
+                </ul>
+                
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – What about x = y? Is that atomic?</strong><br />
+                If <code>x</code> and <code>y</code> are <code>int</code> (32-bit), the read of <code>y</code> and the write to <code>x</code> are each atomic individually, but the combination (read y, write x) is not atomic. Another thread could change <code>y</code> between the read and the write.</div>
+                <div class="meta"><i>5 min read</i> <i>atomicity</i> <i>JVM</i></div>
+            </div>
+
+            <div class="content-item">
+                <h4>Subsection 3.2.2: The "Check-Then-Act" Race Condition</h4>
+                <p>This is the most common race condition in Java.</p>
+                <p><strong>Example: Lazy Initialization (Broken)</strong></p>
+                <div class="code-block"><span class="kw">public class</span> LazySingleton {
+    <span class="kw">private static</span> ExpensiveObject instance = <span class="kw">null</span>;
+    
+    <span class="kw">public static</span> ExpensiveObject getInstance() {
+        <span class="kw">if</span> (instance == <span class="kw">null</span>) {           <span class="cmt">// CHECK</span>
+            instance = <span class="kw">new</span> ExpensiveObject(); <span class="cmt">// ACT</span>
+        }
+        <span class="kw">return</span> instance;
+    }
+}</div>
+                <p><strong>Why it's broken:</strong></p>
+                <ul>
+                    <li>Thread A checks <code>instance == null</code> (true), pauses just before creating the object.</li>
+                    <li>Thread B checks <code>instance == null</code> (true), creates the object, returns it.</li>
+                    <li>Thread A resumes, creates a second object, overwriting Thread B's work.</li>
+                </ul>
+                <p>This is a check-then-act race. It's not just about performance (creating two objects); it's about correctness (if the object has side effects or you need exactly one instance).</p>
+                <p><strong>The Fix:</strong></p>
+                <div class="code-block"><span class="kw">public static synchronized</span> ExpensiveObject getInstance() {
+    <span class="kw">if</span> (instance == <span class="kw">null</span>) {
+        instance = <span class="kw">new</span> ExpensiveObject();
+    }
+    <span class="kw">return</span> instance;
+}</div>
+                <div class="meta"><i>6 min read</i> <i>race-condition</i> <i>check-then-act</i></div>
+            </div>
+
+            <div class="content-item">
+                <h4>Subsection 3.2.3: The "Read-Modify-Write" Race Condition</h4>
+                <p>This is the classic <code>count++</code> problem.</p>
+                <p><strong>Example: Counter (Broken)</strong></p>
+                <div class="code-block"><span class="kw">public class</span> Counter {
+    <span class="kw">private int</span> count = 0;
+    
+    <span class="kw">public void</span> increment() {
+        count++;  <span class="cmt">// NOT atomic</span>
+    }
+    
+    <span class="kw">public int</span> get() {
+        <span class="kw">return</span> count;  <span class="cmt">// NOT atomic (though read is atomic, it may see stale value)</span>
+    }
+}</div>
+                <p><strong>The Interleaving (100% sure to lose increments):</strong></p>
+                <ul>
+                    <li>Thread A reads count (0).</li>
+                    <li>Thread B reads count (0).</li>
+                    <li>Thread A adds 1 (1) and writes back.</li>
+                    <li>Thread B adds 1 (1) and writes back.</li>
+                </ul>
+                <p><strong>Result:</strong> count = 1. We lost an increment.</p>
+                <p><strong>The Fix (Option 1 – synchronized):</strong></p>
+                <div class="code-block"><span class="kw">public class</span> Counter {
+    <span class="kw">private int</span> count = 0;
+    
+    <span class="kw">public synchronized void</span> increment() {
+        count++;
+    }
+    
+    <span class="kw">public synchronized int</span> get() {
+        <span class="kw">return</span> count;
+    }
+}</div>
+                <p><strong>The Fix (Option 2 – AtomicInteger):</strong></p>
+                <div class="code-block"><span class="kw">import</span> java.util.concurrent.atomic.AtomicInteger;
+
+<span class="kw">public class</span> Counter {
+    <span class="kw">private</span> AtomicInteger count = <span class="kw">new</span> AtomicInteger(0);
+    
+    <span class="kw">public void</span> increment() {
+        count.incrementAndGet();  <span class="cmt">// Atomic CAS operation</span>
+    }
+    
+    <span class="kw">public int</span> get() {
+        <span class="kw">return</span> count.get();  <span class="cmt">// Volatile read</span>
+    }
+}</div>
+                
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – Which fix is better?</strong><br />
+                <table>
+                    <tr><th>Aspect</th><th>synchronized</th><th>AtomicInteger</th></tr>
+                    <tr><td>Performance</td><td>High contention -> slow</td><td>Low to moderate contention -> fast</td></tr>
+                    <tr><td>Simplicity</td><td>Easy to understand</td><td>Slightly more complex (new API)</td></tr>
+                    <tr><td>Scalability</td><td>Poor (all threads block)</td><td>Excellent (no blocking, CAS loops)</td></tr>
+                    <tr><td>Use case</td><td>Complex operations (multiple variables)</td><td>Simple counters or single-variable updates</td></tr>
+                </table>
+                <strong>Rule of thumb:</strong> Use <code>AtomicInteger</code> for counters, flags, and simple accumulators. Use <code>synchronized</code> or <code>ReentrantLock</code> for complex operations that involve multiple variables.</div>
+                <div class="meta"><i>8 min read</i> <i>race-condition</i> <i>read-modify-write</i></div>
+            </div>
+
+            <div class="content-item">
+                <h4>Subsection 3.2.4: The "Put-If-Absent" Race Condition</h4>
+                <p><strong>Example: Cache (Broken)</strong></p>
+                <div class="code-block"><span class="kw">public class</span> Cache {
+    <span class="kw">private</span> Map&lt;String, Object&gt; map = <span class="kw">new</span> HashMap&lt;&gt;();
+    
+    <span class="kw">public</span> Object getOrCompute(String key) {
+        <span class="kw">if</span> (!map.containsKey(key)) {           <span class="cmt">// CHECK</span>
+            Object value = compute(key);       <span class="cmt">// EXPENSIVE</span>
+            map.put(key, value);               <span class="cmt">// ACT</span>
+        }
+        <span class="kw">return</span> map.get(key);
+    }
+}</div>
+                <p><strong>Why it's broken:</strong></p>
+                <ul>
+                    <li>Thread A checks <code>!map.containsKey("x")</code> (true), pauses before computing.</li>
+                    <li>Thread B checks <code>!map.containsKey("x")</code> (true), computes the value, and inserts it.</li>
+                    <li>Thread A computes the value again and overwrites Thread B's work.</li>
+                </ul>
+                <p><strong>The Fix (Option 1 – synchronized):</strong></p>
+                <div class="code-block"><span class="kw">public synchronized</span> Object getOrCompute(String key) {
+    <span class="cmt">// ... same code</span>
+}</div>
+                <p><strong>The Fix (Option 2 – ConcurrentHashMap's atomic methods):</strong></p>
+                <div class="code-block"><span class="kw">private</span> ConcurrentHashMap&lt;String, Object&gt; map = <span class="kw">new</span> ConcurrentHashMap&lt;&gt;();
+
+<span class="kw">public</span> Object getOrCompute(String key) {
+    <span class="kw">return</span> map.computeIfAbsent(key, <span class="kw">this</span>::compute);  <span class="cmt">// Atomic!</span>
+}</div>
+                <p><code>computeIfAbsent()</code> ensures that the computation happens at most once per key, even under high concurrency.</p>
+                <div class="meta"><i>6 min read</i> <i>race-condition</i> <i>put-if-absent</i></div>
+            </div>
+
+            <div class="content-item">
+                <h4>Subsection 3.2.5: The "Doubt Clarifier" – Is synchronized always enough for atomicity?</h4>
+                <p>Yes, <code>synchronized</code> provides atomicity for the entire critical section. However, you must ensure that all access to the shared state is synchronized.</p>
+                <p><strong>Counterexample (Broken):</strong></p>
+                <div class="code-block"><span class="kw">public class</span> BrokenCounter {
+    <span class="kw">private int</span> count = 0;
+    
+    <span class="kw">public synchronized void</span> increment() {
+        count++;  <span class="cmt">// Synchronized</span>
+    }
+    
+    <span class="kw">public int</span> get() {
+        <span class="kw">return</span> count;  <span class="cmt">// NOT synchronized! BAD!</span>
+    }
+}</div>
+                <p>Thread A calls <code>increment()</code> (sync), writes count = 5. Thread B calls <code>get()</code> (no sync) and may see 0 due to visibility issues. All access must be synchronized, not just writes.</p>
+                <p><strong>The Fix:</strong></p>
+                <div class="code-block"><span class="kw">public synchronized int</span> get() {
+    <span class="kw">return</span> count;
+}</div>
+                <div class="meta"><i>4 min read</i> <i>atomicity</i> <i>synchronized</i></div>
+            </div>
+
+            <!-- Section 3.3 -->
+            <div class="content-item">
+                <h3>Section 3.3: The synchronized Keyword – Deep Internal Mechanics</h3>
+                <p><code>synchronized</code> is the most fundamental concurrency control mechanism in Java. Let's understand it completely.</p>
+                
+                <h4>Subsection 3.3.1: The Monitor – Every Object Has One</h4>
+                <p>Every Java object has an implicit monitor (also called an intrinsic lock). A thread can acquire the monitor by entering a <code>synchronized</code> method or block on that object. Only one thread can hold the monitor at a time.</p>
+                <p><strong>Visualization:</strong></p>
+                <div class="code-block">Object lock = <span class="kw">new</span> Object();
++-------------------+
+|   Object Header   |  &lt;- Contains Mark Word (lock state)
+|   Monitor (Lock)  |  &lt;- Intrinsic lock
++-------------------+</div>
+                
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – Where is the lock stored?</strong><br />
+                In the object header (specifically, the "Mark Word"). The JVM stores lock information directly in the object's memory layout. This is why every object can be a lock—no separate lock object is allocated.</div>
+                <div class="meta"><i>5 min read</i> <i>synchronized</i> <i>monitor</i></div>
+            </div>
+
+            <div class="content-item">
+                <h4>Subsection 3.3.2: synchronized Methods vs. Blocks</h4>
+                <p><strong>Synchronized Instance Method:</strong></p>
+                <div class="code-block"><span class="kw">public synchronized void</span> method() {
+    <span class="cmt">// Lock acquired on 'this'</span>
+}</div>
+                <p><strong>Equivalent to:</strong></p>
+                <div class="code-block"><span class="kw">public void</span> method() {
+    <span class="kw">synchronized</span> (<span class="kw">this</span>) {
+        <span class="cmt">// Lock acquired on 'this'</span>
+    }
+}</div>
+                <p><strong>Synchronized Static Method:</strong></p>
+                <div class="code-block"><span class="kw">public static synchronized void</span> staticMethod() {
+    <span class="cmt">// Lock acquired on 'Class.class'</span>
+}</div>
+                <p><strong>Equivalent to:</strong></p>
+                <div class="code-block"><span class="kw">public static void</span> staticMethod() {
+    <span class="kw">synchronized</span> (MyClass.class) {
+        <span class="cmt">// Lock acquired on 'MyClass.class'</span>
+    }
+}</div>
+                <p><strong>Synchronized Block (Custom Object):</strong></p>
+                <div class="code-block"><span class="kw">private final</span> Object lock = <span class="kw">new</span> Object();
+
+<span class="kw">public void</span> method() {
+    <span class="kw">synchronized</span> (lock) {
+        <span class="cmt">// Lock acquired on 'lock' object</span>
+    }
+}</div>
+                
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – Why use a custom lock object instead of this?</strong><br />
+                <ul>
+                    <li><strong>Encapsulation:</strong> The lock is private; no external code can lock on your object and cause contention or deadlocks.</li>
+                    <li><strong>Fine-grained locking:</strong> You can have multiple locks for different parts of your object.</li>
+                </ul></div>
+                
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – Can I synchronize on a null object?</strong><br />
+                No. <code>synchronized (null)</code> throws <code>NullPointerException</code>.</div>
+                <div class="meta"><i>6 min read</i> <i>synchronized</i> <i>methods</i> <i>blocks</i></div>
+            </div>
+
+            <div class="content-item">
+                <h4>Subsection 3.3.3: Lock Granularity – Coarse vs. Fine</h4>
+                <p><strong>Coarse-Grained Locking (Bad for Performance):</strong></p>
+                <div class="code-block"><span class="kw">public synchronized void</span> transfer(BankAccount target, <span class="kw">int</span> amount) {
+    <span class="kw">this</span>.balance -= amount;      <span class="cmt">// Only this.balance needs locking</span>
+    target.balance += amount;    <span class="cmt">// Only target.balance needs locking</span>
+}</div>
+                <p>This locks the entire <code>this</code> object, preventing other unrelated operations on the same account.</p>
+                <p><strong>Fine-Grained Locking (Better):</strong></p>
+                <div class="code-block"><span class="kw">public void</span> transfer(BankAccount target, <span class="kw">int</span> amount) {
+    <span class="kw">synchronized</span> (<span class="kw">this</span>) {
+        <span class="kw">this</span>.balance -= amount;
+    }
+    <span class="kw">synchronized</span> (target) {
+        target.balance += amount;
+    }
+}</div>
+                <p>But this introduces a deadlock risk (see Chapter 5). The best solution is to use <code>ReentrantLock</code> with <code>tryLock()</code>.</p>
+                
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – What is lock striping?</strong><br />
+                Lock striping is using multiple locks to protect different parts of a data structure. For example, <code>ConcurrentHashMap</code> uses 16 locks (by default) to protect different segments of the map. Multiple threads can operate on different segments concurrently.</div>
+                <div class="meta"><i>5 min read</i> <i>lock-granularity</i> <i>striping</i></div>
+            </div>
+
+            <div class="content-item">
+                <h4>Subsection 3.3.4: The Lock Reentrancy – What It Means</h4>
+                <p><code>synchronized</code> locks are reentrant. If a thread already holds a lock, it can re-enter the same lock without blocking.</p>
+                <p><strong>Example:</strong></p>
+                <div class="code-block"><span class="kw">public class</span> ReentrantExample {
+    <span class="kw">public synchronized void</span> outer() {
+        inner();  <span class="cmt">// Thread already holds the lock, so it can enter inner()</span>
+    }
+    
+    <span class="kw">public synchronized void</span> inner() {
+        <span class="cmt">// Do something</span>
+    }
+}</div>
+                <p>If locks were not reentrant, <code>outer()</code> calling <code>inner()</code> would deadlock (the thread would wait for its own lock). Reentrancy prevents this.</p>
+                
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – How does the JVM track reentrancy?</strong><br />
+                Each lock has a counter. When a thread acquires the lock, the counter increments. When it releases the lock, the counter decrements. Only when the counter reaches 0 is the lock released for other threads.</div>
+                <div class="meta"><i>4 min read</i> <i>reentrancy</i> <i>lock</i></div>
+            </div>
+
+            <div class="content-item">
+                <h4>Subsection 3.3.5: Bias Locking, Lightweight Locking, Heavyweight Locking</h4>
+                <p>The JVM uses three levels of locking optimization, depending on contention:</p>
+                <table>
+                    <tr><th>Level</th><th>Description</th><th>When Used</th></tr>
+                    <tr><td><strong>Biased Locking</strong></td><td>The lock "biases" toward the first thread that acquires it. The thread can enter the lock with almost zero overhead (no atomic operations).</td><td>When a lock is always acquired by the same thread (e.g., single-threaded code, but the object is still synchronized).</td></tr>
+                    <tr><td><strong>Lightweight Locking</strong></td><td>Uses CAS operations in the object header to acquire the lock without involving the OS.</td><td>When contention is low (brief contention).</td></tr>
+                    <tr><td><strong>Heavyweight Locking</strong></td><td>Uses the OS mutex. Involves context switching and blocking.</td><td>When contention is high (long waits).</td></tr>
+                </table>
+                
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – Can I disable biased locking?</strong><br />
+                Yes, using JVM flags:
+                <div class="code-block">-XX:-UseBiasedLocking   <span class="cmt"># Disable biased locking (helps reduce latency in some cases)</span>
+-XX:+UseHeavyMonitors   <span class="cmt"># Force heavyweight locking (rarely used)</span></div>
+                In Java 15+, biased locking is deprecated and disabled by default in Java 17+.</div>
+                <div class="meta"><i>6 min read</i> <i>locking</i> <i>JVM-optimization</i></div>
+            </div>
+
+            <div class="content-item">
+                <h4>Subsection 3.3.6: The "Doubt Clarifier" – Does synchronized block on String literals?</h4>
+                <p>Yes, but don't do it!</p>
+                <div class="code-block"><span class="kw">synchronized</span> (<span class="str">"LOCK"</span>) {  <span class="cmt">// Bad!</span>
+    <span class="cmt">// ...</span>
+}</div>
+                <p>String literals are interned by the JVM. <code>"LOCK"</code> is the same object across your entire application. Locking on a string literal is global locking—it will cause contention across unrelated parts of your code. Always use a dedicated lock object.</p>
+                <div class="meta"><i>3 min read</i> <i>synchronized</i> <i>string-literal</i></div>
+            </div>
+
+            <!-- Section 3.4 -->
+            <div class="content-item">
+                <h3>Section 3.4: The volatile Keyword – Complete Semantics</h3>
+                <p><code>volatile</code> is often misunderstood. Let's clarify it once and for all.</p>
+                
+                <h4>Subsection 3.4.1: What volatile Guarantees</h4>
+                <ul>
+                    <li><strong>Visibility:</strong> Every write to a <code>volatile</code> variable is immediately flushed to main memory. Every read reads from main memory. No thread-local caching.</li>
+                    <li><strong>Ordering:</strong> The JVM and CPU cannot reorder volatile reads/writes with other volatile reads/writes (or with normal reads/writes in a way that violates the JMM).</li>
+                </ul>
+                <p><strong>What volatile Does NOT Guarantee:</strong></p>
+                <ul>
+                    <li><strong>Atomicity:</strong> <code>volatile</code> does not make <code>count++</code> atomic. It only makes the individual read and individual write atomic.</li>
+                </ul>
+                <div class="meta"><i>5 min read</i> <i>volatile</i> <i>visibility</i> <i>ordering</i></div>
+            </div>
+
+            <div class="content-item">
+                <h4>Subsection 3.4.2: When to Use volatile</h4>
+                <p><strong>Use Case 1: Flags (State Variables)</strong></p>
+                <div class="code-block"><span class="kw">private volatile boolean</span> running = <span class="kw">true</span>;
+
+<span class="kw">public void</span> run() {
+    <span class="kw">while</span> (running) {
+        <span class="cmt">// Do work</span>
+    }
+}
+
+<span class="kw">public void</span> stop() {
+    running = <span class="kw">false</span>;  <span class="cmt">// Write to volatile; immediately visible to run() thread</span>
+}</div>
+                <p><strong>Use Case 2: Configuration Reloading</strong></p>
+                <div class="code-block"><span class="kw">private volatile</span> Config config = loadConfig();
+
+<span class="kw">public void</span> reloadConfig() {
+    config = loadConfig();  <span class="cmt">// New config published safely</span>
+}
+
+<span class="kw">public void</span> useConfig() {
+    config.doSomething();  <span class="cmt">// Always sees latest config</span>
+}</div>
+                <p><strong>Use Case 3: Lightweight Status Tracking</strong></p>
+                <div class="code-block"><span class="kw">private volatile int</span> status;
+
+<span class="kw">public void</span> setStatus(<span class="kw">int</span> s) { status = s; }
+<span class="kw">public int</span> getStatus() { <span class="kw">return</span> status; }</div>
+                <div class="meta"><i>5 min read</i> <i>volatile</i> <i>use-cases</i></div>
+            </div>
+
+            <div class="content-item">
+                <h4>Subsection 3.4.3: When NOT to Use volatile</h4>
+                <p><strong>Case 1: Compound Actions</strong></p>
+                <div class="code-block"><span class="kw">private volatile int</span> count = 0;
+
+<span class="kw">public void</span> increment() {
+    count++;  <span class="cmt">// BAD! Not atomic!</span>
+}</div>
+                <p><strong>Case 2: Accumulators</strong></p>
+                <div class="code-block"><span class="kw">private volatile int</span> total = 0;
+
+<span class="kw">public void</span> add(<span class="kw">int</span> value) {
+    total += value;  <span class="cmt">// BAD! Not atomic!</span>
+}</div>
+                <p><strong>Case 3: Dependencies Between Variables</strong></p>
+                <div class="code-block"><span class="kw">private volatile boolean</span> ready;
+<span class="kw">private</span> Config config;
+
+<span class="kw">public void</span> publish() {
+    config = loadConfig();  <span class="cmt">// Normal write (could be reordered!)</span>
+    ready = <span class="kw">true</span>;           <span class="cmt">// Volatile write</span>
+}
+
+<span class="kw">public void</span> consume() {
+    <span class="kw">if</span> (ready) {
+        config.doSomething();  <span class="cmt">// Could see config before it's ready!</span>
+    }
+}</div>
+                <p>The JVM can reorder <code>config = loadConfig()</code> and <code>ready = true</code>, so the volatile write doesn't guarantee the normal write is visible. This is why you need <code>synchronized</code> for multi-variable invariants.</p>
+                <div class="meta"><i>6 min read</i> <i>volatile</i> <i>pitfalls</i></div>
+            </div>
+
+            <div class="content-item">
+                <h4>Subsection 3.4.4: The volatile and long/double Special Case</h4>
+                <p>As mentioned earlier, without <code>volatile</code>, <code>long</code> and <code>double</code> writes are not atomic on 32-bit JVMs. With <code>volatile</code>, they are atomic.</p>
+                <div class="code-block"><span class="kw">private volatile long</span> timestamp = 0;  <span class="cmt">// Atomic read/write on all JVMs</span></div>
+                <div class="meta"><i>3 min read</i> <i>volatile</i> <i>long</i> <i>double</i></div>
+            </div>
+
+            <div class="content-item">
+                <h4>Subsection 3.4.5: The "Doubt Clarifier" – Why is volatile cheaper than synchronized?</h4>
+                <p><code>volatile</code> does not acquire a lock. It only adds memory barriers (fences) to ensure visibility and ordering. There is no OS mutex, no context switching, no blocking. For simple flags and state variables, <code>volatile</code> is much faster than <code>synchronized</code>.</p>
+                <div class="meta"><i>3 min read</i> <i>volatile</i> <i>performance</i></div>
+            </div>
+
+            <div class="content-item">
+                <h4>Subsection 3.4.6: The "Doubt Clarifier" – Is AtomicBoolean better than volatile boolean?</h4>
+                <p><code>AtomicBoolean</code> provides <code>compareAndSet()</code>, <code>getAndSet()</code>, and other atomic operations. If you only need simple get/set, <code>volatile</code> is sufficient. If you need CAS (e.g., "set to true if it's false"), <code>AtomicBoolean</code> is necessary.</p>
+                <div class="meta"><i>3 min read</i> <i>AtomicBoolean</i> <i>volatile</i></div>
+            </div>
+
+            <!-- Section 3.5 -->
+            <div class="content-item">
+                <h3>Section 3.5: The final Keyword in Concurrency</h3>
+                <p><code>final</code> is often overlooked in concurrency, but it's a powerful tool for thread safety.</p>
+                
+                <h4>Subsection 3.5.1: Initialization Safety</h4>
+                <p>The JMM guarantees that a <code>final</code> field's value is visible to all threads after the constructor completes, even without synchronization.</p>
+                <p><strong>Example:</strong></p>
+                <div class="code-block"><span class="kw">public class</span> ImmutablePerson {
+    <span class="kw">private final</span> String name;
+    <span class="kw">private final int</span> age;
+    
+    <span class="kw">public</span> ImmutablePerson(String name, <span class="kw">int</span> age) {
+        <span class="kw">this</span>.name = name;
+        <span class="kw">this</span>.age = age;
+    }
+    
+    <span class="kw">public</span> String getName() { <span class="kw">return</span> name; }
+    <span class="kw">public int</span> getAge() { <span class="kw">return</span> age; }
+}</div>
+                <p>If Thread A creates an <code>ImmutablePerson</code> and publishes it (e.g., stores it in a static field), Thread B will always see the correct <code>name</code> and <code>age</code>, even without <code>volatile</code> or <code>synchronized</code>. This is <strong>initialization safety</strong>.</p>
+                
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – Does final guarantee visibility of non-final fields?</strong><br />
+                No! Only <code>final</code> fields are guaranteed. If you have a non-final field in an otherwise immutable object, it may not be visible to other threads. Always make fields <code>final</code> if they are set in the constructor and never changed.</div>
+                <div class="meta"><i>6 min read</i> <i>final</i> <i>initialization-safety</i></div>
+            </div>
+
+            <div class="content-item">
+                <h4>Subsection 3.5.2: The "Safe Publication" Problem</h4>
+                <p>Even with <code>final</code> fields, the object itself must be safely published. If you publish the object incorrectly, the other thread might see the <code>final</code> fields correctly (due to JMM guarantees) but the reference might be <code>null</code> or a stale reference.</p>
+                <p><strong>Safe Publication Options:</strong></p>
+                <ul>
+                    <li><strong>Static initialization:</strong> <code>public static final ImmutablePerson person = new ImmutablePerson(...)</code></li>
+                    <li><strong>Volatile reference:</strong> <code>private volatile ImmutablePerson person;</code></li>
+                    <li><strong>AtomicReference:</strong> <code>private AtomicReference&lt;ImmutablePerson&gt; person;</code></li>
+                    <li><strong>Proper synchronization:</strong> <code>synchronized</code> block when publishing.</li>
+                </ul>
+                
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – What is the "unsafe publication" problem?</strong><br />
+                <div class="code-block"><span class="cmt">// BAD!</span>
+<span class="kw">public class</span> UnsafePublishing {
+    <span class="kw">private</span> ImmutablePerson person;
+    
+    <span class="kw">public void</span> setPerson(ImmutablePerson p) {
+        <span class="kw">this</span>.person = p;  <span class="cmt">// No synchronization!</span>
+    }
+    
+    <span class="kw">public</span> ImmutablePerson getPerson() {
+        <span class="kw">return</span> person;  <span class="cmt">// No synchronization!</span>
+    }
+}</div>
+                Thread A calls <code>setPerson()</code> with a new <code>ImmutablePerson</code>. Thread B calls <code>getPerson()</code> and may see <code>null</code> or a partially constructed object. Even though the <code>ImmutablePerson</code> has <code>final</code> fields, the reference to it is not safely published.<br /><br />
+                <strong>Fix:</strong>
+                <div class="code-block"><span class="kw">private volatile</span> ImmutablePerson person;  <span class="cmt">// Volatile guarantees visibility</span></div></div>
+                <div class="meta"><i>6 min read</i> <i>safe-publication</i> <i>final</i></div>
+            </div>
+
+            <div class="content-item">
+                <h4>Subsection 3.5.3: The "Doubt Clarifier" – Can I use final with volatile?</h4>
+                <p>No! <code>final</code> and <code>volatile</code> are mutually exclusive in Java. <code>final</code> means the field is immutable; <code>volatile</code> means the field can change (but changes are visible). You can't have both. If you have a mutable reference that points to an immutable object, the reference itself must be <code>volatile</code> (or use <code>AtomicReference</code>) for safe publication.</p>
+                <div class="meta"><i>3 min read</i> <i>final</i> <i>volatile</i></div>
+            </div>
+
+            <!-- Section 3.6 -->
+            <div class="content-item">
+                <h3>Section 3.6: Thread Confinement and ThreadLocal</h3>
+                <p>Sometimes the safest approach is to avoid sharing altogether.</p>
+                
+                <h4>Subsection 3.6.1: What is Thread Confinement?</h4>
+                <p>Thread confinement means that an object is only accessed by a single thread. If no other thread can touch it, there are no race conditions, visibility issues, or synchronization needs.</p>
+                <p><strong>Types of Thread Confinement:</strong></p>
+                <ul>
+                    <li><strong>Stack Confinement:</strong> Local variables in a method. Each thread has its own stack, so local variables are inherently thread-confined.
+                    <div class="code-block"><span class="kw">public void</span> method() {
+    <span class="kw">int</span> local = 0;  <span class="cmt">// Safe: only current thread can see it</span>
+    <span class="cmt">// ...</span>
+}</div></li>
+                    <li><strong>ThreadLocal Confinement:</strong> Using <code>ThreadLocal</code> to store values per thread.</li>
+                </ul>
+                <div class="meta"><i>5 min read</i> <i>thread-confinement</i> <i>ThreadLocal</i></div>
+            </div>
+
+            <div class="content-item">
+                <h4>Subsection 3.6.2: The ThreadLocal Class</h4>
+                <p><strong>Signature:</strong> <code>public class ThreadLocal&lt;T&gt;</code></p>
+                <p><strong>How it works:</strong> Each thread has its own <code>ThreadLocalMap</code>. When you call <code>set()</code>, the value is stored in the current thread's map. When you call <code>get()</code>, the value is retrieved from the current thread's map.</p>
+                <p><strong>Usage:</strong></p>
+                <div class="code-block"><span class="kw">private static</span> ThreadLocal&lt;DateFormat&gt; dateFormat = ThreadLocal.withInitial(() ->
+    <span class="kw">new</span> SimpleDateFormat(<span class="str">"yyyy-MM-dd"</span>)
+);
+
+<span class="kw">public</span> String formatDate(Date date) {
+    <span class="kw">return</span> dateFormat.get().format(date);  <span class="cmt">// Each thread gets its own SimpleDateFormat</span>
+}</div>
+                
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – Why is ThreadLocal useful for SimpleDateFormat?</strong><br />
+                Because <code>SimpleDateFormat</code> is not thread-safe. By using <code>ThreadLocal</code>, each thread has its own instance, eliminating the need for synchronization.</div>
+                <div class="meta"><i>5 min read</i> <i>ThreadLocal</i> <i>SimpleDateFormat</i></div>
+            </div>
+
+            <div class="content-item">
+                <h4>Subsection 3.6.3: ThreadLocal – The Memory Leak Problem</h4>
+                <p><code>ThreadLocal</code> can cause memory leaks in web applications. If a thread (from a thread pool) is reused, the <code>ThreadLocal</code> value from a previous request may still be attached to the thread. If you don't clean it up, the value stays in memory until the thread is destroyed (which might be never for long-lived thread pools).</p>
+                <p><strong>The Fix:</strong> Always call <code>ThreadLocal.remove()</code> after the request is complete.</p>
+                <div class="code-block"><span class="kw">try</span> {
+    dateFormat.get();  <span class="cmt">// Use ThreadLocal</span>
+} <span class="kw">finally</span> {
+    dateFormat.remove();  <span class="cmt">// Clean up!</span>
+}</div>
+                
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – Why does ThreadLocal cause memory leaks?</strong><br />
+                The <code>ThreadLocalMap</code> stores the value in an <code>Entry</code> that uses the <code>ThreadLocal</code> object as a weak key. However, the value is strongly referenced. If the <code>ThreadLocal</code> is garbage collected, the entry is cleaned. But if you keep the <code>ThreadLocal</code> reference alive, the value remains. In web apps, the thread's <code>ThreadLocalMap</code> can grow indefinitely if you don't call <code>remove()</code>.</div>
+                <div class="meta"><i>5 min read</i> <i>ThreadLocal</i> <i>memory-leak</i></div>
+            </div>
+
+            <div class="content-item">
+                <h4>Subsection 3.6.4: InheritableThreadLocal – Passing Values to Child Threads</h4>
+                <p><code>InheritableThreadLocal</code> passes its value from the parent thread to any child threads created.</p>
+                <p><strong>Example:</strong></p>
+                <div class="code-block"><span class="kw">private static</span> InheritableThreadLocal&lt;String&gt; context = <span class="kw">new</span> InheritableThreadLocal&lt;&gt;();
+
+<span class="kw">public static void</span> main(String[] args) {
+    context.set(<span class="str">"Parent"</span>);
+    
+    <span class="kw">new</span> Thread(() -> {
+        System.out.println(context.get());  <span class="cmt">// Prints "Parent"</span>
+    }).start();
+}</div>
+                
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – When should I use InheritableThreadLocal?</strong><br />
+                Rarely. It can lead to hard-to-debug state leakage. Use it only when you need to propagate context (like a user ID) to child threads. In Java 21+, <code>ScopedValue</code> is a better alternative.</div>
+                <div class="meta"><i>4 min read</i> <i>InheritableThreadLocal</i> <i>ScopedValue</i></div>
+            </div>
+
+            <!-- Section 3.7 -->
+            <div class="content-item">
+                <h3>Section 3.7: Immutability – The Ultimate Thread Safety</h3>
+                <p>If an object's state cannot be changed, it is automatically thread-safe. No synchronization is needed.</p>
+                
+                <h4>Subsection 3.7.1: The Rules of Immutability</h4>
+                <p>An object is immutable if:</p>
+                <ul>
+                    <li>All fields are <code>final</code>. (Or effectively final—set in constructor and never changed.)</li>
+                    <li>The object is not published before construction is complete. (No escaping <code>this</code> reference.)</li>
+                    <li>Any mutable fields are not exposed to the caller. (If you have a <code>Date</code> field, return a copy, not the reference.)</li>
+                </ul>
+                <p><strong>Example:</strong></p>
+                <div class="code-block"><span class="kw">public final class</span> ImmutablePerson {
+    <span class="kw">private final</span> String name;
+    <span class="kw">private final</span> LocalDate birthDate;  <span class="cmt">// LocalDate is immutable</span>
+    
+    <span class="kw">public</span> ImmutablePerson(String name, LocalDate birthDate) {
+        <span class="kw">this</span>.name = name;
+        <span class="kw">this</span>.birthDate = birthDate;
+    }
+    
+    <span class="kw">public</span> String getName() { <span class="kw">return</span> name; }
+    <span class="kw">public</span> LocalDate getBirthDate() { <span class="kw">return</span> birthDate; }  <span class="cmt">// Safe</span>
+}</div>
+                <p><strong>If you have a mutable field:</strong></p>
+                <div class="code-block"><span class="kw">private final</span> Date birthDate;  <span class="cmt">// Date is mutable</span>
+
+<span class="kw">public</span> Date getBirthDate() {
+    <span class="kw">return new</span> Date(birthDate.getTime());  <span class="cmt">// Defensive copy!</span>
+}</div>
+                <div class="meta"><i>6 min read</i> <i>immutability</i> <i>defensive-copy</i></div>
+            </div>
+
+            <div class="content-item">
+                <h4>Subsection 3.7.2: The "Doubt Clarifier" – Are all final objects immutable?</h4>
+                <p>No. A <code>final</code> reference to a mutable object means the reference cannot change, but the object's internal state can change.</p>
+                <div class="code-block"><span class="kw">private final</span> List&lt;String&gt; list = <span class="kw">new</span> ArrayList&lt;&gt;();  <span class="cmt">// The reference is final</span>
+
+<span class="kw">public void</span> add(String s) {
+    list.add(s);  <span class="cmt">// Mutating the list! The object is NOT immutable.</span>
+}</div>
+                <p>To make it immutable, use <code>Collections.unmodifiableList()</code> or <code>List.copyOf()</code>.</p>
+                <div class="meta"><i>4 min read</i> <i>immutability</i> <i>final</i></div>
+            </div>
+
+            <div class="content-item">
+                <h4>Subsection 3.7.3: The Benefits of Immutability</h4>
+                <ul>
+                    <li><strong>No synchronization needed.</strong> Threads can read freely.</li>
+                    <li><strong>No race conditions.</strong> No writes = no races.</li>
+                    <li><strong>Safe to share.</strong> Multiple threads can access the same instance.</li>
+                    <li><strong>Caching-friendly.</strong> Immutable objects can be safely cached.</li>
+                </ul>
+                
+                <div class="highlight-box"><strong>The "Doubt Clarifier" – What is the performance cost of immutability?</strong><br />
+                Immutable objects often require copying (e.g., creating a new list when adding an element). This can be expensive for large objects. However, for small to medium objects, the performance cost is often outweighed by the elimination of synchronization.</div>
+                <div class="meta"><i>4 min read</i> <i>immutability</i> <i>benefits</i></div>
+            </div>
+
+            <!-- Section 3.8 -->
+            <div class="content-item">
+                <h3>Section 3.8: Safe Publication – The Final Piece</h3>
+                <p>Even if an object is thread-safe (e.g., immutable), you must publish it safely.</p>
+                
+                <h4>Subsection 3.8.1: The Unsafe Publication Patterns</h4>
+                <table>
+                    <tr><th>Pattern</th><th>Safe?</th><th>Why?</th></tr>
+                    <tr><td>Storing in a static field</td><td>Yes (static initialization is thread-safe)</td><td>JVM guarantees atomicity of static initializers.</td></tr>
+                    <tr><td>Storing in a volatile field</td><td>Yes</td><td>Volatile guarantees visibility.</td></tr>
+                    <tr><td>Storing in an AtomicReference</td><td>Yes</td><td>Atomic reference guarantees visibility.</td></tr>
+                    <tr><td>Storing in a non-volatile field</td><td>No</td><td>Other threads may see a stale reference.</td></tr>
+                    <tr><td>Storing in a ConcurrentMap</td><td>Yes</td><td>ConcurrentMap handles visibility.</td></tr>
+                    <tr><td>Storing in a synchronized block</td><td>Yes</td><td>Synchronization guarantees visibility.</td></tr>
+                </table>
+                <div class="meta"><i>5 min read</i> <i>safe-publication</i> <i>patterns</i></div>
+            </div>
+
+            <div class="content-item">
+                <h4>Subsection 3.8.2: The "Doubt Clarifier" – What if I publish an object in a constructor?</h4>
+                <p><strong>DANGER!</strong> Publishing <code>this</code> in a constructor can let other threads see a partially constructed object.</p>
+                <div class="code-block"><span class="kw">public class</span> BadPublication {
+    <span class="kw">private final int</span> value;
+    
+    <span class="kw">public</span> BadPublication() {
+        <span class="kw">this</span>.value = 42;
+        <span class="kw">new</span> Thread(() -> System.out.println(value)).start();  <span class="cmt">// Publishing this!</span>
+    }
+}</div>
+                <p>The thread may see <code>value = 0</code> (default) if it reads before the constructor finishes.</p>
+                <p><strong>The Fix:</strong> Never start threads or publish <code>this</code> inside a constructor. Use a factory method or <code>start()</code> method after construction.</p>
+                <div class="meta"><i>4 min read</i> <i>constructor</i> <i>safe-publication</i></div>
+            </div>
+
+            <!-- End of Chapter 3 -->
+            <div class="content-item">
+                <div class="section-tag">Part II · Core of Concurrency</div>
+                <h2>End of Chapter 3</h2>
+                <p>We have covered:</p>
+                <ul>
+                    <li><strong>3.1:</strong> What is thread safety? (Atomicity, Visibility, Ordering).</li>
+                    <li><strong>3.2:</strong> Atomicity (check-then-act, read-modify-write, put-if-absent).</li>
+                    <li><strong>3.3:</strong> <code>synchronized</code> in depth (monitors, methods vs. blocks, lock granularity, reentrancy, bias/light/heavy locking).</li>
+                    <li><strong>3.4:</strong> <code>volatile</code> (guarantees, use cases, limitations).</li>
+                    <li><strong>3.5:</strong> <code>final</code> (initialization safety, safe publication).</li>
+                    <li><strong>3.6:</strong> Thread confinement and <code>ThreadLocal</code> (with memory leak warnings).</li>
+                    <li><strong>3.7:</strong> Immutability (rules, benefits, pitfalls).</li>
+                    <li><strong>3.8:</strong> Safe publication (patterns, constructor hazards).</li>
+                </ul>
+                <p><strong>Where to next?</strong></p>
+                <p>We have completed:</p>
+                <ul>
+                    <li>Part 0: Prerequisites and Mindset – FULLY DONE.</li>
+                    <li>Chapter 1: Introduction to Concurrency – FULLY DONE.</li>
+                    <li>Chapter 2: Thread Creation and Management – FULLY DONE.</li>
+                    <li>Chapter 3: Thread Safety – FULLY DONE.</li>
+                </ul>
+                <p>Shall I continue to <strong>Chapter 4: Locks and Explicit Synchronization</strong>? This will cover:</p>
+                <ul>
+                    <li>4.1: ReentrantLock (vs synchronized).</li>
+                    <li>4.2: ReadWriteLock and StampedLock.</li>
+                    <li>4.3: Condition variables (wait/signal).</li>
+                    <li>4.4: Lock fairness and performance.</li>
+                    <li>4.5: Lock-free and wait-free algorithms.</li>
+                </ul>
+                <p>Let me know, and I'll dive in!</p>
+                <div class="meta"><i>3 min read</i> <i>summary</i> <i>next-steps</i></div>
+            </div>
+
+        </div>
+    </div>
+</div>
+</body>
+</html>
