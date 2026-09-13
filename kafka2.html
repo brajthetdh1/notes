@@ -1,0 +1,1688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apache Kafka Architecture – 50 Interview Q&A Slides</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(145deg, #0f1a2b 0%, #1a2f44 100%);
+            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+            padding: 1.5rem;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .slide-wrapper {
+            max-width: 1100px;
+            width: 100%;
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(4px);
+            border-radius: 3rem;
+            padding: 1.8rem;
+            box-shadow: 0 30px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.04);
+        }
+        .slide-card {
+            background: #ffffff;
+            border-radius: 2.2rem;
+            padding: 2.8rem 3rem;
+            box-shadow: inset 0 2px 0 rgba(255,255,255,0.6), 0 20px 40px -10px rgba(0,0,0,0.5);
+        }
+        .slide {
+            display: none;
+            animation: fadeSlide 0.3s ease;
+        }
+        .slide.active { display: block; }
+        @keyframes fadeSlide {
+            0% { opacity: 0.4; transform: translateY(10px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        .slide h2 {
+            font-size: 1.9rem;
+            font-weight: 700;
+            color: #0a263b;
+            border-bottom: 3px solid #dce7f0;
+            padding-bottom: 0.6rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .slide h2 i { color: #1b6d9e; font-size: 1.7rem; }
+        .slide h2 .kafka-icon { color: #f89820; }
+        .slide .sub {
+            font-size: 0.95rem;
+            color: #2e4a66;
+            margin-bottom: 1.2rem;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .slide .sub .tag {
+            background: #e3edf5;
+            padding: 0.1rem 1.2rem;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.7rem;
+            color: #1e5580;
+        }
+        .qa-block {
+            background: #f5f9fe;
+            border-radius: 1.2rem;
+            padding: 1.2rem 1.8rem;
+            margin-bottom: 1rem;
+            border-left: 5px solid #2d7fb0;
+        }
+        .qa-block .q {
+            font-weight: 700;
+            color: #0a263b;
+            font-size: 1.05rem;
+            margin-bottom: 0.4rem;
+        }
+        .qa-block .q i { color: #b36b2d; margin-right: 8px; }
+        .qa-block .a {
+            color: #1f3a55;
+            line-height: 1.7;
+            font-size: 0.95rem;
+        }
+        .qa-block .a code {
+            background: #e2eaf2;
+            padding: 0.1rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            color: #0a2b47;
+        }
+        .qa-block .a .code-block {
+            background: #0d1f2e;
+            color: #d6e6f5;
+            padding: 0.8rem 1.2rem;
+            border-radius: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+            line-height: 1.6;
+            margin: 0.6rem 0;
+            border-left: 4px solid #3b9bd6;
+            overflow-x: auto;
+        }
+        .qa-block .a .code-block .cm { color: #6a8faa; }
+        .qa-block .a .code-block .kw { color: #f5a97f; }
+        .qa-block .a .code-block .str { color: #a6da95; }
+        .qa-block .a .code-block .fn { color: #8fc5e8; }
+        .qa-block .a .code-block .num { color: #f5c2a0; }
+        .qa-block .a .code-block .kafka-kw { color: #c792ea; }
+        .qa-block .a ul { margin: 0.5rem 0 0 1.5rem; color: #1f3a55; line-height: 1.8; }
+        .qa-block .a table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0.6rem 0;
+            font-size: 0.85rem;
+        }
+        .qa-block .a table th {
+            background: #eaf1f9;
+            padding: 0.4rem;
+            border: 1px solid #d4e2ef;
+            text-align: left;
+        }
+        .qa-block .a table td {
+            padding: 0.4rem;
+            border: 1px solid #d4e2ef;
+        }
+
+        .nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1.8rem;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .nav .dots {
+            display: flex;
+            gap: 0.35rem;
+            flex-wrap: wrap;
+            max-width: 50%;
+        }
+        .nav .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 40px;
+            background: rgba(255,255,255,0.25);
+            border: none;
+            cursor: pointer;
+            transition: 0.2s;
+            padding: 0;
+            flex-shrink: 0;
+        }
+        .nav .dot.active { background: #5ba9e0; width: 20px; box-shadow: 0 0 12px #3f9ad6; }
+        .nav .dot:hover { background: #80c0f0; }
+        .nav-btn {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
+            color: #eef4fa;
+            padding: 0.4rem 1rem;
+            border-radius: 60px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            backdrop-filter: blur(2px);
+        }
+        .nav-btn:hover { background: rgba(255,255,255,0.18); border-color: #6bb4ed; color: white; }
+        .nav-btn:disabled { opacity: 0.3; pointer-events: none; }
+        .slide-counter { color: #b0cfe0; font-size: 0.75rem; font-weight: 500; }
+        @media (max-width: 780px) {
+            .slide-card { padding: 1.2rem 0.8rem; }
+            .slide h2 { font-size: 1.3rem; }
+            .nav { flex-direction: column; align-items: stretch; }
+            .nav-btn { justify-content: center; }
+            .nav .dots { max-width: 100%; justify-content: center; }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+
+<div class="slide-wrapper">
+<div class="slide-card">
+
+<!-- ========== SLIDE 1: TITLE ========== -->
+<div class="slide active" data-slide="0">
+    <h2><i class="fas fa-bolt"></i> Apache Kafka Architecture – 50 Q&A</h2>
+    <div class="sub">
+        <span><i class="fas fa-question-circle"></i> Complete Conceptual Guide</span>
+        <span class="tag">50 Questions</span>
+        <span class="tag">Detailed Answers</span>
+    </div>
+    <p style="font-size:1.05rem; margin-bottom:1.5rem;">
+        This comprehensive guide covers <strong>50 conceptual interview questions</strong> on Apache Kafka architecture,
+        from fundamentals to advanced topics like cluster coordination, storage, and Exactly-Once semantics.
+    </p>
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.6rem; margin:1rem 0;">
+        <div style="background:#e4eff8; border-radius:1rem; padding:0.6rem; text-align:center; font-size:0.8rem;">
+            <i class="fas fa-cubes" style="color:#1b6d9e;"></i> Fundamentals (Q1-15)
+        </div>
+        <div style="background:#e4eff8; border-radius:1rem; padding:0.6rem; text-align:center; font-size:0.8rem;">
+            <i class="fas fa-arrow-up" style="color:#b36b2d;"></i> Producer (Q16-25)
+        </div>
+        <div style="background:#e4eff8; border-radius:1rem; padding:0.6rem; text-align:center; font-size:0.8rem;">
+            <i class="fas fa-arrow-down" style="color:#8a4d9e;"></i> Consumer (Q26-35)
+        </div>
+        <div style="background:#e4eff8; border-radius:1rem; padding:0.6rem; text-align:center; font-size:0.8rem;">
+            <i class="fas fa-sitemap" style="color:#2a7a3e;"></i> Coordination (Q36-45)
+        </div>
+        <div style="background:#dcebf7; border-radius:1rem; padding:0.6rem; text-align:center; font-size:0.8rem; grid-column: span 2;">
+            <i class="fas fa-database" style="color:#1d7a3e;"></i> Storage &amp; Retention (Q46-50)
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 2: Q1 ========== -->
+<div class="slide" data-slide="1">
+    <h2><i class="fas fa-cubes"></i> Q1: Kafka Architecture Overview</h2>
+    <div class="sub"><span class="tag">Fundamentals</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> What is the overall architecture of Apache Kafka? Describe all components.</div>
+        <div class="a">
+            <p>Apache Kafka is a <strong>distributed event streaming platform</strong> with a <strong>publish-subscribe</strong> architecture. Its core components are:</p>
+            <ul>
+                <li><strong>Producers:</strong> Publish messages to topics.</li>
+                <li><strong>Consumers:</strong> Subscribe to topics and process messages.</li>
+                <li><strong>Brokers:</strong> Kafka servers that store and serve messages.</li>
+                <li><strong>Topics:</strong> Logical categories for messages.</li>
+                <li><strong>Partitions:</strong> Physical segments of topics for scalability.</li>
+                <li><strong>ZooKeeper/KRaft:</strong> Cluster coordination and metadata management.</li>
+                <li><strong>Controller:</strong> Manages cluster state and leadership.</li>
+                <li><strong>Consumer Groups:</strong> Group of consumers that work together.</li>
+            </ul>
+            <div class="code-block">
+                <span class="cm">// High-level architecture flow:</span><br>
+                Producer → Topic (Partition) → Broker → Consumer
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 3: Q2 ========== -->
+<div class="slide" data-slide="2">
+    <h2><i class="fas fa-server"></i> Q2: Kafka Broker</h2>
+    <div class="sub"><span class="tag">Fundamentals</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> What is a Kafka Broker and what responsibilities does it have?</div>
+        <div class="a">
+            <p>A <strong>Kafka Broker</strong> is a server that stores and serves Kafka messages. It is a node in the Kafka cluster.</p>
+            <p><strong>Responsibilities:</strong></p>
+            <ul>
+                <li><strong>Storage:</strong> Stores messages in partitions (log segments) on disk.</li>
+                <li><strong>Replication:</strong> Manages replicas of partitions (leader/follower).</li>
+                <li><strong>Produce requests:</strong> Accepts messages from producers.</li>
+                <li><strong>Fetch requests:</strong> Serves messages to consumers.</li>
+                <li><strong>Replication:</strong> Syncs data with follower replicas.</li>
+                <li><strong>Metadata:</strong> Provides cluster metadata to clients.</li>
+                <li><strong>Partition leadership:</strong> Acts as leader for assigned partitions.</li>
+            </ul>
+            <p><strong>Broker IDs:</strong> Each broker has a unique numeric ID (0, 1, 2, ...).</p>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 4: Q3 ========== -->
+<div class="slide" data-slide="3">
+    <h2><i class="fas fa-network-wired"></i> Q3: Kafka Cluster</h2>
+    <div class="sub"><span class="tag">Fundamentals</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> What is a Kafka Cluster and how are brokers organized in it?</div>
+        <div class="a">
+            <p>A <strong>Kafka Cluster</strong> is a group of brokers working together to provide high availability, fault tolerance, and scalability.</p>
+            <p><strong>Organization:</strong></p>
+            <ul>
+                <li><strong>Brokers:</strong> Multiple brokers form the cluster (typically 3+ for production).</li>
+                <li><strong>Controller:</strong> One broker acts as the controller (elected via ZooKeeper/KRaft).</li>
+                <li><strong>Partitions:</strong> Distributed across brokers for load balancing.</li>
+                <li><strong>Replication:</strong> Each partition has a leader and followers on different brokers.</li>
+                <li><strong>ZooKeeper/KRaft:</strong> Manages cluster metadata (broker list, topics, ISR).</li>
+            </ul>
+            <p><strong>Benefits:</strong> Fault tolerance, horizontal scaling, high availability.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 5: Q4 ========== -->
+<div class="slide" data-slide="4">
+    <h2><i class="fas fa-tag"></i> Q4: Kafka Topic</h2>
+    <div class="sub"><span class="tag">Fundamentals</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> Explain the concept of a Topic in Kafka architecture.</div>
+        <div class="a">
+            <p>A <strong>Topic</strong> is a logical category or feed name to which messages are published. It is a logical container that organizes messages.</p>
+            <p><strong>Key points:</strong></p>
+            <ul>
+                <li>Topics are <strong>immutable</strong> – messages are appended, never modified.</li>
+                <li>Topics are <strong>durable</strong> – messages persist on disk based on retention policy.</li>
+                <li>Topics are <strong>scalable</strong> – divided into partitions for parallelism.</li>
+                <li>Topics are <strong>multi-subscriber</strong> – many consumers can read from the same topic.</li>
+                <li>Naming convention: alphanumeric, underscores, hyphens (avoid special characters).</li>
+            </ul>
+            <div class="code-block">
+                <span class="cm">// Creating a topic</span><br>
+                bin/kafka-topics.sh --create --bootstrap-server localhost:9092 \<br>
+                &nbsp;&nbsp;--topic orders --partitions 3 --replication-factor 2
+            </div>
+            <p><strong>Use cases:</strong> Orders, user-events, system-logs, sensor-data.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 6: Q5 ========== -->
+<div class="slide" data-slide="5">
+    <h2><i class="fas fa-asterisk"></i> Q5: Partitions</h2>
+    <div class="sub"><span class="tag">Fundamentals</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> What are Partitions and why are they important in Kafka architecture?</div>
+        <div class="a">
+            <p><strong>Partitions</strong> are the physical, ordered, immutable sequences of messages that make up a topic. They are the fundamental unit of parallelism and scaling in Kafka.</p>
+            <p><strong>Why they are important:</strong></p>
+            <ul>
+                <li><strong>Scalability:</strong> Partitions can be distributed across multiple brokers.</li>
+                <li><strong>Parallelism:</strong> Multiple consumers can read from different partitions in parallel.</li>
+                <li><strong>Ordering:</strong> Messages within a partition are guaranteed to be ordered.</li>
+                <li><strong>Load balancing:</strong> Producers can distribute messages across partitions.</li>
+                <li><strong>Replication:</strong> Partitions can be replicated for fault tolerance.</li>
+            </ul>
+            <div class="code-block">
+                <span class="cm">// Topic "orders" with 3 partitions</span><br>
+                <span class="cm">// Partition 0: messages 0-9</span><br>
+                <span class="cm">// Partition 1: messages 10-19</span><br>
+                <span class="cm">// Partition 2: messages 20-29</span>
+            </div>
+            <p><strong>Key property:</strong> Messages are appended to the end of a partition (append-only log).</p>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 7: Q6 ========== -->
+<div class="slide" data-slide="6">
+    <h2><i class="fas fa-sitemap"></i> Q6: Topics, Partitions & Brokers</h2>
+    <div class="sub"><span class="tag">Fundamentals</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> What is the relationship between Topics, Partitions, and Brokers?</div>
+        <div class="a">
+            <p>The relationship is hierarchical and architectural:</p>
+            <ul>
+                <li><strong>Topic → Partition:</strong> A topic is composed of 1 or more partitions.</li>
+                <li><strong>Partition → Broker:</strong> Each partition is assigned to a <strong>leader broker</strong> and replicated to <strong>follower brokers</strong>.</li>
+                <li><strong>Broker → Multiple Partitions:</strong> A broker can host leaders/followers for many partitions across different topics.</li>
+            </ul>
+            <div class="code-block">
+                <span class="cm">// Example: Topic "orders" with 3 partitions, replication factor 2</span><br>
+                <span class="cm">// Broker 0: Partition 0 (Leader), Partition 1 (Follower)</span><br>
+                <span class="cm">// Broker 1: Partition 1 (Leader), Partition 2 (Follower)</span><br>
+                <span class="cm">// Broker 2: Partition 2 (Leader), Partition 0 (Follower)</span>
+            </div>
+            <p><strong>Key insight:</strong> This distribution enables horizontal scaling and fault tolerance.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 8: Q7 ========== -->
+<div class="slide" data-slide="7">
+    <h2><i class="fas fa-database"></i> Q7: Message Storage</h2>
+    <div class="sub"><span class="tag">Fundamentals</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> How are messages stored in Kafka partitions?</div>
+        <div class="a">
+            <p>Messages are stored in Kafka partitions as an <strong>append-only commit log</strong> on disk.</p>
+            <p><strong>Storage details:</strong></p>
+            <ul>
+                <li>Each partition is stored as a <strong>directory</strong> on the broker's filesystem.</li>
+                <li>Messages are written to <strong>log segments</strong> (files) sequentially.</li>
+                <li>Each message has a unique <strong>offset</strong> (index) within the partition.</li>
+                <li>Messages are stored in binary format with <strong>key, value, timestamp, and headers</strong>.</li>
+                <li>Segments are rolled over when they reach a certain size or time limit.</li>
+            </ul>
+            <div class="code-block">
+                <span class="cm">// Storage path on broker</span><br>
+                /var/lib/kafka/data/topic_name-partition_0/00000000000000000000.log<br>
+                /var/lib/kafka/data/topic_name-partition_0/00000000000000000000.index<br>
+                /var/lib/kafka/data/topic_name-partition_0/00000000000000000001.log
+            </div>
+            <p><strong>Key concept:</strong> Kafka uses <strong>zero-copy</strong> for efficient message transfer.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 9: Q8 ========== -->
+<div class="slide" data-slide="8">
+    <h2><i class="fas fa-hashtag"></i> Q8: Offset</h2>
+    <div class="sub"><span class="tag">Fundamentals</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> What is an Offset and how does it uniquely identify messages?</div>
+        <div class="a">
+            <p>An <strong>offset</strong> is a unique, sequential, 64-bit integer that identifies a message within a partition.</p>
+            <p><strong>Characteristics:</strong></p>
+            <ul>
+                <li>Offsets are <strong>monotonically increasing</strong> within a partition.</li>
+                <li>Each message in a partition has a <strong>unique offset</strong>.</li>
+                <li>Offsets are <strong>immutable</strong> – they never change.</li>
+                <li>Consumers use offsets to <strong>track</strong> their position in the partition.</li>
+                <li>Offsets are <strong>per partition</strong> – same offset numbers exist in different partitions.</li>
+            </ul>
+            <div class="code-block">
+                <span class="cm">// Message structure with offset</span><br>
+                Message {<br>
+                &nbsp;&nbsp;offset: 42,<br>
+                &nbsp;&nbsp;timestamp: 1700000000000,<br>
+                &nbsp;&nbsp;key: "user-123",<br>
+                &nbsp;&nbsp;value: "{\"event\": \"login\"}",<br>
+                &nbsp;&nbsp;headers: [("trace-id", "abc123")]<br>
+                }
+            </div>
+            <p><strong>Note:</strong> Offsets are not reused, even after message deletion.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 10: Q9 ========== -->
+<div class="slide" data-slide="9">
+    <h2><i class="fas fa-copy"></i> Q9: Replication</h2>
+    <div class="sub"><span class="tag">Fundamentals</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> Explain the concept of Replication in Kafka architecture.</div>
+        <div class="a">
+            <p><strong>Replication</strong> is the process of maintaining multiple copies of partitions across different brokers for <strong>fault tolerance</strong> and <strong>high availability</strong>.</p>
+            <p><strong>Key concepts:</strong></p>
+            <ul>
+                <li><strong>Replication Factor (RF):</strong> Number of copies of each partition (default: 1, recommended: 3+).</li>
+                <li><strong>Leader:</strong> The replica that handles all produce and fetch requests for a partition.</li>
+                <li><strong>Followers:</strong> Replicas that replicate data from the leader.</li>
+                <li><strong>ISR (In-Sync Replicas):</strong> Followers that are fully caught up with the leader.</li>
+                <li><strong>Replication Lag:</strong> The difference between the leader's and follower's log end offsets.</li>
+            </ul>
+            <p><strong>Why it matters:</strong> If a broker fails, a follower can be elected as the new leader.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 11: Q10 ========== -->
+<div class="slide" data-slide="10">
+    <h2><i class="fas fa-users"></i> Q10: Replica Types</h2>
+    <div class="sub"><span class="tag">Fundamentals</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> What is a Replica and what are its types (Leader/Follower)?</div>
+        <div class="a">
+            <p>A <strong>Replica</strong> is a copy of a partition stored on a broker.</p>
+            <p><strong>Types:</strong></p>
+            <ul>
+                <li><strong>Leader Replica:</strong>
+                    <ul>
+                        <li>Handles all produce and fetch requests for the partition.</li>
+                        <li>Only the leader accepts writes from producers.</li>
+                        <li>Responsible for maintaining order and consistency.</li>
+                    </ul>
+                </li>
+                <li><strong>Follower Replica:</strong>
+                    <ul>
+                        <li>Continuously replicates data from the leader.</li>
+                        <li>Only serves read requests if enabled (consumer offsets).</li>
+                        <li>Cannot accept write requests.</li>
+                        <li>Ineligible for client requests unless it becomes the leader.</li>
+                    </ul>
+                </li>
+            </ul>
+            <p><strong>Key point:</strong> The leader-follower relationship ensures consistency and high availability.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 12: Q11 ========== -->
+<div class="slide" data-slide="11">
+    <h2><i class="fas fa-sync-alt"></i> Q11: ISR (In-Sync Replica)</h2>
+    <div class="sub"><span class="tag">Fundamentals</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> What is the ISR (In-Sync Replica) and how does it work?</div>
+        <div class="a">
+            <p><strong>ISR (In-Sync Replicas)</strong> is the set of replicas that are fully caught up with the leader, meaning they have replicated all messages written to the leader.</p>
+            <p><strong>How it works:</strong></p>
+            <ul>
+                <li>Followers maintain a replication queue and fetch data from the leader.</li>
+                <li>If a follower is caught up (no lag), it's in the ISR.</li>
+                <li>If a follower falls behind (replication lag > <code>replica.lag.time.max.ms</code>), it's removed from ISR.</li>
+                <li>Only ISR members can become the new leader.</li>
+                <li>Producers can choose <code>acks=all</code> to wait for all ISR replicas to acknowledge.</li>
+            </ul>
+            <div class="code-block">
+                <span class="cm">// ISR for partition 0 with RF=3</span><br>
+                Partition 0: [Leader: Broker 0] ISR: [Broker 0, Broker 1, Broker 2]
+            </div>
+            <p><strong>Importance:</strong> ISR ensures data durability and consistency.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 13: Q12 ========== -->
+<div class="slide" data-slide="12">
+    <h2><i class="fas fa-arrow-right"></i> Q12: Leadership & Replication</h2>
+    <div class="sub"><span class="tag">Fundamentals</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> How does Kafka handle partition leadership and follower replication?</div>
+        <div class="a">
+            <p><strong>Partition Leadership:</strong></p>
+            <ul>
+                <li>One broker is elected as the <strong>leader</strong> for each partition.</li>
+                <li>The leader handles all produce and fetch requests.</li>
+                <li>If the leader fails, a new leader is elected from the <strong>ISR</strong>.</li>
+            </ul>
+            <p><strong>Follower Replication:</strong></p>
+            <ul>
+                <li>Followers continuously fetch data from the leader.</li>
+                <li>They replicate the data and keep their logs in sync.</li>
+                <li>Followers are in the ISR only if they are caught up.</li>
+                <li>Replication is <strong>pull-based</strong> (followers pull from leader).</li>
+            </ul>
+            <p><strong>Election Algorithm:</strong></p>
+            <ul>
+                <li>Controller uses ZooKeeper/KRaft for leader election.</li>
+                <li>Preferre leader: The first replica in the list (broker assignment order).</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 14: Q13 ========== -->
+<div class="slide" data-slide="13">
+    <h2><i class="fas fa-ellipsis-h"></i> Q13: ZooKeeper in Kafka</h2>
+    <div class="sub"><span class="tag">Fundamentals</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> What is the role of ZooKeeper in Kafka architecture?</div>
+        <div class="a">
+            <p><strong>ZooKeeper</strong> was the external coordinator for Kafka clusters. Its roles include:</p>
+            <ul>
+                <li><strong>Broker Registration:</strong> Brokers register themselves with ZooKeeper (ephemeral nodes).</li>
+                <li><strong>Controller Election:</strong> The first broker to create a specific ZooKeeper node becomes the controller.</li>
+                <li><strong>Metadata Storage:</strong> Stores cluster metadata (topics, partitions, ISR, leader information).</li>
+                <li><strong>Consumer Group Management:</strong> Stores consumer group offsets (older versions).</li>
+                <li><strong>Cluster Health:</strong> Monitors broker heartbeats.</li>
+            </ul>
+            <p><strong>Limitations:</strong></p>
+            <ul>
+                <li>ZooKeeper has scalability issues (number of nodes/partitions).</li>
+                <li>External dependency makes operations more complex.</li>
+                <li>Split brain scenarios possible.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 15: Q14 ========== -->
+<div class="slide" data-slide="14">
+    <h2><i class="fas fa-bolt"></i> Q14: KRaft (Kafka Raft)</h2>
+    <div class="sub"><span class="tag">Fundamentals</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> What is KRaft and how does it differ from ZooKeeper-based architecture?</div>
+        <div class="a">
+            <p><strong>KRaft</strong> (Kafka Raft) is the new consensus protocol that replaces ZooKeeper, introduced in Kafka 2.8 (production-ready in 3.0+).</p>
+            <p><strong>Differences:</strong></p>
+            <table>
+                <tr><th>Aspect</th><th>ZooKeeper-based</th><th>KRaft-based</th></tr>
+                <tr><td>Coordinator</td><td>External ZooKeeper</td><td>Embedded Raft within Kafka</td></tr>
+                <tr><td>Metadata Storage</td><td>ZooKeeper</td><td>Kafka itself (metadata topic)</td></tr>
+                <tr><td>Controller</td><td>Elected via ZooKeeper</td><td>Raft quorum</td></tr>
+                <tr><td>Scalability</td><td>Limited by ZooKeeper</td><td>Much better (millions of partitions)</td></tr>
+                <tr><td>Complexity</td><td>High (two systems)</td><td>Reduced (single system)</td></tr>
+            </table>
+            <p><strong>Key KRaft features:</strong> Self-managed metadata, higher scalability, simpler operations.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 16: Q15 ========== -->
+<div class="slide" data-slide="15">
+    <h2><i class="fas fa-database"></i> Q15: Kafka Storage Layer</h2>
+    <div class="sub"><span class="tag">Fundamentals</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> What are the components of the Kafka storage layer?</div>
+        <div class="a">
+            <p>The storage layer in Kafka consists of:</p>
+            <ul>
+                <li><strong>Log Directory:</strong> Root directory for all partitions on a broker.</li>
+                <li><strong>Partition Log:</strong> Each partition is a log directory containing segment files.</li>
+                <li><strong>Log Segments:</strong> Files that contain messages (data files) and index files.</li>
+                <li><strong>Index Files:</strong> Offset-to-position mappings for fast lookups.</li>
+                <li><strong>Time Index Files:</strong> Timestamp-to-offset mappings.</li>
+                <li><strong>Snapshot Files:</strong> Producer state snapshots (for idempotent producers).</li>
+                <li><strong>Leader Epoch Checkpoints:</strong> Store leader epoch information.</li>
+            </ul>
+            <div class="code-block">
+                <span class="cm">// Directory structure</span><br>
+                /var/lib/kafka/data/<br>
+                &nbsp;&nbsp;topic-0/<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;00000000000000000000.log<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;00000000000000000000.index<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;00000000000000000000.timeindex<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;00000000000000000001.log<br>
+                &nbsp;&nbsp;topic-1/ ...
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 17: Q16 ========== -->
+<div class="slide" data-slide="16">
+    <h2><i class="fas fa-arrow-up"></i> Q16: Producer Architecture</h2>
+    <div class="sub"><span class="tag">Producer</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> Explain the architecture of a Kafka Producer.</div>
+        <div class="a">
+            <p>The Kafka Producer architecture consists of:</p>
+            <ul>
+                <li><strong>Producer Client:</strong> The application that sends messages.</li>
+                <li><strong>Producer Configuration:</strong> Bootstrap servers, acks, retries, compression, etc.</li>
+                <li><strong>Partitioner:</strong> Determines which partition to send each message to.</li>
+                <li><strong>Accumulator:</strong> Batch buffer that groups messages for efficiency.</li>
+                <li><strong>Sender Thread:</strong> Background thread that sends batches to brokers.</li>
+                <li><strong>Metadata:</strong> Caches topic/partition metadata.</li>
+            </ul>
+            <div class="code-block">
+                <span class="cm">// Producer flow</span><br>
+                send() → Partitioner → Accumulator (batch) → Sender → Broker
+            </div>
+            <p><strong>Key configs:</strong></p>
+            <ul>
+                <li><code>bootstrap.servers</code> – Broker addresses.</li>
+                <li><code>acks</code> – Acknowledgment level.</li>
+                <li><code>retries</code> – Number of retry attempts.</li>
+                <li><code>batch.size</code> – Batch size in bytes.</li>
+                <li><code>linger.ms</code> – Wait time for batching.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 18: Q17 ========== -->
+<div class="slide" data-slide="17">
+    <h2><i class="fas fa-code-branch"></i> Q17: Partition Assignment</h2>
+    <div class="sub"><span class="tag">Producer</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> How does a producer determine which partition to send a message to?</div>
+        <div class="a">
+            <p>The producer uses a <strong>partitioner</strong> to decide the partition for each message. The logic is:</p>
+            <ul>
+                <li><strong>If a partition is specified:</strong> Use that partition.</li>
+                <li><strong>If a key is specified:</strong> Use the hash of the key to determine the partition (consistent hashing).</li>
+                <li><strong>If no key and no partition:</strong> Use round-robin (or sticky partitioner) to distribute load.</li>
+            </ul>
+            <p><strong>Partitioner types:</strong></p>
+            <ul>
+                <li><strong>Default Partitioner:</strong> Hash-based for keys, round-robin for no keys.</li>
+                <li><strong>Sticky Partitioner:</strong> Sticks to a partition for a batch to reduce metadata requests.</li>
+                <li><strong>Custom Partitioner:</strong> Implement <code>Partitioner</code> interface.</li>
+            </ul>
+            <div class="code-block">
+                <span class="cm">// Custom partitioner logic</span><br>
+                int partition(String topic, Object key, byte[] keyBytes,<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;Object value, byte[] valueBytes, Cluster cluster) {<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;return key.hashCode() % totalPartitions;<br>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 19: Q18 ========== -->
+<div class="slide" data-slide="18">
+    <h2><i class="fas fa-cogs"></i> Q18: Partitioner Role</h2>
+    <div class="sub"><span class="tag">Producer</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> What is the role of the Partitioner in producer architecture?</div>
+        <div class="a">
+            <p>The <strong>Partitioner</strong> is responsible for determining which partition a message goes to.</p>
+            <p><strong>Role and responsibilities:</strong></p>
+            <ul>
+                <li><strong>Partition selection:</strong> Decides the target partition based on key/partition configuration.</li>
+                <li><strong>Load balancing:</strong> Distributes messages evenly across partitions.</li>
+                <li><strong>Order preservation:</strong> Ensures messages with the same key go to the same partition (preserving order).</li>
+                <li><strong>Custom logic:</strong> Allows custom routing based on message content, headers, etc.</li>
+            </ul>
+            <p><strong>Partitioner implementation:</strong></p>
+            <div class="code-block">
+                class CustomPartitioner implements Partitioner {<br>
+                &nbsp;&nbsp;void configure(Map&lt;String, ?&gt; configs) { }<br>
+                &nbsp;&nbsp;int partition(...) {<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;<span class="cm">// Custom logic to select partition</span><br>
+                &nbsp;&nbsp;&nbsp;&nbsp;return somePartition;<br>
+                &nbsp;&nbsp;}<br>
+                }
+            </div>
+            <p><strong>Best practice:</strong> Use keys for related messages to maintain order.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 20: Q19 ========== -->
+<div class="slide" data-slide="19">
+    <h2><i class="fas fa-arrow-right"></i> Q19: Producer Send Flow</h2>
+    <div class="sub"><span class="tag">Producer</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> Explain the producer send flow from client to broker.</div>
+        <div class="a">
+            <p>The send flow has the following steps:</p>
+            <ul>
+                <li><strong>1. Application Call:</strong> <code>producer.send(record)</code> is called.</li>
+                <li><strong>2. Serialization:</strong> Key and value are serialized.</li>
+                <li><strong>3. Partition Selection:</strong> Partitioner determines the target partition.</li>
+                <li><strong>4. Metadata Fetch:</strong> If metadata is stale, the producer fetches updated metadata (leader info).</li>
+                <li><strong>5. Accumulator:</strong> The record is added to the batch buffer (accumulator).</li>
+                <li><strong>6. Sender Thread:</strong> A background thread sends batches to the broker.</li>
+                <li><strong>7. Broker Write:</strong> The leader broker writes the message to the partition.</li>
+                <li><strong>8. Acknowledgment:</strong> The broker returns an acknowledgment (based on acks config).</li>
+                <li><strong>9. Callback:</strong> Producer invokes the callback (if provided).</li>
+            </ul>
+            <div class="code-block">
+                <span class="cm">// Send flow code</span><br>
+                Future&lt;RecordMetadata&gt; future = producer.send(record, callback);
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 21: Q20 ========== -->
+<div class="slide" data-slide="20">
+    <h2><i class="fas fa-layer-group"></i> Q20: Accumulator/Batch Buffer</h2>
+    <div class="sub"><span class="tag">Producer</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> What is the accumulator/batch buffer in producer architecture?</div>
+        <div class="a">
+            <p>The <strong>accumulator</strong> (or batch buffer) is a component that groups messages into <strong>batches</strong> for efficient network transmission.</p>
+            <p><strong>How it works:</strong></p>
+            <ul>
+                <li>Messages are stored in the accumulator until a batch is full (<code>batch.size</code>) or a timeout occurs (<code>linger.ms</code>).</li>
+                <li>Batches are organized by topic/partition.</li>
+                <li>When a batch is ready, it's sent to the broker by the sender thread.</li>
+                <li>Batching improves <strong>throughput</strong> by reducing the number of network requests.</li>
+            </ul>
+            <p><strong>Memory management:</strong></p>
+            <ul>
+                <li><code>buffer.memory</code> controls the total memory used by the accumulator.</li>
+                <li>If the buffer is full, <code>send()</code> blocks or throws an exception.</li>
+            </ul>
+            <div class="code-block">
+                <span class="cm">// Batching configuration</span><br>
+                batch.size=16384  <span class="cm">// 16KB</span><br>
+                linger.ms=5       <span class="cm">// Wait 5ms for more messages</span><br>
+                buffer.memory=33554432  <span class="cm">// 32MB</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 22: Q21 ========== -->
+<div class="slide" data-slide="21">
+    <h2><i class="fas fa-redo"></i> Q21: Retries & Backoff</h2>
+    <div class="sub"><span class="tag">Producer</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> How does the producer handle retries and backoff?</div>
+        <div class="a">
+            <p>The producer has a built-in retry mechanism with exponential backoff to handle transient errors.</p>
+            <p><strong>Retry behavior:</strong></p>
+            <ul>
+                <li><strong>Retries:</strong> <code>retries</code> (default: 2147483647 – infinite).</li>
+                <li><strong>Backoff:</strong> <code>retry.backoff.ms</code> (default: 100ms).</li>
+                <li><strong>Exponential backoff:</strong> The delay increases with each retry.</li>
+                <li><strong>Retryable errors:</strong> Network errors, leader election, not enough replicas.</li>
+                <li><strong>Non-retryable errors:</strong> Invalid configuration, authentication failure, message too large.</li>
+            </ul>
+            <p><strong>Retry strategies:</strong></p>
+            <ul>
+                <li>Retries are performed on the <strong>same partition</strong>.</li>
+                <li>If the broker fails, the producer may get a new leader and retry.</li>
+                <li><strong>Idempotent producers</strong> ensure exactly-once even with retries.</li>
+            </ul>
+            <p><strong>Important:</strong> <code>max.in.flight.requests.per.connection</code> controls parallel requests (default 5).</p>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 23: Q22 ========== -->
+<div class="slide" data-slide="22">
+    <h2><i class="fas fa-check-circle"></i> Q22: Acknowledgment Levels</h2>
+    <div class="sub"><span class="tag">Producer</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> What are the different acknowledgment (acks) levels and how do they affect architecture?</div>
+        <div class="a">
+            <table>
+                <tr><th>acks</th><th>Description</th><th>Durability</th><th>Latency</th></tr>
+                <tr><td><code>acks=0</code></td><td>No acknowledgment from broker</td><td>Lowest (data may be lost)</td><td>Lowest</td></tr>
+                <tr><td><code>acks=1</code></td><td>Leader writes to its log</td><td>Moderate (leader failure may lose data)</td><td>Moderate</td></tr>
+                <tr><td><code>acks=all</code> (-1)</td><td>All ISR replicas acknowledge</td><td>Highest (strongest durability)</td><td>Highest</td></tr>
+            </table>
+            <p><strong>Impact on architecture:</strong></p>
+            <ul>
+                <li><strong>acks=0:</strong> High throughput, but message loss possible. Used for logging/metrics.</li>
+                <li><strong>acks=1:</strong> Leader confirms. Balanced durability/performance. Recommended for most use cases.</li>
+                <li><strong>acks=all:</strong> Ensures data is replicated to all ISR. Used for financial/transactional data.</li>
+            </ul>
+            <p><strong>With <code>acks=all</code>:</strong> The producer waits for all ISR to acknowledge, ensuring <strong>no data loss</strong>.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 24: Q23 ========== -->
+<div class="slide" data-slide="23">
+    <h2><i class="fas fa-check-double"></i> Q23: Exactly-Once Semantics</h2>
+    <div class="sub"><span class="tag">Producer</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> How does the producer achieve exactly-once semantics?</div>
+        <div class="a">
+            <p>Exactly-Once Semantics (EOS) in Kafka is achieved through a combination of features:</p>
+            <ul>
+                <li><strong>Idempotent Producer:</strong> Prevent duplicate messages in case of retries.</li>
+                <li><strong>Transactions:</strong> Atomic writes across multiple partitions/topics.</li>
+                <li><strong>Idempotent configuration:</strong> <code>enable.idempotence=true</code></li>
+            </ul>
+            <p><strong>How it works:</strong></p>
+            <ul>
+                <li>Each producer gets a unique <strong>producer ID</strong> (PID) and sequence number per partition.</li>
+                <li>The broker tracks the last sequence number for each PID/partition.</li>
+                <li>If a duplicate sequence is received, the broker rejects it.</li>
+                <li>Transactions allow atomic commits across multiple partitions.</li>
+            </ul>
+            <div class="code-block">
+                <span class="cm">// Exactly-once configuration</span><br>
+                enable.idempotence=true<br>
+                acks=all<br>
+                max.in.flight.requests.per.connection=1 (or 5 with idempotence)
+            </div>
+            <p><strong>Transactional producer:</strong> <code>initTransactions()</code>, <code>beginTransaction()</code>, <code>commitTransaction()</code>.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 25: Q24 ========== -->
+<div class="slide" data-slide="24">
+    <h2><i class="fas fa-shield-alt"></i> Q24: Idempotent Producer</h2>
+    <div class="sub"><span class="tag">Producer</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> What is an idempotent producer and how does it work architecturally?</div>
+        <div class="a">
+            <p>An <strong>idempotent producer</strong> ensures that message writes are idempotent, meaning that re-sending the same message does not result in duplicates.</p>
+            <p><strong>Architectural mechanism:</strong></p>
+            <ul>
+                <li><strong>Producer ID (PID):</strong> Each producer is assigned a unique PID.</li>
+                <li><strong>Sequence Numbers:</strong> Each message sent to a partition has a monotonic sequence number.</li>
+                <li><strong>Broker Tracking:</strong> The broker tracks the last sequence number for each PID/partition.</li>
+                <li><strong>Duplicate Detection:</strong> If a message with an already-used sequence number arrives, the broker rejects it.</li>
+            </ul>
+            <div class="code-block">
+                <span class="cm">// Idempotent producer flow</span><br>
+                Producer: [PID=123] sends msg with seq=5<br>
+                Broker: Accepts (seq=5 is new)<br>
+                Producer: Retries (same PID, seq=5)<br>
+                Broker: Rejects (seq=5 already used)
+            </div>
+            <p><strong>Benefits:</strong> Exactly-once delivery within a single partition, no duplicate messages.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 26: Q25 ========== -->
+<div class="slide" data-slide="25">
+    <h2><i class="fas fa-exclamation-triangle"></i> Q25: Broker Failure Handling</h2>
+    <div class="sub"><span class="tag">Producer</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> How does the producer handle broker failures?</div>
+        <div class="a">
+            <p>The producer handles broker failures through a combination of mechanisms:</p>
+            <ul>
+                <li><strong>Metadata Refresh:</strong> When a broker fails, the producer refreshes metadata to discover the new leader.</li>
+                <li><strong>Retries:</strong> The producer retries the request with exponential backoff.</li>
+                <li><strong>Broker Fallback:</strong> If the initial broker is down, the producer tries other brokers in the bootstrap list.</li>
+                <li><strong>Leader Discovery:</strong> The producer asks for the new leader for the partition.</li>
+            </ul>
+            <p><strong>Failure scenarios:</strong></p>
+            <ul>
+                <li><strong>Broker down:</strong> Producer retries, fetches new leader metadata.</li>
+                <li><strong>Network partition:</strong> Producer may fail, but retries succeed when network recovers.</li>
+                <li><strong>Leader election:</strong> Producer may get <code>LeaderNotAvailableException</code>, waits for new leader.</li>
+            </ul>
+            <p><strong>Configuration:</strong></p>
+            <ul>
+                <li><code>reconnect.backoff.ms</code> – Delay before reconnecting.</li>
+                <li><code>retry.backoff.ms</code> – Delay between retries.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 27: Q26 ========== -->
+<div class="slide" data-slide="26">
+    <h2><i class="fas fa-arrow-down"></i> Q26: Consumer Architecture</h2>
+    <div class="sub"><span class="tag">Consumer</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> Explain the architecture of a Kafka Consumer.</div>
+        <div class="a">
+            <p>The Kafka Consumer architecture includes:</p>
+            <ul>
+                <li><strong>Consumer Client:</strong> The application that reads messages.</li>
+                <li><strong>Consumer Group:</strong> A group of consumers that share the workload.</li>
+                <li><strong>Poll Loop:</strong> The consumer polls for new messages from the broker.</li>
+                <li><strong>Offset Management:</strong> Tracks the last read offset for each partition.</li>
+                <li><strong>Rebalancing:</strong> Handles partition assignment changes.</li>
+            </ul>
+            <div class="code-block">
+                <span class="cm">// Consumer flow</span><br>
+                poll() → Broker → Message Processing → commit() offsets
+            </div>
+            <p><strong>Key configs:</strong></p>
+            <ul>
+                <li><code>group.id</code> – Consumer group identifier.</li>
+                <li><code>enable.auto.commit</code> – Auto-commit offsets.</li>
+                <li><code>auto.offset.reset</code> – Where to start when no offset exists.</li>
+                <li><code>max.poll.records</code> – Maximum records per poll.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 28: Q27 ========== -->
+<div class="slide" data-slide="27">
+    <h2><i class="fas fa-users"></i> Q27: Consumer Group</h2>
+    <div class="sub"><span class="tag">Consumer</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> What is a Consumer Group and how does it work?</div>
+        <div class="a">
+            <p>A <strong>Consumer Group</strong> is a set of consumers that work together to consume messages from one or more topics.</p>
+            <p><strong>How it works:</strong></p>
+            <ul>
+                <li>Each partition in a topic is assigned to <strong>exactly one consumer</strong> in the group.</li>
+                <li>Consumers in the same group coordinate to share the load.</li>
+                <li>If a consumer fails, its partitions are reassigned to other consumers (rebalancing).</li>
+                <li>Offsets are committed <strong>per consumer group</strong> and partition.</li>
+            </ul>
+            <div class="code-block">
+                <span class="cm">// Consumer group with 2 consumers</span><br>
+                Topic: orders (3 partitions)<br>
+                Consumer Group: order-processing<br>
+                Consumer 1 → Partitions 0, 1<br>
+                Consumer 2 → Partition 2
+            </div>
+            <p><strong>Key concept:</strong> Multiple consumer groups can read the same topic independently.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 29: Q28 ========== -->
+<div class="slide" data-slide="28">
+    <h2><i class="fas fa-sync-alt"></i> Q28: Consumer Group Rebalancing</h2>
+    <div class="sub"><span class="tag">Consumer</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> Explain the consumer group rebalancing process.</div>
+        <div class="a">
+            <p><strong>Rebalancing</strong> is the process of reassigning partitions to consumers in a group when changes occur.</p>
+            <p><strong>Triggers for rebalancing:</strong></p>
+            <ul>
+                <li>A new consumer joins the group.</li>
+                <li>A consumer leaves the group (crash or shutdown).</li>
+                <li>A consumer times out (no heartbeat).</li>
+                <li>New partitions are added to a topic.</li>
+                <li>Consumer group membership changes.</li>
+            </ul>
+            <p><strong>Rebalancing process:</strong></p>
+            <ul>
+                <li><strong>Group Coordinator</strong> detects the change.</li>
+                <li>The coordinator initiates rebalancing.</li>
+                <li>Consumers pause consumption and revoke their current partitions.</li>
+                <li>Partitions are reassigned based on the assignment strategy.</li>
+                <li>Consumers resume consumption with new assignments.</li>
+            </ul>
+            <p><strong>Impact:</strong> During rebalancing, consumption pauses briefly.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 30: Q29 ========== -->
+<div class="slide" data-slide="29">
+    <h2><i class="fas fa-code-branch"></i> Q29: Rebalance Protocols</h2>
+    <div class="sub"><span class="tag">Consumer</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> What are the different rebalance protocols in Kafka?</div>
+        <div class="a">
+            <p>Kafka supports different rebalance protocols (introduced in KIP-429):</p>
+            <ul>
+                <li><strong>Eager Rebalance (Classic):</strong>
+                    <ul>
+                        <li>Consumers revoke all partitions before rebalancing.</li>
+                        <li>No consumption during rebalancing.</li>
+                        <li>Simpler but less efficient.</li>
+                    </ul>
+                </li>
+                <li><strong>Cooperative Rebalance (Incremental):</strong>
+                    <ul>
+                        <li>Consumers only revoke partitions that need to be moved.</li>
+                        <li>Consumption continues on unaffected partitions.</li>
+                        <li>More efficient for large consumer groups.</li>
+                    </ul>
+                </li>
+                <li><strong>Protocol selection:</strong>
+                    <ul>
+                        <li><code>partition.assignment.strategy</code> with <code>CooperativeStickyAssignor</code>.</li>
+                    </ul>
+                </li>
+            </ul>
+            <p><strong>Cooperative rebalance benefits:</strong></p>
+            <ul>
+                <li>Reduced rebalancing time.</li>
+                <li>Less impact on application throughput.</li>
+                <li>Better for large-scale deployments.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 31: Q30 ========== -->
+<div class="slide" data-slide="30">
+    <h2><i class="fas fa-floppy-disk"></i> Q30: Offset Commit & Storage</h2>
+    <div class="sub"><span class="tag">Consumer</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> How does a consumer commit offsets? Explain offset storage.</div>
+        <div class="a">
+            <p><strong>Offset commit</strong> is how a consumer acknowledges that it has processed messages up to a certain offset.</p>
+            <p><strong>Offset storage:</strong></p>
+            <ul>
+                <li><strong>Internal __consumer_offsets topic:</strong> Stores offsets for all consumer groups.</li>
+                <li>Each commit is a message to this internal topic.</li>
+                <li>Offsets are stored per (group, topic, partition).</li>
+                <li>Default retention: 7 days.</li>
+            </ul>
+            <p><strong>Commit strategies:</strong></p>
+            <ul>
+                <li><strong>Auto-commit:</strong> <code>enable.auto.commit=true</code> (periodic commit).</li>
+                <li><strong>Manual commit:</strong> <code>commitSync()</code> or <code>commitAsync()</code>.</li>
+                <li><strong>Batch commit:</strong> Commit after processing a batch of messages.</li>
+            </ul>
+            <div class="code-block">
+                <span class="cm">// Manual commit</span><br>
+                while (true) {<br>
+                &nbsp;&nbsp;ConsumerRecords&lt;String, String&gt; records = consumer.poll(100);<br>
+                &nbsp;&nbsp;processRecords(records);<br>
+                &nbsp;&nbsp;consumer.commitSync();  <span class="cm">// commit after processing</span><br>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 32: Q31 ========== -->
+<div class="slide" data-slide="31">
+    <h2><i class="fas fa-hand"></i> Q31: Pull-Based Consumption</h2>
+    <div class="sub"><span class="tag">Consumer</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> Explain the architecture of Kafka's pull-based consumption model.</div>
+        <div class="a">
+            <p>Kafka uses a <strong>pull-based model</strong> where consumers actively request messages from brokers.</p>
+            <p><strong>How it works:</strong></p>
+            <ul>
+                <li>Consumers call <code>poll()</code> to fetch messages.</li>
+                <li>Consumers control their own consumption rate (no backpressure issues).</li>
+                <li>Consumers can choose the number of messages per poll.</li>
+                <li>Brokers are decoupled from consumer processing speed.</li>
+            </ul>
+            <p><strong>Benefits of pull model:</strong></p>
+            <ul>
+                <li><strong>Consumer-controlled:</strong> Consumers can handle varying processing speeds.</li>
+                <li><strong>Efficient batching:</strong> Fetches multiple messages at once.</li>
+                <li><strong>No backpressure:</strong> Brokers don't get overwhelmed by slow consumers.</li>
+                <li><strong>Flexibility:</strong> Consumers can choose when to consume.</li>
+            </ul>
+            <div class="code-block">
+                <span class="cm">// Poll loop</span><br>
+                while (true) {<br>
+                &nbsp;&nbsp;ConsumerRecords&lt;String, String&gt; records = consumer.poll(Duration.ofMillis(100));<br>
+                &nbsp;&nbsp;for (ConsumerRecord record : records) {<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;process(record);<br>
+                &nbsp;&nbsp;}<br>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 33: Q32 ========== -->
+<div class="slide" data-slide="32">
+    <h2><i class="fas fa-object-ungroup"></i> Q32: Partition Assignment</h2>
+    <div class="sub"><span class="tag">Consumer</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> How does partition assignment work in consumer groups?</div>
+        <div class="a">
+            <p>Partition assignment in consumer groups is coordinated by the <strong>Group Coordinator</strong> using an <strong>assignment strategy</strong>.</p>
+            <p><strong>Assignment flow:</strong></p>
+            <ul>
+                <li>Each consumer sends a <code>JoinGroup</code> request to the coordinator.</li>
+                <li>The coordinator selects a <strong>leader</strong> among the consumers.</li>
+                <li>The leader computes the assignment for all consumers.</li>
+                <li>The leader sends the assignment via <code>SyncGroup</code>.</li>
+                <li>Consumers receive their assigned partitions.</li>
+            </ul>
+            <p><strong>Assignment strategies:</strong></p>
+            <ul>
+                <li><strong>Range Assignor:</strong> Assigns partitions in ranges based on partition count.</li>
+                <li><strong>RoundRobin Assignor:</strong> Distributes partitions evenly in a round-robin fashion.</li>
+                <li><strong>Sticky Assignor:</strong> Minimizes partition movement during rebalancing.</li>
+                <li><strong>CooperativeSticky Assignor:</strong> Incremental rebalancing.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 34: Q33 ========== -->
+<div class="slide" data-slide="33">
+    <h2><i class="fas fa-list"></i> Q33: Assignment Strategies</h2>
+    <div class="sub"><span class="tag">Consumer</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> What are the different partition assignment strategies?</div>
+        <div class="a">
+            <table>
+                <tr><th>Strategy</th><th>Description</th><th>Pros</th><th>Cons</th></tr>
+                <tr><td>Range Assignor</td><td>Assigns contiguous ranges of partitions</td><td>Simple, works well with few partitions</td><td>Uneven distribution with multiple topics</td></tr>
+                <tr><td>RoundRobin Assignor</td><td>Distributes partitions evenly in round-robin</td><td>Balanced distribution</td><td>More partition movement during rebalance</td></tr>
+                <tr><td>Sticky Assignor</td><td>Minimizes partition movement</td><td>Stable assignments, less rebalancing</td><td>More complex logic</td></tr>
+                <tr><td>CooperativeSticky Assignor</td><td>Incremental rebalancing</td><td>Minimal disruption, efficient</td><td>Newer, requires protocol support</td></tr>
+            </table>
+            <p><strong>Configuration:</strong></p>
+            <div class="code-block">
+                partition.assignment.strategy=<br>
+                org.apache.kafka.clients.consumer.CooperativeStickyAssignor
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 35: Q34 ========== -->
+<div class="slide" data-slide="34">
+    <h2><i class="fas fa-layer-group"></i> Q34: Multiple Partitions Consumption</h2>
+    <div class="sub"><span class="tag">Consumer</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> How does a consumer handle messages from multiple partitions?</div>
+        <div class="a">
+            <p>A consumer handles messages from multiple partitions by polling and processing records from all assigned partitions.</p>
+            <p><strong>Key mechanisms:</strong></p>
+            <ul>
+                <li><strong>Poll loop:</strong> <code>poll()</code> returns records from multiple partitions.</li>
+                <li><strong>Batch processing:</strong> Records are retrieved in a batch (can be from different partitions).</li>
+                <li><strong>Interleaving:</strong> Records from different partitions are interleaved in the poll response.</li>
+                <li><strong>Ordering guarantee:</strong> Within each partition, order is preserved.</li>
+            </ul>
+            <div class="code-block">
+                <span class="cm">// Handling records from multiple partitions</span><br>
+                for (ConsumerRecord&lt;String, String&gt; record : records) {<br>
+                &nbsp;&nbsp;String topic = record.topic();<br>
+                &nbsp;&nbsp;int partition = record.partition();<br>
+                &nbsp;&nbsp;long offset = record.offset();<br>
+                &nbsp;&nbsp;process(record.value());<br>
+                }
+            </div>
+            <p><strong>Best practices:</strong></p>
+            <ul>
+                <li>Process records in the order they are received.</li>
+                <li>Commit offsets after processing is complete.</li>
+                <li>Use <code>pause()</code> and <code>resume()</code> for flow control.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 36: Q35 ========== -->
+<div class="slide" data-slide="35">
+    <h2><i class="fas fa-handshake"></i> Q35: Consumer-Broker Coordination</h2>
+    <div class="sub"><span class="tag">Consumer</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> How does the consumer coordinate with the broker?</div>
+        <div class="a">
+            <p>Consumer-broker coordination involves several mechanisms:</p>
+            <ul>
+                <li><strong>Heartbeat:</strong> Consumers send periodic heartbeats to the group coordinator (every <code>heartbeat.interval.ms</code>).</li>
+                <li><strong>Session timeout:</strong> If the coordinator doesn't receive a heartbeat within <code>session.timeout.ms</code>, the consumer is considered dead.</li>
+                <li><strong>Offset management:</strong> Consumers commit offsets to the broker (<code>__consumer_offsets</code> topic).</li>
+                <li><strong>Metadata refresh:</strong> Consumers fetch metadata (partition leaders, etc.) from brokers.</li>
+                <li><strong>Group coordination:</strong> The group coordinator manages consumer group membership and rebalancing.</li>
+            </ul>
+            <p><strong>Coordination flow:</strong></p>
+            <ul>
+                <li><strong>Join group:</strong> Consumer joins the group.</li>
+                <li><strong>Heartbeat:</strong> Regular heartbeats to maintain membership.</li>
+                <li><strong>Poll:</strong> <code>poll()</code> triggers heartbeats and metadata refresh.</li>
+                <li><strong>Leave group:</strong> On close or failure, the consumer leaves the group.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 37: Q36 ========== -->
+<div class="slide" data-slide="36">
+    <h2><i class="fas fa-crown"></i> Q36: Kafka Controller</h2>
+    <div class="sub"><span class="tag">Coordination</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> What is the Kafka Controller and what are its responsibilities?</div>
+        <div class="a">
+            <p>The <strong>Kafka Controller</strong> is a special broker that manages cluster-wide metadata and coordination.</p>
+            <p><strong>Responsibilities:</strong></p>
+            <ul>
+                <li><strong>Leader election:</strong> Elects partition leaders when needed.</li>
+                <li><strong>Broker management:</strong> Handles broker join/leave events.</li>
+                <li><strong>Topic management:</strong> Creates/deletes topics and partitions.</li>
+                <li><strong>ISR management:</strong> Updates ISR lists.</li>
+                <li><strong>Replica management:</strong> Manages replica assignment.</li>
+                <li><strong>Metadata propagation:</strong> Updates metadata for all brokers.</li>
+                <li><strong>Controller election:</strong> Coordinates its own election.</li>
+            </ul>
+            <p><strong>Why it's important:</strong> The controller ensures cluster-wide consistency and orchestrates all major administrative operations.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 38: Q37 ========== -->
+<div class="slide" data-slide="37">
+    <h2><i class="fas fa-vote-yea"></i> Q37: Controller Election</h2>
+    <div class="sub"><span class="tag">Coordination</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> How is the Kafka Controller elected in the cluster?</div>
+        <div class="a">
+            <p>The controller election mechanism depends on the coordination system:</p>
+            <p><strong>With ZooKeeper (legacy):</strong></p>
+            <ul>
+                <li>All brokers try to create an ephemeral node in ZooKeeper (<code>/controller</code>).</li>
+                <li>The first broker to successfully create the node becomes the controller.</li>
+                <li>If the controller fails, the ephemeral node is removed, and other brokers compete.</li>
+                <li>Brokers watch the <code>/controller</code> node for changes.</li>
+            </ul>
+            <p><strong>With KRaft (new):</strong></p>
+            <ul>
+                <li>Controllers are part of the Raft quorum.</li>
+                <li>The controller is elected through the Raft consensus algorithm.</li>
+                <li>Controllers are configured as part of the metadata quorum.</li>
+                <li>Follower controllers replicate the metadata.</li>
+            </ul>
+            <p><strong>High availability:</strong> Multiple brokers can be configured to act as controllers.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 39: Q38 ========== -->
+<div class="slide" data-slide="38">
+    <h2><i class="fas fa-arrow-right"></i> Q38: Leader Election</h2>
+    <div class="sub"><span class="tag">Coordination</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> Explain the role of the Controller in partition leader election.</div>
+        <div class="a">
+            <p>The <strong>Controller</strong> is responsible for electing partition leaders when needed.</p>
+            <p><strong>Leader election scenarios:</strong></p>
+            <ul>
+                <li><strong>Broker failure:</strong> The leader broker fails, and the controller selects a new leader from the ISR.</li>
+                <li><strong>Preferred leader election:</strong> The controller may reassign leadership to the preferred leader.</li>
+                <li><strong>Partition reassignment:</strong> The controller elects leaders for reassigned partitions.</li>
+            </ul>
+            <p><strong>Election process:</strong></p>
+            <ul>
+                <li>The controller checks the ISR (In-Sync Replicas) for the partition.</li>
+                <li>The first replica in the ISR is selected as the new leader.</li>
+                <li>The controller updates the metadata and propagates it to all brokers.</li>
+                <li>Producers and consumers learn about the new leader through metadata refresh.</li>
+            </ul>
+            <p><strong>Key point:</strong> Only ISR members can become leaders, ensuring no data loss.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 40: Q39 ========== -->
+<div class="slide" data-slide="39">
+    <h2><i class="fas fa-tools"></i> Q39: Broker Failure & Recovery</h2>
+    <div class="sub"><span class="tag">Coordination</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> How does the Controller manage broker failures and recoveries?</div>
+        <div class="a">
+            <p><strong>Broker failure handling:</strong></p>
+            <ul>
+                <li>ZooKeeper/KRaft detects the broker failure (session timeout).</li>
+                <li>The controller is notified of the broker's departure.</li>
+                <li>For all partitions where the failed broker was the leader, the controller elects new leaders from the ISR.</li>
+                <li>Replicas on the failed broker are marked as offline.</li>
+                <li>The controller triggers partition reassignment if needed.</li>
+            </ul>
+            <p><strong>Broker recovery:</strong></p>
+            <ul>
+                <li>The broker restarts and registers with ZooKeeper/KRaft.</li>
+                <li>The controller adds the broker back to the cluster.</li>
+                <li>Replicas on the recovered broker catch up with the leaders.</li>
+                <li>Once caught up, the replicas are added back to the ISR.</li>
+                <li>Preferred leader election may occur to restore the original leadership.</li>
+            </ul>
+            <p><strong>Impact:</strong> During failure, affected partitions may be unavailable briefly.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 41: Q40 ========== -->
+<div class="slide" data-slide="40">
+    <h2><i class="fas fa-info-circle"></i> Q40: Metadata Management</h2>
+    <div class="sub"><span class="tag">Coordination</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> What is the Metadata in Kafka architecture and how is it managed?</div>
+        <div class="a">
+            <p><strong>Metadata</strong> is the cluster-wide state information that includes:</p>
+            <ul>
+                <li>Broker list and their information.</li>
+                <li>Topic list and configurations.</li>
+                <li>Partition assignments (broker → partition mapping).</li>
+                <li>Leader information for each partition.</li>
+                <li>ISR (In-Sync Replicas) list.</li>
+                <li>Replica assignments.</li>
+            </ul>
+            <p><strong>Metadata management:</strong></p>
+            <ul>
+                <li><strong>ZooKeeper (legacy):</strong> Metadata is stored in ZooKeeper nodes. Brokers and controllers watch for changes.</li>
+                <li><strong>KRaft (new):</strong> Metadata is stored in the <code>__cluster_metadata</code> partition. Controllers act as metadata servers.</li>
+                <li><strong>Clients:</strong> Producers and consumers cache metadata and refresh periodically.</li>
+            </ul>
+            <p><strong>Metadata propagation:</strong> The controller sends metadata updates to all brokers in the cluster.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 42: Q41 ========== -->
+<div class="slide" data-slide="41">
+    <h2><i class="fas fa-server"></i> Q41: Broker Communication</h2>
+    <div class="sub"><span class="tag">Coordination</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> How do brokers communicate with each other in a Kafka cluster?</div>
+        <div class="a">
+            <p>Brokers communicate with each other for various purposes:</p>
+            <ul>
+                <li><strong>Inter-broker communication:</strong> Uses the <strong>Kafka RPC protocol</strong> over TCP.</li>
+                <li><strong>Replication:</strong> Followers pull data from leaders.</li>
+                <li><strong>Metadata propagation:</strong> The controller sends metadata updates to all brokers.</li>
+                <li><strong>Controller communication:</strong> The controller instructs brokers on leadership changes, partition assignments, etc.</li>
+                <li><strong>Heartbeat:</strong> Brokers send heartbeats to ZooKeeper/KRaft.</li>
+            </ul>
+            <p><strong>Communication mechanisms:</strong></p>
+            <ul>
+                <li><strong>Internal requests:</strong> <code>LeaderAndIsr</code>, <code>UpdateMetadata</code>, <code>StopReplica</code>, etc.</li>
+                <li><strong>Replication protocol:</strong> <code>Fetch</code> requests from followers to leaders.</li>
+                <li><strong>Client-server:</strong> <code>Produce</code>, <code>Fetch</code>, <code>ListOffsets</code> requests.</li>
+            </ul>
+            <p><strong>Ports:</strong> Brokers listen on a dedicated port (9092 by default) for client and inter-broker communication.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 43: Q42 ========== -->
+<div class="slide" data-slide="42">
+    <h2><i class="fas fa-user-friends"></i> Q42: Group Coordinator</h2>
+    <div class="sub"><span class="tag">Coordination</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> What is the role of the Group Coordinator in Kafka?</div>
+        <div class="a">
+            <p>The <strong>Group Coordinator</strong> is a broker responsible for managing consumer groups. Each consumer group is assigned to a coordinator broker.</p>
+            <p><strong>Responsibilities:</strong></p>
+            <ul>
+                <li><strong>Consumer group management:</strong> Tracks all consumer groups in the cluster.</li>
+                <li><strong>Group membership:</strong> Manages joining, leaving, and heartbeat of consumers.</li>
+                <li><strong>Rebalancing:</strong> Triggers and coordinates rebalancing within the group.</li>
+                <li><strong>Offset management:</strong> Handles offset commits and reads from the <code>__consumer_offsets</code> topic.</li>
+                <li><strong>Partition assignment:</strong> Coordinates partition assignment with the group leader.</li>
+            </ul>
+            <p><strong>Assignment:</strong></p>
+            <ul>
+                <li>The coordinator for a group is determined by the hash of the group ID.</li>
+                <li>If the coordinator fails, a new coordinator is elected.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 44: Q43 ========== -->
+<div class="slide" data-slide="43">
+    <h2><i class="fas fa-link"></i> Q43: ZooKeeper & Controller Relationship</h2>
+    <div class="sub"><span class="tag">Coordination</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> Explain the relationship between ZooKeeper and the Kafka Controller.</div>
+        <div class="a">
+            <p>In the ZooKeeper-based architecture, the controller and ZooKeeper have a close relationship:</p>
+            <ul>
+                <li><strong>Controller election:</strong> The controller is elected through ZooKeeper (ephemeral node).</li>
+                <li><strong>Metadata storage:</strong> ZooKeeper stores all cluster metadata (topics, partitions, ISR, etc.).</li>
+                <li><strong>Watch mechanism:</strong> The controller watches ZooKeeper for changes (e.g., broker failures, topic changes).</li>
+                <li><strong>Controller acts as a proxy:</strong> The controller updates ZooKeeper when cluster state changes.</li>
+                <li><strong>Broker registration:</strong> Brokers register with ZooKeeper (ephemeral nodes).</li>
+            </ul>
+            <p><strong>In KRaft:</strong></p>
+            <ul>
+                <li>ZooKeeper is replaced by the Raft-based controller.</li>
+                <li>The controllers act as both metadata servers and the cluster controller.</li>
+                <li>No external coordination dependency.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 45: Q44 ========== -->
+<div class="slide" data-slide="44">
+    <h2><i class="fas fa-bolt"></i> Q44: Split Brain & Network Partitions</h2>
+    <div class="sub"><span class="tag">Coordination</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> How does the cluster handle network partitions (split brain scenario)?</div>
+        <div class="a">
+            <p><strong>Split brain</strong> occurs when a cluster splits into two or more groups that can't communicate, potentially leading to multiple controllers.</p>
+            <p><strong>How Kafka prevents it:</strong></p>
+            <ul>
+                <li><strong>ZooKeeper's leader election:</strong> Uses ZooKeeper's consensus mechanism, ensuring only one controller at a time.</li>
+                <li><strong>Ephemeral nodes:</strong> Only the broker that holds the <code>/controller</code> node is the controller.</li>
+                <li><strong>Heartbeat mechanism:</strong> Brokers maintain heartbeats with ZooKeeper.</li>
+                <li><strong>Quorum-based:</strong> ZooKeeper requires a quorum for leader election.</li>
+                <li><strong>KRaft:</strong> Uses Raft consensus, which inherently handles split brain through majority voting.</li>
+            </ul>
+            <p><strong>Mitigation:</strong></p>
+            <ul>
+                <li>Minimum 3 brokers for production.</li>
+                <li>ZooKeeper quorum: odd number of nodes (3, 5, 7).</li>
+                <li>KRaft: majority of controllers for consensus.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 46: Q45 ========== -->
+<div class="slide" data-slide="45">
+    <h2><i class="fas fa-code"></i> Q45: Metadata API</h2>
+    <div class="sub"><span class="tag">Coordination</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> What is the role of the Metadata API in Kafka?</div>
+        <div class="a">
+            <p>The <strong>Metadata API</strong> is the interface through which clients (producers, consumers) and brokers access cluster metadata.</p>
+            <p><strong>Key aspects:</strong></p>
+            <ul>
+                <li><strong>Client metadata:</strong> Producers and consumers use the Metadata API to learn about topic partitions, leaders, and broker addresses.</li>
+                <li><strong>Broker metadata:</strong> Brokers use the Metadata API to share cluster state and configuration.</li>
+                <li><strong>Controller metadata:</strong> The controller updates metadata through the Metadata API.</li>
+            </ul>
+            <p><strong>Metadata API requests:</strong></p>
+            <ul>
+                <li><code>MetadataRequest</code>: Clients request metadata about topics, partitions, leaders.</li>
+                <li><code>UpdateMetadataRequest</code>: Controller sends metadata updates to brokers.</li>
+                <li><code>MetadataResponse</code>: Response containing requested metadata.</li>
+            </ul>
+            <p><strong>Metadata caching:</strong> Clients cache metadata and refresh it periodically or when errors occur.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 47: Q46 ========== -->
+<div class="slide" data-slide="46">
+    <h2><i class="fas fa-database"></i> Q46: Message Storage (Log Segments)</h2>
+    <div class="sub"><span class="tag">Storage & Retention</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> Explain how Kafka stores messages on disk (log segments).</div>
+        <div class="a">
+            <p>Kafka stores messages in <strong>log segments</strong> on disk, organized by partition.</p>
+            <p><strong>Log segment structure:</strong></p>
+            <ul>
+                <li><strong>Log File (.log):</strong> Contains the actual message data.</li>
+                <li><strong>Index File (.index):</strong> Maps offsets to physical positions in the log file.</li>
+                <li><strong>Time Index File (.timeindex):</strong> Maps timestamps to offsets.</li>
+                <li><strong>Snapshot Files:</strong> Producer state snapshots for idempotent producers.</li>
+            </ul>
+            <p><strong>Segment management:</strong></p>
+            <ul>
+                <li>Segments are created when the previous segment reaches a size limit (<code>log.segment.bytes</code>) or time limit (<code>log.roll.ms</code>).</li>
+                <li>Segments are closed (write-once) after they are rolled.</li>
+                <li>Closed segments are immutable.</li>
+                <li>Segments are deleted based on retention policy.</li>
+            </ul>
+            <div class="code-block">
+                <span class="cm">// Segment files</span><br>
+                00000000000000000000.log  <span class="cm">// Messages 0-99</span><br>
+                00000000000000000000.index<br>
+                00000000000000000100.log  <span class="cm">// Messages 100-199</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 48: Q47 ========== -->
+<div class="slide" data-slide="47">
+    <h2><i class="fas fa-cubes"></i> Q47: Log Segments Management</h2>
+    <div class="sub"><span class="tag">Storage & Retention</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> What are log segments and how are they managed?</div>
+        <div class="a">
+            <p><strong>Log segments</strong> are the physical files that store messages for a partition.</p>
+            <p><strong>Segment lifecycle:</strong></p>
+            <ul>
+                <li><strong>Creation:</strong> A new segment is created when the active segment fills up (size or time).</li>
+                <li><strong>Active segment:</strong> The segment that is currently being written to (latest segment).</li>
+                <li><strong>Closed segment:</strong> Segments that are no longer being written to (immutable).</li>
+                <li><strong>Deletion:</strong> Segments are deleted when they exceed the retention policy (age or size).</li>
+            </ul>
+            <p><strong>Segment configurations:</strong></p>
+            <ul>
+                <li><code>log.segment.bytes</code> (default: 1GB) – Maximum segment size.</li>
+                <li><code>log.roll.ms</code> – Maximum time before rolling a segment.</li>
+                <li><code>log.index.interval.bytes</code> (default: 4KB) – Index entry frequency.</li>
+                <li><code>log.index.size.max.bytes</code> (default: 10MB) – Maximum index file size.</li>
+            </ul>
+            <p><strong>Segment indexing:</strong> The index file maps offsets to file positions for efficient reads.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 49: Q48 ========== -->
+<div class="slide" data-slide="48">
+    <h2><i class="fas fa-clock"></i> Q48: Message Retention & Cleanup</h2>
+    <div class="sub"><span class="tag">Storage & Retention</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> How does Kafka handle message retention and cleanup?</div>
+        <div class="a">
+            <p>Kafka handles retention and cleanup through <strong>retention policies</strong>:</p>
+            <p><strong>Retention policies:</strong></p>
+            <ul>
+                <li><strong>Time-based retention:</strong> <code>retention.ms</code> (default: 7 days).</li>
+                <li><strong>Size-based retention:</strong> <code>retention.bytes</code> (default: -1, no limit).</li>
+                <li><strong>Log compaction:</strong> Retains only the latest value for each key.</li>
+            </ul>
+            <p><strong>Cleanup process:</strong></p>
+            <ul>
+                <li>Background threads (log cleaner, log flusher) periodically check for expired segments.</li>
+                <li>Segments that exceed the retention policy are deleted.</li>
+                <li>For log compaction, records are removed based on keys.</li>
+                <li>Cleanup is performed per partition.</li>
+            </ul>
+            <p><strong>Retention configurations:</strong></p>
+            <ul>
+                <li><code>log.retention.hours</code> – Default retention in hours.</li>
+                <li><code>log.retention.bytes</code> – Size-based retention.</li>
+                <li><code>log.cleanup.policy</code> – <code>delete</code> or <code>compact</code>.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 50: Q49 ========== -->
+<div class="slide" data-slide="49">
+    <h2><i class="fas fa-compress-arrows-alt"></i> Q49: Log Compaction</h2>
+    <div class="sub"><span class="tag">Storage & Retention</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> What is log compaction and how does it work architecturally?</div>
+        <div class="a">
+            <p><strong>Log compaction</strong> is a retention policy that retains only the latest value for each key in a partition.</p>
+            <p><strong>How it works:</strong></p>
+            <ul>
+                <li>The log cleaner runs in the background.</li>
+                <li>It examines segments and identifies duplicate keys.</li>
+                <li>For each key, only the latest record is retained.</li>
+                <li>Compacted segments replace the original segments.</li>
+                <li>All offsets remain valid (some records may be removed).</li>
+            </ul>
+            <p><strong>Use cases:</strong></p>
+            <ul>
+                <li>Kafka internal topics (<code>__consumer_offsets</code>).</li>
+                <li>Applications that need to maintain the latest state of a key (e.g., user profiles).</li>
+                <li>Change data capture (CDC) with key-based updates.</li>
+            </ul>
+            <div class="code-block">
+                <span class="cm">// Log compaction example</span><br>
+                <span class="cm">// Before: (k1, v1), (k2, v2), (k1, v3), (k3, v4)</span><br>
+                <span class="cm">// After compact: (k1, v3), (k2, v2), (k3, v4)</span>
+            </div>
+            <p><strong>Configuration:</strong> <code>log.cleanup.policy=compact</code></p>
+        </div>
+    </div>
+</div>
+
+<!-- ========== SLIDE 51: Q50 ========== -->
+<div class="slide" data-slide="50">
+    <h2><i class="fas fa-flag-checkered"></i> Q50: Message Deletion & Compaction</h2>
+    <div class="sub"><span class="tag">Storage & Retention</span></div>
+    <div class="qa-block">
+        <div class="q"><i class="fas fa-question-circle"></i> How does Kafka handle message deletion and compaction?</div>
+        <div class="a">
+            <p>Kafka handles message deletion and compaction through two mechanisms:</p>
+            <ul>
+                <li><strong>1. Deletion (Time/Size-based):</strong>
+                    <ul>
+                        <li>When retention is reached, entire segments are deleted.</li>
+                        <li>Individual messages are never deleted separately.</li>
+                        <li>Deletion is segment-level.</li>
+                    </ul>
+                </li>
+                <li><strong>2. Compaction (Key-based):</strong>
+                    <ul>
+                        <li>Only the latest value for each key is retained.</li>
+                        <li>Older records with the same key are removed.</li>
+                        <li>Compaction preserves the latest state.</li>
+                        <li>Compaction can be configured per topic.</li>
+                    </ul>
+                </li>
+            </ul>
+            <p><strong>Cleanup process:</strong></p>
+            <ul>
+                <li>Log cleaner runs in the background.</li>
+                <li>For deletion, segments are removed.</li>
+                <li>For compaction, segments are rewritten with only the latest keys.</li>
+                <li>Both processes are asynchronous and configurable.</li>
+            </ul>
+            <p><strong>Congratulations!</strong> You've completed all 50 Kafka architecture interview questions.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ========== NAVIGATION ========== -->
+<div class="nav">
+    <button class="nav-btn" id="prevSlide"><i class="fas fa-chevron-left"></i> Prev</button>
+    <div class="dots" id="dotsContainer"></div>
+    <button class="nav-btn" id="nextSlide">Next <i class="fas fa-chevron-right"></i></button>
+</div>
+<div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.8rem; flex-wrap:wrap;">
+    <span class="slide-counter" id="slideCounter">1 / 51</span>
+    <span style="color:#8fb4cc; font-size:0.75rem;"><i class="fas fa-arrows-alt-h"></i> Use arrow keys or click dots</span>
+</div>
+
+</div> <!-- end slide-card -->
+</div> <!-- end slide-wrapper -->
+
+<script>
+(function() {
+    const slides = document.querySelectorAll('.slide');
+    const dotsContainer = document.getElementById('dotsContainer');
+    const prevBtn = document.getElementById('prevSlide');
+    const nextBtn = document.getElementById('nextSlide');
+    const counter = document.getElementById('slideCounter');
+
+    let current = 0;
+    const total = slides.length;
+
+    for (let i = 0; i < total; i++) {
+        const dot = document.createElement('button');
+        dot.className = 'dot' + (i === 0 ? ' active' : '');
+        dot.dataset.index = i;
+        dot.addEventListener('click', function() { goTo(parseInt(this.dataset.index)); });
+        dotsContainer.appendChild(dot);
+    }
+
+    const dots = dotsContainer.querySelectorAll('.dot');
+
+    function goTo(index) {
+        if (index < 0) index = 0;
+        if (index >= total) index = total - 1;
+        if (index === current) return;
+        slides[current].classList.remove('active');
+        dots[current].classList.remove('active');
+        current = index;
+        slides[current].classList.add('active');
+        dots[current].classList.add('active');
+        updateCounter();
+        updateButtons();
+    }
+
+    function updateCounter() { counter.textContent = (current + 1) + ' / ' + total; }
+    function updateButtons() { prevBtn.disabled = (current === 0); nextBtn.disabled = (current === total - 1); }
+    function next() { if (current < total - 1) goTo(current + 1); }
+    function prev() { if (current > 0) goTo(current - 1); }
+
+    prevBtn.addEventListener('click', prev);
+    nextBtn.addEventListener('click', next);
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); next(); }
+        else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); prev(); }
+    });
+
+    updateCounter();
+    updateButtons();
+})();
+</script>
+
+</body>
+</html>
