@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes Secrets - Complete Guide</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#326ce5',
+                        'primary-dark': '#1a2980',
+                        secondary: '#26d0ce',
+                        kubernetes: '#326ce5',
+                        secret: '#dc2626',
+                        opaque: '#059669',
+                        docker: '#7c3aed',
+                        tls: '#d97706',
+                        serviceaccount: '#db2777'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .hljs { background: transparent !important; padding: 0 !important; }
+        .sidebar { scrollbar-width: thin; }
+        .sidebar::-webkit-scrollbar { width: 6px; }
+        .sidebar::-webkit-scrollbar-track { background: #1a2980; }
+        .sidebar::-webkit-scrollbar-thumb { background: #26d0ce; border-radius: 3px; }
+        .secret-animation { animation: pulse 2s ease-in-out infinite; }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        .type-card { transition: all 0.3s ease; }
+        .type-card:hover { transform: translateY(-5px); }
+        .security-warning { border-left: 4px solid #dc2626; background: #fef2f2; }
+        .security-tip { border-left: 4px solid #059669; background: #f0fdf4; }
+        .blur-secret { filter: blur(5px); transition: filter 0.3s ease; }
+        .blur-secret:hover { filter: none; }
+    </style>
+</head>
+<body class="bg-gray-50 flex">
+    <!-- Sidebar Navigation -->
+    <div class="sidebar w-64 bg-gradient-to-b from-primary-dark to-primary text-white fixed h-screen overflow-y-auto">
+        <div class="p-6 border-b border-blue-700">
+            <a href="kuber.html">
+                <div class="flex items-center space-x-3">
+                <i class="fas fa-key text-3xl text-secondary"></i>
+                <div>
+                    <h2 class="text-xl font-bold">K8s Secrets</h2>
+                    <p class="text-blue-200 text-sm">Complete Guide</p>
+                </div>
+            </div>
+            </a>
+        </div>
+        
+        <nav class="p-4">
+            <ul class="space-y-2">
+                <li><a href="#introduction" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-info-circle w-6 text-center"></i> <span>Introduction</span></a></li>
+                <li><a href="#what-is-secret" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-cube w-6 text-center"></i> <span>What is a Secret?</span></a></li>
+                <li><a href="#secret-types" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-layer-group w-6 text-center"></i> <span>Secret Types</span></a></li>
+                <li><a href="#creating-secrets" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-plus-circle w-6 text-center"></i> <span>Creating Secrets</span></a></li>
+                <li><a href="#using-secrets" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-plug w-6 text-center"></i> <span>Using Secrets</span></a></li>
+                <li><a href="#env-variables" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-code w-6 text-center"></i> <span>Environment Variables</span></a></li>
+                <li><a href="#secret-volumes" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-hdd w-6 text-center"></i> <span>Secret Volumes</span></a></li>
+                <li><a href="#image-pull-secrets" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-download w-6 text-center"></i> <span>Image Pull Secrets</span></a></li>
+                <li><a href="#security" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-shield-alt w-6 text-center"></i> <span>Security</span></a></li>
+                <li><a href="#best-practices" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-check-circle w-6 text-center"></i> <span>Best Practices</span></a></li>
+                <li><a href="#commands" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-terminal w-6 text-center"></i> <span>kubectl Commands</span></a></li>
+            </ul>
+        </nav>
+    </div>
+
+    <!-- Main Content -->
+    <div class="ml-64 flex-1 p-8">
+        <!-- Header -->
+        <header class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-4xl font-bold text-primary-dark">Kubernetes Secrets</h1>
+                    <p class="text-gray-600 mt-2 text-lg">Complete Guide to Secure Secret Management in Kubernetes</p>
+                </div>
+                <div class="bg-gradient-to-r from-primary to-secondary p-4 rounded-xl text-white secret-animation">
+                    <i class="fas fa-key text-4xl"></i>
+                </div>
+            </div>
+            
+            <div class="mt-6 flex flex-wrap gap-4">
+                <span class="bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-medium">Sensitive Data</span>
+                <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">Base64 Encoded</span>
+                <span class="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm font-medium">Secure Storage</span>
+                <span class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-sm font-medium">Multiple Types</span>
+                <span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">Namespace Scoped</span>
+            </div>
+        </header>
+
+        <!-- Introduction Section -->
+        <section id="introduction" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-4 flex items-center">
+                <i class="fas fa-info-circle text-primary mr-3"></i> Introduction to Secrets
+            </h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-6">
+                <div>
+                    <p class="text-gray-700 mb-4">
+                        A <strong>Kubernetes Secret</strong> is an object that contains a small amount of sensitive data such as passwords, tokens, or keys. Secrets are designed to store confidential information separately from Pod definitions and container images.
+                    </p>
+                    <p class="text-gray-700 mb-4">
+                        Unlike ConfigMaps, Secrets provide additional security protections and are specifically intended for sensitive information that shouldn't be stored in plain text.
+                    </p>
+                    <div class="security-warning p-4 rounded mb-4">
+                        <p class="text-red-700"><span class="font-bold">Security Note:</span> While Secrets are more secure than ConfigMaps, they are not encrypted by default in etcd. For production environments, consider enabling encryption at rest.</p>
+                    </div>
+                </div>
+                <div class="bg-gradient-to-br from-primary to-secondary p-6 rounded-xl text-white">
+                    <h3 class="text-xl font-bold mb-3">Secret Features</h3>
+                    <ul class="space-y-2">
+                        <li class="flex items-start"><i class="fas fa-check mt-1 mr-2"></i> <span>Base64 encoding for data storage</span></li>
+                        <li class="flex items-start"><i class="fas fa-check mt-1 mr-2"></i> <span>Multiple secret types for different use cases</span></li>
+                        <li class="flex items-start"><i class="fas fa-check mt-1 mr-2"></i> <span>Automatic mounting as volumes or environment variables</span></li>
+                        <li class="flex items-start"><i class="fas fa-check mt-1 mr-2"></i> <span>Built-in Docker registry integration</span></li>
+                        <li class="flex items-start"><i class="fas fa-check mt-1 mr-2"></i> <span>TLS certificate management</span></li>
+                        <li class="flex items-start"><i class="fas fa-check mt-1 mr-2"></i> <span>Service account token automation</span></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="security-tip p-4 rounded">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-shield-alt text-green-600"></i>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-green-800">When to Use Secrets vs ConfigMaps</h3>
+                        <div class="mt-2 text-sm text-green-700">
+                            <p><strong>Use Secrets for:</strong> Passwords, API keys, TLS certificates, SSH keys, database credentials, OAuth tokens</p>
+                            <p><strong>Use ConfigMaps for:</strong> Configuration files, environment settings, command-line arguments, non-sensitive application config</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- What is a Secret Section -->
+        <section id="what-is-secret" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-6 flex items-center">
+                <i class="fas fa-cube text-primary mr-3"></i> What is a Secret?
+            </h2>
+            
+            <div class="mb-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">Secret Architecture</h3>
+                        <p class="text-gray-700 mb-4">
+                            Secrets are Kubernetes objects that store sensitive data in a base64-encoded format. They can be consumed by Pods as environment variables or mounted as files in volumes.
+                        </p>
+                        
+                        <div class="bg-gray-100 p-4 rounded-lg mb-4">
+                            <div class="text-center space-y-4">
+                                <!-- Secret -->
+                                <div class="bg-white p-3 rounded-lg shadow-sm border border-red-200">
+                                    <div class="flex items-center justify-center space-x-2">
+                                        <i class="fas fa-key text-red-500"></i>
+                                        <span class="font-semibold">Secret</span>
+                                    </div>
+                                    <div class="mt-2 text-xs text-gray-600 blur-secret">
+                                        database-credentials<br>
+                                        username: YWRtaW4=<br>
+                                        password: cGFzc3dvcmQxMjM=
+                                    </div>
+                                </div>
+                                <div class="text-red-500">
+                                    <i class="fas fa-arrow-down"></i>
+                                </div>
+                                
+                                <!-- Pod -->
+                                <div class="bg-white p-3 rounded-lg shadow-sm border border-blue-200">
+                                    <div class="flex items-center justify-center space-x-2">
+                                        <i class="fas fa-box text-blue-500"></i>
+                                        <span class="font-semibold">Pod</span>
+                                    </div>
+                                    <div class="mt-2 flex justify-center space-x-4 text-xs">
+                                        <div class="bg-green-100 text-green-800 px-2 py-1 rounded">Env Vars</div>
+                                        <div class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded">Files</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-100 p-6 rounded-xl">
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">How Secrets Work</h3>
+                        
+                        <div class="space-y-4">
+                            <div class="flex items-start">
+                                <div class="bg-red-100 p-2 rounded-lg mr-3">
+                                    <i class="fas fa-lock text-red-600"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-gray-800">Base64 Encoding</h4>
+                                    <p class="text-gray-600 text-sm mt-1">Secrets are stored as base64-encoded strings in etcd</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start">
+                                <div class="bg-blue-100 p-2 rounded-lg mr-3">
+                                    <i class="fas fa-memory text-blue-600"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-gray-800">In-Memory Filesystem</h4>
+                                    <p class="text-gray-600 text-sm mt-1">When mounted as volumes, secrets use tmpfs (in-memory)</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start">
+                                <div class="bg-green-100 p-2 rounded-lg mr-3">
+                                    <i class="fas fa-sync-alt text-green-600"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-gray-800">Automatic Updates</h4>
+                                    <p class="text-gray-600 text-sm mt-1">Secret volumes are automatically updated when secrets change</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4 p-3 bg-blue-50 rounded-lg">
+                            <h4 class="font-semibold text-blue-800 mb-1">Security Considerations:</h4>
+                            <ul class="text-sm text-blue-700 space-y-1">
+                                <li><strong>Not encrypted by default</strong> in etcd</li>
+                                <li>Accessible to users with API permissions</li>
+                                <li>Consider external secret solutions for enhanced security</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Secret Types Section -->
+        <section id="secret-types" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-6 flex items-center">
+                <i class="fas fa-layer-group text-primary mr-3"></i> Secret Types
+            </h2>
+            
+            <div class="mb-8">
+                <p class="text-gray-700 mb-6">
+                    Kubernetes provides several built-in Secret types for different use cases. Each type has specific validation and usage patterns.
+                </p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <!-- Opaque -->
+                    <div class="type-card border border-green-200 rounded-xl p-5 bg-green-50 text-center">
+                        <div class="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-user-secret text-green-600 text-2xl"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-800 mb-2">Opaque</h3>
+                        <p class="text-gray-600 text-sm mb-4">Generic secrets</p>
+                        <div class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-medium">
+                            Default Type
+                        </div>
+                    </div>
+                    
+                    <!-- Docker Config -->
+                    <div class="type-card border border-purple-200 rounded-xl p-5 bg-purple-50 text-center">
+                        <div class="bg-purple-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fab fa-docker text-purple-600 text-2xl"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-800 mb-2">Docker Config</h3>
+                        <p class="text-gray-600 text-sm mb-4">Registry credentials</p>
+                        <div class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-medium">
+                            Image Pull
+                        </div>
+                    </div>
+                    
+                    <!-- TLS -->
+                    <div class="type-card border border-yellow-200 rounded-xl p-5 bg-yellow-50 text-center">
+                        <div class="bg-yellow-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-lock text-yellow-600 text-2xl"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-800 mb-2">TLS</h3>
+                        <p class="text-gray-600 text-sm mb-4">TLS certificates</p>
+                        <div class="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-medium">
+                            SSL/TLS Certs
+                        </div>
+                    </div>
+                    
+                    <!-- Service Account -->
+                    <div class="type-card border border-pink-200 rounded-xl p-5 bg-pink-50 text-center">
+                        <div class="bg-pink-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-user-tie text-pink-600 text-2xl"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-800 mb-2">Service Account</h3>
+                        <p class="text-gray-600 text-sm mb-4">Service account tokens</p>
+                        <div class="bg-pink-100 text-pink-800 px-3 py-1 rounded-full text-xs font-medium">
+                            Auto-generated
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 class="text-xl font-semibold text-primary-dark mb-4">Secret Type Comparison</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white border border-gray-200 rounded-lg">
+                        <thead>
+                            <tr class="bg-gray-100">
+                                <th class="py-3 px-4 border-b text-left">Type</th>
+                                <th class="py-3 px-4 border-b text-left">Use Case</th>
+                                <th class="py-3 px-4 border-b text-left">Required Keys</th>
+                                <th class="py-3 px-4 border-b text-left">Auto Creation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="py-3 px-4 border-b font-semibold text-green-700">Opaque</td>
+                                <td class="py-3 px-4 border-b">Generic secrets, arbitrary user-defined data</td>
+                                <td class="py-3 px-4 border-b">Any keys</td>
+                                <td class="py-3 px-4 border-b">Manual</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 border-b font-semibold text-purple-700">kubernetes.io/dockerconfigjson</td>
+                                <td class="py-3 px-4 border-b">Private Docker registry authentication</td>
+                                <td class="py-3 px-4 border-b">.dockerconfigjson</td>
+                                <td class="py-3 px-4 border-b">Manual</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 border-b font-semibold text-yellow-700">kubernetes.io/tls</td>
+                                <td class="py-3 px-4 border-b">TLS certificates from a CA</td>
+                                <td class="py-3 px-4 border-b">tls.crt, tls.key</td>
+                                <td class="py-3 px-4 border-b">Manual</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 border-b font-semibold text-pink-700">kubernetes.io/service-account-token</td>
+                                <td class="py-3 px-4 border-b">Service account token</td>
+                                <td class="py-3 px-4 border-b">ca.crt, namespace, token</td>
+                                <td class="py-3 px-4 border-b">Automatic</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Creating Secrets Section -->
+        <section id="creating-secrets" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-6 flex items-center">
+                <i class="fas fa-plus-circle text-primary mr-3"></i> Creating Secrets
+            </h2>
+            
+            <div class="mb-8">
+                <p class="text-gray-700 mb-6">
+                    Secrets can be created using various methods. It's important to choose the method that provides the best security for your sensitive data.
+                </p>
+                
+                <div class="security-warning p-4 rounded mb-6">
+                    <p class="text-red-700"><strong>Warning:</strong> Avoid storing secrets in version control. Use secure secret management tools and consider external secret solutions for production.</p>
+                </div>
+
+                <h3 class="text-xl font-semibold text-primary-dark mb-4">Creation Methods</h3>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                    <div>
+                        <h4 class="font-bold text-gray-800 mb-3">Imperative Commands</h4>
+                        <div class="bg-gray-800 rounded-lg p-4 mb-4">
+                            <pre><code class="bash">
+# Create from literal values
+kubectl create secret generic db-secret \
+  --from-literal=username=admin \
+  --from-literal=password=secret123
+
+# Create from file
+kubectl create secret generic tls-secret \
+  --from-file=tls.crt=./cert.crt \
+  --from-file=tls.key=./cert.key
+
+# Create Docker registry secret
+kubectl create secret docker-registry regcred \
+  --docker-server=registry.example.com \
+  --docker-username=admin \
+  --docker-password=secret \
+  --docker-email=admin@example.com
+
+# Create from environment file
+kubectl create secret generic app-secret \
+  --from-env-file=secrets.env
+                            </code></pre>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h4 class="font-bold text-gray-800 mb-3">Declarative YAML</h4>
+                        <div class="bg-gray-800 rounded-lg p-4">
+                            <pre><code class="yaml">
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secret
+  namespace: default
+type: Opaque
+data:
+  # Values must be base64 encoded
+  username: YWRtaW4=
+  password: c2VjcmV0MTIz
+  api-key: YXBpLWtleS1zZWNyZXQ=
+
+# To encode values:
+# echo -n "secret123" | base64
+# → c2VjcmV0MTIz
+
+# Alternative: use stringData for plain text
+stringData:
+  database-url: postgresql://user:pass@localhost:5432/db
+  # stringData values are automatically
+  # base64 encoded when stored
+                            </code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 class="text-xl font-semibold text-primary-dark mb-4">Specialized Secret Types</h3>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <h4 class="font-bold text-gray-800 mb-3">TLS Secret</h4>
+                        <div class="bg-gray-800 rounded-lg p-4">
+                            <pre><code class="yaml">
+apiVersion: v1
+kind: Secret
+metadata:
+  name: tls-secret
+type: kubernetes.io/tls
+data:
+  # Certificate and key must be base64 encoded
+  tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0t...
+  tls.key: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBL...
+
+# Create from files:
+# kubectl create secret tls tls-secret \
+#   --cert=path/to/cert.crt \
+#   --key=path/to/cert.key
+                            </code></pre>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h4 class="font-bold text-gray-800 mb-3">Docker Registry Secret</h4>
+                        <div class="bg-gray-800 rounded-lg p-4">
+                            <pre><code class="yaml">
+apiVersion: v1
+kind: Secret
+metadata:
+  name: docker-registry-secret
+type: kubernetes.io/dockerconfigjson
+data:
+  .dockerconfigjson: eyJhdXRocyI6eyJSRUdJU1R...
+
+# The .dockerconfigjson value is a base64
+# encoded Docker config JSON file
+# Can be created with kubectl command
+                            </code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Using Secrets Section -->
+        <section id="using-secrets" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-6 flex items-center">
+                <i class="fas fa-plug text-primary mr-3"></i> Using Secrets in Pods
+            </h2>
+            
+            <div class="mb-8">
+                <p class="text-gray-700 mb-6">
+                    Secrets can be consumed by Pods in several ways, similar to ConfigMaps but with additional security considerations.
+                </p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="border border-green-200 rounded-xl p-5 bg-green-50 text-center">
+                        <div class="bg-green-100 w-12 h-12 rounded-lg flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-code text-green-600 text-xl"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-800 mb-2">Environment Variables</h3>
+                        <p class="text-gray-600 text-sm mb-3">Inject as environment variables</p>
+                        <span class="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">env.valueFrom</span>
+                    </div>
+                    
+                    <div class="border border-yellow-200 rounded-xl p-5 bg-yellow-50 text-center">
+                        <div class="bg-yellow-100 w-12 h-12 rounded-lg flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-hdd text-yellow-600 text-xl"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-800 mb-2">Secret Volumes</h3>
+                        <p class="text-gray-600 text-sm mb-3">Mount as files in volumes</p>
+                        <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs">volumes.secret</span>
+                    </div>
+                    
+                    <div class="border border-blue-200 rounded-xl p-5 bg-blue-50 text-center">
+                        <div class="bg-blue-100 w-12 h-12 rounded-lg flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-download text-blue-600 text-xl"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-800 mb-2">Image Pull Secrets</h3>
+                        <p class="text-gray-600 text-sm mb-3">Private registry authentication</p>
+                        <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">imagePullSecrets</span>
+                    </div>
+                </div>
+                
+                <h3 class="text-xl font-semibold text-primary-dark mb-4">Usage Pattern Comparison</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white border border-gray-200 rounded-lg">
+                        <thead>
+                            <tr class="bg-gray-100">
+                                <th class="py-3 px-4 border-b text-left">Method</th>
+                                <th class="py-3 px-4 border-b text-left">Use Case</th>
+                                <th class="py-3 px-4 border-b text-left">Security</th>
+                                <th class="py-3 px-4 border-b text-left">Hot Reload</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="py-3 px-4 border-b font-semibold text-green-700">Environment Variables</td>
+                                <td class="py-3 px-4 border-b">Simple credentials, API keys</td>
+                                <td class="py-3 px-4 border-b">Medium (visible in env)</td>
+                                <td class="py-3 px-4 border-b">No</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 border-b font-semibold text-yellow-700">Secret Volumes</td>
+                                <td class="py-3 px-4 border-b">Certificates, configuration files</td>
+                                <td class="py-3 px-4 border-b">High (in-memory fs)</td>
+                                <td class="py-3 px-4 border-b">Yes</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 border-b font-semibold text-blue-700">Image Pull Secrets</td>
+                                <td class="py-3 px-4 border-b">Private container registries</td>
+                                <td class="py-3 px-4 border-b">High</td>
+                                <td class="py-3 px-4 border-b">N/A</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Environment Variables Section -->
+        <section id="env-variables" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-6 flex items-center">
+                <i class="fas fa-code text-green-600 mr-3"></i> Environment Variables
+            </h2>
+            
+            <div class="mb-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">Using Secrets as Environment Variables</h3>
+                        <p class="text-gray-700 mb-4">
+                            Secrets can be injected as environment variables into containers. This method is convenient but has security implications.
+                        </p>
+                        
+                        <div class="security-warning p-4 rounded mb-4">
+                            <h4 class="font-semibold text-red-800 mb-2">Security Consideration:</h4>
+                            <p class="text-red-700 text-sm">Environment variables may be visible in shell history, logs, and debugging tools. Use secret volumes for highly sensitive data.</p>
+                        </div>
+                        
+                        <h4 class="font-bold text-gray-800 mb-2">Best Practices:</h4>
+                        <ul class="list-disc list-inside text-gray-700 space-y-1">
+                            <li>Use for less sensitive data like API endpoints</li>
+                            <li>Avoid for passwords and private keys</li>
+                            <li>Consider using secret volumes for certificates</li>
+                            <li>Use optional: true for non-critical secrets</li>
+                        </ul>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">Environment Variables Example</h3>
+                        <div class="bg-gray-800 rounded-lg p-4">
+                            <pre><code class="yaml">
+apiVersion: v1
+kind: Pod
+metadata:
+  name: app-pod-with-secrets
+spec:
+  containers:
+  - name: app-container
+    image: my-app:1.0
+    env:
+    # Single value from Secret
+    - name: DB_USERNAME
+      valueFrom:
+        secretKeyRef:
+          name: database-secret
+          key: username
+          
+    # Another single value
+    - name: DB_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: database-secret
+          key: password
+          
+    # Optional secret (won't fail if missing)
+    - name: API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: api-secret
+          key: api-key
+          optional: true
+
+    # All key-value pairs from Secret as env vars
+    envFrom:
+    - secretRef:
+        name: app-secret
+        optional: false
+
+  # The Secret must exist in the same namespace
+  # or be explicitly referenced
+                            </code></pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 class="text-xl font-semibold text-primary-dark mt-8 mb-4">envFrom Example</h3>
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <pre><code class="yaml">
+apiVersion: v1
+kind: Pod
+metadata:
+  name: app-pod-envfrom
+spec:
+  containers:
+  - name: app-container
+    image: my-app:1.0
+    envFrom:
+    # Import all key-value pairs from Secret
+    - secretRef:
+        name: database-secret
+      
+    # Import from multiple Secrets
+    - secretRef:
+        name: api-secret
+        
+    # Optional Secret
+    - secretRef:
+        name: monitoring-secret
+        optional: true
+        
+    # Additional explicit environment variables
+    - name: APP_ENV
+      value: "production"
+
+  restartPolicy: Never
+                    </code></pre>
+                </div>
+                <p class="text-gray-600 text-sm mt-2"><code>envFrom</code> imports all key-value pairs from a Secret as environment variables. Each key becomes an environment variable name.</p>
+            </div>
+        </section>
+
+        <!-- Secret Volumes Section -->
+        <section id="secret-volumes" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-6 flex items-center">
+                <i class="fas fa-hdd text-yellow-600 mr-3"></i> Secret Volumes
+            </h2>
+            
+            <div class="mb-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">Mounting Secrets as Volumes</h3>
+                        <p class="text-gray-700 mb-4">
+                            Secrets can be mounted as volumes in Pods, providing a more secure way to access sensitive data compared to environment variables.
+                        </p>
+                        
+                        <div class="security-tip p-4 rounded mb-4">
+                            <h4 class="font-semibold text-green-800 mb-2">Security Benefits:</h4>
+                            <ul class="text-green-700 text-sm space-y-1">
+                                <li>• Secrets are stored in tmpfs (in-memory filesystem)</li>
+                                <li>• Not written to disk on nodes</li>
+                                <li>• Automatic updates when secrets change</li>
+                                <li>• Better isolation between containers</li>
+                            </ul>
+                        </div>
+                        
+                        <h4 class="font-bold text-gray-800 mb-2">Use Cases:</h4>
+                        <ul class="list-disc list-inside text-gray-700 space-y-1">
+                            <li>TLS certificates and private keys</li>
+                            <li>SSH keys and configuration files</li>
+                            <li>Any sensitive file-based configuration</li>
+                            <li>When hot-reloading of secrets is needed</li>
+                        </ul>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">Secret Volume Example</h3>
+                        <div class="bg-gray-800 rounded-lg p-4">
+                            <pre><code class="yaml">
+apiVersion: v1
+kind: Pod
+metadata:
+  name: app-pod-secret-volume
+spec:
+  containers:
+  - name: app-container
+    image: my-app:1.0
+    volumeMounts:
+    - name: secret-volume
+      mountPath: /etc/secrets
+      readOnly: true
+      
+    - name: tls-volume
+      mountPath: /etc/tls
+      readOnly: true
+      
+    - name: single-secret-volume
+      mountPath: /app/database.password
+      subPath: password
+      readOnly: true
+
+  volumes:
+  # Mount entire Secret as files
+  - name: secret-volume
+    secret:
+      secretName: app-secret
+      defaultMode: 0400  # Read-only permissions
+      
+  # Mount TLS Secret
+  - name: tls-volume
+    secret:
+      secretName: tls-secret
+      items:
+      - key: tls.crt
+        path: certificate.crt
+      - key: tls.key
+        path: private.key
+      defaultMode: 0444
+      
+  # Mount single key from Secret
+  - name: single-secret-volume
+    secret:
+      secretName: database-secret
+      items:
+      - key: password
+        path: password
+                            </code></pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 class="text-xl font-semibold text-primary-dark mt-8 mb-4">Hot Reloading Secrets</h3>
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <pre><code class="yaml">
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: my-app
+  template:
+    metadata:
+      labels:
+        app: my-app
+    spec:
+      containers:
+      - name: app-container
+        image: my-app:1.0
+        volumeMounts:
+        - name: config-secret
+          mountPath: /etc/config
+        # Application should watch for file changes
+        # or use SIGHUP to reload configuration
+
+      volumes:
+      - name: config-secret
+        secret:
+          secretName: app-config-secret
+          # Secret updates are automatically
+          # propagated to the volume
+          # Kubelet sync period: ~1 minute
+
+      # Optional: Add checksum annotation to
+      # force Pod restart on Secret change
+      # annotations:
+      #   checksum/config: {{ include ( .Files.Get "secret.yaml") | sha256sum }}
+                    </code></pre>
+                </div>
+                <p class="text-gray-600 text-sm mt-2">Secret volumes automatically update when the underlying Secret changes. Applications should be designed to detect and reload these changes.</p>
+            </div>
+        </section>
+
+        <!-- Image Pull Secrets Section -->
+        <section id="image-pull-secrets" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-6 flex items-center">
+                <i class="fas fa-download text-blue-600 mr-3"></i> Image Pull Secrets
+            </h2>
+            
+            <div class="mb-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">Private Registry Authentication</h3>
+                        <p class="text-gray-700 mb-4">
+                            Image pull secrets are used to authenticate with private container registries when pulling images.
+                        </p>
+                        
+                        <div class="bg-blue-50 border-l-4 border-blue-400 p-4 rounded mb-4">
+                            <h4 class="font-semibold text-blue-800 mb-2">When to Use Image Pull Secrets:</h4>
+                            <ul class="text-blue-700 text-sm space-y-1">
+                                <li>• Private Docker Hub repositories</li>
+                                <li>• Enterprise container registries</li>
+                                <li>• Cloud provider container registries</li>
+                                <li>• Any registry requiring authentication</li>
+                            </ul>
+                        </div>
+                        
+                        <h4 class="font-bold text-gray-800 mb-2">Configuration Methods:</h4>
+                        <ul class="list-disc list-inside text-gray-700 space-y-1">
+                            <li>Pod-level imagePullSecrets</li>
+                            <li>ServiceAccount imagePullSecrets</li>
+                            <li>Node-level docker configuration</li>
+                        </ul>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">Image Pull Secret Examples</h3>
+                        <div class="bg-gray-800 rounded-lg p-4">
+                            <pre><code class="yaml">
+# Create Docker registry secret
+kubectl create secret docker-registry my-registry-secret \
+  --docker-server=registry.example.com \
+  --docker-username=admin \
+  --docker-password=secretpassword \
+  --docker-email=admin@example.com
+
+# Use in Pod specification
+apiVersion: v1
+kind: Pod
+metadata:
+  name: private-image-pod
+spec:
+  containers:
+  - name: app-container
+    image: registry.example.com/my-private-app:1.0
+  imagePullSecrets:
+  - name: my-registry-secret
+
+# Use in Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-deployment
+spec:
+  template:
+    spec:
+      containers:
+      - name: app
+        image: registry.example.com/app:1.0
+      imagePullSecrets:
+      - name: my-registry-secret
+                            </code></pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 class="text-xl font-semibold text-primary-dark mt-8 mb-4">Service Account Configuration</h3>
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <pre><code class="yaml">
+# Add image pull secret to service account
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-service-account
+  namespace: default
+imagePullSecrets:
+- name: my-registry-secret
+
+# Use the service account in Pods
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-with-sa
+spec:
+  serviceAccountName: my-service-account
+  containers:
+  - name: app
+    image: registry.example.com/app:1.0
+    # No need for imagePullSecrets in Pod spec
+    # when using ServiceAccount with pull secrets
+
+# Benefits:
+# - Centralized registry configuration
+# - Applies to all Pods using the ServiceAccount
+# - No need to specify in each Pod/Deployment
+                    </code></pre>
+                </div>
+                <p class="text-gray-600 text-sm mt-2">Using ServiceAccounts with image pull secrets is the recommended approach for managing registry authentication across multiple Pods.</p>
+            </div>
+        </section>
+
+        <!-- Security Section -->
+        <section id="security" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-6 flex items-center">
+                <i class="fas fa-shield-alt text-red-600 mr-3"></i> Security Considerations
+            </h2>
+            
+            <div class="mb-8">
+                <p class="text-gray-700 mb-6">
+                    Understanding the security implications of Kubernetes Secrets is crucial for protecting sensitive data in your cluster.
+                </p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                    <div>
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">Built-in Security Features</h3>
+                        
+                        <div class="space-y-4">
+                            <div class="border border-gray-200 rounded-lg p-4">
+                                <h4 class="font-bold text-gray-800 mb-2">Base64 Encoding</h4>
+                                <p class="text-gray-600 text-sm">Secrets are stored as base64-encoded strings, providing basic obfuscation.</p>
+                            </div>
+                            
+                            <div class="border border-gray-200 rounded-lg p-4">
+                                <h4 class="font-bold text-gray-800 mb-2">tmpfs Storage</h4>
+                                <p class="text-gray-600 text-sm">Secret volumes use in-memory filesystem, not written to disk.</p>
+                            </div>
+                            
+                            <div class="border border-gray-200 rounded-lg p-4">
+                                <h4 class="font-bold text-gray-800 mb-2">RBAC Protection</h4>
+                                <p class="text-gray-600 text-sm">Secrets are protected by Kubernetes RBAC system.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">Security Limitations</h3>
+                        
+                        <div class="space-y-4">
+                            <div class="border border-red-200 rounded-lg p-4 bg-red-50">
+                                <h4 class="font-bold text-gray-800 mb-2">Not Encrypted by Default</h4>
+                                <p class="text-red-600 text-sm">Secrets are stored as base64 in etcd without encryption.</p>
+                            </div>
+                            
+                            <div class="border border-red-200 rounded-lg p-4 bg-red-50">
+                                <h4 class="font-bold text-gray-800 mb-2">Accessible to Admins</h4>
+                                <p class="text-red-600 text-sm">Cluster administrators can access all secrets.</p>
+                            </div>
+                            
+                            <div class="border border-red-200 rounded-lg p-4 bg-red-50">
+                                <h4 class="font-bold text-gray-800 mb-2">Environment Variable Exposure</h4>
+                                <p class="text-red-600 text-sm">Secrets in environment variables may appear in logs.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 class="text-xl font-semibold text-primary-dark mb-4">Enhancing Secret Security</h3>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="border border-green-200 rounded-lg p-4 bg-green-50">
+                        <h4 class="font-bold text-gray-800 mb-2">Enable Encryption at Rest</h4>
+                        <p class="text-green-600 text-sm">Configure etcd encryption for secrets storage.</p>
+                        <div class="bg-white p-2 rounded text-xs font-mono mt-2">
+                            EncryptionConfiguration
+                        </div>
+                    </div>
+                    
+                    <div class="border border-green-200 rounded-lg p-4 bg-green-50">
+                        <h4 class="font-bold text-gray-800 mb-2">Use External Secret Managers</h4>
+                        <p class="text-green-600 text-sm">Integrate with HashiCorp Vault, AWS Secrets Manager, etc.</p>
+                        <div class="bg-white p-2 rounded text-xs font-mono mt-2">
+                            CSI Secret Store
+                        </div>
+                    </div>
+                    
+                    <div class="border border-green-200 rounded-lg p-4 bg-green-50">
+                        <h4 class="font-bold text-gray-800 mb-2">Implement Network Policies</h4>
+                        <p class="text-green-600 text-sm">Restrict access to etcd and API server.</p>
+                        <div class="bg-white p-2 rounded text-xs font-mono mt-2">
+                            NetworkPolicy
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 class="text-xl font-semibold text-primary-dark mt-8 mb-4">Encryption at Rest Configuration</h3>
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <pre><code class="yaml">
+apiVersion: apiserver.config.k8s.io/v1
+kind: EncryptionConfiguration
+resources:
+  - resources:
+    - secrets
+    providers:
+    - aescbc:
+        keys:
+        - name: key1
+          secret: c2VjcmV0IGVuY3J5cHRpb24ga2V5
+    - identity: {}  # Fallback: no encryption
+
+# Apply configuration to API server
+# --encryption-provider-config=/etc/kubernetes/encryption-config.yaml
+
+# After enabling, recreate secrets to encrypt them:
+kubectl get secrets --all-namespaces -o json | \
+  kubectl replace -f -
+                    </code></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- Commands Section -->
+        <section id="commands" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-6 flex items-center">
+                <i class="fas fa-terminal text-primary mr-3"></i> kubectl Secret Commands
+            </h2>
+            
+            <div class="mb-8">
+                <h3 class="text-xl font-semibold text-primary-dark mb-4">Essential Secret Commands</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <div>
+                        <h4 class="font-bold text-gray-800 mb-3">Basic Operations</h4>
+                        <div class="space-y-3">
+                            <div class="bg-gray-800 text-white p-3 rounded-lg">
+                                <code>kubectl get secrets</code>
+                            </div>
+                            <div class="bg-gray-800 text-white p-3 rounded-lg">
+                                <code>kubectl describe secret my-secret</code>
+                            </div>
+                            <div class="bg-gray-800 text-white p-3 rounded-lg">
+                                <code>kubectl create secret generic my-secret --from-literal=key=value</code>
+                            </div>
+                            <div class="bg-gray-800 text-white p-3 rounded-lg">
+                                <code>kubectl delete secret my-secret</code>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h4 class="font-bold text-gray-800 mb-3">Advanced Operations</h4>
+                        <div class="space-y-3">
+                            <div class="bg-gray-800 text-white p-3 rounded-lg">
+                                <code>kubectl edit secret my-secret</code>
+                            </div>
+                            <div class="bg-gray-800 text-white p-3 rounded-lg">
+                                <code>kubectl get secret my-secret -o jsonpath='{.data.password}' | base64 --decode</code>
+                            </div>
+                            <div class="bg-gray-800 text-white p-3 rounded-lg">
+                                <code>kubectl create secret docker-registry regcred --docker-server=registry --docker-username=user --docker-password=pass</code>
+                            </div>
+                            <div class="bg-gray-800 text-white p-3 rounded-lg">
+                                <code>kubectl create secret tls tls-secret --cert=path.crt --key=path.key</code>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 class="text-xl font-semibold text-primary-dark mb-4">Useful Command Examples</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white border border-gray-200 rounded-lg">
+                        <thead>
+                            <tr class="bg-gray-100">
+                                <th class="py-3 px-4 border-b text-left">Command</th>
+                                <th class="py-3 px-4 border-b text-left">Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="py-3 px-4 border-b font-mono text-sm">kubectl get secrets --field-selector type=Opaque</td>
+                                <td class="py-3 px-4 border-b">Filter secrets by type</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 border-b font-mono text-sm">kubectl get secrets -o json | jq '.items[].metadata.name'</td>
+                                <td class="py-3 px-4 border-b">List all secret names</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 border-b font-mono text-sm">kubectl create secret generic from-file --from-file=./secrets/</td>
+                                <td class="py-3 px-4 border-b">Create from directory</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 border-b font-mono text-sm">kubectl get pods -o json | jq '.items[].spec.containers[].env[]?.valueFrom.secretKeyRef.name' | grep -v null | sort | uniq</td>
+                                <td class="py-3 px-4 border-b">Find secrets used in environment variables</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Best Practices Section -->
+        <section id="best-practices" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-6 flex items-center">
+                <i class="fas fa-check-circle text-primary mr-3"></i> Secret Best Practices
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                    <h3 class="text-xl font-semibold text-primary-dark mb-4">Security Guidelines</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-start">
+                            <div class="bg-green-100 p-2 rounded-lg mr-3">
+                                <i class="fas fa-check text-green-600"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-800">Enable Encryption at Rest</h4>
+                                <p class="text-gray-600 text-sm mt-1">Always encrypt secrets in etcd for production clusters.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="bg-green-100 p-2 rounded-lg mr-3">
+                                <i class="fas fa-check text-green-600"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-800">Use RBAC Effectively</h4>
+                                <p class="text-gray-600 text-sm mt-1">Restrict secret access using Role-Based Access Control.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="bg-green-100 p-2 rounded-lg mr-3">
+                                <i class="fas fa-check text-green-600"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-800">Prefer Secret Volumes over Environment Variables</h4>
+                                <p class="text-gray-600 text-sm mt-1">Use volumes for sensitive data to avoid exposure in logs.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3 class="text-xl font-semibold text-primary-dark mb-4">Operational Practices</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-start">
+                            <div class="bg-green-100 p-2 rounded-lg mr-3">
+                                <i class="fas fa-check text-green-600"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-800">Use External Secret Managers</h4>
+                                <p class="text-gray-600 text-sm mt-1">Consider HashiCorp Vault or cloud secret managers for enhanced security.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="bg-green-100 p-2 rounded-lg mr-3">
+                                <i class="fas fa-check text-green-600"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-800">Rotate Secrets Regularly</h4>
+                                <p class="text-gray-600 text-sm mt-1">Implement secret rotation policies and automate where possible.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="bg-green-100 p-2 rounded-lg mr-3">
+                                <i class="fas fa-check text-green-600"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-800">Audit Secret Usage</h4>
+                                <p class="text-gray-600 text-sm mt-1">Regularly review which applications are using which secrets.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-8 bg-blue-50 border-l-4 border-primary p-4 rounded">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-lightbulb text-primary"></i>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-primary">Pro Tip: External Secret Solutions</h3>
+                        <div class="mt-2 text-sm text-primary">
+                            <p>For enterprise-grade secret management, consider using external solutions like HashiCorp Vault, AWS Secrets Manager, or Azure Key Vault with the Kubernetes CSI Secret Store driver. These provide advanced features like dynamic secrets, lease management, and detailed audit logs.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="text-center text-gray-600 py-6 mt-8">
+            <p>Kubernetes Secrets Complete Guide &copy; 2023 | Master secure secret management in Kubernetes</p>
+        </footer>
+    </div>
+
+    <script>
+        // Initialize syntax highlighting
+        hljs.highlightAll();
+        
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+        
+        // Add active class to current section in sidebar
+        window.addEventListener('scroll', function() {
+            const sections = document.querySelectorAll('section');
+            const navLinks = document.querySelectorAll('.sidebar-nav a');
+            
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                const sectionHeight = section.clientHeight;
+                if (pageYOffset >= sectionTop - 100) {
+                    current = section.getAttribute('id');
+                }
+            });
+            
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === `#${current}`) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

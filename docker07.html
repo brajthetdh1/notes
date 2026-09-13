@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Docker Networking Complete Guide</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        docker: '#2496ED',
+                        dockerDark: '#1D6FA5',
+                        network: '#8B5CF6',
+                        networkDark: '#7C3AED',
+                        code: '#1a202c',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .code-block {
+            background: #1a202c;
+            color: #81e6d9;
+            border-left: 4px solid #2496ED;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        }
+        .network-card {
+            transition: all 0.3s ease;
+            border-top: 4px solid #8B5CF6;
+        }
+        .network-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .nav-link {
+            position: relative;
+        }
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: -5px;
+            left: 0;
+            background-color: #2496ED;
+            transition: width 0.3s ease;
+        }
+        .nav-link:hover::after {
+            width: 100%;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .architecture-diagram {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .copy-btn {
+            transition: all 0.3s ease;
+        }
+        .copy-btn:hover {
+            transform: scale(1.05);
+        }
+        .network-flow {
+            background: linear-gradient(45deg, #1E3A8A, #3730A3);
+        }
+        .connection-line {
+            stroke: #8B5CF6;
+            stroke-width: 2;
+            stroke-dasharray: 5,5;
+            animation: dash 1s linear infinite;
+        }
+        @keyframes dash {
+            to {
+                stroke-dashoffset: -10;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-lg sticky top-0 z-50">
+        <div class="container mx-auto px-4">
+            <div class="flex justify-between items-center py-4">
+                <a href="dockerr.html" class="flex items-center space-x-3">
+                    <div class="flex items-center space-x-3">
+                    <i class="fas fa-network-wired text-network text-2xl"></i>
+                    <div>
+                        <h1 class="text-xl font-bold text-gray-800">Docker Networking Guide</h1>
+                        <p class="text-sm text-gray-600">Complete Container Networking Reference</p>
+                    </div>
+                </div>
+                </a>
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="#basics" class="nav-link text-gray-600 hover:text-docker">Networking Basics</a>
+                    <a href="#drivers" class="nav-link text-gray-600 hover:text-docker">Network Drivers</a>
+                    <a href="#commands" class="nav-link text-gray-600 hover:text-docker">Commands</a>
+                    <a href="#examples" class="nav-link text-gray-600 hover:text-docker">Examples</a>
+                    <a href="#security" class="nav-link text-gray-600 hover:text-docker">Security</a>
+                </div>
+                <button class="md:hidden text-gray-600" id="mobileMenuButton">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                </button>
+            </div>
+            <!-- Mobile Menu -->
+            <div class="md:hidden hidden pb-4" id="mobileMenu">
+                <div class="flex flex-col space-y-3">
+                    <a href="#basics" class="text-gray-600 hover:text-docker py-2">Networking Basics</a>
+                    <a href="#drivers" class="text-gray-600 hover:text-docker py-2">Network Drivers</a>
+                    <a href="#commands" class="text-gray-600 hover:text-docker py-2">Commands</a>
+                    <a href="#examples" class="text-gray-600 hover:text-docker py-2">Examples</a>
+                    <a href="#security" class="text-gray-600 hover:text-docker py-2">Security</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="bg-gradient-to-br from-network to-networkDark text-white py-20">
+        <div class="container mx-auto px-4 text-center">
+            <div class="max-w-4xl mx-auto">
+                <div class="mb-8">
+                    <i class="fas fa-network-wired text-6xl opacity-90"></i>
+                </div>
+                <h1 class="text-4xl md:text-6xl font-bold mb-6">Docker Networking Complete Guide</h1>
+                <p class="text-xl md:text-2xl mb-8 opacity-95">Master container communication, network isolation, and service discovery</p>
+                <div class="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-6">
+                    <a href="#basics" class="bg-white text-network px-8 py-4 rounded-lg font-semibold text-lg hover:bg-gray-100 transition duration-300">
+                        Start Learning
+                    </a>
+                    <a href="#examples" class="border-2 border-white text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-white hover:text-network transition duration-300">
+                        View Examples
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Networking Basics Section -->
+    <section id="basics" class="py-16 bg-white">
+        <div class="container mx-auto px-4">
+            <h2 class="text-3xl font-bold text-center text-gray-800 mb-4">Docker Networking Basics</h2>
+            <p class="text-gray-600 text-center max-w-3xl mx-auto mb-12 text-lg">Docker networking enables containers to communicate with each other, the host system, and external networks. Understanding Docker networking is crucial for building distributed applications.</p>
+            
+            <div class="grid lg:grid-cols-2 gap-12 items-start">
+                <div>
+                    <h3 class="text-2xl font-semibold text-gray-800 mb-6">Why Docker Networking?</h3>
+                    <div class="space-y-6">
+                        <div class="flex items-start space-x-4">
+                            <div class="bg-purple-100 p-3 rounded-full mt-1">
+                                <i class="fas fa-comments text-network text-sm"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-gray-800">Container Communication</h4>
+                                <p class="text-gray-600">Enable containers to talk to each other securely and efficiently</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start space-x-4">
+                            <div class="bg-blue-100 p-3 rounded-full mt-1">
+                                <i class="fas fa-shield-alt text-blue-600 text-sm"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-gray-800">Network Isolation</h4>
+                                <p class="text-gray-600">Isolate application components for better security and organization</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start space-x-4">
+                            <div class="bg-green-100 p-3 rounded-full mt-1">
+                                <i class="fas fa-search text-green-600 text-sm"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-gray-800">Service Discovery</h4>
+                                <p class="text-gray-600">Automatically discover and connect to services using container names</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start space-x-4">
+                            <div class="bg-red-100 p-3 rounded-full mt-1">
+                                <i class="fas fa-plug text-red-600 text-sm"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-gray-800">External Connectivity</h4>
+                                <p class="text-gray-600">Connect containers to external networks and services</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-code rounded-xl p-6">
+                    <h4 class="text-white text-xl font-semibold mb-4">Default Networks</h4>
+                    <div class="space-y-4">
+                        <div class="bg-gray-700 p-4 rounded-lg">
+                            <h5 class="text-network font-semibold mb-2">Bridge Network (Default)</h5>
+                            <ul class="text-gray-300 text-sm space-y-1">
+                                <li>• Default network for containers</li>
+                                <li>• NAT-based networking</li>
+                                <li>• Port mapping required for external access</li>
+                                <li>• Good for single-host development</li>
+                            </ul>
+                        </div>
+                        <div class="bg-gray-700 p-4 rounded-lg">
+                            <h5 class="text-yellow-400 font-semibold mb-2">Host Network</h5>
+                            <ul class="text-gray-300 text-sm space-y-1">
+                                <li>• Shares host's network namespace</li>
+                                <li>• No network isolation</li>
+                                <li>• Best performance</li>
+                                <li>• Useful for network monitoring tools</li>
+                            </ul>
+                        </div>
+                        <div class="bg-gray-700 p-4 rounded-lg">
+                            <h5 class="text-green-400 font-semibold mb-2">None Network</h5>
+                            <ul class="text-gray-300 text-sm space-y-1">
+                                <li>• Completely isolated network</li>
+                                <li>• No network interfaces</li>
+                                <li>• Only loopback interface available</li>
+                                <li>• For completely isolated workloads</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Network Architecture -->
+            <div class="mt-16 bg-gray-800 rounded-xl p-8 text-white">
+                <h3 class="text-2xl font-semibold text-center mb-8 text-network">Docker Network Architecture</h3>
+                <div class="architecture-diagram rounded-lg p-6">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 text-center">
+                        <div class="bg-white bg-opacity-20 p-4 rounded-lg">
+                            <i class="fas fa-laptop text-3xl mb-3"></i>
+                            <h4 class="font-semibold">Host Machine</h4>
+                            <p class="text-sm opacity-90 mt-2">docker0 bridge</p>
+                        </div>
+                        <div class="bg-white bg-opacity-20 p-4 rounded-lg">
+                            <i class="fas fa-network-wired text-3xl mb-3"></i>
+                            <h4 class="font-semibold">Network Namespace</h4>
+                            <p class="text-sm opacity-90 mt-2">Isolated network stack</p>
+                        </div>
+                        <div class="bg-white bg-opacity-20 p-4 rounded-lg">
+                            <i class="fas fa-ethernet text-3xl mb-3"></i>
+                            <h4 class="font-semibold">veth Pair</h4>
+                            <p class="text-sm opacity-90 mt-2">Virtual Ethernet device</p>
+                        </div>
+                        <div class="bg-white bg-opacity-20 p-4 rounded-lg">
+                            <i class="fas fa-cube text-3xl mb-3"></i>
+                            <h4 class="font-semibold">Container</h4>
+                            <p class="text-sm opacity-90 mt-2">eth0 interface</p>
+                        </div>
+                    </div>
+                    <div class="text-center mt-6">
+                        <div class="code-block p-4 rounded-lg max-w-2xl mx-auto">
+                            <code># Container gets its own network namespace<br># Connected to docker0 bridge via veth pair<br># IP assigned from bridge subnet (172.17.0.0/16)</code>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Network Drivers Section -->
+    <section id="drivers" class="py-16 bg-gray-100">
+        <div class="container mx-auto px-4">
+            <h2 class="text-3xl font-bold text-center text-gray-800 mb-12">Docker Network Drivers</h2>
+            
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Bridge Driver -->
+                <div class="network-card bg-white rounded-xl p-6 shadow-md">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-network p-3 rounded-lg mr-4">
+                            <i class="fas fa-bridge text-white text-xl"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold text-gray-800">Bridge</h3>
+                    </div>
+                    <p class="text-gray-600 mb-4">Default network driver. Containers on the same bridge network can communicate, while isolation is provided from containers not connected to that bridge network.</p>
+                    <div class="code-block p-3 rounded text-sm mb-4">
+                        <code># Create bridge network<br>docker network create my-bridge<br><br># Run container on bridge<br>docker run -d --network my-bridge --name web nginx</code>
+                    </div>
+                    <div class="bg-purple-50 p-3 rounded-lg">
+                        <p class="text-purple-800 text-sm"><strong>Best for:</strong> Single-host applications, development</p>
+                    </div>
+                </div>
+
+                <!-- Host Driver -->
+                <div class="network-card bg-white rounded-xl p-6 shadow-md">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-green-500 p-3 rounded-lg mr-4">
+                            <i class="fas fa-server text-white text-xl"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold text-gray-800">Host</h3>
+                    </div>
+                    <p class="text-gray-600 mb-4">Remove network isolation between container and host. Container uses host's networking directly.</p>
+                    <div class="code-block p-3 rounded text-sm mb-4">
+                        <code># Run with host networking<br>docker run -d --network host nginx<br><br># Container binds to host ports directly<br># Access via localhost:80 (no port mapping)</code>
+                    </div>
+                    <div class="bg-green-50 p-3 rounded-lg">
+                        <p class="text-green-800 text-sm"><strong>Best for:</strong> Performance-critical applications</p>
+                    </div>
+                </div>
+
+                <!-- Overlay Driver -->
+                <div class="network-card bg-white rounded-xl p-6 shadow-md">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-blue-500 p-3 rounded-lg mr-4">
+                            <i class="fas fa-cloud text-white text-xl"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold text-gray-800">Overlay</h3>
+                    </div>
+                    <p class="text-gray-600 mb-4">Enable communication between Docker daemons in Swarm mode. Overlay networks connect multiple Docker hosts.</p>
+                    <div class="code-block p-3 rounded text-sm mb-4">
+                        <code># Create overlay network in Swarm<br>docker network create -d overlay my-overlay<br><br># Service uses overlay network<br>docker service create --network my-overlay nginx</code>
+                    </div>
+                    <div class="bg-blue-50 p-3 rounded-lg">
+                        <p class="text-blue-800 text-sm"><strong>Best for:</strong> Multi-host applications, Docker Swarm</p>
+                    </div>
+                </div>
+
+                <!-- Macvlan Driver -->
+                <div class="network-card bg-white rounded-xl p-6 shadow-md">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-red-500 p-3 rounded-lg mr-4">
+                            <i class="fas fa-network-wired text-white text-xl"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold text-gray-800">Macvlan</h3>
+                    </div>
+                    <p class="text-gray-600 mb-4">Assign MAC addresses to containers, making them appear as physical devices on your network.</p>
+                    <div class="code-block p-3 rounded text-sm mb-4">
+                        <code># Create macvlan network<br>docker network create -d macvlan \<br>  --subnet=192.168.1.0/24 \<br>  --gateway=192.168.1.1 \<br>  -o parent=eth0 my-macvlan</code>
+                    </div>
+                    <div class="bg-red-50 p-3 rounded-lg">
+                        <p class="text-red-800 text-sm"><strong>Best for:</strong> Legacy applications, network appliances</p>
+                    </div>
+                </div>
+
+                <!-- IPvlan Driver -->
+                <div class="network-card bg-white rounded-xl p-6 shadow-md">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-indigo-500 p-3 rounded-lg mr-4">
+                            <i class="fas fa-sitemap text-white text-xl"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold text-gray-800">IPvlan</h3>
+                    </div>
+                    <p class="text-gray-600 mb-4">Similar to Macvlan but uses same MAC address with different IP addresses. More scalable than Macvlan.</p>
+                    <div class="code-block p-3 rounded text-sm mb-4">
+                        <code># Create ipvlan network<br>docker network create -d ipvlan \<br>  --subnet=192.168.1.0/24 \<br>  -o ipvlan_mode=l2 \<br>  -o parent=eth0 my-ipvlan</code>
+                    </div>
+                    <div class="bg-indigo-50 p-3 rounded-lg">
+                        <p class="text-indigo-800 text-sm"><strong>Best for:</strong> High-density container deployments</p>
+                    </div>
+                </div>
+
+                <!-- None Driver -->
+                <div class="network-card bg-white rounded-xl p-6 shadow-md">
+                    <div class="flex items-center mb-4">
+                        <div class="bg-gray-600 p-3 rounded-lg mr-4">
+                            <i class="fas fa-ban text-white text-xl"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold text-gray-800">None</h3>
+                    </div>
+                    <p class="text-gray-600 mb-4">Completely disables networking for a container. Only loopback interface is available.</p>
+                    <div class="code-block p-3 rounded text-sm mb-4">
+                        <code># Run without networking<br>docker run -d --network none alpine sleep 3600<br><br># Check network interfaces<br>docker exec container-name ip addr<br># Only shows: lo (loopback)</code>
+                    </div>
+                    <div class="bg-gray-100 p-3 rounded-lg">
+                        <p class="text-gray-800 text-sm"><strong>Best for:</strong> Security-sensitive workloads</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Commands Section -->
+    <section id="commands" class="py-16 bg-white">
+        <div class="container mx-auto px-4">
+            <h2 class="text-3xl font-bold text-center text-gray-800 mb-12">Network Management Commands</h2>
+            
+            <!-- Tabs -->
+            <div class="mb-8">
+                <div class="flex flex-wrap gap-2 justify-center">
+                    <button class="tab-btn bg-network text-white px-6 py-3 rounded-lg font-semibold" data-tab="basic">Basic Commands</button>
+                    <button class="tab-btn bg-gray-300 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-400" data-tab="advanced">Advanced Commands</button>
+                    <button class="tab-btn bg-gray-300 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-400" data-tab="compose">Docker Compose</button>
+                </div>
+            </div>
+
+            <!-- Basic Commands Tab -->
+            <div id="basic-tab" class="tab-content active">
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div class="bg-gray-50 rounded-xl p-6">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-6 flex items-center">
+                            <i class="fas fa-plus-circle text-network mr-3"></i>
+                            Create & Inspect
+                        </h3>
+                        <div class="space-y-4">
+                            <div class="code-block p-3 rounded">
+                                <code>docker network create my-network</code>
+                                <span class="text-gray-600 text-sm ml-3">Create a custom network</span>
+                            </div>
+                            <div class="code-block p-3 rounded">
+                                <code>docker network ls</code>
+                                <span class="text-gray-600 text-sm ml-3">List all networks</span>
+                            </div>
+                            <div class="code-block p-3 rounded">
+                                <code>docker network inspect my-network</code>
+                                <span class="text-gray-600 text-sm ml-3">Show network details</span>
+                            </div>
+                            <div class="code-block p-3 rounded">
+                                <code>docker network prune</code>
+                                <span class="text-gray-600 text-sm ml-3">Remove unused networks</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 rounded-xl p-6">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-6 flex items-center">
+                            <i class="fas fa-cube text-blue-600 mr-3"></i>
+                            Container Networking
+                        </h3>
+                        <div class="space-y-4">
+                            <div class="code-block p-3 rounded">
+                                <code>docker run -d --network my-network nginx</code>
+                                <span class="text-gray-600 text-sm ml-3">Run container on custom network</span>
+                            </div>
+                            <div class="code-block p-3 rounded">
+                                <code>docker network connect my-network container-name</code>
+                                <span class="text-gray-600 text-sm ml-3">Connect running container to network</span>
+                            </div>
+                            <div class="code-block p-3 rounded">
+                                <code>docker network disconnect my-network container-name</code>
+                                <span class="text-gray-600 text-sm ml-3">Disconnect container from network</span>
+                            </div>
+                            <div class="code-block p-3 rounded">
+                                <code>docker run -p 8080:80 nginx</code>
+                                <span class="text-gray-600 text-sm ml-3">Port mapping (host:container)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Advanced Commands Tab -->
+            <div id="advanced-tab" class="tab-content">
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div class="bg-gray-50 rounded-xl p-6">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-6 flex items-center">
+                            <i class="fas fa-cogs text-purple-600 mr-3"></i>
+                            Network Configuration
+                        </h3>
+                        <div class="space-y-4">
+                            <div class="code-block p-3 rounded">
+                                <code>docker network create \<br>  --subnet=172.20.0.0/16 \<br>  --gateway=172.20.0.1 \<br>  my-custom-subnet</code>
+                                <span class="text-gray-600 text-sm ml-3">Custom subnet and gateway</span>
+                            </div>
+                            <div class="code-block p-3 rounded">
+                                <code>docker network create \<br>  --driver overlay \<br>  --attachable \<br>  my-overlay</code>
+                                <span class="text-gray-600 text-sm ml-3">Attachable overlay network</span>
+                            </div>
+                            <div class="code-block p-3 rounded">
+                                <code>docker network create \<br>  -o "com.docker.network.bridge.name"="my-bridge" \<br>  my-network</code>
+                                <span class="text-gray-600 text-sm ml-3">Custom bridge name</span>
+                            </div>
+                            <div class="code-block p-3 rounded">
+                                <code>docker network create \<br>  --internal \<br>  my-internal-network</code>
+                                <span class="text-gray-600 text-sm ml-3">Internal network (no external access)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 rounded-xl p-6">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-6 flex items-center">
+                            <i class="fas fa-search text-green-600 mr-3"></i>
+                            Diagnostics & Troubleshooting
+                        </h3>
+                        <div class="space-y-4">
+                            <div class="code-block p-3 rounded">
+                                <code>docker exec container-name ip addr</code>
+                                <span class="text-gray-600 text-sm ml-3">Check container IP addresses</span>
+                            </div>
+                            <div class="code-block p-3 rounded">
+                                <code>docker exec container-name ping other-container</code>
+                                <span class="text-gray-600 text-sm ml-3">Test connectivity between containers</span>
+                            </div>
+                            <div class="code-block p-3 rounded">
+                                <code>docker exec container-name nslookup other-container</code>
+                                <span class="text-gray-600 text-sm ml-3">Test DNS resolution</span>
+                            </div>
+                            <div class="code-block p-3 rounded">
+                                <code>docker logs container-name</code>
+                                <span class="text-gray-600 text-sm ml-3">Check container logs for network issues</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Docker Compose Tab -->
+            <div id="compose-tab" class="tab-content">
+                <div class="bg-gray-50 rounded-xl p-6">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-6 flex items-center">
+                        <i class="fas fa-code text-indigo-600 mr-3"></i>
+                        Docker Compose Networking
+                    </h3>
+                    <div class="grid md:grid-cols-2 gap-8">
+                        <div>
+                            <h4 class="font-semibold text-gray-800 mb-4">Basic Network Configuration</h4>
+                            <div class="code-block p-4 rounded-lg text-sm">
+                                <pre><code>version: '3.8'
+services:
+  web:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    networks:
+      - frontend
+
+  api:
+    image: my-api:latest
+    networks:
+      - frontend
+      - backend
+
+  database:
+    image: postgres:13
+    networks:
+      - backend
+
+networks:
+  frontend:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+  backend:
+    driver: bridge
+    internal: true</code></pre>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-800 mb-4">Advanced Network Settings</h4>
+                            <div class="code-block p-4 rounded-lg text-sm">
+                                <pre><code>version: '3.8'
+services:
+  app:
+    image: my-app:latest
+    networks:
+      app_net:
+        ipv4_address: 172.28.0.10
+        aliases:
+          - app.local
+          - api.local
+
+  cache:
+    image: redis:alpine
+    networks:
+      app_net:
+        aliases:
+          - cache.local
+
+networks:
+  app_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+          gateway: 172.28.0.1</code></pre>
+                            </div>
+                            <div class="mt-6 bg-blue-50 p-4 rounded-lg">
+                                <h5 class="font-semibold text-blue-800 mb-2">External Networks</h5>
+                                <div class="code-block p-3 rounded text-sm">
+                                    <code>networks:<br>  existing_net:<br>    external: true<br>    name: my-previous-network</code>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Examples Section -->
+    <section id="examples" class="py-16 bg-gray-100">
+        <div class="container mx-auto px-4">
+            <h2 class="text-3xl font-bold text-center text-gray-800 mb-12">Practical Networking Examples</h2>
+            
+            <div class="space-y-8">
+                <!-- Multi-tier Application -->
+                <div class="bg-white rounded-xl p-6 shadow-md">
+                    <h3 class="text-2xl font-semibold text-gray-800 mb-4 flex items-center">
+                        <i class="fas fa-sitemap text-network mr-3"></i>
+                        Multi-tier Application Architecture
+                    </h3>
+                    <div class="grid lg:grid-cols-2 gap-8">
+                        <div>
+                            <p class="text-gray-600 mb-4">Create isolated networks for different application tiers with controlled communication between them.</p>
+                            <div class="code-block p-4 rounded-lg">
+                                <pre><code># Create networks
+docker network create frontend
+docker network create backend
+docker network create database
+
+# Frontend services
+docker run -d --name web --network frontend nginx
+docker run -d --name load-balancer --network frontend nginx
+
+# Backend services
+docker run -d --name api --network backend my-api
+docker run -d --name cache --network backend redis
+
+# Database (isolated)
+docker run -d --name db --network database postgres
+
+# Connect API to database network
+docker network connect database api
+
+# Connect load balancer to backend
+docker network connect backend load-balancer
+
+# Verify connectivity
+docker exec api ping db  # Should work
+docker exec web ping db  # Should fail (security)</code></pre>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-800 mb-3">Network Architecture:</h4>
+                            <div class="network-flow p-4 rounded-lg text-white text-center">
+                                <div class="grid grid-cols-3 gap-4 mb-4">
+                                    <div class="bg-white bg-opacity-20 p-3 rounded">
+                                        <i class="fas fa-globe text-2xl mb-2"></i>
+                                        <p class="text-sm">Internet</p>
+                                    </div>
+                                    <div class="bg-white bg-opacity-20 p-3 rounded">
+                                        <i class="fas fa-balance-scale text-2xl mb-2"></i>
+                                        <p class="text-sm">Load Balancer</p>
+                                    </div>
+                                    <div class="bg-white bg-opacity-20 p-3 rounded">
+                                        <i class="fas fa-server text-2xl mb-2"></i>
+                                        <p class="text-sm">Web Server</p>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div class="bg-white bg-opacity-20 p-3 rounded">
+                                        <i class="fas fa-cogs text-2xl mb-2"></i>
+                                        <p class="text-sm">API Service</p>
+                                    </div>
+                                    <div class="bg-white bg-opacity-20 p-3 rounded">
+                                        <i class="fas fa-database text-2xl mb-2"></i>
+                                        <p class="text-sm">Database</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-6 bg-green-50 p-4 rounded-lg">
+                                <h5 class="font-semibold text-green-800 mb-2">Security Benefits</h5>
+                                <ul class="text-green-700 text-sm space-y-1">
+                                    <li>• Database isolated from frontend</li>
+                                    <li>• Controlled API access</li>
+                                    <li>• Reduced attack surface</li>
+                                    <li>• Better network segmentation</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Service Discovery Example -->
+                <div class="bg-white rounded-xl p-6 shadow-md">
+                    <h3 class="text-2xl font-semibold text-gray-800 mb-4 flex items-center">
+                        <i class="fas fa-search text-blue-600 mr-3"></i>
+                        Service Discovery with DNS
+                    </h3>
+                    <div class="grid lg:grid-cols-2 gap-8">
+                        <div>
+                            <p class="text-gray-600 mb-4">Docker provides built-in DNS resolution for container names on user-defined networks.</p>
+                            <div class="code-block p-4 rounded-lg">
+                                <pre><code># Create custom network
+docker network create app-network
+
+# Start services
+docker run -d --name database --network app-network postgres
+docker run -d --name redis --network app-network redis
+docker run -d --name api --network app-network my-api
+
+# Test DNS resolution
+docker exec api nslookup database
+# Returns: 172.18.0.2
+
+docker exec api nslookup redis
+# Returns: 172.18.0.3
+
+# Applications can connect using service names
+# Connection string: postgresql://database:5432/mydb
+# Redis connection: redis:6379
+
+# Scale services with unique names
+docker run -d --name api-1 --network app-network my-api
+docker run -d --name api-2 --network app-network my-api
+
+# Load balancing requires external solution
+# (HAProxy, Nginx, or application-level logic)</code></pre>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-800 mb-3">DNS Features:</h4>
+                            <ul class="text-gray-600 space-y-2 list-disc pl-5">
+                                <li>Automatic container name to IP resolution</li>
+                                <li>Works on user-defined networks</li>
+                                <li>Container aliases for multiple names</li>
+                                <li>Round-robin DNS for multiple containers</li>
+                            </ul>
+                            <div class="mt-6 bg-yellow-50 p-4 rounded-lg">
+                                <h5 class="font-semibold text-yellow-800 mb-2">DNS Round Robin</h5>
+                                <div class="code-block p-3 rounded text-sm">
+                                    <code># Multiple containers with same network alias<br>docker run -d --name web1 --network-alias web nginx<br>docker run -d --name web2 --network-alias web nginx<br><br># DNS queries return multiple IPs<br>docker exec client nslookup web<br># Returns: 172.18.0.2, 172.18.0.3</code>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Development with Hot Reload -->
+                <div class="bg-white rounded-xl p-6 shadow-md">
+                    <h3 class="text-2xl font-semibold text-gray-800 mb-4 flex items-center">
+                        <i class="fas fa-code text-purple-600 mr-3"></i>
+                        Development Environment with Hot Reload
+                    </h3>
+                    <div class="grid lg:grid-cols-2 gap-8">
+                        <div>
+                            <p class="text-gray-600 mb-4">Set up a development environment with live reload using Docker Compose and bind mounts.</p>
+                            <div class="code-block p-4 rounded-lg">
+                                <pre><code># docker-compose.dev.yml
+version: '3.8'
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - app-network
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    command: npm run dev
+
+  backend:
+    build: ./backend
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    networks:
+      - app-network
+    environment:
+      - NODE_ENV=development
+    command: npm run dev
+
+  database:
+    image: postgres:13
+    environment:
+      - POSTGRES_DB=devdb
+      - POSTGRES_USER=devuser
+      - POSTGRES_PASSWORD=devpass
+    networks:
+      - app-network
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  postgres-data:</code></pre>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-800 mb-3">Development Benefits:</h4>
+                            <ul class="text-gray-600 space-y-2 list-disc pl-5">
+                                <li>Code changes reflect instantly</li>
+                                <li>Consistent environment across team</li>
+                                <li>Service discovery via container names</li>
+                                <li>Isolated from production networks</li>
+                            </ul>
+                            <div class="mt-6 bg-blue-50 p-4 rounded-lg">
+                                <h5 class="font-semibold text-blue-800 mb-2">Start Development Environment</h5>
+                                <div class="code-block p-3 rounded text-sm">
+                                    <code># Start all services<br>docker-compose -f docker-compose.dev.yml up<br><br># Access services:<br># Frontend: http://localhost:3000<br># Backend API: http://localhost:5000<br># Database: postgres://database:5432/devdb</code>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Security Section -->
+    <section id="security" class="py-16 bg-white">
+        <div class="container mx-auto px-4">
+            <h2 class="text-3xl font-bold text-center text-gray-800 mb-12">Network Security Best Practices</h2>
+            
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div class="bg-gray-50 rounded-xl p-6">
+                    <div class="bg-red-100 p-3 rounded-full w-12 h-12 flex items-center justify-center mb-4">
+                        <i class="fas fa-shield-alt text-red-600"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-3">Use Internal Networks</h3>
+                    <p class="text-gray-600">Create internal networks for services that don't need external internet access.</p>
+                    <div class="code-block p-3 rounded text-sm mt-2">
+                        <code>docker network create --internal my-internal</code>
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 rounded-xl p-6">
+                    <div class="bg-blue-100 p-3 rounded-full w-12 h-12 flex items-center justify-center mb-4">
+                        <i class="fas fa-filter text-blue-600"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-3">Network Segmentation</h3>
+                    <p class="text-gray-600">Separate different application tiers into different networks with controlled access.</p>
+                </div>
+
+                <div class="bg-gray-50 rounded-xl p-6">
+                    <div class="bg-green-100 p-3 rounded-full w-12 h-12 flex items-center justify-center mb-4">
+                        <i class="fas fa-user-lock text-green-600"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-3">Least Privilege</h3>
+                    <p class="text-gray-600">Only connect containers to networks they absolutely need for their function.</p>
+                </div>
+
+                <div class="bg-gray-50 rounded-xl p-6">
+                    <div class="bg-purple-100 p-3 rounded-full w-12 h-12 flex items-center justify-center mb-4">
+                        <i class="fas fa-eye-slash text-purple-600"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-3">Avoid Host Networking</h3>
+                    <p class="text-gray-600">Use host networking sparingly as it removes network isolation and security boundaries.</p>
+                </div>
+
+                <div class="bg-gray-50 rounded-xl p-6">
+                    <div class="bg-yellow-100 p-3 rounded-full w-12 h-12 flex items-center justify-center mb-4">
+                        <i class="fas fa-network-wired text-yellow-600"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-3">Custom Subnets</h3>
+                    <p class="text-gray-600">Use custom subnets to avoid conflicts and have predictable IP addressing.</p>
+                </div>
+
+                <div class="bg-gray-50 rounded-xl p-6">
+                    <div class="bg-indigo-100 p-3 rounded-full w-12 h-12 flex items-center justify-center mb-4">
+                        <i class="fas fa-clipboard-check text-indigo-600"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-3">Regular Audits</h3>
+                    <p class="text-gray-600">Regularly audit network configurations and remove unused networks.</p>
+                </div>
+            </div>
+
+            <!-- Security Example -->
+            <div class="mt-12 bg-code rounded-xl p-8 text-white">
+                <h3 class="text-2xl font-semibold mb-6 text-network">Secure Multi-tier Architecture</h3>
+                <div class="grid lg:grid-cols-2 gap-8">
+                    <div>
+                        <h4 class="text-xl font-semibold mb-4">docker-compose.yml</h4>
+                        <div class="code-block p-4 rounded-lg text-sm">
+                            <pre><code>version: '3.8'
+services:
+  # Public-facing service
+  web:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    networks:
+      - public
+
+  # Internal application services
+  api:
+    image: my-api:latest
+    networks:
+      - public
+      - private
+    depends_on:
+      - database
+
+  # Database (completely isolated)
+  database:
+    image: postgres:13
+    networks:
+      - database
+    environment:
+      - POSTGRES_DB=mydb
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=pass
+
+networks:
+  public:
+    driver: bridge
+  private:
+    driver: bridge
+    internal: false  # But only connected to API
+  database:
+    driver: bridge
+    internal: true   # No external access</code></pre>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="text-xl font-semibold mb-4">Security Controls</h4>
+                        <div class="space-y-4">
+                            <div class="bg-gray-700 p-4 rounded-lg">
+                                <h5 class="text-green-400 font-semibold mb-2">Network Isolation</h5>
+                                <p class="text-gray-300 text-sm">Database is on an internal network, inaccessible from outside</p>
+                            </div>
+                            <div class="bg-gray-700 p-4 rounded-lg">
+                                <h5 class="text-blue-400 font-semibold mb-2">Controlled Access</h5>
+                                <p class="text-gray-300 text-sm">Only API service can access the database network</p>
+                            </div>
+                            <div class="bg-gray-700 p-4 rounded-lg">
+                                <h5 class="text-yellow-400 font-semibold mb-2">Port Management</h5>
+                                <p class="text-gray-300 text-sm">Only necessary ports are exposed to the host</p>
+                            </div>
+                        </div>
+                        <div class="mt-6 bg-red-900 p-4 rounded-lg">
+                            <h5 class="font-semibold text-red-300 mb-2">Security Checklist</h5>
+                            <ul class="text-red-200 text-sm space-y-1">
+                                <li>✓ Use internal networks for sensitive services</li>
+                                <li>✓ Limit container network connections</li>
+                                <li>✓ Use custom subnets</li>
+                                <li>✓ Regularly audit network configurations</li>
+                                <li>✓ Monitor network traffic</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Troubleshooting Section -->
+    <section class="py-16 bg-gray-100">
+        <div class="container mx-auto px-4">
+            <h2 class="text-3xl font-bold text-center text-gray-800 mb-12">Common Network Issues & Solutions</h2>
+            
+            <div class="grid md:grid-cols-2 gap-8">
+                <div class="bg-white rounded-xl p-6">
+                    <h3 class="text-2xl font-semibold text-gray-800 mb-6">Connectivity Problems</h3>
+                    <div class="space-y-4">
+                        <div class="bg-red-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-red-800 mb-2">Issue: Containers can't ping each other</h4>
+                            <p class="text-red-700 text-sm">Containers are on different networks or firewall blocking.</p>
+                        </div>
+                        <div class="code-block p-4 rounded-lg">
+                            <pre><code># Check container networks
+docker inspect container-name | grep Network
+
+# Verify containers are on same network
+docker network inspect network-name
+
+# Test basic connectivity
+docker exec container-1 ping container-2
+
+# Check if containers are running
+docker ps
+
+# Connect container to network
+docker network connect my-network container-name
+
+# Check iptables rules
+sudo iptables -L DOCKER-USER</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl p-6">
+                    <h3 class="text-2xl font-semibold text-gray-800 mb-6">DNS Resolution Issues</h3>
+                    <div class="space-y-4">
+                        <div class="bg-yellow-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-yellow-800 mb-2">Issue: Container names not resolving</h4>
+                            <p class="text-yellow-700 text-sm">DNS not working on custom networks or container restart.</p>
+                        </div>
+                        <div class="code-block p-4 rounded-lg">
+                            <pre><code># Test DNS resolution
+docker exec container-name nslookup other-container
+
+# Check if on user-defined network
+docker network ls
+docker inspect container-name | grep NetworkMode
+
+# Restart Docker DNS
+sudo systemctl restart docker
+
+# Use IP address instead of name (temporary)
+docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' container-name
+
+# Check Docker daemon logs
+sudo journalctl -u docker.service
+
+# Verify network configuration
+docker network inspect network-name | grep -A 10 IPAM</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Tips -->
+            <div class="mt-12 bg-white rounded-xl p-8">
+                <h3 class="text-2xl font-semibold text-gray-800 mb-6">Network Performance Optimization</h3>
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div>
+                        <h4 class="font-semibold text-gray-800 mb-4">Performance Tips</h4>
+                        <ul class="text-gray-600 space-y-3">
+                            <li class="flex items-start">
+                                <i class="fas fa-rocket text-green-500 mr-3 mt-1"></i>
+                                <span>Use <code>host</code> network for performance-critical applications</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fas fa-network-wired text-blue-500 mr-3 mt-1"></i>
+                                <span>Use overlay networks for multi-host communication instead of port publishing</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fas fa-compress-arrows-alt text-purple-500 mr-3 mt-1"></i>
+                                <span>Minimize network hops between containers</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fas fa-tachometer-alt text-red-500 mr-3 mt-1"></i>
+                                <span>Use <code>macvlan</code> for near-native network performance</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-gray-800 mb-4">Monitoring Commands</h4>
+                        <div class="code-block p-4 rounded-lg">
+                            <pre><code># Monitor network usage
+docker stats
+
+# Check container network details
+docker port container-name
+
+# Inspect network configuration
+docker network inspect network-name
+
+# Monitor host network interfaces
+ip addr show docker0
+ip route show
+
+# Check connection counts
+ss -tulpn | grep docker
+
+# Monitor bandwidth (requires additional tools)
+iftop -i docker0</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-white py-12">
+        <div class="container mx-auto px-4">
+            <div class="grid md:grid-cols-3 gap-8">
+                <div>
+                    <div class="flex items-center space-x-3 mb-4">
+                        <i class="fas fa-network-wired text-network text-2xl"></i>
+                        <h3 class="text-xl font-bold">Docker Networking Guide</h3>
+                    </div>
+                    <p class="text-gray-400">Complete reference for container networking, service discovery, and secure communication in Docker environments.</p>
+                </div>
+                <div>
+                    <h4 class="text-lg font-semibold mb-4">Quick Links</h4>
+                    <ul class="text-gray-400 space-y-2">
+                        <li><a href="#basics" class="hover:text-white">Networking Basics</a></li>
+                        <li><a href="#drivers" class="hover:text-white">Network Drivers</a></li>
+                        <li><a href="#commands" class="hover:text-white">Commands Reference</a></li>
+                        <li><a href="#examples" class="hover:text-white">Practical Examples</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-lg font-semibold mb-4">Resources</h4>
+                    <ul class="text-gray-400 space-y-2">
+                        <li><a href="#" class="hover:text-white">Official Documentation</a></li>
+                        <li><a href="#" class="hover:text-white">Network Drivers</a></li>
+                        <li><a href="#" class="hover:text-white">Security Best Practices</a></li>
+                        <li><a href="#" class="hover:text-white">Troubleshooting Guide</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
+                <p>&copy; 2024 Docker Networking Complete Guide. Master container communication and network security.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script>
+        // Mobile menu toggle
+        document.getElementById('mobileMenuButton').addEventListener('click', function() {
+            document.getElementById('mobileMenu').classList.toggle('hidden');
+        });
+
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    // Close mobile menu if open
+                    document.getElementById('mobileMenu').classList.add('hidden');
+                    
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Tab functionality
+        document.querySelectorAll('.tab-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                // Remove active class from all tabs and contents
+                document.querySelectorAll('.tab-btn').forEach(btn => {
+                    btn.className = btn.className.replace('bg-network text-white', 'bg-gray-300 text-gray-700 hover:bg-gray-400');
+                });
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+                
+                // Add active class to clicked tab
+                this.className = this.className.replace('bg-gray-300 text-gray-700 hover:bg-gray-400', 'bg-network text-white');
+                
+                // Show corresponding content
+                const tabId = this.getAttribute('data-tab') + '-tab';
+                document.getElementById(tabId).classList.add('active');
+            });
+        });
+
+        // Copy code functionality
+        document.querySelectorAll('.copy-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const codeBlock = this.parentElement.querySelector('pre') || this.parentElement.parentElement.querySelector('pre');
+                const code = codeBlock.textContent;
+                
+                navigator.clipboard.writeText(code).then(() => {
+                    const originalText = this.innerHTML;
+                    this.innerHTML = '<i class="fas fa-check mr-2"></i>Copied!';
+                    this.classList.add('bg-green-500');
+                    this.classList.remove('bg-network', 'hover:bg-networkDark');
+                    
+                    setTimeout(() => {
+                        this.innerHTML = originalText;
+                        this.classList.remove('bg-green-500');
+                        this.classList.add('bg-network', 'hover:bg-networkDark');
+                    }, 2000);
+                });
+            });
+        });
+
+        // Add interactive examples
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add syntax highlighting helper
+            document.querySelectorAll('pre code').forEach(block => {
+                const lines = block.innerHTML.split('\n');
+                const numberedLines = lines.map((line, index) => {
+                    return `<span class="line-number">${index + 1}</span> ${line}`;
+                }).join('\n');
+                block.innerHTML = numberedLines;
+            });
+        });
+    </script>
+</body>
+</html>

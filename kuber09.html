@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes Services - Complete Guide</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#326ce5',
+                        'primary-dark': '#1a2980',
+                        secondary: '#26d0ce',
+                        kubernetes: '#326ce5',
+                        service: '#326ce5',
+                        clusterip: '#10b981',
+                        nodeport: '#f59e0b',
+                        loadbalancer: '#ef4444',
+                        externalname: '#8b5cf6'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .hljs { background: transparent !important; padding: 0 !important; }
+        .sidebar { scrollbar-width: thin; }
+        .sidebar::-webkit-scrollbar { width: 6px; }
+        .sidebar::-webkit-scrollbar-track { background: #1a2980; }
+        .sidebar::-webkit-scrollbar-thumb { background: #26d0ce; border-radius: 3px; }
+        .service-animation { animation: pulse 2s ease-in-out infinite; }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        .network-flow { transition: all 0.3s ease; }
+        .network-flow:hover { transform: translateY(-5px); }
+        .service-type-card { transition: all 0.3s ease; }
+        .service-type-card:hover { transform: translateY(-8px) scale(1.02); }
+    </style>
+</head>
+<body class="bg-gray-50 flex">
+    <!-- Sidebar Navigation -->
+    <div class="sidebar w-64 bg-gradient-to-b from-primary-dark to-primary text-white fixed h-screen overflow-y-auto">
+        <div class="p-6 border-b border-blue-700">
+            <a href="kuber.html">
+                <div class="flex items-center space-x-3">
+                <i class="fas fa-network-wired text-3xl text-secondary"></i>
+                <div>
+                    <h2 class="text-xl font-bold">K8s Services</h2>
+                    <p class="text-blue-200 text-sm">Complete Guide</p>
+                </div>
+            </div>
+            </a>
+        </div>
+        
+        <nav class="p-4">
+            <ul class="space-y-2">
+                <li><a href="#introduction" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-info-circle w-6 text-center"></i> <span>Introduction</span></a></li>
+                <li><a href="#what-is-service" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-cube w-6 text-center"></i> <span>What is a Service?</span></a></li>
+                <li><a href="#service-types" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-layer-group w-6 text-center"></i> <span>Service Types</span></a></li>
+                <li><a href="#clusterip" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-server w-6 text-center"></i> <span>ClusterIP</span></a></li>
+                <li><a href="#nodeport" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-desktop w-6 text-center"></i> <span>NodePort</span></a></li>
+                <li><a href="#loadbalancer" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-balance-scale w-6 text-center"></i> <span>LoadBalancer</span></a></li>
+                <li><a href="#externalname" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-external-link-alt w-6 text-center"></i> <span>ExternalName</span></a></li>
+                <li><a href="#service-spec" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-code w-6 text-center"></i> <span>Service Spec</span></a></li>
+                <li><a href="#dns" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-globe w-6 text-center"></i> <span>DNS & Discovery</span></a></li>
+                <li><a href="#networking" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-project-diagram w-6 text-center"></i> <span>Networking</span></a></li>
+                <li><a href="#commands" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-terminal w-6 text-center"></i> <span>kubectl Commands</span></a></li>
+                <li><a href="#best-practices" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-check-circle w-6 text-center"></i> <span>Best Practices</span></a></li>
+            </ul>
+        </nav>
+    </div>
+
+    <!-- Main Content -->
+    <div class="ml-64 flex-1 p-8">
+        <!-- Header -->
+        <header class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-4xl font-bold text-primary-dark">Kubernetes Services</h1>
+                    <p class="text-gray-600 mt-2 text-lg">Complete Guide to Network Abstraction and Service Discovery</p>
+                </div>
+                <div class="bg-gradient-to-r from-primary to-secondary p-4 rounded-xl text-white service-animation">
+                    <i class="fas fa-network-wired text-4xl"></i>
+                </div>
+            </div>
+            
+            <div class="mt-6 flex flex-wrap gap-4">
+                <span class="bg-blue-100 text-primary px-3 py-1 rounded-full text-sm font-medium">Service Discovery</span>
+                <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">Load Balancing</span>
+                <span class="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm font-medium">Network Abstraction</span>
+                <span class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-sm font-medium">DNS Integration</span>
+                <span class="bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-medium">External Access</span>
+            </div>
+        </header>
+
+        <!-- Introduction Section -->
+        <section id="introduction" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-4 flex items-center">
+                <i class="fas fa-info-circle text-primary mr-3"></i> Introduction to Services
+            </h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-6">
+                <div>
+                    <p class="text-gray-700 mb-4">
+                        A <strong>Kubernetes Service</strong> is an abstraction that defines a logical set of Pods and a policy by which to access them. Services enable network access to a set of Pods.
+                    </p>
+                    <p class="text-gray-700 mb-4">
+                        Services solve the problem of connecting clients to Pods in a dynamic environment where Pods can be created, destroyed, and moved between nodes.
+                    </p>
+                    <div class="bg-blue-50 border-l-4 border-primary p-4 rounded mb-4">
+                        <p class="text-gray-700"><span class="font-bold">Key Concept:</span> Services provide a stable IP address and DNS name that clients can use to connect to your application, regardless of which Pods are currently running.</p>
+                    </div>
+                </div>
+                <div class="bg-gradient-to-br from-primary to-secondary p-6 rounded-xl text-white">
+                    <h3 class="text-xl font-bold mb-3">Service Features</h3>
+                    <ul class="space-y-2">
+                        <li class="flex items-start"><i class="fas fa-check mt-1 mr-2"></i> <span>Stable IP address and DNS name</span></li>
+                        <li class="flex items-start"><i class="fas fa-check mt-1 mr-2"></i> <span>Load balancing across Pods</span></li>
+                        <li class="flex items-start"><i class="fas fa-check mt-1 mr-2"></i> <span>Automatic service discovery</span></li>
+                        <li class="flex items-start"><i class="fas fa-check mt-1 mr-2"></i> <span>Multiple access patterns</span></li>
+                        <li class="flex items-start"><i class="fas fa-check mt-1 mr-2"></i> <span>Integration with external systems</span></li>
+                        <li class="flex items-start"><i class="fas fa-check mt-1 mr-2"></i> <span>Session affinity support</span></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-exclamation-triangle text-yellow-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-yellow-800">The Problem Services Solve</h3>
+                        <div class="mt-2 text-sm text-yellow-700">
+                            <p>Without Services, clients would need to track individual Pod IP addresses, which change frequently as Pods are rescheduled or scaled. Services provide a stable endpoint that abstracts away the underlying Pod instability.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- What is a Service Section -->
+        <section id="what-is-service" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-6 flex items-center">
+                <i class="fas fa-cube text-primary mr-3"></i> What is a Service?
+            </h2>
+            
+            <div class="mb-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">Service Architecture</h3>
+                        <p class="text-gray-700 mb-4">
+                            A Service acts as a stable network endpoint that routes traffic to one or more Pods. It uses labels and selectors to identify which Pods to target.
+                        </p>
+                        
+                        <div class="bg-gray-100 p-4 rounded-lg mb-4">
+                            <div class="text-center space-y-4">
+                                <!-- Client -->
+                                <div class="bg-white p-3 rounded-lg shadow-sm border border-blue-200">
+                                    <div class="flex items-center justify-center space-x-2">
+                                        <i class="fas fa-laptop text-blue-500"></i>
+                                        <span class="font-semibold">Client</span>
+                                    </div>
+                                </div>
+                                <div class="text-blue-500">
+                                    <i class="fas fa-arrow-down"></i>
+                                </div>
+                                
+                                <!-- Service -->
+                                <div class="bg-white p-3 rounded-lg shadow-sm border border-green-200">
+                                    <div class="flex items-center justify-center space-x-2">
+                                        <i class="fas fa-network-wired text-green-500"></i>
+                                        <span class="font-semibold">Service</span>
+                                        <span class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">app=frontend</span>
+                                    </div>
+                                </div>
+                                <div class="text-green-500">
+                                    <i class="fas fa-arrow-down"></i>
+                                </div>
+                                
+                                <!-- Pods -->
+                                <div class="flex justify-center space-x-2">
+                                    <div class="bg-white p-3 rounded-lg shadow-sm border border-purple-200">
+                                        <div class="flex items-center space-x-2">
+                                            <i class="fas fa-box text-purple-500"></i>
+                                            <span class="font-semibold">Pod</span>
+                                            <span class="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">app=frontend</span>
+                                        </div>
+                                    </div>
+                                    <div class="bg-white p-3 rounded-lg shadow-sm border border-purple-200">
+                                        <div class="flex items-center space-x-2">
+                                            <i class="fas fa-box text-purple-500"></i>
+                                            <span class="font-semibold">Pod</span>
+                                            <span class="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">app=frontend</span>
+                                        </div>
+                                    </div>
+                                    <div class="bg-white p-3 rounded-lg shadow-sm border border-purple-200">
+                                        <div class="flex items-center space-x-2">
+                                            <i class="fas fa-box text-purple-500"></i>
+                                            <span class="font-semibold">Pod</span>
+                                            <span class="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">app=frontend</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-100 p-6 rounded-xl">
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">How Services Work</h3>
+                        <ol class="list-decimal list-inside text-gray-700 space-y-3">
+                            <li><strong>Label Selection</strong> - Service uses label selectors to find matching Pods</li>
+                            <li><strong>Endpoints Creation</strong> - Kubernetes creates Endpoints object with Pod IPs</li>
+                            <li><strong>kube-proxy</strong> - Network rules are configured on each node</li>
+                            <li><strong>Load Balancing</strong> - Traffic is distributed across available Pods</li>
+                            <li><strong>DNS Registration</strong> - Service gets DNS entry in cluster DNS</li>
+                            <li><strong>Continuous Updates</strong> - Endpoints updated automatically as Pods change</li>
+                        </ol>
+                        
+                        <div class="mt-4 p-3 bg-blue-50 rounded-lg">
+                            <h4 class="font-semibold text-blue-800 mb-1">Key Components:</h4>
+                            <ul class="text-sm text-blue-700 space-y-1">
+                                <li><strong>kube-proxy</strong> - Maintains network rules on nodes</li>
+                                <li><strong>CoreDNS</strong> - Provides DNS resolution for Services</li>
+                                <li><strong>Endpoints</strong> - Tracks Pod IP addresses for the Service</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Service Types Section -->
+        <section id="service-types" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-6 flex items-center">
+                <i class="fas fa-layer-group text-primary mr-3"></i> Service Types
+            </h2>
+            
+            <div class="mb-8">
+                <p class="text-gray-700 mb-6">
+                    Kubernetes provides four types of Services to handle different networking scenarios and access patterns.
+                </p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <!-- ClusterIP -->
+                    <div class="service-type-card border border-green-200 rounded-xl p-5 bg-green-50 text-center">
+                        <div class="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-server text-green-600 text-2xl"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-800 mb-2">ClusterIP</h3>
+                        <p class="text-gray-600 text-sm mb-4">Internal cluster communication</p>
+                        <div class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-medium">
+                            Default Type
+                        </div>
+                    </div>
+                    
+                    <!-- NodePort -->
+                    <div class="service-type-card border border-yellow-200 rounded-xl p-5 bg-yellow-50 text-center">
+                        <div class="bg-yellow-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-desktop text-yellow-600 text-2xl"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-800 mb-2">NodePort</h3>
+                        <p class="text-gray-600 text-sm mb-4">External access via node IP</p>
+                        <div class="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-medium">
+                            Static Port
+                        </div>
+                    </div>
+                    
+                    <!-- LoadBalancer -->
+                    <div class="service-type-card border border-red-200 rounded-xl p-5 bg-red-50 text-center">
+                        <div class="bg-red-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-balance-scale text-red-600 text-2xl"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-800 mb-2">LoadBalancer</h3>
+                        <p class="text-gray-600 text-sm mb-4">Cloud load balancer integration</p>
+                        <div class="bg-red-100 text-red-800 px-3 py-1 rounded-full text-xs font-medium">
+                            Cloud Provider
+                        </div>
+                    </div>
+                    
+                    <!-- ExternalName -->
+                    <div class="service-type-card border border-purple-200 rounded-xl p-5 bg-purple-50 text-center">
+                        <div class="bg-purple-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-external-link-alt text-purple-600 text-2xl"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-800 mb-2">ExternalName</h3>
+                        <p class="text-gray-600 text-sm mb-4">External service mapping</p>
+                        <div class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-medium">
+                            DNS CNAME
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 class="text-xl font-semibold text-primary-dark mb-4">Service Type Comparison</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white border border-gray-200 rounded-lg">
+                        <thead>
+                            <tr class="bg-gray-100">
+                                <th class="py-3 px-4 border-b text-left">Type</th>
+                                <th class="py-3 px-4 border-b text-left">Use Case</th>
+                                <th class="py-3 px-4 border-b text-left">Access Scope</th>
+                                <th class="py-3 px-4 border-b text-left">IP Assignment</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="py-3 px-4 border-b font-semibold text-green-700">ClusterIP</td>
+                                <td class="py-3 px-4 border-b">Internal microservices communication</td>
+                                <td class="py-3 px-4 border-b">Cluster-internal only</td>
+                                <td class="py-3 px-4 border-b">Cluster-internal IP</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 border-b font-semibold text-yellow-700">NodePort</td>
+                                <td class="py-3 px-4 border-b">Development and testing, simple external access</td>
+                                <td class="py-3 px-4 border-b">External via node IP:port</td>
+                                <td class="py-3 px-4 border-b">ClusterIP + Node Port</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 border-b font-semibold text-red-700">LoadBalancer</td>
+                                <td class="py-3 px-4 border-b">Production external access, cloud environments</td>
+                                <td class="py-3 px-4 border-b">External via load balancer</td>
+                                <td class="py-3 px-4 border-b">External IP from cloud provider</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 border-b font-semibold text-purple-700">ExternalName</td>
+                                <td class="py-3 px-4 border-b">Integrating external services into cluster</td>
+                                <td class="py-3 px-4 border-b">Internal DNS mapping</td>
+                                <td class="py-3 px-4 border-b">DNS CNAME record</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ClusterIP Section -->
+        <section id="clusterip" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-6 flex items-center">
+                <i class="fas fa-server text-green-600 mr-3"></i> ClusterIP Service
+            </h2>
+            
+            <div class="mb-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">ClusterIP Overview</h3>
+                        <p class="text-gray-700 mb-4">
+                            <strong>ClusterIP</strong> is the default Service type. It exposes the Service on a cluster-internal IP address, making it only reachable from within the cluster.
+                        </p>
+                        
+                        <div class="bg-green-50 border-l-4 border-green-400 p-4 rounded mb-4">
+                            <h4 class="font-semibold text-green-800 mb-2">When to Use ClusterIP:</h4>
+                            <ul class="text-green-700 text-sm space-y-1">
+                                <li>• Communication between microservices</li>
+                                <li>• Database access from application Pods</li>
+                                <li>• Internal APIs and backend services</li>
+                                <li>• Any service that shouldn't be exposed externally</li>
+                            </ul>
+                        </div>
+                        
+                        <h4 class="font-bold text-gray-800 mb-2">Key Characteristics:</h4>
+                        <ul class="list-disc list-inside text-gray-700 space-y-1">
+                            <li>Only accessible within the cluster</li>
+                            <li>Stable virtual IP address</li>
+                            <li>Automatic DNS registration</li>
+                            <li>Load balancing across Pods</li>
+                        </ul>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">ClusterIP Example</h3>
+                        <div class="bg-gray-800 rounded-lg p-4">
+                            <pre><code class="yaml">
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+  labels:
+    app: backend
+spec:
+  type: ClusterIP  # This is optional (default)
+  selector:
+    app: backend
+    tier: api
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+    protocol: TCP
+  - name: metrics
+    port: 9090
+    targetPort: 9090
+    protocol: TCP
+                            </code></pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 class="text-xl font-semibold text-primary-dark mt-8 mb-4">Access Patterns</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <h4 class="font-bold text-gray-800 mb-2">DNS Access</h4>
+                        <p class="text-gray-600 text-sm mb-3">Services are automatically available via DNS within the cluster:</p>
+                        <div class="bg-gray-100 p-3 rounded text-sm font-mono">
+                            backend-service.default.svc.cluster.local
+                        </div>
+                    </div>
+                    
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <h4 class="font-bold text-gray-800 mb-2">Environment Variables</h4>
+                        <p class="text-gray-600 text-sm mb-3">Pods get environment variables for Services:</p>
+                        <div class="bg-gray-100 p-3 rounded text-sm font-mono">
+                            BACKEND_SERVICE_SERVICE_HOST=10.96.105.15<br>
+                            BACKEND_SERVICE_SERVICE_PORT=80
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- NodePort Section -->
+        <section id="nodeport" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-6 flex items-center">
+                <i class="fas fa-desktop text-yellow-600 mr-3"></i> NodePort Service
+            </h2>
+            
+            <div class="mb-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">NodePort Overview</h3>
+                        <p class="text-gray-700 mb-4">
+                            <strong>NodePort</strong> exposes the Service on each Node's IP at a static port. The Service becomes accessible from outside the cluster by contacting any node on that port.
+                        </p>
+                        
+                        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded mb-4">
+                            <h4 class="font-semibold text-yellow-800 mb-2">When to Use NodePort:</h4>
+                            <ul class="text-yellow-700 text-sm space-y-1">
+                                <li>• Development and testing environments</li>
+                                <li>• Bare-metal Kubernetes clusters</li>
+                                <li>• Simple external access without cloud load balancer</li>
+                                <li>• When you need direct node access</li>
+                            </ul>
+                        </div>
+                        
+                        <h4 class="font-bold text-gray-800 mb-2">Port Ranges:</h4>
+                        <ul class="list-disc list-inside text-gray-700 space-y-1">
+                            <li><strong>NodePort Range:</strong> 30000-32767 (configurable)</li>
+                            <li><strong>Automatically assigned</strong> if not specified</li>
+                            <li><strong>Manually configurable</strong> within the valid range</li>
+                        </ul>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">NodePort Example</h3>
+                        <div class="bg-gray-800 rounded-lg p-4">
+                            <pre><code class="yaml">
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-nodeport
+  labels:
+    app: webapp
+spec:
+  type: NodePort
+  selector:
+    app: webapp
+    tier: frontend
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+    nodePort: 30080  # Optional: specify custom port
+    protocol: TCP
+                            </code></pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 class="text-xl font-semibold text-primary-dark mt-8 mb-4">Access Patterns</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <h4 class="font-bold text-gray-800 mb-2">External Access</h4>
+                        <p class="text-gray-600 text-sm mb-3">Access via any node's IP address and the NodePort:</p>
+                        <div class="bg-gray-100 p-3 rounded text-sm font-mono text-center">
+                            http://&lt;node-ip&gt;:30080
+                        </div>
+                    </div>
+                    
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <h4 class="font-bold text-gray-800 mb-2">Internal Access</h4>
+                        <p class="text-gray-600 text-sm mb-3">Still accessible internally via ClusterIP and DNS:</p>
+                        <div class="bg-gray-100 p-3 rounded text-sm font-mono text-center">
+                            http://webapp-nodeport:80
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- LoadBalancer Section -->
+        <section id="loadbalancer" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-6 flex items-center">
+                <i class="fas fa-balance-scale text-red-600 mr-3"></i> LoadBalancer Service
+            </h2>
+            
+            <div class="mb-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">LoadBalancer Overview</h3>
+                        <p class="text-gray-700 mb-4">
+                            <strong>LoadBalancer</strong> exposes the Service externally using a cloud provider's load balancer. This is the standard way to expose services in cloud environments.
+                        </p>
+                        
+                        <div class="bg-red-50 border-l-4 border-red-400 p-4 rounded mb-4">
+                            <h4 class="font-semibold text-red-800 mb-2">When to Use LoadBalancer:</h4>
+                            <ul class="text-red-700 text-sm space-y-1">
+                                <li>• Production applications in cloud environments</li>
+                                <li>• When you need cloud load balancer features</li>
+                                <li>• Automatic SSL termination and health checks</li>
+                                <li>• High availability and scalability requirements</li>
+                            </ul>
+                        </div>
+                        
+                        <h4 class="font-bold text-gray-800 mb-2">Cloud Provider Integration:</h4>
+                        <ul class="list-disc list-inside text-gray-700 space-y-1">
+                            <li>AWS → Elastic Load Balancer (ELB)</li>
+                            <li>GCP → Cloud Load Balancing</li>
+                            <li>Azure → Azure Load Balancer</li>
+                            <li>Automatically provisions and configures load balancer</li>
+                        </ul>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">LoadBalancer Example</h3>
+                        <div class="bg-gray-800 rounded-lg p-4">
+                            <pre><code class="yaml">
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-loadbalancer
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-ssl-cert: "arn:aws:acm..."
+spec:
+  type: LoadBalancer
+  selector:
+    app: webapp
+  ports:
+  - name: https
+    port: 443
+    targetPort: 8080
+    protocol: TCP
+  - name: http
+    port: 80
+    targetPort: 8080
+    protocol: TCP
+  externalTrafficPolicy: Local
+                            </code></pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 class="text-xl font-semibold text-primary-dark mt-8 mb-4">External Traffic Policy</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <h4 class="font-bold text-gray-800 mb-2">Cluster (Default)</h4>
+                        <p class="text-gray-600 text-sm">Traffic is load balanced across all cluster nodes</p>
+                        <ul class="text-sm text-gray-600 mt-2 space-y-1">
+                            <li>✓ Preserves source IP</li>
+                            <li>✗ Extra network hop possible</li>
+                            <li>✓ Better load distribution</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <h4 class="font-bold text-gray-800 mb-2">Local</h4>
+                        <p class="text-gray-600 text-sm">Traffic is only sent to nodes running the Pod</p>
+                        <ul class="text-sm text-gray-600 mt-2 space-y-1">
+                            <li>✓ Preserves source IP</li>
+                            <li>✓ No extra network hops</li>
+                            <li>✗ Uneven load distribution</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Service Specification Section -->
+        <section id="service-spec" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-6 flex items-center">
+                <i class="fas fa-code text-primary mr-3"></i> Service Specification
+            </h2>
+            
+            <div class="mb-8">
+                <p class="text-gray-700 mb-6">
+                    Services are defined using YAML configuration files. Understanding the complete specification is essential for effective service management.
+                </p>
+                
+                <h3 class="text-xl font-semibold text-primary-dark mb-4">Complete Service Definition</h3>
+                <div class="bg-gray-800 rounded-lg p-4 mb-6">
+                    <pre><code class="yaml">
+apiVersion: v1
+kind: Service
+metadata:
+  name: complete-service
+  namespace: production
+  labels:
+    app: my-application
+    environment: production
+  annotations:
+    cloud-provider-specific: "value"
+spec:
+  type: LoadBalancer
+  selector:
+    app: my-application
+    tier: frontend
+  ports:
+  - name: web
+    protocol: TCP
+    port: 80
+    targetPort: 8080
+    nodePort: 30080  # For NodePort type
+  - name: metrics
+    protocol: TCP
+    port: 9090
+    targetPort: 9090
+  clusterIP: 10.96.105.15  # Optional: specify ClusterIP
+  externalIPs:
+  - 192.168.1.100
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+  externalTrafficPolicy: Local
+  healthCheckNodePort: 32456  # For LoadBalancer with Local policy
+  loadBalancerIP: "78.11.24.19"  # For LoadBalancer type
+  ipFamilyPolicy: RequireDualStack
+  ipFamilies:
+  - IPv6
+  - IPv4
+                    </code></pre>
+                </div>
+                
+                <h3 class="text-xl font-semibold text-primary-dark mb-4">Key Specification Fields</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-4">
+                        <div class="border border-gray-200 rounded-lg p-4">
+                            <h4 class="font-bold text-gray-800 mb-2">spec.selector</h4>
+                            <p class="text-gray-600 text-sm">Label query over Pods to target. Required for most Service types.</p>
+                        </div>
+                        <div class="border border-gray-200 rounded-lg p-4">
+                            <h4 class="font-bold text-gray-800 mb-2">spec.ports</h4>
+                            <p class="text-gray-600 text-sm">List of ports exposed by the Service with protocol, port, and targetPort.</p>
+                        </div>
+                        <div class="border border-gray-200 rounded-lg p-4">
+                            <h4 class="font-bold text-gray-800 mb-2">spec.sessionAffinity</h4>
+                            <p class="text-gray-600 text-sm">Session affinity type (None, ClientIP). Defaults to None.</p>
+                        </div>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="border border-gray-200 rounded-lg p-4">
+                            <h4 class="font-bold text-gray-800 mb-2">spec.externalTrafficPolicy</h4>
+                            <p class="text-gray-600 text-sm">Controls routing of external traffic (Cluster, Local).</p>
+                        </div>
+                        <div class="border border-gray-200 rounded-lg p-4">
+                            <h4 class="font-bold text-gray-800 mb-2">spec.clusterIP</h4>
+                            <p class="text-gray-600 text-sm">ClusterIP address. Set to "None" for headless services.</p>
+                        </div>
+                        <div class="border border-gray-200 rounded-lg p-4">
+                            <h4 class="font-bold text-gray-800 mb-2">spec.loadBalancerIP</h4>
+                            <p class="text-gray-600 text-sm">LoadBalancer IP address (cloud providers).</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- DNS & Discovery Section -->
+        <section id="dns" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-6 flex items-center">
+                <i class="fas fa-globe text-primary mr-3"></i> DNS & Service Discovery
+            </h2>
+            
+            <div class="mb-8">
+                <p class="text-gray-700 mb-6">
+                    Kubernetes provides built-in DNS-based service discovery, making it easy for applications to find and communicate with Services.
+                </p>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">DNS Naming Convention</h3>
+                        
+                        <div class="space-y-4">
+                            <div class="border border-gray-200 rounded-lg p-4">
+                                <h4 class="font-bold text-gray-800 mb-2">Same Namespace</h4>
+                                <div class="bg-gray-100 p-3 rounded text-sm font-mono">
+                                    service-name
+                                </div>
+                                <p class="text-gray-600 text-sm mt-1">Short name resolves within the same namespace</p>
+                            </div>
+                            
+                            <div class="border border-gray-200 rounded-lg p-4">
+                                <h4 class="font-bold text-gray-800 mb-2">Cross Namespace</h4>
+                                <div class="bg-gray-100 p-3 rounded text-sm font-mono">
+                                    service-name.namespace-name
+                                </div>
+                                <p class="text-gray-600 text-sm mt-1">Namespace-qualified name for cross-namespace access</p>
+                            </div>
+                            
+                            <div class="border border-gray-200 rounded-lg p-4">
+                                <h4 class="font-bold text-gray-800 mb-2">Fully Qualified</h4>
+                                <div class="bg-gray-100 p-3 rounded text-sm font-mono">
+                                    service-name.namespace-name.svc.cluster.local
+                                </div>
+                                <p class="text-gray-600 text-sm mt-1">Full DNS name for explicit resolution</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">Service Discovery Methods</h3>
+                        
+                        <div class="space-y-4">
+                            <div class="border border-blue-200 rounded-lg p-4 bg-blue-50">
+                                <h4 class="font-bold text-gray-800 mb-2">DNS-Based Discovery</h4>
+                                <p class="text-gray-600 text-sm mb-3">Applications use DNS names to resolve Services</p>
+                                <div class="bg-white p-2 rounded text-xs font-mono">
+                                    nslookup backend-service
+                                </div>
+                            </div>
+                            
+                            <div class="border border-green-200 rounded-lg p-4 bg-green-50">
+                                <h4 class="font-bold text-gray-800 mb-2">Environment Variables</h4>
+                                <p class="text-gray-600 text-sm mb-3">Automatic environment variables in Pods</p>
+                                <div class="bg-white p-2 rounded text-xs font-mono">
+                                    BACKEND_SERVICE_SERVICE_HOST<br>
+                                    BACKEND_SERVICE_SERVICE_PORT
+                                </div>
+                            </div>
+                            
+                            <div class="border border-purple-200 rounded-lg p-4 bg-purple-50">
+                                <h4 class="font-bold text-gray-800 mb-2">API-Based Discovery</h4>
+                                <p class="text-gray-600 text-sm">Direct Kubernetes API queries for Service information</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 class="text-xl font-semibold text-primary-dark mt-8 mb-4">Headless Services</h3>
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <pre><code class="yaml">
+apiVersion: v1
+kind: Service
+metadata:
+  name: headless-service
+spec:
+  clusterIP: None  # This makes it headless
+  selector:
+    app: stateful-app
+  ports:
+  - port: 80
+    targetPort: 8080
+                    </code></pre>
+                </div>
+                <p class="text-gray-600 text-sm mt-2">Headless services return individual Pod IPs instead of a Service IP, useful for stateful applications and direct Pod access.</p>
+            </div>
+        </section>
+
+        <!-- Commands Section -->
+        <section id="commands" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-6 flex items-center">
+                <i class="fas fa-terminal text-primary mr-3"></i> kubectl Service Commands
+            </h2>
+            
+            <div class="mb-8">
+                <h3 class="text-xl font-semibold text-primary-dark mb-4">Essential Service Commands</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <div>
+                        <h4 class="font-bold text-gray-800 mb-3">Basic Operations</h4>
+                        <div class="space-y-3">
+                            <div class="bg-gray-800 text-white p-3 rounded-lg">
+                                <code>kubectl create service clusterip my-svc --tcp=80:8080</code>
+                            </div>
+                            <div class="bg-gray-800 text-white p-3 rounded-lg">
+                                <code>kubectl apply -f service.yaml</code>
+                            </div>
+                            <div class="bg-gray-800 text-white p-3 rounded-lg">
+                                <code>kubectl get services</code>
+                            </div>
+                            <div class="bg-gray-800 text-white p-3 rounded-lg">
+                                <code>kubectl describe service my-service</code>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h4 class="font-bold text-gray-800 mb-3">Debugging & Inspection</h4>
+                        <div class="space-y-3">
+                            <div class="bg-gray-800 text-white p-3 rounded-lg">
+                                <code>kubectl get endpoints my-service</code>
+                            </div>
+                            <div class="bg-gray-800 text-white p-3 rounded-lg">
+                                <code>kubectl logs -l app=my-app</code>
+                            </div>
+                            <div class="bg-gray-800 text-white p-3 rounded-lg">
+                                <code>kubectl port-forward service/my-service 8080:80</code>
+                            </div>
+                            <div class="bg-gray-800 text-white p-3 rounded-lg">
+                                <code>kubectl exec -it pod-name -- nslookup service-name</code>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 class="text-xl font-semibold text-primary-dark mb-4">Advanced Commands</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white border border-gray-200 rounded-lg">
+                        <thead>
+                            <tr class="bg-gray-100">
+                                <th class="py-3 px-4 border-b text-left">Command</th>
+                                <th class="py-3 px-4 border-b text-left">Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="py-3 px-4 border-b font-mono text-sm">kubectl edit service/my-service</td>
+                                <td class="py-3 px-4 border-b">Edit service configuration in default editor</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 border-b font-mono text-sm">kubectl patch service my-service -p '{"spec":{"type":"LoadBalancer"}}'</td>
+                                <td class="py-3 px-4 border-b">Patch service type</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 border-b font-mono text-sm">kubectl get service my-service -o yaml</td>
+                                <td class="py-3 px-4 border-b">Get service configuration in YAML format</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 border-b font-mono text-sm">kubectl expose deployment my-deployment --port=80 --target-port=8080</td>
+                                <td class="py-3 px-4 border-b">Create service from deployment</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Best Practices Section -->
+        <section id="best-practices" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-6 flex items-center">
+                <i class="fas fa-check-circle text-primary mr-3"></i> Service Best Practices
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                    <h3 class="text-xl font-semibold text-primary-dark mb-4">Configuration Guidelines</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-start">
+                            <div class="bg-green-100 p-2 rounded-lg mr-3">
+                                <i class="fas fa-check text-green-600"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-800">Use Meaningful Service Names</h4>
+                                <p class="text-gray-600 text-sm mt-1">Choose descriptive names that reflect the service purpose and follow naming conventions.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="bg-green-100 p-2 rounded-lg mr-3">
+                                <i class="fas fa-check text-green-600"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-800">Define Clear Selectors</h4>
+                                <p class="text-gray-600 text-sm mt-1">Use specific label selectors to ensure Services target the correct Pods.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="bg-green-100 p-2 rounded-lg mr-3">
+                                <i class="fas fa-check text-green-600"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-800">Use Appropriate Service Types</h4>
+                                <p class="text-gray-600 text-sm mt-1">Choose the right Service type based on access requirements and environment.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3 class="text-xl font-semibold text-primary-dark mb-4">Operational Practices</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-start">
+                            <div class="bg-green-100 p-2 rounded-lg mr-3">
+                                <i class="fas fa-check text-green-600"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-800">Monitor Endpoints</h4>
+                                <p class="text-gray-600 text-sm mt-1">Regularly check Service endpoints to ensure they're correctly targeting Pods.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="bg-green-100 p-2 rounded-lg mr-3">
+                                <i class="fas fa-check text-green-600"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-800">Use Readiness Probes</h4>
+                                <p class="text-gray-600 text-sm mt-1">Implement readiness probes to ensure Services only route to healthy Pods.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="bg-green-100 p-2 rounded-lg mr-3">
+                                <i class="fas fa-check text-green-600"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-800">Secure External Services</h4>
+                                <p class="text-gray-600 text-sm mt-1">Use Network Policies and proper authentication for externally exposed Services.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-8 bg-blue-50 border-l-4 border-primary p-4 rounded">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-lightbulb text-primary"></i>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-primary">Pro Tip: Service Mesh Integration</h3>
+                        <div class="mt-2 text-sm text-primary">
+                            <p>For advanced networking features like mutual TLS, traffic splitting, and detailed metrics, consider using a service mesh (Istio, Linkerd) alongside Kubernetes Services.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="text-center text-gray-600 py-6 mt-8">
+            <p>Kubernetes Services Complete Guide &copy; 2023 | Master network abstraction and service discovery in Kubernetes</p>
+        </footer>
+    </div>
+
+    <script>
+        // Initialize syntax highlighting
+        hljs.highlightAll();
+        
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+        
+        // Add active class to current section in sidebar
+        window.addEventListener('scroll', function() {
+            const sections = document.querySelectorAll('section');
+            const navLinks = document.querySelectorAll('.sidebar-nav a');
+            
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                const sectionHeight = section.clientHeight;
+                if (pageYOffset >= sectionTop - 100) {
+                    current = section.getAttribute('id');
+                }
+            });
+            
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === `#${current}`) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

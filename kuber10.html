@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes Volumes - Complete Guide</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#326ce5',
+                        'primary-dark': '#1a2980',
+                        secondary: '#26d0ce',
+                        kubernetes: '#326ce5',
+                        volume: '#7c3aed',
+                        ephemeral: '#dc2626',
+                        persistent: '#059669',
+                        projected: '#d97706',
+                        csi: '#db2777'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .hljs { background: transparent !important; padding: 0 !important; }
+        .sidebar { scrollbar-width: thin; }
+        .sidebar::-webkit-scrollbar { width: 6px; }
+        .sidebar::-webkit-scrollbar-track { background: #1a2980; }
+        .sidebar::-webkit-scrollbar-thumb { background: #26d0ce; border-radius: 3px; }
+        .volume-animation { animation: pulse 2s ease-in-out infinite; }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        .volume-card { transition: all 0.3s ease; }
+        .volume-card:hover { transform: translateY(-5px); }
+        .storage-class { border-left: 4px solid #7c3aed; background: #faf5ff; }
+        .persistent-volume { border-left: 4px solid #059669; background: #f0fdf4; }
+        .ephemeral-volume { border-left: 4px solid #dc2626; background: #fef2f2; }
+    </style>
+</head>
+<body class="bg-gray-50 flex">
+    <!-- Sidebar Navigation -->
+    <div class="sidebar w-64 bg-gradient-to-b from-primary-dark to-primary text-white fixed h-screen overflow-y-auto">
+        <div class="p-6 border-b border-blue-700">
+            <a href="kuber.html" class="block">
+                <div class="flex items-center space-x-3">
+                <i class="fas fa-database text-3xl text-secondary"></i>
+                <div>
+                    <h2 class="text-xl font-bold">K8s Volumes</h2>
+                    <p class="text-blue-200 text-sm">Complete Guide</p>
+                </div>
+            </div>
+            </a>
+        </div>
+        
+        <nav class="p-4">
+            <ul class="space-y-2">
+                <li><a href="#introduction" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-info-circle w-6 text-center"></i> <span>Introduction</span></a></li>
+                <li><a href="#volume-concepts" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-cube w-6 text-center"></i> <span>Volume Concepts</span></a></li>
+                <li><a href="#volume-types" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-layer-group w-6 text-center"></i> <span>Volume Types</span></a></li>
+                <li><a href="#ephemeral-volumes" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-hourglass-half w-6 text-center"></i> <span>Ephemeral Volumes</span></a></li>
+                <li><a href="#persistent-volumes" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-hdd w-6 text-center"></i> <span>Persistent Volumes</span></a></li>
+                <li><a href="#storage-classes" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-tags w-6 text-center"></i> <span>Storage Classes</span></a></li>
+                <li><a href="#volume-claims" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-file-contract w-6 text-center"></i> <span>Volume Claims</span></a></li>
+                <li><a href="#csi-volumes" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-plug w-6 text-center"></i> <span>CSI Volumes</span></a></li>
+                <li><a href="#volume-mounts" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-folder-plus w-6 text-center"></i> <span>Volume Mounts</span></a></li>
+                <li><a href="#best-practices" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-check-circle w-6 text-center"></i> <span>Best Practices</span></a></li>
+                <li><a href="#commands" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-terminal w-6 text-center"></i> <span>kubectl Commands</span></a></li>
+            </ul>
+        </nav>
+    </div>
+
+    <!-- Main Content -->
+    <div class="ml-64 flex-1 p-8">
+        <!-- Header -->
+        <header class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-4xl font-bold text-primary-dark">Kubernetes Volumes</h1>
+                    <p class="text-gray-600 mt-2 text-lg">Complete Guide to Storage and Data Persistence in Kubernetes</p>
+                </div>
+                <div class="bg-gradient-to-r from-primary to-secondary p-4 rounded-xl text-white volume-animation">
+                    <i class="fas fa-database text-4xl"></i>
+                </div>
+            </div>
+            
+            <div class="mt-6 flex flex-wrap gap-4">
+                <span class="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm font-medium">Data Persistence</span>
+                <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">Storage Abstraction</span>
+                <span class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-sm font-medium">Multiple Backends</span>
+                <span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">Dynamic Provisioning</span>
+                <span class="bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-medium">Ephemeral Storage</span>
+            </div>
+        </header>
+
+        <!-- Introduction Section -->
+        <section id="introduction" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-4 flex items-center">
+                <i class="fas fa-info-circle text-primary mr-3"></i> Introduction to Volumes
+            </h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-6">
+                <div>
+                    <p class="text-gray-700 mb-4">
+                        A <strong>Kubernetes Volume</strong> is a directory containing data accessible to containers in a Pod. Unlike container filesystems, volumes persist across container restarts and can be shared between containers in the same Pod.
+                    </p>
+                    <p class="text-gray-700 mb-4">
+                        Volumes solve the problem of data persistence in containerized applications by providing various storage backends and lifecycle management options.
+                    </p>
+                    <div class="bg-blue-50 border-l-4 border-primary p-4 rounded mb-4">
+                        <p class="text-gray-700"><span class="font-bold">Key Concept:</span> Volumes decouple storage from Pod lifecycle, enabling data persistence, sharing between containers, and integration with external storage systems.</p>
+                    </div>
+                </div>
+                <div class="bg-gradient-to-br from-primary to-secondary p-6 rounded-xl text-white">
+                    <h3 class="text-xl font-bold mb-3">Volume Features</h3>
+                    <ul class="space-y-2">
+                        <li class="flex items-start"><i class="fas fa-check mt-1 mr-2"></i> <span>Data persistence across container restarts</span></li>
+                        <li class="flex items-start"><i class="fas fa-check mt-1 mr-2"></i> <span>Sharing data between containers in a Pod</span></li>
+                        <li class="flex items-start"><i class="fas fa-check mt-1 mr-2"></i> <span>Integration with cloud and network storage</span></li>
+                        <li class="flex items-start"><i class="fas fa-check mt-1 mr-2"></i> <span>Dynamic provisioning of storage</span></li>
+                        <li class="flex items-start"><i class="fas fa-check mt-1 mr-2"></i> <span>Support for various storage backends</span></li>
+                        <li class="flex items-start"><i class="fas fa-check mt-1 mr-2"></i> <span>Lifecycle management and cleanup</span></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="ephemeral-volume p-4 rounded">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-exclamation-triangle text-red-600"></i>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-red-800">Container Filesystem Limitations</h3>
+                        <div class="mt-2 text-sm text-red-700">
+                            <p>Container filesystems are ephemeral - data is lost when the container crashes, restarts, or the Pod is rescheduled. Volumes provide the solution for persistent data storage requirements.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Volume Concepts Section -->
+        <section id="volume-concepts" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-6 flex items-center">
+                <i class="fas fa-cube text-primary mr-3"></i> Volume Concepts
+            </h2>
+            
+            <div class="mb-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">Volume Architecture</h3>
+                        <p class="text-gray-700 mb-4">
+                            Volumes in Kubernetes follow a layered architecture that separates storage configuration from consumption, providing flexibility and abstraction.
+                        </p>
+                        
+                        <div class="bg-gray-100 p-4 rounded-lg mb-4">
+                            <div class="text-center space-y-4">
+                                <!-- Storage Backend -->
+                                <div class="bg-white p-3 rounded-lg shadow-sm border border-purple-200">
+                                    <div class="flex items-center justify-center space-x-2">
+                                        <i class="fas fa-server text-purple-500"></i>
+                                        <span class="font-semibold">Storage Backend</span>
+                                    </div>
+                                    <div class="mt-2 text-xs text-gray-600">
+                                        AWS EBS, NFS, Ceph, Local SSD
+                                    </div>
+                                </div>
+                                <div class="text-purple-500">
+                                    <i class="fas fa-arrow-down"></i>
+                                </div>
+                                
+                                <!-- Persistent Volume -->
+                                <div class="bg-white p-3 rounded-lg shadow-sm border border-green-200">
+                                    <div class="flex items-center justify-center space-x-2">
+                                        <i class="fas fa-hdd text-green-500"></i>
+                                        <span class="font-semibold">PersistentVolume</span>
+                                    </div>
+                                    <div class="mt-2 text-xs text-gray-600">
+                                        Cluster storage resource
+                                    </div>
+                                </div>
+                                <div class="text-green-500">
+                                    <i class="fas fa-arrow-down"></i>
+                                </div>
+                                
+                                <!-- Persistent Volume Claim -->
+                                <div class="bg-white p-3 rounded-lg shadow-sm border border-blue-200">
+                                    <div class="flex items-center justify-center space-x-2">
+                                        <i class="fas fa-file-contract text-blue-500"></i>
+                                        <span class="font-semibold">PersistentVolumeClaim</span>
+                                    </div>
+                                    <div class="mt-2 text-xs text-gray-600">
+                                        Storage request from user
+                                    </div>
+                                </div>
+                                <div class="text-blue-500">
+                                    <i class="fas fa-arrow-down"></i>
+                                </div>
+                                
+                                <!-- Pod -->
+                                <div class="bg-white p-3 rounded-lg shadow-sm border border-yellow-200">
+                                    <div class="flex items-center justify-center space-x-2">
+                                        <i class="fas fa-box text-yellow-500"></i>
+                                        <span class="font-semibold">Pod</span>
+                                    </div>
+                                    <div class="mt-2 text-xs text-gray-600">
+                                        Consumes volume via volumeMounts
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-100 p-6 rounded-xl">
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">Volume Lifecycle</h3>
+                        
+                        <div class="space-y-4">
+                            <div class="flex items-start">
+                                <div class="bg-purple-100 p-2 rounded-lg mr-3">
+                                    <i class="fas fa-plus-circle text-purple-600"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-gray-800">Provisioning</h4>
+                                    <p class="text-gray-600 text-sm mt-1">Storage is allocated either statically or dynamically</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start">
+                                <div class="bg-green-100 p-2 rounded-lg mr-3">
+                                    <i class="fas fa-link text-green-600"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-gray-800">Binding</h4>
+                                    <p class="text-gray-600 text-sm mt-1">PVC is bound to an available PV</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start">
+                                <div class="bg-blue-100 p-2 rounded-lg mr-3">
+                                    <i class="fas fa-plug text-blue-600"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-gray-800">Using</h4>
+                                    <p class="text-gray-600 text-sm mt-1">Pod mounts and uses the volume</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start">
+                                <div class="bg-red-100 p-2 rounded-lg mr-3">
+                                    <i class="fas fa-trash text-red-600"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-gray-800">Reclaiming</h4>
+                                    <p class="text-gray-600 text-sm mt-1">Storage is recycled when no longer needed</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4 p-3 bg-blue-50 rounded-lg">
+                            <h4 class="font-semibold text-blue-800 mb-1">Volume vs Container Storage:</h4>
+                            <ul class="text-sm text-blue-700 space-y-1">
+                                <li><strong>Container Storage:</strong> Ephemeral, tied to container lifecycle</li>
+                                <li><strong>Volume Storage:</strong> Persistent, survives container restarts</li>
+                                <li><strong>Shared Access:</strong> Multiple containers can access same volume</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Volume Types Section -->
+        <section id="volume-types" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-6 flex items-center">
+                <i class="fas fa-layer-group text-primary mr-3"></i> Volume Types
+            </h2>
+            
+            <div class="mb-8">
+                <p class="text-gray-700 mb-6">
+                    Kubernetes supports numerous volume types to accommodate different storage requirements, from local storage to cloud providers and network storage systems.
+                </p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <!-- Ephemeral -->
+                    <div class="volume-card border border-red-200 rounded-xl p-5 bg-red-50 text-center">
+                        <div class="bg-red-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-hourglass-half text-red-600 text-2xl"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-800 mb-2">Ephemeral</h3>
+                        <p class="text-gray-600 text-sm mb-4">Temporary storage</p>
+                        <div class="bg-red-100 text-red-800 px-3 py-1 rounded-full text-xs font-medium">
+                            Pod Lifetime
+                        </div>
+                    </div>
+                    
+                    <!-- Persistent -->
+                    <div class="volume-card border border-green-200 rounded-xl p-5 bg-green-50 text-center">
+                        <div class="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-hdd text-green-600 text-2xl"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-800 mb-2">Persistent</h3>
+                        <p class="text-gray-600 text-sm mb-4">Long-term storage</p>
+                        <div class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-medium">
+                            Data Persistence
+                        </div>
+                    </div>
+                    
+                    <!-- Projected -->
+                    <div class="volume-card border border-yellow-200 rounded-xl p-5 bg-yellow-50 text-center">
+                        <div class="bg-yellow-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-copy text-yellow-600 text-2xl"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-800 mb-2">Projected</h3>
+                        <p class="text-gray-600 text-sm mb-4">Multiple sources</p>
+                        <div class="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-medium">
+                            Map Multiple
+                        </div>
+                    </div>
+                    
+                    <!-- CSI -->
+                    <div class="volume-card border border-pink-200 rounded-xl p-5 bg-pink-50 text-center">
+                        <div class="bg-pink-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-plug text-pink-600 text-2xl"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-800 mb-2">CSI</h3>
+                        <p class="text-gray-600 text-sm mb-4">External storage</p>
+                        <div class="bg-pink-100 text-pink-800 px-3 py-1 rounded-full text-xs font-medium">
+                            Container Storage
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 class="text-xl font-semibold text-primary-dark mb-4">Common Volume Types</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white border border-gray-200 rounded-lg">
+                        <thead>
+                            <tr class="bg-gray-100">
+                                <th class="py-3 px-4 border-b text-left">Volume Type</th>
+                                <th class="py-3 px-4 border-b text-left">Description</th>
+                                <th class="py-3 px-4 border-b text-left">Use Case</th>
+                                <th class="py-3 px-4 border-b text-left">Persistence</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="py-3 px-4 border-b font-semibold text-red-700">emptyDir</td>
+                                <td class="py-3 px-4 border-b">Empty directory for Pod lifetime</td>
+                                <td class="py-3 px-4 border-b">Scratch space, caching</td>
+                                <td class="py-3 px-4 border-b">Ephemeral</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 border-b font-semibold text-green-700">hostPath</td>
+                                <td class="py-3 px-4 border-b">Directory from host node</td>
+                                <td class="py-3 px-4 border-b">Node-specific data</td>
+                                <td class="py-3 px-4 border-b">Node-bound</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 border-b font-semibold text-blue-700">nfs</td>
+                                <td class="py-3 px-4 border-b">NFS share mount</td>
+                                <td class="py-3 px-4 border-b">Shared network storage</td>
+                                <td class="py-3 px-4 border-b">Persistent</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 border-b font-semibold text-purple-700">configMap</td>
+                                <td class="py-3 px-4 border-b">ConfigMap data as files</td>
+                                <td class="py-3 px-4 border-b">Configuration files</td>
+                                <td class="py-3 px-4 border-b">Managed</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 border-b font-semibold text-yellow-700">secret</td>
+                                <td class="py-3 px-4 border-b">Secret data as files</td>
+                                <td class="py-3 px-4 border-b">Sensitive data</td>
+                                <td class="py-3 px-4 border-b">Managed</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 border-b font-semibold text-pink-700">persistentVolumeClaim</td>
+                                <td class="py-3 px-4 border-b">Persistent volume claim</td>
+                                <td class="py-3 px-4 border-b">Database storage</td>
+                                <td class="py-3 px-4 border-b">Persistent</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Ephemeral Volumes Section -->
+        <section id="ephemeral-volumes" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-6 flex items-center">
+                <i class="fas fa-hourglass-half text-red-600 mr-3"></i> Ephemeral Volumes
+            </h2>
+            
+            <div class="mb-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">Ephemeral Volume Types</h3>
+                        <p class="text-gray-700 mb-4">
+                            Ephemeral volumes have the same lifetime as the Pod. They are created when the Pod is scheduled and destroyed when the Pod is removed.
+                        </p>
+                        
+                        <div class="ephemeral-volume p-4 rounded mb-4">
+                            <h4 class="font-semibold text-red-800 mb-2">When to Use Ephemeral Volumes:</h4>
+                            <ul class="text-red-700 text-sm space-y-1">
+                                <li>• Temporary scratch space</li>
+                                <li>• Cache directories</li>
+                                <li>• Build artifacts</li>
+                                <li>• Temporary file processing</li>
+                                <li>• Data that doesn't need persistence</li>
+                            </ul>
+                        </div>
+                        
+                        <h4 class="font-bold text-gray-800 mb-2">Common Ephemeral Types:</h4>
+                        <ul class="list-disc list-inside text-gray-700 space-y-1">
+                            <li><strong>emptyDir:</strong> Empty directory for Pod lifetime</li>
+                            <li><strong>hostPath:</strong> Node filesystem directory (with caveats)</li>
+                            <li><strong>gitRepo:</strong> Git repository checkout (deprecated)</li>
+                        </ul>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">emptyDir Example</h3>
+                        <div class="bg-gray-800 rounded-lg p-4">
+                            <pre><code class="yaml">
+apiVersion: v1
+kind: Pod
+metadata:
+  name: emptydir-pod
+spec:
+  containers:
+  - name: writer
+    image: busybox
+    command: ["/bin/sh"]
+    args: ["-c", "while true; do echo $(date) >> /cache/timestamp; sleep 1; done"]
+    volumeMounts:
+    - name: cache-volume
+      mountPath: /cache
+      
+  - name: reader
+    image: busybox
+    command: ["/bin/sh"]
+    args: ["-c", "tail -f /cache/timestamp"]
+    volumeMounts:
+    - name: cache-volume
+      mountPath: /cache
+
+  volumes:
+  - name: cache-volume
+    emptyDir: 
+      medium: Memory  # Optional: use memory instead of disk
+      sizeLimit: 100Mi  # Optional: size limit
+
+# emptyDir is created when Pod is assigned to node
+# Survives container restarts but not Pod deletion
+# Can be backed by node's disk or memory
+                            </code></pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 class="text-xl font-semibold text-primary-dark mt-8 mb-4">hostPath Volume</h3>
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <pre><code class="yaml">
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hostpath-pod
+spec:
+  containers:
+  - name: test-container
+    image: busybox
+    command: ["/bin/sh"]
+    args: ["-c", "while true; do echo $(date) >> /host-data/log.txt; sleep 5; done"]
+    volumeMounts:
+    - name: hostpath-volume
+      mountPath: /host-data
+
+  volumes:
+  - name: hostpath-volume
+    hostPath:
+      # Required: path on the host
+      path: /data/pod-storage
+      # Optional: type of path
+      type: DirectoryOrCreate  # Other options: Directory, File, Socket, etc.
+
+# Security Considerations:
+# - Pods can access host filesystem
+# - Use only for trusted workloads
+# - Consider node affinity for specific nodes
+# - Not suitable for multi-node clusters
+                    </code></pre>
+                </div>
+                <p class="text-gray-600 text-sm mt-2">hostPath volumes mount a file or directory from the host node's filesystem into the Pod. Use with caution due to security implications.</p>
+            </div>
+        </section>
+
+        <!-- Persistent Volumes Section -->
+        <section id="persistent-volumes" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-6 flex items-center">
+                <i class="fas fa-hdd text-green-600 mr-3"></i> Persistent Volumes
+            </h2>
+            
+            <div class="mb-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">Persistent Volume (PV) Concepts</h3>
+                        <p class="text-gray-700 mb-4">
+                            A PersistentVolume (PV) is a cluster-wide storage resource provisioned by an administrator. PVs have a lifecycle independent of any individual Pod.
+                        </p>
+                        
+                        <div class="persistent-volume p-4 rounded mb-4">
+                            <h4 class="font-semibold text-green-800 mb-2">PV Characteristics:</h4>
+                            <ul class="text-green-700 text-sm space-y-1">
+                                <li>• Cluster-level resource</li>
+                                <li>• Independent of Pod lifecycle</li>
+                                <li>• Backed by physical storage</li>
+                                <li>• Supports various access modes</li>
+                                <li>• Can be statically or dynamically provisioned</li>
+                            </ul>
+                        </div>
+                        
+                        <h4 class="font-bold text-gray-800 mb-2">Access Modes:</h4>
+                        <ul class="list-disc list-inside text-gray-700 space-y-1">
+                            <li><strong>ReadWriteOnce (RWO):</strong> Read-write by single node</li>
+                            <li><strong>ReadOnlyMany (ROX):</strong> Read-only by many nodes</li>
+                            <li><strong>ReadWriteMany (RWX):</strong> Read-write by many nodes</li>
+                            <li><strong>ReadWriteOncePod (RWOP):</strong> Read-write by single Pod</li>
+                        </ul>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">PersistentVolume Example</h3>
+                        <div class="bg-gray-800 rounded-lg p-4">
+                            <pre><code class="yaml">
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-nfs
+  labels:
+    type: nfs
+    environment: production
+spec:
+  capacity:
+    storage: 10Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs-storage
+  mountOptions:
+    - hard
+    - nfsvers=4.1
+  nfs:
+    path: /exports/data
+    server: nfs-server.example.com
+
+# PV States:
+# - Available: Free and not yet bound
+# - Bound: Bound to a PVC
+# - Released: PVC deleted but resource not reclaimed
+# - Failed: Automatic reclamation failed
+
+# Reclaim Policies:
+# - Retain: Manual reclamation
+# - Recycle: Basic scrub (rm -rf /volume/*)
+# - Delete: Associated storage asset deleted
+                            </code></pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 class="text-xl font-semibold text-primary-dark mt-8 mb-4">Different PV Types</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-gray-800 rounded-lg p-4">
+                        <pre><code class="yaml">
+# AWS EBS Volume
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-aws-ebs
+spec:
+  capacity:
+    storage: 50Gi
+  accessModes:
+    - ReadWriteOnce
+  awsElasticBlockStore:
+    volumeID: vol-12345678
+    fsType: ext4
+
+# Azure Disk
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-azure-disk
+spec:
+  capacity:
+    storage: 100Gi
+  accessModes:
+    - ReadWriteOnce
+  azureDisk:
+    diskName: test.vhd
+    diskURI: https://test.blob.core.windows.net/vhds/test.vhd
+
+# GCE Persistent Disk
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-gce-pd
+spec:
+  capacity:
+    storage: 200Gi
+  accessModes:
+    - ReadWriteOnce
+  gcePersistentDisk:
+    pdName: my-data-disk
+    fsType: ext4
+                        </code></pre>
+                    </div>
+                    
+                    <div class="bg-gray-800 rounded-lg p-4">
+                        <pre><code class="yaml">
+# Local Volume
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-local
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage
+  local:
+    path: /mnt/disks/ssd1
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - node-1
+
+# Ceph RBD
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-ceph-rbd
+spec:
+  capacity:
+    storage: 2Gi
+  accessModes:
+    - ReadWriteOnce
+  rbd:
+    monitors:
+    - 10.16.154.78:6789
+    pool: kube
+    image: foo
+    user: admin
+    secretRef:
+      name: ceph-secret
+    fsType: ext4
+    readOnly: false
+                        </code></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Storage Classes Section -->
+        <section id="storage-classes" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-6 flex items-center">
+                <i class="fas fa-tags text-purple-600 mr-3"></i> Storage Classes
+            </h2>
+            
+            <div class="mb-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">StorageClass Concepts</h3>
+                        <p class="text-gray-700 mb-4">
+                            A StorageClass provides a way to describe the "classes" of storage available. Different classes might map to quality-of-service levels, backup policies, or arbitrary policies determined by cluster administrators.
+                        </p>
+                        
+                        <div class="storage-class p-4 rounded mb-4">
+                            <h4 class="font-semibold text-purple-800 mb-2">StorageClass Benefits:</h4>
+                            <ul class="text-purple-700 text-sm space-y-1">
+                                <li>• Dynamic volume provisioning</li>
+                                <li>• Storage tier abstraction</li>
+                                <li>• Policy-based storage selection</li>
+                                <li>• Cloud provider integration</li>
+                                <li>• Custom parameters for provisioners</li>
+                            </ul>
+                        </div>
+                        
+                        <h4 class="font-bold text-gray-800 mb-2">Common Provisioners:</h4>
+                        <ul class="list-disc list-inside text-gray-700 space-y-1">
+                            <li><strong>kubernetes.io/aws-ebs:</strong> AWS Elastic Block Store</li>
+                            <li><strong>kubernetes.io/gce-pd:</strong> Google Persistent Disk</li>
+                            <li><strong>kubernetes.io/azure-disk:</strong> Azure Disk</li>
+                            <li><strong>kubernetes.io/csi:</strong> Container Storage Interface</li>
+                            <li><strong>kubernetes.io/no-provisioner:</strong> Manual provisioning</li>
+                        </ul>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">StorageClass Examples</h3>
+                        <div class="bg-gray-800 rounded-lg p-4">
+                            <pre><code class="yaml">
+# AWS EBS StorageClass
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: fast-ebs
+provisioner: kubernetes.io/aws-ebs
+parameters:
+  type: gp3
+  iops: "3000"
+  throughput: "125"
+  encrypted: "true"
+  fsType: ext4
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+mountOptions:
+  - debug
+volumeBindingMode: WaitForFirstConsumer
+
+# Azure Disk StorageClass
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: managed-premium
+provisioner: kubernetes.io/azure-disk
+parameters:
+  storageaccounttype: Premium_LRS
+  kind: Managed
+reclaimPolicy: Delete
+
+# GCE PD StorageClass
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: standard-pd
+provisioner: kubernetes.io/gce-pd
+parameters:
+  type: pd-standard
+  replication-type: none
+reclaimPolicy: Delete
+                            </code></pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 class="text-xl font-semibold text-primary-dark mt-8 mb-4">Volume Binding Modes</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <h4 class="font-bold text-gray-800 mb-2">Immediate</h4>
+                        <p class="text-gray-600 text-sm mb-3">PV is bound immediately when PVC is created</p>
+                        <ul class="text-sm text-gray-600 mt-2 space-y-1">
+                            <li>✓ Fast binding</li>
+                            <li>✗ May bind to wrong topology</li>
+                            <li>✓ Good for single-zone clusters</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <h4 class="font-bold text-gray-800 mb-2">WaitForFirstConsumer</h4>
+                        <p class="text-gray-600 text-sm mb-3">PV binding is delayed until Pod using PVC is scheduled</p>
+                        <ul class="text-sm text-gray-600 mt-2 space-y-1">
+                            <li>✓ Better topology awareness</li>
+                            <li>✗ Slightly slower binding</li>
+                            <li>✓ Recommended for multi-zone clusters</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Volume Claims Section -->
+        <section id="volume-claims" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-6 flex items-center">
+                <i class="fas fa-file-contract text-blue-600 mr-3"></i> Persistent Volume Claims
+            </h2>
+            
+            <div class="mb-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">PersistentVolumeClaim (PVC) Concepts</h3>
+                        <p class="text-gray-700 mb-4">
+                            A PersistentVolumeClaim (PVC) is a request for storage by a user. It is similar to a Pod - Pods consume node resources while PVCs consume PV resources.
+                        </p>
+                        
+                        <div class="persistent-volume p-4 rounded mb-4">
+                            <h4 class="font-semibold text-green-800 mb-2">PVC Binding Process:</h4>
+                            <ol class="text-green-700 text-sm space-y-1">
+                                <li>1. User creates PVC with specific requirements</li>
+                                <li>2. Control loop looks for matching PV</li>
+                                <li>3. If no PV matches, dynamic provisioning may occur</li>
+                                <li>4. PVC bound to PV</li>
+                                <li>5. Pod can use PVC via volume mount</li>
+                            </ol>
+                        </div>
+                        
+                        <h4 class="font-bold text-gray-800 mb-2">PVC States:</h4>
+                        <ul class="list-disc list-inside text-gray-700 space-y-1">
+                            <li><strong>Pending:</strong> Waiting for PV binding</li>
+                            <li><strong>Bound:</strong> Successfully bound to PV</li>
+                            <li><strong>Lost:</strong> Bound PV no longer exists</li>
+                        </ul>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">PVC Examples</h3>
+                        <div class="bg-gray-800 rounded-lg p-4">
+                            <pre><code class="yaml">
+# Basic PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 8Gi
+  storageClassName: fast-ebs
+
+# PVC with Selector
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-pvc-with-selector
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: ""
+  selector:
+    matchLabels:
+      environment: production
+    matchExpressions:
+    - {key: tier, operator: In, values: [cache]}
+
+# PVC for existing PV
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-pvc-existing
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  volumeName: pv-nfs  # Specific PV name
+  storageClassName: ""
+                            </code></pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 class="text-xl font-semibold text-primary-dark mt-8 mb-4">Using PVC in Pods</h3>
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <pre><code class="yaml">
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pvc-pod
+spec:
+  containers:
+  - name: app-container
+    image: nginx:latest
+    volumeMounts:
+    - name: data-volume
+      mountPath: /usr/share/nginx/html
+      
+  volumes:
+  - name: data-volume
+    persistentVolumeClaim:
+      claimName: my-pvc
+      readOnly: false  # Default
+
+# StatefulSet with PVC Template
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: web
+spec:
+  serviceName: "nginx"
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+        volumeMounts:
+        - name: www
+          mountPath: /usr/share/nginx/html
+  volumeClaimTemplates:
+  - metadata:
+      name: www
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "fast-ebs"
+      resources:
+        requests:
+          storage: 1Gi
+                    </code></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- Volume Mounts Section -->
+        <section id="volume-mounts" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-6 flex items-center">
+                <i class="fas fa-folder-plus text-yellow-600 mr-3"></i> Volume Mounts
+            </h2>
+            
+            <div class="mb-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">Volume Mount Concepts</h3>
+                        <p class="text-gray-700 mb-4">
+                            Volume mounts connect volumes defined in Pod specifications to container filesystems. They determine where and how volumes are accessible within containers.
+                        </p>
+                        
+                        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded mb-4">
+                            <h4 class="font-semibold text-yellow-800 mb-2">Mount Options:</h4>
+                            <ul class="text-yellow-700 text-sm space-y-1">
+                                <li>• <strong>mountPath:</strong> Path in container filesystem</li>
+                                <li>• <strong>subPath:</strong> Mount subdirectory of volume</li>
+                                <li>• <strong>readOnly:</strong> Mount as read-only filesystem</li>
+                                <li>• <strong>mountPropagation:</strong> Share mounts with host</li>
+                            </ul>
+                        </div>
+                        
+                        <h4 class="font-bold text-gray-800 mb-2">Mount Propagation:</h4>
+                        <ul class="list-disc list-inside text-gray-700 space-y-1">
+                            <li><strong>None:</strong> No mounts are propagated (default)</li>
+                            <li><strong>HostToContainer:</strong> Host mounts propagate to container</li>
+                            <li><strong>Bidirectional:</strong> Both directions propagation</li>
+                        </ul>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">Volume Mount Examples</h3>
+                        <div class="bg-gray-800 rounded-lg p-4">
+                            <pre><code class="yaml">
+apiVersion: v1
+kind: Pod
+metadata:
+  name: volume-mount-pod
+spec:
+  containers:
+  - name: app-container
+    image: nginx:latest
+    volumeMounts:
+    # Basic mount
+    - name: config-volume
+      mountPath: /etc/nginx/conf.d
+      readOnly: true
+      
+    # SubPath mount
+    - name: shared-volume
+      mountPath: /app/config
+      subPath: app-config
+      readOnly: false
+      
+    # Multiple containers sharing volume
+    - name: log-volume
+      mountPath: /var/log/app
+      readOnly: false
+
+  - name: sidecar-container
+    image: busybox:latest
+    command: ["/bin/sh", "-c", "tail -f /logs/app.log"]
+    volumeMounts:
+    - name: log-volume
+      mountPath: /logs
+      readOnly: true
+
+  volumes:
+  - name: config-volume
+    configMap:
+      name: nginx-config
+      
+  - name: shared-volume
+    persistentVolumeClaim:
+      claimName: app-pvc
+      
+  - name: log-volume
+    emptyDir: {}
+                            </code></pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 class="text-xl font-semibold text-primary-dark mt-8 mb-4">Advanced Mount Options</h3>
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <pre><code class="yaml">
+apiVersion: v1
+kind: Pod
+metadata:
+  name: advanced-mount-pod
+spec:
+  containers:
+  - name: test-container
+    image: busybox:latest
+    command: ["/bin/sh", "-c", "sleep 3600"]
+    volumeMounts:
+    # SubPath with environment expansion
+    - name: workdir1
+      mountPath: /workdir
+      subPath: $(POD_NAME)  # Requires enableServiceLinks: true
+      
+    # SubPathExpr with downward API
+    - name: workdir2
+      mountPath: /logs
+      subPathExpr: $(POD_NAMESPACE)/$(POD_NAME)
+      
+    # Mount propagation
+    - name: host-mount
+      mountPath: /host
+      mountPropagation: HostToContainer
+
+  volumes:
+  - name: workdir1
+    persistentVolumeClaim:
+      claimName: work-pvc
+      
+  - name: workdir2
+    persistentVolumeClaim:
+      claimName: log-pvc
+      
+  - name: host-mount
+    hostPath:
+      path: /data
+      type: Directory
+
+# Enable environment variable expansion
+enableServiceLinks: true
+                    </code></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- Best Practices Section -->
+        <section id="best-practices" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-6 flex items-center">
+                <i class="fas fa-check-circle text-primary mr-3"></i> Volume Best Practices
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                    <h3 class="text-xl font-semibold text-primary-dark mb-4">Storage Design</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-start">
+                            <div class="bg-green-100 p-2 rounded-lg mr-3">
+                                <i class="fas fa-check text-green-600"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-800">Choose Appropriate Volume Types</h4>
+                                <p class="text-gray-600 text-sm mt-1">Select volume types based on data persistence requirements and access patterns.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="bg-green-100 p-2 rounded-lg mr-3">
+                                <i class="fas fa-check text-green-600"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-800">Use StorageClasses for Dynamic Provisioning</h4>
+                                <p class="text-gray-600 text-sm mt-1">Leverage StorageClasses to automate PV creation and management.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="bg-green-100 p-2 rounded-lg mr-3">
+                                <i class="fas fa-check text-green-600"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-800">Implement Proper Access Modes</h4>
+                                <p class="text-gray-600 text-sm mt-1">Choose access modes that match your application's read/write requirements.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3 class="text-xl font-semibold text-primary-dark mb-4">Operational Practices</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-start">
+                            <div class="bg-green-100 p-2 rounded-lg mr-3">
+                                <i class="fas fa-check text-green-600"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-800">Monitor Storage Usage</h4>
+                                <p class="text-gray-600 text-sm mt-1">Implement monitoring and alerting for storage capacity and performance.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="bg-green-100 p-2 rounded-lg mr-3">
+                                <i class="fas fa-check text-green-600"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-800">Implement Backup Strategies</h4>
+                                <p class="text-gray-600 text-sm mt-1">Regularly backup critical data and test restore procedures.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="bg-green-100 p-2 rounded-lg mr-3">
+                                <i class="fas fa-check text-green-600"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-800">Use Volume Snapshots</h4>
+                                <p class="text-gray-600 text-sm mt-1">Leverage VolumeSnapshot API for point-in-time backups.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-8 bg-blue-50 border-l-4 border-primary p-4 rounded">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-lightbulb text-primary"></i>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-primary">Pro Tip: Volume Expansion</h3>
+                        <div class="mt-2 text-sm text-primary">
+                            <p>Many CSI drivers and cloud providers support online volume expansion. Enable <code>allowVolumeExpansion: true</code> in your StorageClass and use <code>kubectl patch pvc my-pvc -p '{"spec":{"resources":{"requests":{"storage":"20Gi"}}}}'</code> to resize PVCs without downtime.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Commands Section -->
+        <section id="commands" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-6 flex items-center">
+                <i class="fas fa-terminal text-primary mr-3"></i> kubectl Volume Commands
+            </h2>
+            
+            <div class="mb-8">
+                <h3 class="text-xl font-semibold text-primary-dark mb-4">Essential Volume Commands</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <div>
+                        <h4 class="font-bold text-gray-800 mb-3">Basic Operations</h4>
+                        <div class="space-y-3">
+                            <div class="bg-gray-800 text-white p-3 rounded-lg">
+                                <code>kubectl get pv</code>
+                            </div>
+                            <div class="bg-gray-800 text-white p-3 rounded-lg">
+                                <code>kubectl get pvc</code>
+                            </div>
+                            <div class="bg-gray-800 text-white p-3 rounded-lg">
+                                <code>kubectl get storageclass</code>
+                            </div>
+                            <div class="bg-gray-800 text-white p-3 rounded-lg">
+                                <code>kubectl describe pv my-pv</code>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h4 class="font-bold text-gray-800 mb-3">Advanced Operations</h4>
+                        <div class="space-y-3">
+                            <div class="bg-gray-800 text-white p-3 rounded-lg">
+                                <code>kubectl patch pv my-pv -p '{"spec":{"persistentVolumeReclaimPolicy":"Retain"}}'</code>
+                            </div>
+                            <div class="bg-gray-800 text-white p-3 rounded-lg">
+                                <code>kubectl edit pvc my-pvc</code>
+                            </div>
+                            <div class="bg-gray-800 text-white p-3 rounded-lg">
+                                <code>kubectl delete pvc my-pvc</code>
+                            </div>
+                            <div class="bg-gray-800 text-white p-3 rounded-lg">
+                                <code>kubectl get pv -o json | jq '.items[] | select(.status.phase=="Available")'</code>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 class="text-xl font-semibold text-primary-dark mb-4">Troubleshooting Commands</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white border border-gray-200 rounded-lg">
+                        <thead>
+                            <tr class="bg-gray-100">
+                                <th class="py-3 px-4 border-b text-left">Command</th>
+                                <th class="py-3 px-4 border-b text-left">Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="py-3 px-4 border-b font-mono text-sm">kubectl get events --field-selector involvedObject.kind=PersistentVolumeClaim</td>
+                                <td class="py-3 px-4 border-b">View PVC-related events</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 border-b font-mono text-sm">kubectl describe pod my-pod | grep -A 10 Mounts</td>
+                                <td class="py-3 px-4 border-b">Check volume mounts in Pod</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 border-b font-mono text-sm">kubectl get pvc --all-namespaces</td>
+                                <td class="py-3 px-4 border-b">List all PVCs across namespaces</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 border-b font-mono text-sm">kubectl get pv --sort-by=.spec.capacity.storage</td>
+                                <td class="py-3 px-4 border-b">List PVs sorted by size</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="text-center text-gray-600 py-6 mt-8">
+            <p>Kubernetes Volumes Complete Guide &copy; 2023 | Master storage and data persistence in Kubernetes</p>
+        </footer>
+    </div>
+
+    <script>
+        // Initialize syntax highlighting
+        hljs.highlightAll();
+        
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+        
+        // Add active class to current section in sidebar
+        window.addEventListener('scroll', function() {
+            const sections = document.querySelectorAll('section');
+            const navLinks = document.querySelectorAll('.sidebar-nav a');
+            
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                const sectionHeight = section.clientHeight;
+                if (pageYOffset >= sectionTop - 100) {
+                    current = section.getAttribute('id');
+                }
+            });
+            
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === `#${current}`) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

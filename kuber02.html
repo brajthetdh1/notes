@@ -1,0 +1,1484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes API - Complete Guide</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#326ce5',
+                        'primary-dark': '#1a2980',
+                        secondary: '#26d0ce',
+                        kubernetes: '#326ce5',
+                        api: '#7c3aed',
+                        rest: '#059669',
+                        crd: '#dc2626',
+                        auth: '#d97706',
+                        admission: '#db2777'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .hljs { background: transparent !important; padding: 0 !important; }
+        .sidebar { scrollbar-width: thin; }
+        .sidebar::-webkit-scrollbar { width: 6px; }
+        .sidebar::-webkit-scrollbar-track { background: #1a2980; }
+        .sidebar::-webkit-scrollbar-thumb { background: #26d0ce; border-radius: 3px; }
+        .api-animation { animation: pulse 2s ease-in-out infinite; }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        .api-card { transition: all 0.3s ease; }
+        .api-card:hover { transform: translateY(-5px); }
+        .http-method { 
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.75rem;
+            margin-right: 8px;
+        }
+        .get { background: #10b981; color: white; }
+        .post { background: #3b82f6; color: white; }
+        .put { background: #f59e0b; color: white; }
+        .patch { background: #8b5cf6; color: white; }
+        .delete { background: #ef4444; color: white; }
+    </style>
+</head>
+<body class="bg-gray-50 flex">
+    <!-- Sidebar Navigation -->
+    <div class="sidebar w-64 bg-gradient-to-b from-primary-dark to-primary text-white fixed h-screen overflow-y-auto">
+        <div class="p-6 border-b border-blue-700">
+            <a href="kuber.html" class="block">
+                <div class="flex items-center space-x-3">
+                <i class="fas fa-code text-3xl text-secondary"></i>
+                <div>
+                    <h2 class="text-xl font-bold">K8s API</h2>
+                    <p class="text-blue-200 text-sm">Complete Guide</p>
+                </div>
+            </div>
+            </a>
+        </div>
+        
+        <nav class="p-4">
+            <ul class="space-y-2">
+                <li><a href="#introduction" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-info-circle w-6 text-center"></i> <span>Introduction</span></a></li>
+                <li><a href="#api-basics" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-cube w-6 text-center"></i> <span>API Basics</span></a></li>
+                <li><a href="#api-architecture" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-sitemap w-6 text-center"></i> <span>API Architecture</span></a></li>
+                <li><a href="#api-groups" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-layer-group w-6 text-center"></i> <span>API Groups</span></a></li>
+                <li><a href="#rest-operations" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-exchange-alt w-6 text-center"></i> <span>REST Operations</span></a></li>
+                <li><a href="#api-discovery" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-search w-6 text-center"></i> <span>API Discovery</span></a></li>
+                <li><a href="#custom-resources" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-puzzle-piece w-6 text-center"></i> <span>Custom Resources</span></a></li>
+                <li><a href="#authentication" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-user-shield w-6 text-center"></i> <span>Authentication</span></a></li>
+                <li><a href="#authorization" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-lock w-6 text-center"></i> <span>Authorization</span></a></li>
+                <li><a href="#admission-control" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-filter w-6 text-center"></i> <span>Admission Control</span></a></li>
+                <li><a href="#client-libraries" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-book w-6 text-center"></i> <span>Client Libraries</span></a></li>
+                <li><a href="#best-practices" class="flex items-center p-3 rounded-lg hover:bg-blue-700 transition border-l-4 border-transparent hover:border-secondary"><i class="fas fa-check-circle w-6 text-center"></i> <span>Best Practices</span></a></li>
+            </ul>
+        </nav>
+    </div>
+
+    <!-- Main Content -->
+    <div class="ml-64 flex-1 p-8">
+        <!-- Header -->
+        <header class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-4xl font-bold text-primary-dark">Kubernetes API</h1>
+                    <p class="text-gray-600 mt-2 text-lg">Complete Guide to Kubernetes API Server and RESTful Interface</p>
+                </div>
+                <div class="bg-gradient-to-r from-primary to-secondary p-4 rounded-xl text-white api-animation">
+                    <i class="fas fa-code text-4xl"></i>
+                </div>
+            </div>
+            
+            <div class="mt-6 flex flex-wrap gap-4">
+                <span class="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-sm font-medium">RESTful API</span>
+                <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">Declarative</span>
+                <span class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-sm font-medium">Extensible</span>
+                <span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">Authentication</span>
+                <span class="bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-medium">Authorization</span>
+            </div>
+        </header>
+
+        <section id="kubernetes-api" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+    <h2 class="text-2xl font-bold text-primary-dark mb-6 flex items-center">
+        <i class="fas fa-code text-primary mr-3"></i>
+        Kubernetes API: Complete Theory & Command Execution Deep Dive
+    </h2>
+
+    <!-- API Fundamentals -->
+    <div class="mb-8">
+        <h3 class="text-xl font-semibold text-primary-dark mb-4">Kubernetes API Fundamentals</h3>
+        <div class="prose max-w-none text-gray-700 space-y-4">
+            <p>
+                The Kubernetes API is the central nervous system of the entire Kubernetes ecosystem, serving as the single source of truth
+                and the primary interface for all cluster operations. It is a RESTful API that follows the OpenAPI specification, providing
+                a consistent, versioned, and discoverable interface for managing all Kubernetes resources. Every operation in Kubernetes,
+                whether initiated by a user through kubectl, by a controller, or by system components, ultimately translates to API calls
+                that are processed by the kube-apiserver.
+            </p>
+            
+            <p>
+                The API is built around the concept of resources, which are endpoints in the API that represent collections of API objects
+                of a certain kind. For example, the pods resource represents a collection of Pod objects. Each resource has a standard set
+                of operations (verbs) that can be performed on it, including create, get, list, watch, update, patch, and delete. The API
+                is organized into API groups, which are sets of related resources that evolve together. Core resources like Pods, Services,
+                and Nodes are in the core API group (often referred to as the legacy group), while newer resources are organized into named
+                API groups like apps/v1 for Deployments and ReplicaSets.
+            </p>
+
+            <div class="bg-blue-50 border-l-4 border-primary p-4 rounded my-4">
+                <p class="text-gray-700 m-0">
+                    <span class="font-bold">API Server Role:</span> The kube-apiserver is the only component that directly interacts with
+                    etcd. It validates, processes, and stores all API requests, making it the gatekeeper and source of truth for the entire
+                    cluster state. All other components, including controllers, schedulers, and kubelets, act as clients to the API server.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- API Request Lifecycle -->
+    <div class="mb-8">
+        <h3 class="text-xl font-semibold text-primary-dark mb-4">API Request Lifecycle: From Request to Persistence</h3>
+        <div class="prose max-w-none text-gray-700 space-y-4">
+            <p>
+                When a request reaches the Kubernetes API server, it goes through a sophisticated multi-stage processing pipeline that
+                ensures security, validation, and consistency. The complete lifecycle of an API request involves several distinct phases
+                that transform a raw HTTP request into a persisted cluster state change.
+            </p>
+
+            <h4 class="text-lg font-semibold text-gray-800 mt-6 mb-3">1. Authentication Phase</h4>
+            <p>
+                The first step in processing an API request is authentication, where the API server verifies the identity of the requester.
+                Kubernetes supports multiple authentication mechanisms including X.509 client certificates, bearer tokens, authenticating
+                proxies, and basic authentication. The API server attempts each authentication method in sequence until one succeeds. If
+                no authentication method succeeds, the request is rejected with a 401 status code. It's important to note that authentication
+                only establishes who is making the request, not what they are allowed to do.
+            </p>
+
+            <h4 class="text-lg font-semibold text-gray-800 mt-6 mb-3">2. Authorization Phase</h4>
+            <p>
+                Once authenticated, the request proceeds to authorization, where the API server determines whether the authenticated user
+                has permission to perform the requested action. Kubernetes primarily uses Role-Based Access Control (RBAC) for authorization,
+                though it also supports other modes like ABAC (Attribute-Based Access Control) and Webhook authorization. RBAC evaluates
+                whether there exists a Role or ClusterRole that grants the necessary permissions to the user or their group, and whether
+                a RoleBinding or ClusterRoleBinding links that role to the user.
+            </p>
+
+            <h4 class="text-lg font-semibold text-gray-800 mt-6 mb-3">3. Admission Control Phase</h4>
+            <p>
+                After authorization, the request enters the admission control phase, which consists of two types of admission controllers:
+                mutating and validating. Mutating admission controllers can modify the incoming object before it's persisted. For example,
+                they might inject sidecar containers, set default resource limits, or add labels. Validating admission controllers cannot
+                modify objects but can reject requests that violate policies. Common admission controllers include NamespaceLifecycle
+                (prevents object creation in non-existent namespaces), LimitRanger (enforces resource limits), and ResourceQuota (enforces
+                namespace quotas).
+            </p>
+
+            <h4 class="text-lg font-semibold text-gray-800 mt-6 mb-3">4. Validation and Schema Checking</h4>
+            <p>
+                Before persistence, the API server performs schema validation to ensure that the object conforms to the expected API schema.
+                This includes checking required fields, validating field types, and ensuring that values are within acceptable ranges. The
+                schema validation is based on the OpenAPI specification that the API server exposes, ensuring that only well-formed objects
+                are accepted.
+            </p>
+
+            <h4 class="text-lg font-semibold text-gray-800 mt-6 mb-3">5. Persistence to etcd</h4>
+            <p>
+                Finally, the validated and admitted object is persisted to etcd, the cluster's persistent key-value store. The API server
+                writes the object to the appropriate key in etcd and updates the resource version. Once persisted, the change becomes
+                visible to other components through the watch mechanism.
+            </p>
+
+            <div class="bg-green-50 border-l-4 border-green-400 p-4 rounded my-4">
+                <p class="text-gray-700 m-0">
+                    <span class="font-bold">Request Flow Summary:</span> HTTP Request → Authentication → Authorization → Mutating Admission →
+                    Validating Admission → Schema Validation → etcd Persistence → Response to Client. This multi-stage pipeline ensures
+                    that only authorized, validated, and policy-compliant changes are made to the cluster state.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- kubectl Command Execution Deep Dive -->
+    <div class="mb-8">
+        <h3 class="text-xl font-semibold text-primary-dark mb-4">kubectl Command Execution: Behind the Scenes</h3>
+        <div class="prose max-w-none text-gray-700 space-y-4">
+            <p>
+                When you run a kubectl command, it undergoes a complex transformation from a simple command-line instruction to a series
+                of API calls that orchestrate changes across the entire cluster. Understanding this process is crucial for effective
+                troubleshooting and advanced Kubernetes operations.
+            </p>
+
+            <h4 class="text-lg font-semibold text-gray-800 mt-6 mb-3">kubectl apply -f deployment.yaml: The Complete Journey</h4>
+            <p>
+                Let's examine what happens when you run <code>kubectl apply -f deployment.yaml</code>, one of the most common Kubernetes
+                operations. This seemingly simple command triggers a sophisticated sequence of events across the cluster.
+            </p>
+
+            <div class="bg-gray-800 rounded-lg p-4 my-4">
+                <pre><code class="text-white text-sm">
+# Step-by-step execution of: kubectl apply -f deployment.yaml
+
+1. kubectl reads and parses the YAML file
+2. kubectl constructs HTTP request to API server
+3. API server processes request through authn/authz pipeline
+4. Admission controllers mutate/validate the Deployment
+5. Deployment object persisted to etcd
+6. Deployment controller detects new Deployment
+7. Deployment controller creates ReplicaSet
+8. ReplicaSet controller detects new ReplicaSet  
+9. ReplicaSet controller creates Pod specifications
+10. Scheduler assigns Pods to Nodes
+11. kubelet on each node creates containers
+12. Containers start running and report status
+                </code></pre>
+            </div>
+
+            <p>
+                <strong>Phase 1: Client-Side Processing</strong> - kubectl first reads the YAML file and parses it into internal Go structs.
+                It then checks the current state of the resource in the cluster by making a GET request to the API server. kubectl computes
+                the difference between the desired state (from the YAML) and the current state (from the API server), and generates a strategic
+                merge patch. This patch contains only the changes needed to transform the current state into the desired state.
+            </p>
+
+            <p>
+                <strong>Phase 2: API Server Processing</strong> - kubectl sends a PATCH request to the API server's endpoint for the
+                Deployment resource. The API server processes this request through the complete authentication, authorization, and admission
+                control pipeline. If the Deployment doesn't exist, kubectl falls back to a CREATE operation. The API server validates the
+                patch against the Deployment schema and applies it to the current object.
+            </p>
+
+            <p>
+                <strong>Phase 3: Controller Reconciliation</strong> - Once the Deployment is persisted to etcd, the Deployment controller
+                (running in kube-controller-manager) detects the change through its watch on Deployment objects. The controller compares
+                the desired replica count with the current number of available Pods and creates a ReplicaSet if needed. The ReplicaSet
+                controller then detects the new ReplicaSet and creates Pod specifications to match the desired replica count.
+            </p>
+
+            <p>
+                <strong>Phase 4: Pod Scheduling and Execution</strong> - The scheduler detects the newly created Pods (which are in Pending
+                state) and assigns each Pod to a suitable Node based on resource availability, node selectors, affinity rules, and other
+                constraints. The kubelet on each assigned Node detects the Pod assignment and instructs the container runtime to create
+                the containers. The kubelet continuously reports the Pod status back to the API server.
+            </p>
+        </div>
+    </div>
+
+    <!-- Detailed Command Analysis -->
+    <div class="mb-8">
+        <h3 class="text-xl font-semibold text-primary-dark mb-4">Detailed Command Analysis: Common Operations</h3>
+
+        <div class="space-y-6">
+            <!-- kubectl get pods -->
+            <div class="border border-gray-200 rounded-lg">
+                <div class="bg-blue-50 px-4 py-3 border-b">
+                    <h4 class="font-semibold text-blue-800">kubectl get pods -o wide --watch</h4>
+                </div>
+                <div class="p-4">
+                    <div class="prose max-w-none text-gray-700">
+                        <p>
+                            This command demonstrates several advanced API features working together. The <code>get pods</code> operation
+                            translates to a LIST request to the <code>/api/v1/namespaces/{namespace}/pods</code> endpoint. The <code>-o wide</code>
+                            flag causes kubectl to request additional fields from the API server and format them in a tabular view.
+                        </p>
+                        
+                        <p>
+                            The <code>--watch</code> flag is particularly interesting. Instead of making a single request, kubectl first makes
+                            a LIST request to get the current state, then opens a persistent HTTP connection to the WATCH endpoint. The API
+                            server streams events (ADDED, MODIFIED, DELETED) to the client as they occur. This watch mechanism is the foundation
+                            for Kubernetes' reactive architecture - it's how controllers, the scheduler, and kubelets stay synchronized with
+                            the cluster state.
+                        </p>
+
+                        <div class="bg-gray-800 rounded-lg p-4 mt-3">
+                            <pre><code class="text-white text-sm">
+# What kubectl actually does:
+1. GET /api/v1/namespaces/default/pods?watch=true
+2. Server responds with initial list followed by event stream:
+   {"type":"ADDED","object":{...}}
+   {"type":"MODIFIED","object":{...}}
+   {"type":"DELETED","object":{...}}
+3. kubectl parses each event and updates the display
+                            </code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- kubectl exec -->
+            <div class="border border-gray-200 rounded-lg">
+                <div class="bg-green-50 px-4 py-3 border-b">
+                    <h4 class="font-semibold text-green-800">kubectl exec -it my-pod -- /bin/bash</h4>
+                </div>
+                <div class="p-4">
+                    <div class="prose max-w-none text-gray-700">
+                        <p>
+                            The exec command demonstrates Kubernetes' ability to handle streaming protocols through the API server. When you
+                            run this command, kubectl doesn't directly connect to the Pod. Instead, it makes a POST request to the
+                            <code>/api/v1/namespaces/{namespace}/pods/{name}/exec</code> endpoint with several important parameters.
+                        </p>
+
+                        <p>
+                            The API server acts as a proxy, forwarding the request to the kubelet on the node where the Pod is running. The
+                            kubelet then establishes a connection to the container runtime and creates a streaming session. This multi-hop
+                            architecture ensures that all exec sessions are authenticated, authorized, and audited through the central API
+                            server, even though the actual data stream bypasses it for performance reasons.
+                        </p>
+
+                        <div class="bg-gray-800 rounded-lg p-4 mt-3">
+                            <pre><code class="text-white text-sm">
+# Execution flow:
+1. kubectl → API server: POST /api/v1/namespaces/default/pods/my-pod/exec
+   Parameters: command=/bin/bash, stdin=true, stdout=true, tty=true
+   
+2. API server → kubelet: Forwarded request with authentication
+   
+3. kubelet → container runtime: Create exec session
+   
+4. Establish bidirectional streams:
+   kubectl ↔ API server ↔ kubelet ↔ container
+                            </code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- kubectl logs -->
+            <div class="border border-gray-200 rounded-lg">
+                <div class="bg-purple-50 px-4 py-3 border-b">
+                    <h4 class="font-semibold text-purple-800">kubectl logs -f deployment/my-app</h4>
+                </div>
+                <div class="p-4">
+                    <div class="prose max-w-none text-gray-700">
+                        <p>
+                            This command showcases how kubectl can abstract complex operations into simple commands. Here, kubectl first
+                            queries the API server to discover all Pods belonging to the Deployment, then opens multiple log streams
+                            simultaneously.
+                        </p>
+
+                        <p>
+                            The log retrieval goes through the API server, which proxies the request to the appropriate kubelets. Each kubelet
+                            reads logs from the container runtime and streams them back. The <code>-f</code> (follow) flag causes kubectl to
+                            keep the connections open and stream new log lines as they're generated, similar to the tail -f command in Unix.
+                        </p>
+
+                        <div class="bg-gray-800 rounded-lg p-4 mt-3">
+                            <pre><code class="text-white text-sm">
+# Log retrieval process:
+1. kubectl GET /apis/apps/v1/namespaces/default/deployments/my-app
+2. Extract selector labels from Deployment
+3. kubectl GET /api/v1/namespaces/default/pods?labelSelector=...
+4. For each Pod, GET /api/v1/namespaces/default/pods/{pod-name}/log?follow=true
+5. API server proxies each request to the appropriate kubelet
+6. kubelet reads logs from container runtime and streams back
+7. kubectl aggregates and displays logs from all Pods
+                            </code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- API Resources and Discovery -->
+    <div class="mb-8">
+        <h3 class="text-xl font-semibold text-primary-dark mb-4">API Resources and Discovery Mechanism</h3>
+        <div class="prose max-w-none text-gray-700 space-y-4">
+            <p>
+                Kubernetes employs a sophisticated API discovery mechanism that allows clients to dynamically learn about available
+                resources and their capabilities. This is why kubectl can work with custom resources without needing precompiled knowledge
+                of them.
+            </p>
+
+            <p>
+                When kubectl starts, it queries the API server's discovery endpoints to build a complete map of available API resources.
+                The primary discovery endpoint is <code>/apis</code>, which returns a list of all available API groups. For each API group,
+                kubectl queries the group version endpoint (e.g., <code>/apis/apps/v1</code>) to discover the resources available in that
+                group and their supported operations.
+            </p>
+
+            <p>
+                This discovery mechanism enables several powerful features. It allows kubectl to provide tab completion for resource types,
+                validate resource names and namespaces, and handle custom resources defined through CustomResourceDefinitions (CRDs). When
+                you create a CRD, the API server automatically exposes endpoints for that custom resource, and kubectl can discover and
+                interact with it just like built-in resources.
+            </p>
+
+            <div class="bg-gray-800 rounded-lg p-4 my-4">
+                <pre><code class="text-white text-sm">
+# API Discovery Flow
+1. kubectl GET /apis
+   Response: {"groups": [{"name": "apps", "versions": [...]}]}
+
+2. kubectl GET /apis/apps/v1
+   Response: {"resources": [{"name": "deployments", "verbs": [...]}]}
+
+3. kubectl now knows how to interact with deployments.apps/v1
+
+# For custom resources:
+1. User creates CustomResourceDefinition
+2. API server automatically exposes /apis/your-group/your-version
+3. kubectl discovers the new resource through normal discovery
+4. kubectl can now get, create, update your custom resource
+                </code></pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- Controller Watch Mechanism -->
+    <div class="mb-8">
+        <h3 class="text-xl font-semibold text-primary-dark mb-4">Controller Watch Mechanism: The Reactivity Engine</h3>
+        <div class="prose max-w-none text-gray-700 space-y-4">
+            <p>
+                The watch mechanism is the cornerstone of Kubernetes' reactive architecture. It enables components to receive real-time
+                notifications about changes to resources, allowing them to respond immediately without polling. This is how controllers
+                maintain the desired state of the cluster.
+            </p>
+
+            <p>
+                When a controller starts, it first lists all existing objects of the resource type it manages, then opens a watch connection
+                to receive updates. The API server sends events for each change, including the entire object in its new state. The controller
+                uses the resourceVersion field to ensure it doesn't miss any changes - if the watch connection breaks, the controller can
+                resume from the last resourceVersion it processed.
+            </p>
+
+            <p>
+                The watch mechanism is highly efficient because the API server can serve many watchers from a single change event. When an
+                object is updated, the API server notifies all watchers subscribed to that resource type (with optional field selectors and
+                label selectors to filter the watch). This publish-subscribe pattern scales well because the work of processing the change
+                is done once by the API server and distributed to all interested watchers.
+            </p>
+
+            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded my-4">
+                <p class="text-gray-700 m-0">
+                    <span class="font-bold">Watch Performance Characteristics:</span> The watch mechanism is designed for scalability. Watchers
+                    don't significantly impact API server performance because they're mostly idle HTTP connections. The real cost comes from
+                    the memory needed to maintain watch state and the CPU for serializing objects to JSON for each watcher. Large clusters
+                    with many watchers may need to tune API server resources accordingly.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Resource Definitions -->
+    <div class="mb-8">
+        <h3 class="text-xl font-semibold text-primary-dark mb-4">Custom Resource Definitions: Extending the API</h3>
+        <div class="prose max-w-none text-gray-700 space-y-4">
+            <p>
+                Custom Resource Definitions (CRDs) allow users to extend the Kubernetes API with their own resource types. This powerful
+                feature enables the creation of domain-specific APIs that follow the same patterns and conventions as built-in resources.
+            </p>
+
+            <p>
+                When you create a CRD, you're essentially teaching the API server about a new kind of resource. The CRD specification
+                defines the resource's API group, version, kind, and schema. Once the CRD is created, the API server automatically exposes
+                REST endpoints for that resource and handles storage in etcd. The API server also applies the same authentication,
+                authorization, and admission control pipeline to custom resources as it does to built-in resources.
+            </p>
+
+            <p>
+                The real power of CRDs emerges when combined with custom controllers. These controllers watch the custom resources and
+                take action to implement the desired state. This pattern, known as the operator pattern, allows you to encode operational
+                knowledge into software. For example, a database operator might watch for Database custom resources and automatically
+                handle tasks like provisioning, backups, scaling, and updates.
+            </p>
+
+            <div class="bg-gray-800 rounded-lg p-4 my-4">
+                <pre><code class="text-white text-sm">
+# Example: Creating and using a CRD
+
+# 1. Define the CRD
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: databases.example.com
+spec:
+  group: example.com
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema: {...}
+  scope: Namespaced
+  names:
+    plural: databases
+    singular: database
+    kind: Database
+
+# 2. Create a custom resource instance
+apiVersion: example.com/v1
+kind: Database
+metadata:
+  name: my-database
+spec:
+  version: "13"
+  storage: 100Gi
+
+# 3. Custom controller watches Database resources and takes action
+                </code></pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- API Server Internals -->
+    <div class="mb-8">
+        <h3 class="text-xl font-semibold text-primary-dark mb-4">API Server Internals: Advanced Features</h3>
+        <div class="prose max-w-none text-gray-700 space-y-4">
+            <p>
+                The API server implements several advanced features that are crucial for production Kubernetes clusters. Understanding
+                these internals helps in troubleshooting complex issues and optimizing cluster performance.
+            </p>
+
+            <h4 class="text-lg font-semibold text-gray-800 mt-6 mb-3">Etcd Optimization and Caching</h4>
+            <p>
+                To reduce load on etcd, the API server implements sophisticated caching layers. The most important is the watch cache,
+                which maintains an in-memory cache of recent resource versions. When a watcher connects, the API server can serve initial
+                state from the watch cache rather than querying etcd. The API server also implements client-side throttling to prevent
+                etcd from being overwhelmed by too many concurrent requests.
+            </p>
+
+            <h4 class="text-lg font-semibold text-gray-800 mt-6 mb-3">API Priority and Fairness</h4>
+            <p>
+                In large clusters, the API server can become a bottleneck. API Priority and Fairness (APF) is a feature that provides
+                fine-grained control over request concurrency. APF classifies requests into priority levels and ensures that high-priority
+                requests (like node heartbeats) aren't starved by low-priority requests (like bulk list operations).
+            </p>
+
+            <h4 class="text-lg font-semibold text-gray-800 mt-6 mb-3">Aggregated API Servers</h4>
+            <p>
+                Kubernetes supports aggregated API servers, which are separate API servers that can be fronted by the main kube-apiserver.
+                This allows extension APIs to be served by dedicated processes while maintaining a unified API endpoint. The main API
+                server proxies requests to aggregated servers based on the API group, providing a seamless experience for clients.
+            </p>
+
+            <div class="bg-red-50 border-l-4 border-red-400 p-4 rounded my-4">
+                <p class="text-gray-700 m-0">
+                    <span class="font-bold">API Server Scaling Considerations:</span> In high-scale environments, the API server may need
+                    tuning. Key parameters include <code>--max-requests-inflight</code> and <code>--max-mutating-requests-inflight</code>
+                    to control concurrent requests, and etcd-specific settings like <code>--etcd-compaction-interval</code> to manage
+                    storage growth. Monitoring API server metrics like request latency, error rates, and etcd performance is essential
+                    for maintaining cluster health.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Practical Examples -->
+    <div class="mb-8">
+        <h3 class="text-xl font-semibold text-primary-dark mb-4">Practical Examples: API Interactions</h3>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-white border border-gray-200 rounded-lg p-4">
+                <h4 class="font-semibold text-gray-800 mb-3">Direct API Access with curl</h4>
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <pre><code class="text-white text-sm">
+# Get cluster information
+curl -k -H "Authorization: Bearer $TOKEN" \
+  https://localhost:6443/api/v1/namespaces
+
+# Create a pod directly via API
+curl -k -X POST -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/yaml" \
+  --data-binary @pod.yaml \
+  https://localhost:6443/api/v1/namespaces/default/pods
+
+# Watch for pod changes
+curl -k -H "Authorization: Bearer $TOKEN" \
+  "https://localhost:6443/api/v1/namespaces/default/pods?watch=true"
+                    </code></pre>
+                </div>
+            </div>
+
+            <div class="bg-white border border-gray-200 rounded-lg p-4">
+                <h4 class="font-semibold text-gray-800 mb-3">kubectl with Increased Verbosity</h4>
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <pre><code class="text-white text-sm">
+# See exact API calls kubectl makes
+kubectl get pods -v=6
+# Shows: GET https://api-server/api/v1/namespaces/default/pods
+
+kubectl apply -f config.yaml -v=8
+# Shows detailed request/response including headers
+
+# Dry run to see what would be sent
+kubectl apply -f config.yaml --dry-run=client
+
+# View API discovery information
+kubectl api-resources --verbs=list -o wide
+                    </code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Conclusion -->
+    <div class="bg-gray-50 rounded-lg p-6 mt-8">
+        <h3 class="text-lg font-semibold text-gray-800 mb-3">API Architecture Summary</h3>
+        <div class="prose max-w-none text-gray-700">
+            <p>
+                The Kubernetes API is a remarkably sophisticated system that provides a consistent, secure, and scalable interface for
+                cluster management. Its RESTful design, combined with powerful features like watches, admission control, and extensibility
+                through CRDs, makes it suitable for everything from small development clusters to massive enterprise deployments.
+            </p>
+            
+            <p>
+                Understanding the API's inner workings - from the multi-stage request pipeline to the watch-based reactivity - is essential
+                for effective Kubernetes administration. This knowledge enables better troubleshooting, more efficient operations, and the
+                ability to extend Kubernetes to meet specific needs through custom resources and operators.
+            </p>
+
+            <p>
+                The API's design principles of consistency, security, and extensibility have proven remarkably durable, supporting
+                Kubernetes' evolution from a container orchestrator to a universal control plane for cloud-native applications.
+            </p>
+        </div>
+    </div>
+        </section>
+
+        <!-- Introduction Section -->
+        <section id="introduction" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-4 flex items-center">
+                <i class="fas fa-info-circle text-primary mr-3"></i> Introduction to Kubernetes API
+            </h2>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-6">
+                <div>
+                    <p class="text-gray-700 mb-4">
+                        The <strong>Kubernetes API</strong> is the fundamental interface for Kubernetes that enables declarative configuration and management of all cluster resources through RESTful endpoints.
+                    </p>
+                    <p class="text-gray-700 mb-4">
+                        Every operation in Kubernetes - whether through kubectl, dashboard, or custom controllers - goes through the API server, making it the central control plane of the cluster.
+                    </p>
+                    <div class="bg-blue-50 border-l-4 border-primary p-4 rounded mb-4">
+                        <p class="text-gray-700"><span class="font-bold">Key Concept:</span> The Kubernetes API server is the front-end of the control plane that validates and processes REST requests, updates etcd, and enables clients to query and manage cluster state.</p>
+                    </div>
+                </div>
+                <div class="bg-gradient-to-br from-primary to-secondary p-6 rounded-xl text-white">
+                    <h3 class="text-xl font-bold mb-3">API Server Features</h3>
+                    <ul class="space-y-2">
+                        <li class="flex items-start"><i class="fas fa-check mt-1 mr-2"></i> <span>RESTful API with JSON/Protobuf support</span></li>
+                        <li class="flex items-start"><i class="fas fa-check mt-1 mr-2"></i> <span>Resource validation and mutation</span></li>
+                        <li class="flex items-start"><i class="fas fa-check mt-1 mr-2"></i> <span>Authentication and authorization</span></li>
+                        <li class="flex items-start"><i class="fas fa-check mt-1 mr-2"></i> <span>Admission control webhooks</span></li>
+                        <li class="flex items-start"><i class="fas fa-check mt-1 mr-2"></i> <span>API versioning and deprecation</span></li>
+                        <li class="flex items-start"><i class="fas fa-check mt-1 mr-2"></i> <span>Custom Resource Definitions (CRDs)</span></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-lightbulb text-yellow-600"></i>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-yellow-800">API Server Role</h3>
+                        <div class="mt-2 text-sm text-yellow-700">
+                            <p>The API server is the <strong>only</strong> component that communicates with etcd. All other components (kubelet, scheduler, controller manager) interact with the cluster through the API server, ensuring consistent state and security.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- API Basics Section -->
+        <section id="api-basics" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-6 flex items-center">
+                <i class="fas fa-cube text-primary mr-3"></i> API Basics
+            </h2>
+            
+            <div class="mb-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">API Fundamentals</h3>
+                        <p class="text-gray-700 mb-4">
+                            The Kubernetes API follows REST conventions where resources are represented as objects with standard HTTP methods for operations.
+                        </p>
+                        
+                        <div class="bg-gray-100 p-4 rounded-lg mb-4">
+                            <div class="text-center space-y-4">
+                                <!-- Client -->
+                                <div class="bg-white p-3 rounded-lg shadow-sm border border-blue-200">
+                                    <div class="flex items-center justify-center space-x-2">
+                                        <i class="fas fa-laptop-code text-blue-500"></i>
+                                        <span class="font-semibold">Client</span>
+                                    </div>
+                                    <div class="mt-2 text-xs text-gray-600">
+                                        kubectl, curl, client-go
+                                    </div>
+                                </div>
+                                <div class="text-blue-500">
+                                    <i class="fas fa-arrow-down"></i>
+                                </div>
+                                
+                                <!-- API Server -->
+                                <div class="bg-white p-3 rounded-lg shadow-sm border border-green-200">
+                                    <div class="flex items-center justify-center space-x-2">
+                                        <i class="fas fa-server text-green-500"></i>
+                                        <span class="font-semibold">API Server</span>
+                                    </div>
+                                    <div class="mt-2 text-xs text-gray-600">
+                                        kube-apiserver
+                                    </div>
+                                </div>
+                                <div class="text-green-500">
+                                    <i class="fas fa-arrow-down"></i>
+                                </div>
+                                
+                                <!-- etcd -->
+                                <div class="bg-white p-3 rounded-lg shadow-sm border border-purple-200">
+                                    <div class="flex items-center justify-center space-x-2">
+                                        <i class="fas fa-database text-purple-500"></i>
+                                        <span class="font-semibold">etcd</span>
+                                    </div>
+                                    <div class="mt-2 text-xs text-gray-600">
+                                        Cluster state storage
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-100 p-6 rounded-xl">
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">API Request Flow</h3>
+                        
+                        <div class="space-y-4">
+                            <div class="flex items-start">
+                                <div class="bg-blue-100 p-2 rounded-lg mr-3">
+                                    <i class="fas fa-shield-alt text-blue-600"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-gray-800">Authentication</h4>
+                                    <p class="text-gray-600 text-sm mt-1">Verify client identity using certificates, tokens, or other methods</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start">
+                                <div class="bg-green-100 p-2 rounded-lg mr-3">
+                                    <i class="fas fa-user-check text-green-600"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-gray-800">Authorization</h4>
+                                    <p class="text-gray-600 text-sm mt-1">Check if authenticated user has permissions for requested operation</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start">
+                                <div class="bg-purple-100 p-2 rounded-lg mr-3">
+                                    <i class="fas fa-filter text-purple-600"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-gray-800">Admission Control</h4>
+                                    <p class="text-gray-600 text-sm mt-1">Validate and potentially mutate the request</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-start">
+                                <div class="bg-yellow-100 p-2 rounded-lg mr-3">
+                                    <i class="fas fa-save text-yellow-600"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-gray-800">Persistence</h4>
+                                    <p class="text-gray-600 text-sm mt-1">Store validated object in etcd</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 class="text-xl font-semibold text-primary-dark mt-8 mb-4">API Endpoint Structure</h3>
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <pre><code class="bash">
+# Core API Group (legacy)
+/api/v1/namespaces/{namespace}/pods/{name}
+/api/v1/namespaces/{namespace}/services/{name}
+/api/v1/namespaces/{namespace}/configmaps/{name}
+
+# Named API Groups
+/apis/apps/v1/namespaces/{namespace}/deployments/{name}
+/apis/batch/v1/namespaces/{namespace}/jobs/{name}
+/apis/networking.k8s.io/v1/namespaces/{namespace}/ingresses/{name}
+
+# Cluster-scoped resources
+/apis/rbac.authorization.k8s.io/v1/clusterroles/{name}
+/api/v1/nodes/{name}
+/apis/storage.k8s.io/v1/storageclasses/{name}
+
+# Custom Resources
+/apis/{group}/{version}/namespaces/{namespace}/{plural}/{name}
+/apis/{group}/{version}/{plural}/{name}  # cluster-scoped
+
+# Discovery endpoints
+/api
+/apis
+/.well-known/openid-configuration
+                    </code></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- API Architecture Section -->
+        <section id="api-architecture" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-6 flex items-center">
+                <i class="fas fa-sitemap text-primary mr-3"></i> API Architecture
+            </h2>
+            
+            <div class="mb-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">API Server Components</h3>
+                        <p class="text-gray-700 mb-4">
+                            The Kubernetes API server is built with a modular architecture that enables extensibility and flexibility through various plugins and webhooks.
+                        </p>
+                        
+                        <div class="space-y-4">
+                            <div class="border border-gray-200 rounded-lg p-4">
+                                <h4 class="font-bold text-gray-800 mb-2">REST Storage</h4>
+                                <p class="text-gray-600 text-sm">Maps API resources to storage operations in etcd</p>
+                            </div>
+                            
+                            <div class="border border-gray-200 rounded-lg p-4">
+                                <h4 class="font-bold text-gray-800 mb-2">Registry</h4>
+                                <p class="text-gray-600 text-sm">Manages resource lifecycle and business logic</p>
+                            </div>
+                            
+                            <div class="border border-gray-200 rounded-lg p-4">
+                                <h4 class="font-bold text-gray-800 mb-2">Admission Chain</h4>
+                                <p class="text-gray-600 text-sm">Sequence of admission controllers that validate/mutate requests</p>
+                            </div>
+                            
+                            <div class="border border-gray-200 rounded-lg p-4">
+                                <h4 class="font-bold text-gray-800 mb-2">Authentication & Authorization</h4>
+                                <p class="text-gray-600 text-sm">Plugins for verifying identity and permissions</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">Request Processing Pipeline</h3>
+                        <div class="bg-gray-100 p-4 rounded-lg">
+                            <ol class="list-decimal list-inside text-gray-700 space-y-3">
+                                <li><strong>HTTP Request</strong> - Client sends REST request</li>
+                                <li><strong>Authentication</strong> - Verify client credentials</li>
+                                <li><strong>Authorization</strong> - Check RBAC permissions</li>
+                                <li><strong>Admission Control</strong> - Validate and mutate resources</li>
+                                <li><strong>Validation</strong> - Schema validation</li>
+                                <li><strong>ETCD Operation</strong> - Create/update/delete in storage</li>
+                                <li><strong>Post-Operation Hooks</strong> - Additional processing</li>
+                                <li><strong>HTTP Response</strong> - Return result to client</li>
+                            </ol>
+                        </div>
+                        
+                        <div class="mt-4 p-3 bg-blue-50 rounded-lg">
+                            <h4 class="font-semibold text-blue-800 mb-1">API Server Flags:</h4>
+                            <div class="text-sm text-blue-700 space-y-1">
+                                <code>--etcd-servers</code> - etcd backend addresses<br>
+                                <code>--authorization-mode</code> - Authorization modules<br>
+                                <code>--enable-admission-plugins</code> - Admission controllers<br>
+                                <code>--runtime-config</code> - Enable/disable API groups
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 class="text-xl font-semibold text-primary-dark mt-8 mb-4">API Server Configuration</h3>
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <pre><code class="yaml">
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kube-apiserver
+  namespace: kube-system
+spec:
+  containers:
+  - name: kube-apiserver
+    image: k8s.gcr.io/kube-apiserver:v1.28.0
+    command:
+    - kube-apiserver
+    - --advertise-address=192.168.1.100
+    - --allow-privileged=true
+    - --authorization-mode=Node,RBAC
+    - --client-ca-file=/etc/kubernetes/pki/ca.crt
+    - --enable-admission-plugins=NodeRestriction,NamespaceLifecycle
+    - --enable-bootstrap-token-auth=true
+    - --etcd-cafile=/etc/kubernetes/pki/etcd/ca.crt
+    - --etcd-certfile=/etc/kubernetes/pki/apiserver-etcd-client.crt
+    - --etcd-keyfile=/etc/kubernetes/pki/apiserver-etcd-client.key
+    - --etcd-servers=https://127.0.0.1:2379
+    - --kubelet-client-certificate=/etc/kubernetes/pki/apiserver-kubelet-client.crt
+    - --kubelet-client-key=/etc/kubernetes/pki/apiserver-kubelet-client.key
+    - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
+    - --proxy-client-cert-file=/etc/kubernetes/pki/front-proxy-client.crt
+    - --proxy-client-key-file=/etc/kubernetes/pki/front-proxy-client.key
+    - --requestheader-allowed-names=front-proxy-client
+    - --requestheader-client-ca-file=/etc/kubernetes/pki/front-proxy-ca.crt
+    - --requestheader-extra-headers-prefix=X-Remote-Extra-
+    - --requestheader-group-headers=X-Remote-Group
+    - --requestheader-username-headers=X-Remote-User
+    - --secure-port=6443
+    - --service-account-issuer=https://kubernetes.default.svc.cluster.local
+    - --service-account-key-file=/etc/kubernetes/pki/sa.pub
+    - --service-account-signing-key-file=/etc/kubernetes/pki/sa.key
+    - --service-cluster-ip-range=10.96.0.0/12
+    - --tls-cert-file=/etc/kubernetes/pki/apiserver.crt
+    - --tls-private-key-file=/etc/kubernetes/pki/apiserver.key
+                    </code></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- API Groups Section -->
+        <section id="api-groups" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-6 flex items-center">
+                <i class="fas fa-layer-group text-primary mr-3"></i> API Groups
+            </h2>
+            
+            <div class="mb-8">
+                <p class="text-gray-700 mb-6">
+                    Kubernetes APIs are organized into groups for better organization, versioning, and extensibility. API groups make the API more manageable and allow for independent evolution.
+                </p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                    <div class="api-card border border-blue-200 rounded-xl p-5 bg-blue-50 text-center">
+                        <div class="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-star text-blue-600 text-2xl"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-800 mb-2">Core Group</h3>
+                        <p class="text-gray-600 text-sm mb-4">Legacy APIs without group</p>
+                        <div class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-medium">
+                            /api/v1
+                        </div>
+                    </div>
+                    
+                    <div class="api-card border border-green-200 rounded-xl p-5 bg-green-50 text-center">
+                        <div class="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-cube text-green-600 text-2xl"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-800 mb-2">Named Groups</h3>
+                        <p class="text-gray-600 text-sm mb-4">Modern API organization</p>
+                        <div class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-medium">
+                            /apis/group/version
+                        </div>
+                    </div>
+                    
+                    <div class="api-card border border-purple-200 rounded-xl p-5 bg-purple-50 text-center">
+                        <div class="bg-purple-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-puzzle-piece text-purple-600 text-2xl"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-800 mb-2">Custom Groups</h3>
+                        <p class="text-gray-600 text-sm mb-4">User-defined APIs</p>
+                        <div class="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-medium">
+                            CRDs & Operators
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 class="text-xl font-semibold text-primary-dark mb-4">Common API Groups</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white border border-gray-200 rounded-lg">
+                        <thead>
+                            <tr class="bg-gray-100">
+                                <th class="py-3 px-4 border-b text-left">API Group</th>
+                                <th class="py-3 px-4 border-b text-left">Resources</th>
+                                <th class="py-3 px-4 border-b text-left">Endpoint</th>
+                                <th class="py-3 px-4 border-b text-left">Version</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="py-3 px-4 border-b font-semibold text-blue-700">Core</td>
+                                <td class="py-3 px-4 border-b">Pods, Services, ConfigMaps, Secrets</td>
+                                <td class="py-3 px-4 border-b font-mono text-sm">/api/v1</td>
+                                <td class="py-3 px-4 border-b">v1</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 border-b font-semibold text-green-700">apps</td>
+                                <td class="py-3 px-4 border-b">Deployments, StatefulSets, DaemonSets</td>
+                                <td class="py-3 px-4 border-b font-mono text-sm">/apis/apps/v1</td>
+                                <td class="py-3 px-4 border-b">v1</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 border-b font-semibold text-purple-700">batch</td>
+                                <td class="py-3 px-4 border-b">Jobs, CronJobs</td>
+                                <td class="py-3 px-4 border-b font-mono text-sm">/apis/batch/v1</td>
+                                <td class="py-3 px-4 border-b">v1</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 border-b font-semibold text-yellow-700">networking.k8s.io</td>
+                                <td class="py-3 px-4 border-b">Ingress, NetworkPolicy</td>
+                                <td class="py-3 px-4 border-b font-mono text-sm">/apis/networking.k8s.io/v1</td>
+                                <td class="py-3 px-4 border-b">v1</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 border-b font-semibold text-red-700">rbac.authorization.k8s.io</td>
+                                <td class="py-3 px-4 border-b">Roles, RoleBindings, ClusterRoles</td>
+                                <td class="py-3 px-4 border-b font-mono text-sm">/apis/rbac.authorization.k8s.io/v1</td>
+                                <td class="py-3 px-4 border-b">v1</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 border-b font-semibold text-indigo-700">storage.k8s.io</td>
+                                <td class="py-3 px-4 border-b">StorageClass, CSIDriver</td>
+                                <td class="py-3 px-4 border-b font-mono text-sm">/apis/storage.k8s.io/v1</td>
+                                <td class="py-3 px-4 border-b">v1</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <h3 class="text-xl font-semibold text-primary-dark mt-8 mb-4">API Versioning</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <h4 class="font-bold text-gray-800 mb-2">API Version Levels</h4>
+                        <ul class="text-sm text-gray-600 space-y-2">
+                            <li><strong>Alpha</strong> (v1alpha1): Disabled by default, may be buggy</li>
+                            <li><strong>Beta</strong> (v1beta1): Enabled by default, well tested</li>
+                            <li><strong>Stable</strong> (v1): Production-ready, long-term support</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <h4 class="font-bold text-gray-800 mb-2">Version Migration</h4>
+                        <div class="bg-gray-100 p-3 rounded text-sm font-mono">
+                            # Check API versions<br>
+                            kubectl api-versions<br><br>
+                            
+                            # Check resource API version<br>
+                            kubectl explain deployment.apiVersion
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- REST Operations Section -->
+        <section id="rest-operations" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-6 flex items-center">
+                <i class="fas fa-exchange-alt text-primary mr-3"></i> REST Operations
+            </h2>
+            
+            <div class="mb-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">HTTP Methods and Operations</h3>
+                        <p class="text-gray-700 mb-4">
+                            Kubernetes API supports standard REST operations with additional Kubernetes-specific operations for specialized use cases.
+                        </p>
+                        
+                        <div class="space-y-4">
+                            <div class="border border-gray-200 rounded-lg p-4">
+                                <span class="http-method get">GET</span>
+                                <span class="font-semibold">List/Get</span>
+                                <p class="text-gray-600 text-sm mt-1">Retrieve single resource or list of resources</p>
+                            </div>
+                            
+                            <div class="border border-gray-200 rounded-lg p-4">
+                                <span class="http-method post">POST</span>
+                                <span class="font-semibold">Create</span>
+                                <p class="text-gray-600 text-sm mt-1">Create new resource</p>
+                            </div>
+                            
+                            <div class="border border-gray-200 rounded-lg p-4">
+                                <span class="http-method put">PUT</span>
+                                <span class="font-semibold">Update</span>
+                                <p class="text-gray-600 text-sm mt-1">Replace entire resource</p>
+                            </div>
+                            
+                            <div class="border border-gray-200 rounded-lg p-4">
+                                <span class="http-method patch">PATCH</span>
+                                <span class="font-semibold">Patch</span>
+                                <p class="text-gray-600 text-sm mt-1">Partial update of resource</p>
+                            </div>
+                            
+                            <div class="border border-gray-200 rounded-lg p-4">
+                                <span class="http-method delete">DELETE</span>
+                                <span class="font-semibold">Delete</span>
+                                <p class="text-gray-600 text-sm mt-1">Remove resource</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">Kubernetes-specific Operations</h3>
+                        
+                        <div class="space-y-4">
+                            <div class="border border-blue-200 rounded-lg p-4 bg-blue-50">
+                                <span class="http-method post" style="background: #8b5cf6;">POST</span>
+                                <span class="font-semibold">Watch</span>
+                                <p class="text-gray-600 text-sm mt-1">Stream resource changes (long-lived connection)</p>
+                            </div>
+                            
+                            <div class="border border-blue-200 rounded-lg p-4 bg-blue-50">
+                                <span class="http-method get" style="background: #8b5cf6;">GET</span>
+                                <span class="font-semibold">Proxy</span>
+                                <p class="text-gray-600 text-sm mt-1">Proxy connections to Pods, Services, or nodes</p>
+                            </div>
+                            
+                            <div class="border border-blue-200 rounded-lg p-4 bg-blue-50">
+                                <span class="http-method post" style="background: #8b5cf6;">POST</span>
+                                <span class="font-semibold">Exec</span>
+                                <p class="text-gray-600 text-sm mt-1">Execute command in container</p>
+                            </div>
+                            
+                            <div class="border border-blue-200 rounded-lg p-4 bg-blue-50">
+                                <span class="http-method post" style="background: #8b5cf6;">POST</span>
+                                <span class="font-semibold">Port Forward</span>
+                                <p class="text-gray-600 text-sm mt-1">Forward ports to Pod</p>
+                            </div>
+                            
+                            <div class="border border-blue-200 rounded-lg p-4 bg-blue-50">
+                                <span class="http-method get" style="background: #8b5cf6;">GET</span>
+                                <span class="font-semibold">Logs</span>
+                                <p class="text-gray-600 text-sm mt-1">Retrieve container logs</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 class="text-xl font-semibold text-primary-dark mt-8 mb-4">REST API Examples</h3>
+                <div class="bg-gray-800 rounded-lg p-4">
+                    <pre><code class="bash">
+# Get all pods in default namespace
+curl -X GET https://kubernetes/api/v1/namespaces/default/pods \
+  --header "Authorization: Bearer $TOKEN" \
+  --cacert /path/to/ca.crt
+
+# Create a deployment
+curl -X POST https://kubernetes/apis/apps/v1/namespaces/default/deployments \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/yaml" \
+  --cacert /path/to/ca.crt \
+  --data '
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.21
+        ports:
+        - containerPort: 80
+'
+
+# Watch for pod changes
+curl -X GET "https://kubernetes/api/v1/namespaces/default/pods?watch=true" \
+  --header "Authorization: Bearer $TOKEN" \
+  --cacert /path/to/ca.crt
+
+# Patch a deployment
+curl -X PATCH https://kubernetes/apis/apps/v1/namespaces/default/deployments/nginx-deployment \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/strategic-merge-patch+json" \
+  --cacert /path/to/ca.crt \
+  --data '{"spec":{"replicas":5}}'
+
+# Get logs from a pod
+curl -X GET https://kubernetes/api/v1/namespaces/default/pods/my-pod/log \
+  --header "Authorization: Bearer $TOKEN" \
+  --cacert /path/to/ca.crt
+                    </code></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- Custom Resources Section -->
+        <section id="custom-resources" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-6 flex items-center">
+                <i class="fas fa-puzzle-piece text-purple-600 mr-3"></i> Custom Resources
+            </h2>
+            
+            <div class="mb-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">Custom Resource Definitions (CRDs)</h3>
+                        <p class="text-gray-700 mb-4">
+                            CRDs extend the Kubernetes API to support custom resources, enabling users to create their own API objects and controllers.
+                        </p>
+                        
+                        <div class="bg-purple-50 border-l-4 border-purple-400 p-4 rounded mb-4">
+                            <h4 class="font-semibold text-purple-800 mb-2">CRD Benefits:</h4>
+                            <ul class="text-purple-700 text-sm space-y-1">
+                                <li>• Extend Kubernetes with domain-specific resources</li>
+                                <li>• Reuse Kubernetes tooling (kubectl, dashboard)</li>
+                                <li>• Leverage Kubernetes API conventions</li>
+                                <li>• Build custom controllers and operators</li>
+                            </ul>
+                        </div>
+                        
+                        <h4 class="font-bold text-gray-800 mb-2">CRD Components:</h4>
+                        <ul class="list-disc list-inside text-gray-700 space-y-1">
+                            <li><strong>CustomResourceDefinition:</strong> API schema definition</li>
+                            <li><strong>Custom Resource:</strong> Instances of the custom type</li>
+                            <li><strong>Controller:</strong> Business logic and reconciliation</li>
+                            <li><strong>Webhooks:</strong> Validation and mutation</li>
+                        </ul>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-xl font-semibold text-primary-dark mb-4">CRD Example</h3>
+                        <div class="bg-gray-800 rounded-lg p-4">
+                            <pre><code class="yaml">
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: databases.example.com
+spec:
+  group: example.com
+  versions:
+  - name: v1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              databaseName:
+                type: string
+              engine:
+                type: string
+                enum: [mysql, postgresql, mongodb]
+              version:
+                type: string
+              size:
+                type: string
+                pattern: "^[0-9]+(Gi|Mi)$"
+  scope: Namespaced
+  names:
+    plural: databases
+    singular: database
+    kind: Database
+    shortNames:
+    - db
+
+# Custom Resource Instance
+apiVersion: example.com/v1
+kind: Database
+metadata:
+  name: production-db
+spec:
+  databaseName: production
+  engine: postgresql
+  version: "13"
+  size: 100Gi
+                            </code></pre>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 class="text-xl font-semibold text-primary-dark mt-8 mb-4">CRD Validation and Webhooks</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-gray-800 rounded-lg p-4">
+                        <pre><code class="yaml">
+# CRD with Validation
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: cronjobs.stable.example.com
+spec:
+  validation:
+    openAPIV3Schema:
+      type: object
+      properties:
+        spec:
+          type: object
+          properties:
+            cronSpec:
+              type: string
+              pattern: '^(\d+|\*)(/\d+)?(\s+(\d+|\*)(/\d+)?){4}$'
+            replicas:
+              type: integer
+              minimum: 1
+              maximum: 10
+  # ... other fields
+                        </code></pre>
+                    </div>
+                    
+                    <div class="bg-gray-800 rounded-lg p-4">
+                        <pre><code class="yaml">
+# Validating Webhook Configuration
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: "database.example.com"
+webhooks:
+- name: "database.example.com"
+  rules:
+  - apiGroups:   ["example.com"]
+    apiVersions: ["v1"]
+    operations:  ["CREATE", "UPDATE"]
+    resources:   ["databases"]
+  clientConfig:
+    service:
+      namespace: "default"
+      name: "database-webhook-service"
+    caBundle: "Ci0tLS0tQk...<base64-encoded-ca-bundle>...tLS0tCg=="
+  admissionReviewVersions: ["v1", "v1beta1"]
+  sideEffects: None
+  timeoutSeconds: 5
+                        </code></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Best Practices Section -->
+        <section id="best-practices" class="bg-white rounded-xl shadow-sm p-8 mb-8">
+            <h2 class="text-2xl font-bold text-primary-dark mb-6 flex items-center">
+                <i class="fas fa-check-circle text-primary mr-3"></i> API Best Practices
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                    <h3 class="text-xl font-semibold text-primary-dark mb-4">API Usage Guidelines</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-start">
+                            <div class="bg-green-100 p-2 rounded-lg mr-3">
+                                <i class="fas fa-check text-green-600"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-800">Use Client Libraries</h4>
+                                <p class="text-gray-600 text-sm mt-1">Prefer client-go over direct REST calls for better error handling and resource management.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="bg-green-100 p-2 rounded-lg mr-3">
+                                <i class="fas fa-check text-green-600"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-800">Implement Retry Logic</h4>
+                                <p class="text-gray-600 text-sm mt-1">Handle transient failures with exponential backoff and retry mechanisms.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="bg-green-100 p-2 rounded-lg mr-3">
+                                <i class="fas fa-check text-green-600"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-800">Use Watch Instead of Polling</h4>
+                                <p class="text-gray-600 text-sm mt-1">Leverage watch API for real-time updates rather than periodic polling.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3 class="text-xl font-semibold text-primary-dark mb-4">Security Practices</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-start">
+                            <div class="bg-green-100 p-2 rounded-lg mr-3">
+                                <i class="fas fa-check text-green-600"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-800">Implement RBAC</h4>
+                                <p class="text-gray-600 text-sm mt-1">Use least privilege principle and proper Role-Based Access Control.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="bg-green-100 p-2 rounded-lg mr-3">
+                                <i class="fas fa-check text-green-600"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-800">Validate Webhook Configurations</h4>
+                                <p class="text-gray-600 text-sm mt-1">Properly configure validating and mutating webhooks with timeouts and failure policies.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start">
+                            <div class="bg-green-100 p-2 rounded-lg mr-3">
+                                <i class="fas fa-check text-green-600"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-gray-800">Secure etcd Access</h4>
+                                <p class="text-gray-600 text-sm mt-1">Protect etcd with TLS, authentication, and network policies.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-8 bg-blue-50 border-l-4 border-primary p-4 rounded">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-lightbulb text-primary"></i>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-primary">Pro Tip: API Priority and Fairness</h3>
+                        <div class="mt-2 text-sm text-primary">
+                            <p>Enable API Priority and Fairness (APF) to prevent noisy neighbors and ensure critical requests get through during high load. Configure with <code>--enable-priority-and-fairness=true</code> and define <code>FlowSchema</code> and <code>PriorityLevelConfiguration</code> resources.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="text-center text-gray-600 py-6 mt-8">
+            <p>Kubernetes API Complete Guide &copy; 2023 | Master the Kubernetes API Server and RESTful Interface</p>
+        </footer>
+    </div>
+
+    <script>
+        // Initialize syntax highlighting
+        hljs.highlightAll();
+        
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+        
+        // Add active class to current section in sidebar
+        window.addEventListener('scroll', function() {
+            const sections = document.querySelectorAll('section');
+            const navLinks = document.querySelectorAll('.sidebar-nav a');
+            
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                const sectionHeight = section.clientHeight;
+                if (pageYOffset >= sectionTop - 100) {
+                    current = section.getAttribute('id');
+                }
+            });
+            
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === `#${current}`) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

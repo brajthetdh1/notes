@@ -1,0 +1,3102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kubernetes Control Plane Components</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        k8s: {
+                            blue: '#326ce5',
+                            purple: '#7c3aed',
+                            green: '#10b981',
+                            orange: '#f59e0b',
+                            red: '#ef4444',
+                            indigo: '#4f46e5',
+                            teal: '#14b8a6',
+                            pink: '#ec4899',
+                            cyan: '#06b6d4'
+                        }
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'bounce-slow': 'bounce 2s infinite',
+                        'ping-slow': 'ping 2s cubic-bezier(0, 0, 0.2, 1) infinite'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        
+.theory-card {
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+.theory-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+.glow {
+    box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+}
+        .component-card {
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .component-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .connection-line {
+            position: absolute;
+            height: 2px;
+            z-index: 1;
+        }
+        .connection-dot {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            z-index: 2;
+            animation: pulse-dot 2s infinite;
+        }
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.2); }
+        }
+        .glow {
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 min-h-screen text-white">
+   
+
+    <div class="bg-gradient-to-br from-purple-900/40 via-pink-900/40 to-indigo-900/40 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-purple-700/50 shadow-2xl">
+    <!-- Header -->
+    <div class="text-center mb-10">
+        <div class="inline-block bg-gradient-to-r from-purple-500 via-pink-500 to-indigo-500 text-white px-8 py-4 rounded-full font-bold text-xl shadow-lg glow">
+            <i class="fas fa-cube mr-3"></i>Why Pods Are The Smallest Deployable Unit
+        </div>
+    </div>
+
+    <!-- Content -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+        <!-- Visual Representation -->
+        <div class="flex justify-center">
+            <div class="relative w-64 h-64">
+                <!-- Main Pod Container -->
+                <div class="absolute inset-0 bg-gradient-to-br from-purple-600/30 to-pink-600/30 rounded-2xl border-2 border-purple-500/50 shadow-lg flex items-center justify-center">
+                    <div class="text-center p-6">
+                        <i class="fas fa-cube text-4xl text-purple-300 mb-3"></i>
+                        <h3 class="text-xl font-bold text-white">Pod</h3>
+                        <p class="text-purple-200 text-sm mt-2">Atomic Unit</p>
+                    </div>
+                </div>
+                
+                <!-- Container 1 -->
+                <div class="absolute -top-2 -left-2 bg-gradient-to-br from-blue-500 to-cyan-500 w-16 h-16 rounded-lg border-2 border-blue-400 shadow-md flex items-center justify-center">
+                    <i class="fas fa-box text-white text-sm"></i>
+                </div>
+                
+                <!-- Container 2 -->
+                <div class="absolute -top-2 -right-2 bg-gradient-to-br from-green-500 to-emerald-500 w-16 h-16 rounded-lg border-2 border-green-400 shadow-md flex items-center justify-center">
+                    <i class="fas fa-box text-white text-sm"></i>
+                </div>
+                
+                <!-- Container 3 -->
+                <div class="absolute -bottom-2 -left-2 bg-gradient-to-br from-orange-500 to-yellow-500 w-16 h-16 rounded-lg border-2 border-orange-400 shadow-md flex items-center justify-center">
+                    <i class="fas fa-box text-white text-sm"></i>
+                </div>
+                
+                <!-- Container 4 -->
+                <div class="absolute -bottom-2 -right-2 bg-gradient-to-br from-red-500 to-pink-500 w-16 h-16 rounded-lg border-2 border-red-400 shadow-md flex items-center justify-center">
+                    <i class="fas fa-box text-white text-sm"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Explanation -->
+        <div class="space-y-6">
+            <div class="bg-gradient-to-r from-purple-900/50 to-pink-900/50 p-6 rounded-xl border-l-4 border-purple-400">
+                <p class="text-lg text-white leading-relaxed">
+                    A Pod represents a single instance of a running process in your cluster and serves as the atomic unit of deployment because it encapsulates one or more tightly coupled application containers that share the same execution context, including storage, networking, and namespace isolation.
+                </p>
+            </div>
+            
+            <div class="bg-gradient-to-r from-indigo-900/50 to-purple-900/50 p-6 rounded-xl border-l-4 border-indigo-400">
+                <p class="text-lg text-white leading-relaxed">
+                    Kubernetes cannot deploy individual containers directly because Pods provide the essential shared environment where co-located containers can communicate through localhost, share volumes, and coordinate their lifecycle management through a single IP address and namespace.
+                </p>
+            </div>
+            
+            <div class="bg-gradient-to-r from-pink-900/50 to-rose-900/50 p-6 rounded-xl border-l-4 border-pink-400">
+                <p class="text-lg text-white leading-relaxed">
+                    The Pod abstraction enables Kubernetes to schedule, scale, and manage containers as a cohesive unit, ensuring that applications consisting of multiple interdependent containers are always deployed together and can maintain their required communication patterns and resource sharing.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Features -->
+    <div class="mt-10 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-gradient-to-br from-blue-900/40 to-cyan-900/40 p-5 rounded-xl border border-blue-600/50 text-center">
+            <i class="fas fa-network-wired text-blue-300 text-2xl mb-3"></i>
+            <h4 class="font-bold text-white mb-2">Shared Networking</h4>
+            <p class="text-blue-200 text-sm">Containers in a Pod share the same network namespace and IP address</p>
+        </div>
+        
+        <div class="bg-gradient-to-br from-green-900/40 to-emerald-900/40 p-5 rounded-xl border border-green-600/50 text-center">
+            <i class="fas fa-hdd text-green-300 text-2xl mb-3"></i>
+            <h4 class="font-bold text-white mb-2">Shared Storage</h4>
+            <p class="text-green-200 text-sm">Volumes are shared between all containers within the same Pod</p>
+        </div>
+        
+        <div class="bg-gradient-to-br from-orange-900/40 to-yellow-900/40 p-5 rounded-xl border border-orange-600/50 text-center">
+            <i class="fas fa-sync text-orange-300 text-2xl mb-3"></i>
+            <h4 class="font-bold text-white mb-2">Lifecycle Coordination</h4>
+            <p class="text-orange-200 text-sm">Containers start and stop together as a single deployable unit</p>
+        </div>
+    </div>
+</div>
+
+
+
+<div class="bg-gradient-to-br from-cyan-900/40 via-blue-900/40 to-teal-900/40 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-cyan-700/50 shadow-2xl">
+    <!-- Header -->
+    <div class="text-center mb-10">
+        <div class="inline-block bg-gradient-to-r from-cyan-500 via-blue-500 to-teal-500 text-white px-8 py-4 rounded-full font-bold text-xl shadow-lg glow">
+            <i class="fas fa-terminal mr-3"></i>kubectl - Kubernetes Command Line Tool
+        </div>
+    </div>
+
+    <!-- Content -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        <!-- Visual Representation -->
+        <div class="flex justify-center">
+            <div class="relative w-full max-w-md">
+                <!-- Terminal Window -->
+                <div class="bg-gray-900 rounded-xl shadow-2xl border border-cyan-500/50 overflow-hidden">
+                    <!-- Terminal Header -->
+                    <div class="bg-gray-800 px-4 py-3 flex items-center border-b border-gray-700">
+                        <div class="flex space-x-2">
+                            <div class="w-3 h-3 bg-red-500 rounded-full"></div>
+                            <div class="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                            <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+                        </div>
+                        <div class="text-center flex-1">
+                            <span class="text-gray-300 font-mono text-sm">kubectl terminal</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Terminal Content -->
+                    <div class="p-6 font-mono text-sm">
+                        <div class="text-green-400 mb-4">
+                            <span class="text-white">$</span> kubectl get pods
+                        </div>
+                        <div class="text-gray-300 mb-2">
+                            NAME&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;READY&nbsp;&nbsp;STATUS&nbsp;&nbsp;RESTARTS&nbsp;&nbsp;AGE
+                        </div>
+                        <div class="text-cyan-300 mb-2">
+                            web-app&nbsp;&nbsp;&nbsp;1/1&nbsp;&nbsp;&nbsp;&nbsp;Running&nbsp;&nbsp;0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2d
+                        </div>
+                        <div class="text-cyan-300 mb-4">
+                            api-pod&nbsp;&nbsp;&nbsp;2/2&nbsp;&nbsp;&nbsp;&nbsp;Running&nbsp;&nbsp;1&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1d
+                        </div>
+                        
+                        <div class="text-green-400 mb-4">
+                            <span class="text-white">$</span> kubectl apply -f deployment.yaml
+                        </div>
+                        <div class="text-gray-300 mb-2">
+                            deployment.apps/my-app configured
+                        </div>
+                        
+                        <div class="text-green-400">
+                            <span class="text-white">$</span> kubectl describe node worker-1
+                        </div>
+                        <div class="text-gray-400 text-xs mt-2 animate-pulse">
+                            _ (cursor blinking)
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Connection Lines -->
+                <div class="absolute -top-4 -right-4 w-20 h-20 border-t-2 border-r-2 border-cyan-400 rounded-tr-xl"></div>
+                <div class="absolute -bottom-4 -left-4 w-20 h-20 border-b-2 border-l-2 border-blue-400 rounded-bl-xl"></div>
+            </div>
+        </div>
+
+        <!-- Explanation -->
+        <div class="space-y-6">
+            <div class="bg-gradient-to-r from-cyan-900/50 to-blue-900/50 p-6 rounded-xl border-l-4 border-cyan-400">
+                <p class="text-lg text-white leading-relaxed">
+                    kubectl is the official command-line interface for Kubernetes that serves as the primary tool for communicating with your Kubernetes cluster, allowing developers and administrators to control and manage every aspect of their containerized applications through a simple yet powerful terminal interface.
+                </p>
+            </div>
+            
+            <div class="bg-gradient-to-r from-blue-900/50 to-teal-900/50 p-6 rounded-xl border-l-4 border-blue-400">
+                <p class="text-lg text-white leading-relaxed">
+                    This versatile tool acts as the bridge between users and the Kubernetes API server, translating human-readable commands into API requests that create, inspect, update, and delete Kubernetes objects like Pods, Deployments, Services, and Namespaces while providing comprehensive feedback about cluster state and application health.
+                </p>
+            </div>
+            
+            <div class="bg-gradient-to-r from-teal-900/50 to-cyan-900/50 p-6 rounded-xl border-l-4 border-teal-400">
+                <p class="text-lg text-white leading-relaxed">
+                    kubectl enables both interactive management for day-to-day operations and automation through scripts by offering a rich set of features including resource management, debugging capabilities, configuration validation, and seamless integration with various authentication methods and cluster contexts for multi-environment management.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Common Use Cases -->
+    <div class="mt-10">
+        <h3 class="text-2xl font-bold text-center text-white mb-6">
+            <i class="fas fa-tasks mr-2 text-cyan-300"></i>Common kubectl Commands
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-gradient-to-br from-cyan-900/50 to-cyan-800/50 p-4 rounded-xl border border-cyan-600/50">
+                <div class="text-cyan-300 text-center mb-2">
+                    <i class="fas fa-eye text-lg"></i>
+                </div>
+                <h4 class="font-bold text-white text-center text-sm mb-2">Inspect Resources</h4>
+                <code class="text-cyan-200 text-xs block text-center">kubectl get pods</code>
+                <code class="text-cyan-200 text-xs block text-center">kubectl describe</code>
+            </div>
+            
+            <div class="bg-gradient-to-br from-blue-900/50 to-blue-800/50 p-4 rounded-xl border border-blue-600/50">
+                <div class="text-blue-300 text-center mb-2">
+                    <i class="fas fa-plus-circle text-lg"></i>
+                </div>
+                <h4 class="font-bold text-white text-center text-sm mb-2">Create Resources</h4>
+                <code class="text-blue-200 text-xs block text-center">kubectl apply -f</code>
+                <code class="text-blue-200 text-xs block text-center">kubectl create</code>
+            </div>
+            
+            <div class="bg-gradient-to-br from-teal-900/50 to-teal-800/50 p-4 rounded-xl border border-teal-600/50">
+                <div class="text-teal-300 text-center mb-2">
+                    <i class="fas fa-bug text-lg"></i>
+                </div>
+                <h4 class="font-bold text-white text-center text-sm mb-2">Debug & Logs</h4>
+                <code class="text-teal-200 text-xs block text-center">kubectl logs</code>
+                <code class="text-teal-200 text-xs block text-center">kubectl exec</code>
+            </div>
+            
+            <div class="bg-gradient-to-br from-green-900/50 to-green-800/50 p-4 rounded-xl border border-green-600/50">
+                <div class="text-green-300 text-center mb-2">
+                    <i class="fas fa-cogs text-lg"></i>
+                </div>
+                <h4 class="font-bold text-white text-center text-sm mb-2">Manage & Update</h4>
+                <code class="text-green-200 text-xs block text-center">kubectl rollout</code>
+                <code class="text-green-200 text-xs block text-center">kubectl scale</code>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Features -->
+    <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-gradient-to-br from-cyan-900/30 to-transparent p-4 rounded-xl border border-cyan-700/30 text-center">
+            <i class="fas fa-code text-cyan-300 text-xl mb-3"></i>
+            <h4 class="font-bold text-white mb-2">Declarative Syntax</h4>
+            <p class="text-cyan-200 text-sm">Uses YAML/JSON manifests to describe desired state</p>
+        </div>
+        
+        <div class="bg-gradient-to-br from-blue-900/30 to-transparent p-4 rounded-xl border border-blue-700/30 text-center">
+            <i class="fas fa-plug text-blue-300 text-xl mb-3"></i>
+            <h4 class="font-bold text-white mb-2">API Communication</h4>
+            <p class="text-blue-200 text-sm">Directly interacts with Kubernetes API server</p>
+        </div>
+        
+        <div class="bg-gradient-to-br from-teal-900/30 to-transparent p-4 rounded-xl border border-teal-700/30 text-center">
+            <i class="fas fa-shield-alt text-teal-300 text-xl mb-3"></i>
+            <h4 class="font-bold text-white mb-2">Authentication</h4>
+            <p class="text-teal-200 text-sm">Supports multiple auth methods and contexts</p>
+        </div>
+    </div>
+</div>
+
+
+
+
+<div class="bg-gradient-to-br from-amber-900/40 via-orange-900/40 to-yellow-900/40 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-amber-700/50 shadow-2xl">
+    <!-- Header -->
+    <div class="text-center mb-10">
+        <div class="inline-block bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500 text-white px-8 py-4 rounded-full font-bold text-xl shadow-lg glow">
+            <i class="fas fa-file-code mr-3"></i>YAML Manifest Files in Kubernetes
+        </div>
+    </div>
+
+    <!-- Content -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        <!-- Definition Section -->
+        <div class="space-y-6">
+            <div class="bg-gradient-to-r from-amber-900/50 to-orange-900/50 p-6 rounded-xl border-l-4 border-amber-400">
+                <h3 class="text-xl font-bold text-white mb-4 flex items-center">
+                    <i class="fas fa-info-circle mr-3 text-amber-300"></i>
+                    What is a YAML Manifest File?
+                </h3>
+                <p class="text-lg text-white leading-relaxed">
+                    A YAML manifest file is a declarative configuration file that describes the desired state of Kubernetes resources using YAML syntax, serving as the primary method for defining, deploying, and managing applications and infrastructure within a Kubernetes cluster through human-readable text documents.
+                </p>
+            </div>
+            
+            <div class="bg-gradient-to-r from-orange-900/50 to-red-900/50 p-6 rounded-xl border-l-4 border-orange-400">
+                <h3 class="text-xl font-bold text-white mb-4 flex items-center">
+                    <i class="fas fa-cogs mr-3 text-orange-300"></i>
+                    How Kubernetes Uses Manifests
+                </h3>
+                <p class="text-lg text-white leading-relaxed">
+                    Kubernetes uses these manifest files as blueprints to create and maintain the desired state of resources, where the control plane continuously monitors actual cluster state and reconciles it with the specifications defined in your YAML files to ensure your applications run exactly as declared.
+                </p>
+            </div>
+        </div>
+
+        <!-- YAML Structure Visual -->
+        <div class="bg-gray-900/80 rounded-xl p-6 border border-amber-600/30 shadow-lg">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-bold text-amber-300">
+                    <i class="fas fa-sitemap mr-2"></i>YAML Manifest Structure
+                </h3>
+                <span class="bg-amber-500/20 text-amber-300 px-3 py-1 rounded-full text-sm font-mono">deployment.yaml</span>
+            </div>
+            
+            <div class="space-y-4 font-mono text-sm">
+                <!-- API Version -->
+                <div class="flex items-start group hover:bg-amber-900/30 p-2 rounded transition-colors">
+                    <span class="text-blue-400 mr-4">1</span>
+                    <span class="text-purple-400">apiVersion:</span>
+                    <span class="text-green-400 ml-2">apps/v1</span>
+                    <span class="ml-4 text-amber-300 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <i class="fas fa-tag mr-1"></i>API Group
+                    </span>
+                </div>
+                
+                <!-- Kind -->
+                <div class="flex items-start group hover:bg-amber-900/30 p-2 rounded transition-colors">
+                    <span class="text-blue-400 mr-4">2</span>
+                    <span class="text-purple-400">kind:</span>
+                    <span class="text-green-400 ml-2">Deployment</span>
+                    <span class="ml-4 text-amber-300 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <i class="fas fa-shapes mr-1"></i>Resource Type
+                    </span>
+                </div>
+                
+                <!-- Metadata -->
+                <div class="flex items-start group hover:bg-amber-900/30 p-2 rounded transition-colors">
+                    <span class="text-blue-400 mr-4">3</span>
+                    <span class="text-purple-400">metadata:</span>
+                    <span class="ml-4 text-amber-300 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <i class="fas fa-info-circle mr-1"></i>Identity Info
+                    </span>
+                </div>
+                <div class="ml-8 space-y-2">
+                    <div class="flex items-start group hover:bg-amber-900/30 p-2 rounded transition-colors">
+                        <span class="text-blue-400 mr-4">4</span>
+                        <span class="text-purple-400">name:</span>
+                        <span class="text-green-400 ml-2">my-app</span>
+                    </div>
+                    <div class="flex items-start group hover:bg-amber-900/30 p-2 rounded transition-colors">
+                        <span class="text-blue-400 mr-4">5</span>
+                        <span class="text-purple-400">labels:</span>
+                    </div>
+                    <div class="ml-8 space-y-1">
+                        <div class="flex items-start">
+                            <span class="text-blue-400 mr-4">6</span>
+                            <span class="text-purple-400">app:</span>
+                            <span class="text-green-400 ml-2">nginx</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Spec -->
+                <div class="flex items-start group hover:bg-amber-900/30 p-2 rounded transition-colors">
+                    <span class="text-blue-400 mr-4">7</span>
+                    <span class="text-purple-400">spec:</span>
+                    <span class="ml-4 text-amber-300 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <i class="fas fa-cog mr-1"></i>Desired State
+                    </span>
+                </div>
+                <div class="ml-8 space-y-2">
+                    <div class="flex items-start">
+                        <span class="text-blue-400 mr-4">8</span>
+                        <span class="text-purple-400">replicas:</span>
+                        <span class="text-cyan-400 ml-2">3</span>
+                    </div>
+                    <div class="flex items-start">
+                        <span class="text-blue-400 mr-4">9</span>
+                        <span class="text-purple-400">selector:</span>
+                    </div>
+                    <div class="ml-8">
+                        <div class="flex items-start">
+                            <span class="text-blue-400 mr-4">10</span>
+                            <span class="text-purple-400">matchLabels:</span>
+                        </div>
+                        <div class="ml-8">
+                            <div class="flex items-start">
+                                <span class="text-blue-400 mr-4">11</span>
+                                <span class="text-purple-400">app:</span>
+                                <span class="text-green-400 ml-2">nginx</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Sections -->
+    <div class="mt-10">
+        <h3 class="text-2xl font-bold text-center text-white mb-8">
+            <i class="fas fa-layer-group mr-3 text-amber-300"></i>
+            Main Sections of a YAML Manifest
+        </h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <!-- API Version -->
+            <div class="bg-gradient-to-br from-blue-900/40 to-cyan-900/40 p-5 rounded-xl border border-blue-600/50 text-center">
+                <div class="bg-gradient-to-br from-blue-500 to-cyan-500 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-code-branch text-white"></i>
+                </div>
+                <h4 class="font-bold text-white mb-3">apiVersion</h4>
+                <p class="text-blue-200 text-sm">Specifies the API group and version for the resource, determining which API server endpoint will handle the request</p>
+            </div>
+            
+            <!-- Kind -->
+            <div class="bg-gradient-to-br from-purple-900/40 to-pink-900/40 p-5 rounded-xl border border-purple-600/50 text-center">
+                <div class="bg-gradient-to-br from-purple-500 to-pink-500 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-shapes text-white"></i>
+                </div>
+                <h4 class="font-bold text-white mb-3">kind</h4>
+                <p class="text-purple-200 text-sm">Defines the type of Kubernetes resource being created, such as Pod, Deployment, Service, or ConfigMap</p>
+            </div>
+            
+            <!-- Metadata -->
+            <div class="bg-gradient-to-br from-green-900/40 to-emerald-900/40 p-5 rounded-xl border border-green-600/50 text-center">
+                <div class="bg-gradient-to-br from-green-500 to-emerald-500 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-info-circle text-white"></i>
+                </div>
+                <h4 class="font-bold text-white mb-3">metadata</h4>
+                <p class="text-green-200 text-sm">Contains identifying information including name, labels, annotations, and namespace for resource identification</p>
+            </div>
+            
+            <!-- Spec -->
+            <div class="bg-gradient-to-br from-amber-900/40 to-orange-900/40 p-5 rounded-xl border border-amber-600/50 text-center">
+                <div class="bg-gradient-to-br from-amber-500 to-orange-500 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-cogs text-white"></i>
+                </div>
+                <h4 class="font-bold text-white mb-3">spec</h4>
+                <p class="text-amber-200 text-sm">Describes the desired state and characteristics of the resource, containing all configuration parameters</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Additional Sections -->
+    <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-gradient-to-r from-gray-900/50 to-gray-800/50 p-5 rounded-xl border border-gray-600">
+            <h4 class="font-bold text-white mb-3 flex items-center">
+                <i class="fas fa-eye mr-3 text-cyan-400"></i>
+                Optional Sections
+            </h4>
+            <ul class="text-gray-300 space-y-2">
+                <li class="flex items-start">
+                    <i class="fas fa-chevron-right text-cyan-400 mr-2 mt-1 text-xs"></i>
+                    <span><strong>status:</strong> Automatically managed by Kubernetes to show current state</span>
+                </li>
+                <li class="flex items-start">
+                    <i class="fas fa-chevron-right text-cyan-400 mr-2 mt-1 text-xs"></i>
+                    <span><strong>data:</strong> Used in ConfigMaps and Secrets for storing configuration data</span>
+                </li>
+                <li class="flex items-start">
+                    <i class="fas fa-chevron-right text-cyan-400 mr-2 mt-1 text-xs"></i>
+                    <span><strong>rules:</strong> Defines permissions in RBAC Role resources</span>
+                </li>
+            </ul>
+        </div>
+        
+        <div class="bg-gradient-to-r from-gray-900/50 to-gray-800/50 p-5 rounded-xl border border-gray-600">
+            <h4 class="font-bold text-white mb-3 flex items-center">
+                <i class="fas fa-lightbulb mr-3 text-yellow-400"></i>
+                Key Characteristics
+            </h4>
+            <ul class="text-gray-300 space-y-2">
+                <li class="flex items-start">
+                    <i class="fas fa-check text-green-400 mr-2 mt-1 text-xs"></i>
+                    <span>Declarative configuration - describe WHAT you want, not HOW</span>
+                </li>
+                <li class="flex items-start">
+                    <i class="fas fa-check text-green-400 mr-2 mt-1 text-xs"></i>
+                    <span>Human-readable and machine-parsable format</span>
+                </li>
+                <li class="flex items-start">
+                    <i class="fas fa-check text-green-400 mr-2 mt-1 text-xs"></i>
+                    <span>Can be version controlled and managed as code</span>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+
+
+
+<div class="bg-gradient-to-br from-cyan-900/40 via-blue-900/40 to-teal-900/40 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-cyan-600/50 shadow-2xl">
+    <!-- Header -->
+    <div class="text-center mb-10">
+        <div class="inline-block bg-gradient-to-r from-cyan-500 via-blue-500 to-teal-500 text-white px-8 py-4 rounded-full font-bold text-xl shadow-lg glow">
+            <i class="fas fa-shapes mr-3"></i>Kubernetes Objects
+        </div>
+    </div>
+
+    <!-- Definition -->
+    <div class="bg-gradient-to-r from-blue-900/50 to-cyan-900/50 p-6 rounded-xl border-l-4 border-cyan-400 mb-8">
+        <p class="text-lg text-white leading-relaxed">
+            Kubernetes Objects are persistent entities in the Kubernetes system that represent the state of your cluster. They describe what containerized applications are running, on which nodes, what resources they use, and policies around how those applications behave.
+        </p>
+    </div>
+
+    <!-- Common Objects Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- Pod -->
+        <div class="bg-gradient-to-br from-blue-600/20 to-cyan-600/20 border-l-4 border-blue-400 rounded-xl p-5 component-card">
+            <div class="flex items-start mb-3">
+                <div class="bg-gradient-to-br from-blue-500 to-cyan-500 p-2 rounded-lg mr-3 shadow-md">
+                    <i class="fas fa-cube text-white text-lg"></i>
+                </div>
+                <h3 class="text-lg font-bold text-white">Pod</h3>
+            </div>
+            <p class="text-blue-200 text-sm">Smallest deployable unit containing one or more containers</p>
+        </div>
+
+        <!-- Deployment -->
+        <div class="bg-gradient-to-br from-green-600/20 to-emerald-600/20 border-l-4 border-green-400 rounded-xl p-5 component-card">
+            <div class="flex items-start mb-3">
+                <div class="bg-gradient-to-br from-green-500 to-emerald-500 p-2 rounded-lg mr-3 shadow-md">
+                    <i class="fas fa-layer-group text-white text-lg"></i>
+                </div>
+                <h3 class="text-lg font-bold text-white">Deployment</h3>
+            </div>
+            <p class="text-green-200 text-sm">Manages Pod replicas and rolling updates</p>
+        </div>
+
+        <!-- Service -->
+        <div class="bg-gradient-to-br from-purple-600/20 to-pink-600/20 border-l-4 border-purple-400 rounded-xl p-5 component-card">
+            <div class="flex items-start mb-3">
+                <div class="bg-gradient-to-br from-purple-500 to-pink-500 p-2 rounded-lg mr-3 shadow-md">
+                    <i class="fas fa-plug text-white text-lg"></i>
+                </div>
+                <h3 class="text-lg font-bold text-white">Service</h3>
+            </div>
+            <p class="text-purple-200 text-sm">Abstract way to expose an application running on Pods</p>
+        </div>
+
+        <!-- ConfigMap -->
+        <div class="bg-gradient-to-br from-orange-600/20 to-yellow-600/20 border-l-4 border-orange-400 rounded-xl p-5 component-card">
+            <div class="flex items-start mb-3">
+                <div class="bg-gradient-to-br from-orange-500 to-yellow-500 p-2 rounded-lg mr-3 shadow-md">
+                    <i class="fas fa-cog text-white text-lg"></i>
+                </div>
+                <h3 class="text-lg font-bold text-white">ConfigMap</h3>
+            </div>
+            <p class="text-orange-200 text-sm">Stores configuration data as key-value pairs</p>
+        </div>
+
+        <!-- Secret -->
+        <div class="bg-gradient-to-br from-red-600/20 to-rose-600/20 border-l-4 border-red-400 rounded-xl p-5 component-card">
+            <div class="flex items-start mb-3">
+                <div class="bg-gradient-to-br from-red-500 to-rose-500 p-2 rounded-lg mr-3 shadow-md">
+                    <i class="fas fa-key text-white text-lg"></i>
+                </div>
+                <h3 class="text-lg font-bold text-white">Secret</h3>
+            </div>
+            <p class="text-red-200 text-sm">Stores sensitive information like passwords and tokens</p>
+        </div>
+
+        <!-- Volume -->
+        <div class="bg-gradient-to-br from-indigo-600/20 to-violet-600/20 border-l-4 border-indigo-400 rounded-xl p-5 component-card">
+            <div class="flex items-start mb-3">
+                <div class="bg-gradient-to-br from-indigo-500 to-violet-500 p-2 rounded-lg mr-3 shadow-md">
+                    <i class="fas fa-database text-white text-lg"></i>
+                </div>
+                <h3 class="text-lg font-bold text-white">Volume</h3>
+            </div>
+            <p class="text-indigo-200 text-sm">Provides persistent storage to Pods</p>
+        </div>
+
+        <!-- Namespace -->
+        <div class="bg-gradient-to-br from-teal-600/20 to-cyan-600/20 border-l-4 border-teal-400 rounded-xl p-5 component-card">
+            <div class="flex items-start mb-3">
+                <div class="bg-gradient-to-br from-teal-500 to-cyan-500 p-2 rounded-lg mr-3 shadow-md">
+                    <i class="fas fa-folder text-white text-lg"></i>
+                </div>
+                <h3 class="text-lg font-bold text-white">Namespace</h3>
+            </div>
+            <p class="text-teal-200 text-sm">Virtual cluster providing isolation and scope</p>
+        </div>
+
+        <!-- Ingress -->
+        <div class="bg-gradient-to-br from-amber-600/20 to-orange-600/20 border-l-4 border-amber-400 rounded-xl p-5 component-card">
+            <div class="flex items-start mb-3">
+                <div class="bg-gradient-to-br from-amber-500 to-orange-500 p-2 rounded-lg mr-3 shadow-md">
+                    <i class="fas fa-globe text-white text-lg"></i>
+                </div>
+                <h3 class="text-lg font-bold text-white">Ingress</h3>
+            </div>
+            <p class="text-amber-200 text-sm">Manages external access to services in a cluster</p>
+        </div>
+    </div>
+
+    <!-- YAML Example -->
+    <div class="mt-8 bg-gradient-to-r from-gray-900/70 to-gray-800/70 p-6 rounded-xl border border-gray-600">
+        <h4 class="text-white font-bold mb-4 flex items-center">
+            <i class="fas fa-code mr-2 text-cyan-400"></i>
+            Example YAML Structure
+        </h4>
+        <div class="bg-black/50 p-4 rounded-lg border border-gray-700">
+            <pre class="text-green-400 text-sm overflow-x-auto">
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-app-pod
+spec:
+  containers:
+  - name: nginx
+    image: nginx:1.14.2
+    ports:
+    - containerPort: 80</pre>
+        </div>
+    </div>
+</div>
+
+
+
+
+<div class="bg-gradient-to-br from-amber-900/40 via-orange-900/40 to-yellow-900/40 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-amber-700/50 shadow-2xl">
+    <!-- Header -->
+    <div class="text-center mb-10">
+        <div class="inline-block bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500 text-white px-8 py-4 rounded-full font-bold text-xl shadow-lg glow">
+            <i class="fas fa-tasks mr-3"></i>Kube-Scheduler: The Cluster's Matchmaker
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        <!-- What it Does -->
+        <div class="space-y-6">
+            <div class="bg-gradient-to-r from-amber-900/50 to-orange-900/50 p-6 rounded-xl border-l-4 border-amber-400">
+                <h3 class="text-xl font-bold text-white mb-4 flex items-center">
+                    <i class="fas fa-play-circle mr-2 text-amber-300"></i>Primary Function
+                </h3>
+                <p class="text-lg text-white leading-relaxed">
+                    The kube-scheduler is responsible for assigning newly created Pods to optimal worker nodes in the cluster by evaluating resource requirements, constraints, and policies to determine the best possible node for each Pod's execution environment.
+                </p>
+            </div>
+            
+            <div class="bg-gradient-to-r from-orange-900/50 to-amber-900/50 p-6 rounded-xl border-l-4 border-orange-400">
+                <h3 class="text-xl font-bold text-white mb-4 flex items-center">
+                    <i class="fas fa-search mr-2 text-orange-300"></i>Selection Process
+                </h3>
+                <p class="text-lg text-white leading-relaxed">
+                    It continuously watches the API server for unscheduled Pods, filters available nodes based on feasibility constraints, scores the remaining suitable nodes, and finally binds the Pod to the highest-scoring node through the API server.
+                </p>
+            </div>
+        </div>
+
+        <!-- Visual Workflow -->
+        <div class="bg-gradient-to-br from-yellow-900/30 to-amber-900/30 p-6 rounded-xl border border-amber-600/50">
+            <div class="text-center mb-6">
+                <h3 class="text-xl font-bold text-white">Scheduling Workflow</h3>
+            </div>
+            <div class="space-y-4">
+                <div class="flex items-center bg-amber-800/40 p-3 rounded-lg">
+                    <div class="bg-amber-500 w-8 h-8 rounded-full flex items-center justify-center mr-3">
+                        <span class="text-white font-bold">1</span>
+                    </div>
+                    <span class="text-amber-100">Watch for Unscheduled Pods</span>
+                </div>
+                <div class="flex items-center bg-orange-800/40 p-3 rounded-lg">
+                    <div class="bg-orange-500 w-8 h-8 rounded-full flex items-center justify-center mr-3">
+                        <span class="text-white font-bold">2</span>
+                    </div>
+                    <span class="text-orange-100">Filter Nodes (Feasibility)</span>
+                </div>
+                <div class="flex items-center bg-yellow-800/40 p-3 rounded-lg">
+                    <div class="bg-yellow-500 w-8 h-8 rounded-full flex items-center justify-center mr-3">
+                        <span class="text-white font-bold">3</span>
+                    </div>
+                    <span class="text-yellow-100">Score Nodes (Priority)</span>
+                </div>
+                <div class="flex items-center bg-amber-700/40 p-3 rounded-lg">
+                    <div class="bg-amber-400 w-8 h-8 rounded-full flex items-center justify-center mr-3">
+                        <span class="text-white font-bold">4</span>
+                    </div>
+                    <span class="text-amber-100">Bind Pod to Best Node</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scheduling Factors -->
+    <div class="mt-10">
+        <h3 class="text-2xl font-bold text-center text-white mb-8 flex items-center justify-center">
+            <i class="fas fa-cogs mr-3 text-amber-300"></i>Scheduling Decision Factors
+        </h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <!-- Resource Factors -->
+            <div class="bg-gradient-to-br from-green-900/40 to-emerald-900/40 p-5 rounded-xl border border-green-600/50">
+                <div class="text-center mb-4">
+                    <i class="fas fa-microchip text-green-300 text-2xl"></i>
+                </div>
+                <h4 class="font-bold text-white text-center mb-3">Resource Requirements</h4>
+                <div class="space-y-2">
+                    <div class="flex items-center text-green-200 text-sm">
+                        <i class="fas fa-memory mr-2"></i>
+                        <span>CPU & Memory Requests</span>
+                    </div>
+                    <div class="flex items-center text-green-200 text-sm">
+                        <i class="fas fa-sd-card mr-2"></i>
+                        <span>Storage Requirements</span>
+                    </div>
+                    <div class="flex items-center text-green-200 text-sm">
+                        <i class="fas fa-network-wired mr-2"></i>
+                        <span>Network Resources</span>
+                    </div>
+                    <div class="flex items-center text-green-200 text-sm">
+                        <i class="fas fa-gpu mr-2"></i>
+                        <span>GPU/Accelerators</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Policy Factors -->
+            <div class="bg-gradient-to-br from-blue-900/40 to-cyan-900/40 p-5 rounded-xl border border-blue-600/50">
+                <div class="text-center mb-4">
+                    <i class="fas fa-balance-scale text-blue-300 text-2xl"></i>
+                </div>
+                <h4 class="font-bold text-white text-center mb-3">Policies & Constraints</h4>
+                <div class="space-y-2">
+                    <div class="flex items-center text-blue-200 text-sm">
+                        <i class="fas fa-compress-arrows-alt mr-2"></i>
+                        <span>Node Affinity/Anti-affinity</span>
+                    </div>
+                    <div class="flex items-center text-blue-200 text-sm">
+                        <i class="fas fa-link mr-2"></i>
+                        <span>Pod Affinity/Anti-affinity</span>
+                    </div>
+                    <div class="flex items-center text-blue-200 text-sm">
+                        <i class="fas fa-tag mr-2"></i>
+                        <span>Node Selectors & Taints</span>
+                    </div>
+                    <div class="flex items-center text-blue-200 text-sm">
+                        <i class="fas fa-user-shield mr-2"></i>
+                        <span>Security Policies</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Availability Factors -->
+            <div class="bg-gradient-to-br from-purple-900/40 to-pink-900/40 p-5 rounded-xl border border-purple-600/50">
+                <div class="text-center mb-4">
+                    <i class="fas fa-chart-line text-purple-300 text-2xl"></i>
+                </div>
+                <h4 class="font-bold text-white text-center mb-3">Cluster State</h4>
+                <div class="space-y-2">
+                    <div class="flex items-center text-purple-200 text-sm">
+                        <i class="fas fa-server mr-2"></i>
+                        <span>Node Capacity & Utilization</span>
+                    </div>
+                    <div class="flex items-center text-purple-200 text-sm">
+                        <i class="fas fa-battery-half mr-2"></i>
+                        <span>Resource Availability</span>
+                    </div>
+                    <div class="flex items-center text-purple-200 text-sm">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                        <span>Node Health Status</span>
+                    </div>
+                    <div class="flex items-center text-purple-200 text-sm">
+                        <i class="fas fa-project-diagram mr-2"></i>
+                        <span>Topology Distribution</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Optimization Factors -->
+            <div class="bg-gradient-to-br from-red-900/40 to-orange-900/40 p-5 rounded-xl border border-red-600/50">
+                <div class="text-center mb-4">
+                    <i class="fas fa-rocket text-red-300 text-2xl"></i>
+                </div>
+                <h4 class="font-bold text-white text-center mb-3">Optimization Goals</h4>
+                <div class="space-y-2">
+                    <div class="flex items-center text-red-200 text-sm">
+                        <i class="fas fa-weight-hanging mr-2"></i>
+                        <span>Load Balancing</span>
+                    </div>
+                    <div class="flex items-center text-red-200 text-sm">
+                        <i class="fas fa-bolt mr-2"></i>
+                        <span>Performance Optimization</span>
+                    </div>
+                    <div class="flex items-center text-red-200 text-sm">
+                        <i class="fas fa-money-bill-wave mr-2"></i>
+                        <span>Cost Efficiency</span>
+                    </div>
+                    <div class="flex items-center text-red-200 text-sm">
+                        <i class="fas fa-shield-alt mr-2"></i>
+                        <span>High Availability</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Final Summary -->
+    <div class="mt-8 bg-gradient-to-r from-yellow-900/50 to-amber-900/50 p-6 rounded-xl border-l-4 border-yellow-400">
+        <p class="text-lg text-white leading-relaxed text-center">
+            The kube-scheduler makes intelligent placement decisions by balancing resource efficiency, performance requirements, policy constraints, and business objectives to ensure optimal utilization of cluster resources while maintaining application reliability and performance.
+        </p>
+    </div>
+</div>
+
+
+
+      <div class="bg-gradient-to-br from-amber-900/40 via-orange-900/40 to-yellow-900/40 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-amber-600/50 shadow-2xl">
+    <!-- Header -->
+    <div class="text-center mb-10">
+        <div class="inline-block bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500 text-white px-8 py-4 rounded-full font-bold text-xl shadow-lg glow">
+            <i class="fas fa-microchip mr-3"></i>Kubelet - The Node Agent
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        <!-- Visual Representation -->
+        <div class="flex justify-center">
+            <div class="relative w-72 h-72">
+                <!-- Worker Node -->
+                <div class="absolute inset-0 bg-gradient-to-br from-amber-600/30 to-orange-600/30 rounded-2xl border-2 border-amber-500/50 shadow-lg">
+                    <div class="text-center p-4 pt-6">
+                        <i class="fas fa-server text-3xl text-amber-300 mb-2"></i>
+                        <h3 class="text-xl font-bold text-white">Worker Node</h3>
+                        <p class="text-amber-200 text-sm">Compute Machine</p>
+                    </div>
+                    
+                    <!-- Kubelet Process -->
+                    <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gradient-to-br from-green-500 to-emerald-500 w-20 h-20 rounded-full border-2 border-green-400 shadow-lg flex items-center justify-center">
+                        <i class="fas fa-robot text-white text-2xl"></i>
+                    </div>
+                    
+                    <!-- Pods Managed -->
+                    <div class="absolute top-4 left-4 bg-gradient-to-br from-blue-500 to-cyan-400 w-12 h-12 rounded-lg border-2 border-blue-400 shadow-md flex items-center justify-center">
+                        <i class="fas fa-cube text-white text-sm"></i>
+                    </div>
+                    
+                    <div class="absolute top-4 right-4 bg-gradient-to-br from-purple-500 to-pink-400 w-12 h-12 rounded-lg border-2 border-purple-400 shadow-md flex items-center justify-center">
+                        <i class="fas fa-cube text-white text-sm"></i>
+                    </div>
+                    
+                    <div class="absolute bottom-4 left-4 bg-gradient-to-br from-red-500 to-orange-400 w-12 h-12 rounded-lg border-2 border-red-400 shadow-md flex items-center justify-center">
+                        <i class="fas fa-cube text-white text-sm"></i>
+                    </div>
+                    
+                    <div class="absolute bottom-4 right-4 bg-gradient-to-br from-indigo-500 to-blue-400 w-12 h-12 rounded-lg border-2 border-indigo-400 shadow-md flex items-center justify-center">
+                        <i class="fas fa-cube text-white text-sm"></i>
+                    </div>
+                </div>
+                
+                <!-- Connection to Control Plane -->
+                <div class="absolute -right-4 top-1/2 transform -translate-y-1/2">
+                    <div class="bg-gradient-to-br from-gray-600 to-gray-800 w-16 h-2 rounded-full"></div>
+                    <div class="absolute right-0 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-gray-400 rounded-full animate-pulse"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Explanation -->
+        <div class="space-y-6">
+            <div class="bg-gradient-to-r from-amber-900/50 to-orange-900/50 p-6 rounded-xl border-l-4 border-amber-400">
+                <p class="text-lg text-white leading-relaxed">
+                    The kubelet acts as the primary node agent that runs on each worker node and serves as the crucial bridge between the Kubernetes control plane and the container runtime, continuously ensuring that containers are running in a Pod as specified by the cluster's desired state.
+                </p>
+            </div>
+            
+            <div class="bg-gradient-to-r from-orange-900/50 to-yellow-900/50 p-6 rounded-xl border-l-4 border-orange-400">
+                <p class="text-lg text-white leading-relaxed">
+                    It constantly monitors the API server for new or updated Pod specifications and takes immediate action to create, modify, or terminate containers using the container runtime, while also performing regular health checks and reporting back the node and Pod status to the control plane.
+                </p>
+            </div>
+            
+            <div class="bg-gradient-to-r from-yellow-900/50 to-amber-900/50 p-6 rounded-xl border-l-4 border-yellow-400">
+                <p class="text-lg text-white leading-relaxed">
+                    The kubelet manages the complete Pod lifecycle including mounting volumes, executing container probes, enforcing resource limits, and collecting metrics, making it responsible for maintaining the node's operational readiness and ensuring workload compliance with the cluster's declared configuration.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Responsibilities -->
+    <div class="mt-10">
+        <h3 class="text-2xl font-bold text-center text-white mb-6">
+            <i class="fas fa-tasks mr-2"></i>Key Responsibilities
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-gradient-to-br from-green-900/40 to-emerald-900/40 p-4 rounded-xl border border-green-600/50 text-center">
+                <i class="fas fa-heartbeat text-green-300 text-xl mb-2"></i>
+                <h4 class="font-bold text-white text-sm mb-1">Health Monitoring</h4>
+                <p class="text-green-200 text-xs">Performs liveness and readiness probes</p>
+            </div>
+            
+            <div class="bg-gradient-to-br from-blue-900/40 to-cyan-900/40 p-4 rounded-xl border border-blue-600/50 text-center">
+                <i class="fas fa-download text-blue-300 text-xl mb-2"></i>
+                <h4 class="font-bold text-white text-sm mb-1">Image Management</h4>
+                <p class="text-blue-200 text-xs">Pulls container images from registries</p>
+            </div>
+            
+            <div class="bg-gradient-to-br from-purple-900/40 to-pink-900/40 p-4 rounded-xl border border-purple-600/50 text-center">
+                <i class="fas fa-chart-bar text-purple-300 text-xl mb-2"></i>
+                <h4 class="font-bold text-white text-sm mb-1">Metrics Reporting</h4>
+                <p class="text-purple-200 text-xs">Reports node and Pod metrics to API</p>
+            </div>
+            
+            <div class="bg-gradient-to-br from-red-900/40 to-orange-900/40 p-4 rounded-xl border border-red-600/50 text-center">
+                <i class="fas fa-shield-alt text-red-300 text-xl mb-2"></i>
+                <h4 class="font-bold text-white text-sm mb-1">Resource Enforcement</h4>
+                <p class="text-red-200 text-xs">Enforces CPU and memory limits</p>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="bg-gradient-to-br from-blue-900/40 via-cyan-900/40 to-indigo-900/40 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-cyan-600/50 shadow-2xl">
+    <!-- Header -->
+    <div class="text-center mb-10">
+        <div class="inline-block bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500 text-white px-8 py-4 rounded-full font-bold text-xl shadow-lg glow">
+            <i class="fas fa-network-wired mr-3"></i>Kube-Proxy: Kubernetes Networking
+        </div>
+    </div>
+
+    <!-- Content -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        <!-- Visual Representation -->
+        <div class="flex justify-center">
+            <div class="relative w-72 h-72">
+                <!-- Worker Node -->
+                <div class="absolute inset-0 bg-gradient-to-br from-gray-700/50 to-gray-900/50 rounded-2xl border-2 border-gray-600 shadow-lg">
+                    <div class="text-center p-4 border-b border-gray-600">
+                        <i class="fas fa-server text-cyan-300 text-2xl mb-2"></i>
+                        <h3 class="text-lg font-bold text-white">Worker Node</h3>
+                    </div>
+                    
+                    <!-- Kube-Proxy Process -->
+                    <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gradient-to-br from-cyan-600 to-blue-600 w-20 h-20 rounded-xl border-2 border-cyan-400 shadow-lg flex flex-col items-center justify-center">
+                        <i class="fas fa-random text-white text-xl mb-1"></i>
+                        <span class="text-white text-xs font-bold">kube-proxy</span>
+                    </div>
+                    
+                    <!-- Network Traffic -->
+                    <div class="absolute top-8 left-8 w-16 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                    <div class="absolute top-8 right-8 w-16 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                    <div class="absolute bottom-8 left-8 w-16 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                    <div class="absolute bottom-8 right-8 w-16 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                    
+                    <!-- IPTables -->
+                    <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-orange-500 to-red-500 px-3 py-1 rounded-lg border border-orange-400">
+                        <span class="text-white text-xs font-bold">iptables</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Explanation -->
+        <div class="space-y-6">
+            <div class="bg-gradient-to-r from-cyan-900/50 to-blue-900/50 p-6 rounded-xl border-l-4 border-cyan-400">
+                <p class="text-lg text-white leading-relaxed">
+                    Kube-proxy is a network proxy that runs on each node in your Kubernetes cluster, maintaining network rules on the node to allow network communication to your Pods from inside or outside of your cluster using various proxy modes like iptables, IPVS, or userspace.
+                </p>
+            </div>
+            
+            <div class="bg-gradient-to-r from-blue-900/50 to-indigo-900/50 p-6 rounded-xl border-l-4 border-blue-400">
+                <p class="text-lg text-white leading-relaxed">
+                    It watches the Kubernetes API server for changes to Services and Endpoints, and automatically updates the node's networking rules to route traffic to the appropriate backend Pods, implementing the virtual IP abstraction and load balancing across Pod endpoints.
+                </p>
+            </div>
+            
+            <div class="bg-gradient-to-r from-indigo-900/50 to-purple-900/50 p-6 rounded-xl border-l-4 border-indigo-400">
+                <p class="text-lg text-white leading-relaxed">
+                    By maintaining these network rules, kube-proxy enables Service discovery and implements the ClusterIP, NodePort, and LoadBalancer Service types, ensuring that traffic destined for a Service is properly load-balanced across all healthy Pods that match the Service's selector.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Proxy Modes -->
+    <div class="mt-10">
+        <h3 class="text-2xl font-bold text-center text-white mb-6">
+            <i class="fas fa-cogs mr-2 text-cyan-300"></i>Proxy Modes
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-gradient-to-br from-orange-900/40 to-red-900/40 p-5 rounded-xl border border-orange-600/50">
+                <div class="flex items-center mb-3">
+                    <i class="fas fa-table text-orange-300 text-xl mr-3"></i>
+                    <h4 class="font-bold text-white">iptables Mode</h4>
+                </div>
+                <p class="text-orange-200 text-sm">Uses Linux iptables to redirect traffic to backend Pods with efficient load balancing and better performance than userspace mode</p>
+            </div>
+            
+            <div class="bg-gradient-to-br from-green-900/40 to-emerald-900/40 p-5 rounded-xl border border-green-600/50">
+                <div class="flex items-center mb-3">
+                    <i class="fas fa-tachometer-alt text-green-300 text-xl mr-3"></i>
+                    <h4 class="font-bold text-white">IPVS Mode</h4>
+                </div>
+                <p class="text-green-200 text-sm">Uses Linux IP Virtual Server for better performance with large numbers of Services, supporting multiple load balancing algorithms</p>
+            </div>
+            
+            <div class="bg-gradient-to-br from-purple-900/40 to-pink-900/40 p-5 rounded-xl border border-purple-600/50">
+                <div class="flex items-center mb-3">
+                    <i class="fas fa-users text-purple-300 text-xl mr-3"></i>
+                    <h4 class="font-bold text-white">Userspace Mode</h4>
+                </div>
+                <p class="text-purple-200 text-sm">Legacy mode where kube-proxy directly handles traffic in userspace, less efficient but more compatible with older systems</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Functions -->
+    <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-gradient-to-br from-cyan-900/30 to-blue-900/30 p-4 rounded-xl border border-cyan-600/30">
+            <h4 class="font-bold text-cyan-300 mb-2 flex items-center">
+                <i class="fas fa-eye mr-2"></i>Service Monitoring
+            </h4>
+            <p class="text-cyan-200 text-sm">Watches Kubernetes API for Service and Endpoint changes to keep networking rules updated</p>
+        </div>
+        
+        <div class="bg-gradient-to-br from-blue-900/30 to-indigo-900/30 p-4 rounded-xl border border-blue-600/30">
+            <h4 class="font-bold text-blue-300 mb-2 flex items-center">
+                <i class="fas fa-balance-scale mr-2"></i>Load Balancing
+            </h4>
+            <p class="text-blue-200 text-sm">Distributes network traffic across multiple Pod endpoints using various load balancing algorithms</p>
+        </div>
+    </div>
+</div>
+
+
+
+
+<div class="bg-gradient-to-br from-blue-900/40 via-cyan-900/40 to-teal-900/40 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-cyan-500/50 shadow-2xl">
+    <!-- Header -->
+    <div class="text-center mb-10">
+        <div class="inline-block bg-gradient-to-r from-cyan-500 via-blue-500 to-teal-500 text-white px-8 py-4 rounded-full font-bold text-xl shadow-lg glow">
+            <i class="fas fa-network-wired mr-3"></i>What is a Service and Why is it Needed?
+        </div>
+    </div>
+
+    <!-- Content -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+        <!-- Visual Representation -->
+        <div class="flex justify-center">
+            <div class="relative w-72 h-72">
+                <!-- Service Load Balancer -->
+                <div class="absolute top-4 left-1/2 transform -translate-x-1/2 bg-gradient-to-br from-cyan-600 to-blue-600 w-24 h-24 rounded-xl border-2 border-cyan-400 shadow-lg flex items-center justify-center">
+                    <i class="fas fa-balance-scale text-white text-2xl"></i>
+                </div>
+                
+                <!-- Service Label -->
+                <div class="absolute top-12 left-1/2 transform -translate-x-1/2 mt-16 text-center">
+                    <span class="bg-cyan-900/80 text-cyan-100 px-3 py-1 rounded-lg font-bold">Service</span>
+                </div>
+                
+                <!-- Connection Lines -->
+                <div class="absolute top-20 left-1/2 transform -translate-x-1/2 w-1 h-16 bg-cyan-400/50"></div>
+                
+                <!-- Pod Cluster -->
+                <div class="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex space-x-6">
+                    <!-- Pod 1 -->
+                    <div class="bg-gradient-to-br from-green-600 to-emerald-600 w-16 h-16 rounded-lg border-2 border-green-400 shadow-md flex items-center justify-center">
+                        <i class="fas fa-cube text-white"></i>
+                    </div>
+                    
+                    <!-- Pod 2 -->
+                    <div class="bg-gradient-to-br from-orange-600 to-yellow-600 w-16 h-16 rounded-lg border-2 border-orange-400 shadow-md flex items-center justify-center">
+                        <i class="fas fa-cube text-white"></i>
+                    </div>
+                    
+                    <!-- Pod 3 -->
+                    <div class="bg-gradient-to-br from-purple-600 to-pink-600 w-16 h-16 rounded-lg border-2 border-purple-400 shadow-md flex items-center justify-center">
+                        <i class="fas fa-cube text-white"></i>
+                    </div>
+                </div>
+                
+                <!-- Pod Labels -->
+                <div class="absolute bottom-0 left-1/2 transform -translate-x-1/2 -mb-6 text-center">
+                    <span class="text-cyan-200 text-sm">Pods</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Explanation -->
+        <div class="space-y-6">
+            <div class="bg-gradient-to-r from-cyan-900/50 to-blue-900/50 p-6 rounded-xl border-l-4 border-cyan-400">
+                <p class="text-lg text-white leading-relaxed">
+                    A Service in Kubernetes is a stable networking abstraction that provides a consistent endpoint and load balancing for a dynamic set of Pods, acting as an immutable gateway that decouples frontend clients from backend Pod instances that may be constantly changing, failing, or scaling.
+                </p>
+            </div>
+            
+            <div class="bg-gradient-to-r from-blue-900/50 to-teal-900/50 p-6 rounded-xl border-l-4 border-blue-400">
+                <p class="text-lg text-white leading-relaxed">
+                    Services are critically needed because Pods are ephemeral and disposable resources that can be rescheduled, scaled, or replaced at any time, each receiving new IP addresses, which would break communication if clients had to track individual Pod IP addresses directly.
+                </p>
+            </div>
+            
+            <div class="bg-gradient-to-r from-teal-900/50 to-cyan-900/50 p-6 rounded-xl border-l-4 border-teal-400">
+                <p class="text-lg text-white leading-relaxed">
+                    By providing a stable virtual IP address, DNS name, and port combination that persists regardless of Pod lifecycle changes, Services enable reliable service discovery and load distribution while maintaining continuous connectivity for applications in a highly dynamic container environment.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Service Types -->
+    <div class="mt-10 grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="bg-gradient-to-br from-cyan-900/40 to-blue-900/40 p-4 rounded-xl border border-cyan-600/50 text-center">
+            <i class="fas fa-globe text-cyan-300 text-xl mb-2"></i>
+            <h4 class="font-bold text-white mb-1 text-sm">ClusterIP</h4>
+            <p class="text-cyan-200 text-xs">Internal service within cluster</p>
+        </div>
+        
+        <div class="bg-gradient-to-br from-blue-900/40 to-indigo-900/40 p-4 rounded-xl border border-blue-600/50 text-center">
+            <i class="fas fa-exchange-alt text-blue-300 text-xl mb-2"></i>
+            <h4 class="font-bold text-white mb-1 text-sm">NodePort</h4>
+            <p class="text-blue-200 text-xs">Exposes service on node IP</p>
+        </div>
+        
+        <div class="bg-gradient-to-br from-indigo-900/40 to-purple-900/40 p-4 rounded-xl border border-indigo-600/50 text-center">
+            <i class="fas fa-cloud text-indigo-300 text-xl mb-2"></i>
+            <h4 class="font-bold text-white mb-1 text-sm">LoadBalancer</h4>
+            <p class="text-indigo-200 text-xs">Cloud provider load balancer</p>
+        </div>
+        
+        <div class="bg-gradient-to-br from-purple-900/40 to-pink-900/40 p-4 rounded-xl border border-purple-600/50 text-center">
+            <i class="fas fa-external-link-alt text-purple-300 text-xl mb-2"></i>
+            <h4 class="font-bold text-white mb-1 text-sm">ExternalName</h4>
+            <p class="text-purple-200 text-xs">Maps to external service</p>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+
+
+<div class="bg-gradient-to-br from-cyan-900/40 via-blue-900/40 to-indigo-900/40 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-cyan-600/50 shadow-2xl">
+    <!-- Header -->
+    <div class="text-center mb-10">
+        <div class="inline-block bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500 text-white px-8 py-4 rounded-full font-bold text-xl shadow-lg">
+            <i class="fas fa-network-wired mr-3"></i>Why We Need Services When We Have Pods
+        </div>
+    </div>
+
+    <!-- Content -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        <!-- Problem Side -->
+        <div class="space-y-6">
+            <div class="bg-gradient-to-r from-red-900/50 to-orange-900/50 p-6 rounded-xl border-l-4 border-red-400">
+                <h3 class="text-xl font-bold text-white mb-4 flex items-center">
+                    <i class="fas fa-exclamation-triangle mr-3 text-red-300"></i>
+                    The Pod Problem
+                </h3>
+                <p class="text-lg text-white leading-relaxed">
+                    Pods are ephemeral and dynamic - they can be created, destroyed, and rescheduled frequently by Kubernetes. When a Pod dies and gets recreated, it receives a completely new IP address, making direct Pod-to-Pod communication unreliable and unpredictable for applications.
+                </p>
+            </div>
+            
+            <div class="bg-gradient-to-r from-amber-900/50 to-yellow-900/50 p-6 rounded-xl border-l-4 border-amber-400">
+                <h3 class="text-xl font-bold text-white mb-4 flex items-center">
+                    <i class="fas fa-random mr-3 text-amber-300"></i>
+                    Dynamic Environment Challenges
+                </h3>
+                <p class="text-lg text-white leading-relaxed">
+                    In a Kubernetes cluster, Pods are constantly changing due to scaling, failures, or deployments. Without Services, applications would need to continuously discover and track Pod IP addresses, creating complex and fragile networking dependencies.
+                </p>
+            </div>
+        </div>
+
+        <!-- Solution Side -->
+        <div class="space-y-6">
+            <div class="bg-gradient-to-r from-green-900/50 to-emerald-900/50 p-6 rounded-xl border-l-4 border-green-400">
+                <h3 class="text-xl font-bold text-white mb-4 flex items-center">
+                    <i class="fas fa-shield-alt mr-3 text-green-300"></i>
+                    Service Solution
+                </h3>
+                <p class="text-lg text-white leading-relaxed">
+                    Services provide a stable, persistent endpoint and DNS name that abstracts away the dynamic nature of Pods. They act as a load balancer that automatically routes traffic to healthy Pods using label selectors, regardless of how many Pods exist or where they're running.
+                </p>
+            </div>
+            
+            <div class="bg-gradient-to-r from-blue-900/50 to-cyan-900/50 p-6 rounded-xl border-l-4 border-blue-400">
+                <h3 class="text-xl font-bold text-white mb-4 flex items-center">
+                    <i class="fas fa-bullseye mr-3 text-blue-300"></i>
+                    Consistent Access Point
+                </h3>
+                <p class="text-lg text-white leading-relaxed">
+                    Services maintain a stable virtual IP and DNS name that never changes, allowing other applications to reliably connect to your application without needing to know about the underlying Pod instances or their constantly changing IP addresses.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Visual Comparison -->
+    <div class="mt-10 bg-gradient-to-br from-gray-900/60 to-gray-800/60 p-6 rounded-xl border border-gray-700">
+        <h3 class="text-xl font-bold text-white text-center mb-6">Service vs Direct Pod Access</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Without Service -->
+            <div class="text-center">
+                <div class="bg-gradient-to-br from-red-900/40 to-orange-900/40 p-4 rounded-lg border border-red-600/50 mb-4">
+                    <h4 class="font-bold text-white mb-2">Without Service</h4>
+                    <p class="text-red-200 text-sm">Fragile direct Pod IP connections</p>
+                </div>
+                <div class="relative h-32 bg-gray-800/50 rounded-lg border-2 border-dashed border-red-500/50 flex items-center justify-center">
+                    <div class="absolute left-4 bg-red-500 text-white p-2 rounded-lg text-sm">App</div>
+                    <div class="absolute right-4 space-y-1">
+                        <div class="bg-red-400 text-white p-1 rounded text-xs">Pod A</div>
+                        <div class="bg-red-400 text-white p-1 rounded text-xs">Pod B</div>
+                        <div class="bg-gray-600 text-white p-1 rounded text-xs">Pod C ✗</div>
+                    </div>
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <i class="fas fa-unlink text-red-400 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- With Service -->
+            <div class="text-center">
+                <div class="bg-gradient-to-br from-green-900/40 to-emerald-900/40 p-4 rounded-lg border border-green-600/50 mb-4">
+                    <h4 class="font-bold text-white mb-2">With Service</h4>
+                    <p class="text-green-200 text-sm">Stable Service abstraction</p>
+                </div>
+                <div class="relative h-32 bg-gray-800/50 rounded-lg border-2 border-green-500/50 flex items-center justify-center">
+                    <div class="absolute left-4 bg-green-500 text-white p-2 rounded-lg text-sm">App</div>
+                    <div class="absolute center bg-cyan-500 text-white p-2 rounded-lg text-sm">Service</div>
+                    <div class="absolute right-4 space-y-1">
+                        <div class="bg-green-400 text-white p-1 rounded text-xs">Pod A</div>
+                        <div class="bg-green-400 text-white p-1 rounded text-xs">Pod B</div>
+                        <div class="bg-green-400 text-white p-1 rounded text-xs">Pod C</div>
+                    </div>
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <i class="fas fa-link text-green-400 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Benefits -->
+    <div class="mt-8 grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="bg-gradient-to-br from-purple-900/40 to-pink-900/40 p-4 rounded-xl border border-purple-600/50 text-center">
+            <i class="fas fa-anchor text-purple-300 text-xl mb-2"></i>
+            <h4 class="font-bold text-white text-sm">Stable Endpoint</h4>
+        </div>
+        
+        <div class="bg-gradient-to-br from-blue-900/40 to-cyan-900/40 p-4 rounded-xl border border-blue-600/50 text-center">
+            <i class="fas fa-balance-scale text-blue-300 text-xl mb-2"></i>
+            <h4 class="font-bold text-white text-sm">Load Balancing</h4>
+        </div>
+        
+        <div class="bg-gradient-to-br from-green-900/40 to-emerald-900/40 p-4 rounded-xl border border-green-600/50 text-center">
+            <i class="fas fa-search text-green-300 text-xl mb-2"></i>
+            <h4 class="font-bold text-white text-sm">Service Discovery</h4>
+        </div>
+        
+        <div class="bg-gradient-to-br from-orange-900/40 to-yellow-900/40 p-4 rounded-xl border border-orange-600/50 text-center">
+            <i class="fas fa-heartbeat text-orange-300 text-xl mb-2"></i>
+            <h4 class="font-bold text-white text-sm">Health Monitoring</h4>
+        </div>
+    </div>
+</div>
+
+
+
+
+<div class="bg-gradient-to-br from-cyan-900/40 via-blue-900/40 to-indigo-900/40 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-cyan-600/50 shadow-2xl">
+    <!-- Header -->
+    <div class="text-center mb-10">
+        <div class="inline-block bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500 text-white px-8 py-4 rounded-full font-bold text-xl shadow-lg">
+            <i class="fas fa-route mr-3"></i>How Services Find Pods
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        <!-- Visual Flow -->
+        <div class="space-y-6">
+            <!-- Service -->
+            <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 rounded-xl border-l-4 border-blue-400 shadow-lg">
+                <div class="flex items-center">
+                    <div class="bg-white p-3 rounded-lg mr-4">
+                        <i class="fas fa-cloud text-blue-600 text-2xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-white">Service</h3>
+                        <p class="text-blue-100">Selector: app=frontend</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Arrow -->
+            <div class="flex justify-center">
+                <div class="bg-cyan-500 w-12 h-12 rounded-full flex items-center justify-center animate-bounce">
+                    <i class="fas fa-arrow-down text-white text-xl"></i>
+                </div>
+            </div>
+
+            <!-- Endpoints -->
+            <div class="bg-gradient-to-r from-green-600 to-emerald-600 p-6 rounded-xl border-l-4 border-green-400 shadow-lg">
+                <div class="flex items-center">
+                    <div class="bg-white p-3 rounded-lg mr-4">
+                        <i class="fas fa-list text-green-600 text-2xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-white">Endpoints Controller</h3>
+                        <p class="text-green-100">Watches Pods & Updates Endpoints</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Arrow -->
+            <div class="flex justify-center">
+                <div class="bg-cyan-500 w-12 h-12 rounded-full flex items-center justify-center animate-bounce">
+                    <i class="fas fa-arrow-down text-white text-xl"></i>
+                </div>
+            </div>
+
+            <!-- Pods -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-gradient-to-br from-purple-500 to-pink-500 p-4 rounded-xl text-center shadow-lg">
+                    <i class="fas fa-cube text-white text-2xl mb-2"></i>
+                    <h4 class="font-bold text-white">Pod 1</h4>
+                    <p class="text-purple-100 text-sm">Labels: app=frontend</p>
+                </div>
+                <div class="bg-gradient-to-br from-purple-500 to-pink-500 p-4 rounded-xl text-center shadow-lg">
+                    <i class="fas fa-cube text-white text-2xl mb-2"></i>
+                    <h4 class="font-bold text-white">Pod 2</h4>
+                    <p class="text-purple-100 text-sm">Labels: app=frontend</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Explanation -->
+        <div class="space-y-6">
+            <div class="bg-white/10 p-6 rounded-xl border-l-4 border-cyan-400">
+                <h4 class="text-lg font-bold text-cyan-300 mb-3">Label Selector Mechanism</h4>
+                <p class="text-white leading-relaxed">
+                    Services use label selectors to dynamically discover Pods by matching their labels against the selector criteria defined in the Service specification, creating an automatic and continuous discovery process.
+                </p>
+            </div>
+
+            <div class="bg-white/10 p-6 rounded-xl border-l-4 border-blue-400">
+                <h4 class="text-lg font-bold text-blue-300 mb-3">Endpoints Controller</h4>
+                <p class="text-white leading-relaxed">
+                    The Endpoints controller constantly monitors the API server for Pod changes and automatically updates the Endpoints object with the current IP addresses of all Pods that match the Service's selector criteria.
+                </p>
+            </div>
+
+            <div class="bg-white/10 p-6 rounded-xl border-l-4 border-green-400">
+                <h4 class="text-lg font-bold text-green-300 mb-3">kube-proxy & Load Balancing</h4>
+                <p class="text-white leading-relaxed">
+                    kube-proxy watches for Endpoints updates and configures the node's networking rules to load balance traffic across all healthy Pod IPs, ensuring seamless traffic distribution and high availability.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Technical Details -->
+    <div class="mt-10 bg-black/30 rounded-xl p-6 border border-cyan-700/50">
+        <h3 class="text-xl font-bold text-cyan-300 mb-4 text-center">Service Discovery Flow</h3>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
+            <div class="bg-cyan-900/50 p-4 rounded-lg">
+                <div class="bg-cyan-500 w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <span class="text-white font-bold">1</span>
+                </div>
+                <h4 class="font-bold text-white text-sm">Define Selector</h4>
+                <p class="text-cyan-200 text-xs mt-1">Service specifies label criteria</p>
+            </div>
+            <div class="bg-blue-900/50 p-4 rounded-lg">
+                <div class="bg-blue-500 w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <span class="text-white font-bold">2</span>
+                </div>
+                <h4 class="font-bold text-white text-sm">Watch Pod Changes</h4>
+                <p class="text-blue-200 text-xs mt-1">Controller monitors API server</p>
+            </div>
+            <div class="bg-green-900/50 p-4 rounded-lg">
+                <div class="bg-green-500 w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <span class="text-white font-bold">3</span>
+                </div>
+                <h4 class="font-bold text-white text-sm">Update Endpoints</h4>
+                <p class="text-green-200 text-xs mt-1">IP addresses are collected</p>
+            </div>
+            <div class="bg-purple-900/50 p-4 rounded-lg">
+                <div class="bg-purple-500 w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <span class="text-white font-bold">4</span>
+                </div>
+                <h4 class="font-bold text-white text-sm">Route Traffic</h4>
+                <p class="text-purple-200 text-xs mt-1">kube-proxy load balances</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+<div class="bg-gradient-to-br from-blue-900/40 via-cyan-900/40 to-teal-900/40 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-cyan-600/50 shadow-2xl">
+    <!-- Header -->
+    <div class="text-center mb-10">
+        <div class="inline-block bg-gradient-to-r from-cyan-500 via-blue-500 to-teal-500 text-white px-8 py-4 rounded-full font-bold text-xl shadow-lg glow">
+            <i class="fas fa-network-wired mr-3"></i>Kubernetes Service Types
+        </div>
+    </div>
+
+    <!-- Services Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- ClusterIP -->
+        <div class="bg-gradient-to-br from-blue-800/40 to-indigo-800/40 border-l-4 border-blue-400 rounded-xl p-6 component-card">
+            <div class="flex items-start mb-4">
+                <div class="bg-gradient-to-br from-blue-500 to-blue-600 p-3 rounded-lg mr-4 shadow-md">
+                    <i class="fas fa-home text-white text-xl"></i>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-white">ClusterIP</h3>
+                    <p class="text-blue-200 text-sm">Default Service Type</p>
+                </div>
+            </div>
+            <p class="text-gray-300 mb-4">
+                Exposes the Service on a cluster-internal IP, making it only reachable from within the cluster. This is the default Service type that provides internal load balancing between Pods.
+            </p>
+            <div class="flex flex-wrap gap-2">
+                <span class="bg-blue-500/30 text-blue-200 px-2 py-1 rounded text-sm">Internal</span>
+                <span class="bg-blue-500/30 text-blue-200 px-2 py-1 rounded text-sm">Default</span>
+                <span class="bg-blue-500/30 text-blue-200 px-2 py-1 rounded text-sm">Load Balancing</span>
+            </div>
+        </div>
+
+        <!-- NodePort -->
+        <div class="bg-gradient-to-br from-green-800/40 to-emerald-800/40 border-l-4 border-green-400 rounded-xl p-6 component-card">
+            <div class="flex items-start mb-4">
+                <div class="bg-gradient-to-br from-green-500 to-green-600 p-3 rounded-lg mr-4 shadow-md">
+                    <i class="fas fa-server text-white text-xl"></i>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-white">NodePort</h3>
+                    <p class="text-green-200 text-sm">Node-Level Exposure</p>
+                </div>
+            </div>
+            <p class="text-gray-300 mb-4">
+                Exposes the Service on each Node's IP at a static port. The Service becomes accessible from outside the cluster using NodeIP:NodePort. Automatically creates a ClusterIP Service.
+            </p>
+            <div class="flex flex-wrap gap-2">
+                <span class="bg-green-500/30 text-green-200 px-2 py-1 rounded text-sm">External Access</span>
+                <span class="bg-green-500/30 text-green-200 px-2 py-1 rounded text-sm">Static Port</span>
+                <span class="bg-green-500/30 text-green-200 px-2 py-1 rounded text-sm">Node IP</span>
+            </div>
+        </div>
+
+        <!-- LoadBalancer -->
+        <div class="bg-gradient-to-br from-orange-800/40 to-amber-800/40 border-l-4 border-orange-400 rounded-xl p-6 component-card">
+            <div class="flex items-start mb-4">
+                <div class="bg-gradient-to-br from-orange-500 to-orange-600 p-3 rounded-lg mr-4 shadow-md">
+                    <i class="fas fa-cloud text-white text-xl"></i>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-white">LoadBalancer</h3>
+                    <p class="text-orange-200 text-sm">Cloud Provider Integration</p>
+                </div>
+            </div>
+            <p class="text-gray-300 mb-4">
+                Exposes the Service externally using a cloud provider's load balancer. Automatically creates NodePort and ClusterIP Services. Directs external traffic to the backend Pods.
+            </p>
+            <div class="flex flex-wrap gap-2">
+                <span class="bg-orange-500/30 text-orange-200 px-2 py-1 rounded text-sm">Cloud LB</span>
+                <span class="bg-orange-500/30 text-orange-200 px-2 py-1 rounded text-sm">External IP</span>
+                <span class="bg-orange-500/30 text-orange-200 px-2 py-1 rounded text-sm">Auto-provisioning</span>
+            </div>
+        </div>
+
+        <!-- ExternalName -->
+        <div class="bg-gradient-to-br from-purple-800/40 to-pink-800/40 border-l-4 border-purple-400 rounded-xl p-6 component-card">
+            <div class="flex items-start mb-4">
+                <div class="bg-gradient-to-br from-purple-500 to-purple-600 p-3 rounded-lg mr-4 shadow-md">
+                    <i class="fas fa-external-link-alt text-white text-xl"></i>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-white">ExternalName</h3>
+                    <p class="text-purple-200 text-sm">External Service Mapping</p>
+                </div>
+            </div>
+            <p class="text-gray-300 mb-4">
+                Maps the Service to a DNS name rather than selecting Pods. Returns a CNAME record with the value specified in externalName field. Used for services running outside the cluster.
+            </p>
+            <div class="flex flex-wrap gap-2">
+                <span class="bg-purple-500/30 text-purple-200 px-2 py-1 rounded text-sm">DNS Mapping</span>
+                <span class="bg-purple-500/30 text-purple-200 px-2 py-1 rounded text-sm">External Service</span>
+                <span class="bg-purple-500/30 text-purple-200 px-2 py-1 rounded text-sm">CNAME</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Comparison Section -->
+    <div class="mt-10 bg-gradient-to-r from-gray-900/60 to-gray-800/60 p-6 rounded-xl border border-cyan-700/30">
+        <h3 class="text-xl font-bold text-cyan-300 mb-4 text-center">
+            <i class="fas fa-chart-bar mr-2"></i>Service Type Comparison
+        </h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+            <div>
+                <div class="text-blue-400 font-bold">ClusterIP</div>
+                <div class="text-gray-400 text-sm">Internal Only</div>
+            </div>
+            <div>
+                <div class="text-green-400 font-bold">NodePort</div>
+                <div class="text-gray-400 text-sm">NodeIP:Port</div>
+            </div>
+            <div>
+                <div class="text-orange-400 font-bold">LoadBalancer</div>
+                <div class="text-gray-400 text-sm">External IP + LB</div>
+            </div>
+            <div>
+                <div class="text-purple-400 font-bold">ExternalName</div>
+                <div class="text-gray-400 text-sm">DNS Redirect</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+<div class="bg-gradient-to-br from-blue-900/40 to-cyan-900/40 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-blue-700/50 shadow-2xl">
+    <!-- Header -->
+    <div class="text-center mb-10">
+        <div class="inline-block bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-8 py-4 rounded-full font-bold text-xl shadow-lg glow">
+            <i class="fas fa-network-wired mr-3"></i>Kubernetes Services & kubectl
+        </div>
+    </div>
+
+    <!-- Content -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+        <!-- Visual Representation -->
+        <div class="flex justify-center">
+            <div class="relative w-64 h-64">
+                <!-- Service -->
+                <div class="absolute inset-0 bg-gradient-to-br from-blue-600/30 to-cyan-600/30 rounded-2xl border-2 border-blue-500/50 shadow-lg flex items-center justify-center">
+                    <div class="text-center p-6">
+                        <i class="fas fa-network-wired text-4xl text-blue-300 mb-3"></i>
+                        <h3 class="text-xl font-bold text-white">Service</h3>
+                        <p class="text-blue-200 text-sm mt-2">Network Abstraction</p>
+                    </div>
+                </div>
+                
+                <!-- Pod 1 -->
+                <div class="absolute -top-2 -left-2 bg-gradient-to-br from-green-500 to-emerald-500 w-16 h-16 rounded-lg border-2 border-green-400 shadow-md flex items-center justify-center">
+                    <i class="fas fa-cube text-white text-sm"></i>
+                </div>
+                
+                <!-- Pod 2 -->
+                <div class="absolute -top-2 -right-2 bg-gradient-to-br from-green-500 to-emerald-500 w-16 h-16 rounded-lg border-2 border-green-400 shadow-md flex items-center justify-center">
+                    <i class="fas fa-cube text-white text-sm"></i>
+                </div>
+                
+                <!-- Pod 3 -->
+                <div class="absolute -bottom-2 -left-2 bg-gradient-to-br from-green-500 to-emerald-500 w-16 h-16 rounded-lg border-2 border-green-400 shadow-md flex items-center justify-center">
+                    <i class="fas fa-cube text-white text-sm"></i>
+                </div>
+                
+                <!-- Pod 4 -->
+                <div class="absolute -bottom-2 -right-2 bg-gradient-to-br from-green-500 to-emerald-500 w-16 h-16 rounded-lg border-2 border-green-400 shadow-md flex items-center justify-center">
+                    <i class="fas fa-cube text-white text-sm"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Explanation -->
+        <div class="space-y-6">
+            <div class="bg-gradient-to-r from-blue-900/50 to-cyan-900/50 p-6 rounded-xl border-l-4 border-blue-400">
+                <p class="text-lg text-white leading-relaxed">
+                    kubectl is the primary command-line tool for interacting with Kubernetes Services, allowing you to create, inspect, update, and delete Service resources that provide stable network endpoints and load balancing for your application Pods.
+                </p>
+            </div>
+            
+            <div class="bg-gradient-to-r from-cyan-900/50 to-blue-900/50 p-6 rounded-xl border-l-4 border-cyan-400">
+                <p class="text-lg text-white leading-relaxed">
+                    Through kubectl commands, you can expose your Pods as network services using different Service types like ClusterIP for internal communication, NodePort for external access, and LoadBalancer for cloud provider integration, all while maintaining consistent DNS names and IP addresses.
+                </p>
+            </div>
+            
+            <div class="bg-gradient-to-r from-indigo-900/50 to-blue-900/50 p-6 rounded-xl border-l-4 border-indigo-400">
+                <p class="text-lg text-white leading-relaxed">
+                    kubectl enables you to manage Service discovery and load balancing by creating Service selectors that automatically find and route traffic to Pods with matching labels, ensuring your applications remain accessible even as Pods are created, destroyed, or rescheduled across the cluster.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- kubectl Commands -->
+    <div class="mt-10 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-gradient-to-br from-green-900/40 to-emerald-900/40 p-5 rounded-xl border border-green-600/50 text-center">
+            <i class="fas fa-plus-circle text-green-300 text-2xl mb-3"></i>
+            <h4 class="font-bold text-white mb-2">Create Service</h4>
+            <p class="text-green-200 text-sm font-mono">kubectl create service</p>
+        </div>
+        
+        <div class="bg-gradient-to-br from-yellow-900/40 to-amber-900/40 p-5 rounded-xl border border-yellow-600/50 text-center">
+            <i class="fas fa-eye text-yellow-300 text-2xl mb-3"></i>
+            <h4 class="font-bold text-white mb-2">Get Services</h4>
+            <p class="text-yellow-200 text-sm font-mono">kubectl get services</p>
+        </div>
+        
+        <div class="bg-gradient-to-br from-red-900/40 to-pink-900/40 p-5 rounded-xl border border-red-600/50 text-center">
+            <i class="fas fa-bolt text-red-300 text-2xl mb-3"></i>
+            <h4 class="font-bold text-white mb-2">Expose Pods</h4>
+            <p class="text-red-200 text-sm font-mono">kubectl expose pod</p>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+
+
+<div class="bg-gradient-to-br from-blue-900/40 to-indigo-900/40 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-blue-700/50 shadow-2xl">
+    <!-- Header -->
+    <div class="text-center mb-10">
+        <div class="inline-block bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-8 py-4 rounded-full font-bold text-xl shadow-lg">
+            <i class="fas fa-network-wired mr-3"></i>ClusterIP vs NodePort
+        </div>
+    </div>
+
+    <!-- Comparison Content -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- ClusterIP -->
+        <div class="bg-gradient-to-br from-green-900/40 to-emerald-900/40 p-6 rounded-xl border-l-4 border-green-400">
+            <div class="flex items-center mb-4">
+                <div class="bg-green-500 p-3 rounded-lg mr-4">
+                    <i class="fas fa-shield-alt text-white text-xl"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-white">ClusterIP</h3>
+            </div>
+            <div class="space-y-4">
+                <p class="text-green-100 leading-relaxed">
+                    ClusterIP is the default Kubernetes service type that exposes the service on a cluster-internal IP address, making it only accessible from within the cluster.
+                </p>
+                <p class="text-green-100 leading-relaxed">
+                    This service type creates a stable virtual IP inside the cluster that other pods can use to communicate with your application, providing internal load balancing across the pods.
+                </p>
+                <p class="text-green-100 leading-relaxed">
+                    ClusterIP services are ideal for internal microservices communication where you don't need external access, offering better security by keeping the service isolated from outside traffic.
+                </p>
+            </div>
+            <div class="mt-4 flex flex-wrap gap-2">
+                <span class="bg-green-500/40 text-green-200 px-3 py-1 rounded-full text-sm">Internal Only</span>
+                <span class="bg-green-500/40 text-green-200 px-3 py-1 rounded-full text-sm">Default Type</span>
+                <span class="bg-green-500/40 text-green-200 px-3 py-1 rounded-full text-sm">Secure</span>
+            </div>
+        </div>
+
+        <!-- NodePort -->
+        <div class="bg-gradient-to-br from-orange-900/40 to-yellow-900/40 p-6 rounded-xl border-l-4 border-orange-400">
+            <div class="flex items-center mb-4">
+                <div class="bg-orange-500 p-3 rounded-lg mr-4">
+                    <i class="fas fa-door-open text-white text-xl"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-white">NodePort</h3>
+            </div>
+            <div class="space-y-4">
+                <p class="text-orange-100 leading-relaxed">
+                    NodePort exposes the service on each node's IP address at a static port, making it accessible from outside the cluster using any node's IP address and the assigned port.
+                </p>
+                <p class="text-orange-100 leading-relaxed">
+                    This service type opens the same port on every node in the cluster and routes traffic from that port to the service, which then distributes it to the pods.
+                </p>
+                <p class="text-orange-100 leading-relaxed">
+                    NodePort is useful for development, testing, or when you need direct external access to your service without a load balancer, though it exposes your application more broadly.
+                </p>
+            </div>
+            <div class="mt-4 flex flex-wrap gap-2">
+                <span class="bg-orange-500/40 text-orange-200 px-3 py-1 rounded-full text-sm">External Access</span>
+                <span class="bg-orange-500/40 text-orange-200 px-3 py-1 rounded-full text-sm">Static Port</span>
+                <span class="bg-orange-500/40 text-orange-200 px-3 py-1 rounded-full text-sm">Development</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Visual Comparison -->
+    <div class="mt-10 bg-gradient-to-br from-purple-900/40 to-pink-900/40 p-6 rounded-xl border border-purple-600/50">
+        <h3 class="text-xl font-bold text-white text-center mb-6">Access Pattern Comparison</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="text-center">
+                <div class="bg-green-900/50 p-4 rounded-lg mb-3">
+                    <i class="fas fa-arrow-right-arrow-left text-green-300 text-2xl mb-2"></i>
+                    <h4 class="font-bold text-white">ClusterIP Access</h4>
+                    <p class="text-green-200 text-sm mt-2">Internal Pod → ClusterIP → Target Pods</p>
+                </div>
+                <p class="text-green-100 text-sm">Only accessible from within the cluster network</p>
+            </div>
+            <div class="text-center">
+                <div class="bg-orange-900/50 p-4 rounded-lg mb-3">
+                    <i class="fas fa-globe text-orange-300 text-2xl mb-2"></i>
+                    <h4 class="font-bold text-white">NodePort Access</h4>
+                    <p class="text-orange-200 text-sm mt-2">External Client → NodeIP:Port → Target Pods</p>
+                </div>
+                <p class="text-orange-100 text-sm">Accessible from outside using any node's IP</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+<div class="bg-gradient-to-br from-blue-900/40 via-cyan-900/40 to-emerald-900/40 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-cyan-500/50 shadow-2xl">
+    <!-- Header -->
+    <div class="text-center mb-10">
+        <div class="inline-block bg-gradient-to-r from-cyan-500 via-blue-500 to-emerald-500 text-white px-8 py-4 rounded-full font-bold text-xl shadow-lg glow">
+            <i class="fas fa-route mr-3"></i>Ingress vs LoadBalancer Service
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Ingress Section -->
+        <div class="bg-gradient-to-br from-purple-900/50 to-indigo-900/50 rounded-xl p-6 border-l-4 border-purple-400 shadow-lg">
+            <div class="flex items-center mb-4">
+                <div class="bg-gradient-to-br from-purple-500 to-indigo-500 p-3 rounded-lg mr-4">
+                    <i class="fas fa-globe text-white text-xl"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-white">Ingress</h3>
+            </div>
+            
+            <div class="space-y-4">
+                <div class="bg-purple-800/40 p-4 rounded-lg border border-purple-600/50">
+                    <p class="text-white leading-relaxed">
+                        An Ingress is an API object that manages external access to services in a cluster, typically HTTP/HTTPS, providing layer 7 routing capabilities with host-based and path-based routing rules.
+                    </p>
+                </div>
+                
+                <div class="bg-purple-800/40 p-4 rounded-lg border border-purple-600/50">
+                    <p class="text-white leading-relaxed">
+                        It acts as a smart router and reverse proxy that can handle SSL termination, load balancing, name-based virtual hosting, and path-based routing to direct traffic to different services based on the request characteristics.
+                    </p>
+                </div>
+                
+                <div class="bg-purple-800/40 p-4 rounded-lg border border-purple-600/50">
+                    <p class="text-white leading-relaxed">
+                        Ingress requires an Ingress Controller to function, which is a pod that watches the API server for Ingress resources and configures the underlying load balancer or proxy accordingly.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Ingress Features -->
+            <div class="mt-6 grid grid-cols-2 gap-3">
+                <span class="bg-purple-700/60 text-purple-200 px-3 py-1 rounded-full text-sm text-center">Layer 7 Routing</span>
+                <span class="bg-purple-700/60 text-purple-200 px-3 py-1 rounded-full text-sm text-center">SSL Termination</span>
+                <span class="bg-purple-700/60 text-purple-200 px-3 py-1 rounded-full text-sm text-center">Host-based Routing</span>
+                <span class="bg-purple-700/60 text-purple-200 px-3 py-1 rounded-full text-sm text-center">Path-based Routing</span>
+            </div>
+        </div>
+
+        <!-- LoadBalancer Section -->
+        <div class="bg-gradient-to-br from-orange-900/50 to-amber-900/50 rounded-xl p-6 border-l-4 border-orange-400 shadow-lg">
+            <div class="flex items-center mb-4">
+                <div class="bg-gradient-to-br from-orange-500 to-amber-500 p-3 rounded-lg mr-4">
+                    <i class="fas fa-balance-scale text-white text-xl"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-white">LoadBalancer Service</h3>
+            </div>
+            
+            <div class="space-y-4">
+                <div class="bg-orange-800/40 p-4 rounded-lg border border-orange-600/50">
+                    <p class="text-white leading-relaxed">
+                        A LoadBalancer Service is a type of Kubernetes service that automatically provisions an external cloud load balancer to expose the service to the internet, operating at layer 4 of the OSI model.
+                    </p>
+                </div>
+                
+                <div class="bg-orange-800/40 p-4 rounded-lg border border-orange-600/50">
+                    <p class="text-white leading-relaxed">
+                        It provides basic TCP/UDP load balancing and distributes incoming traffic across all healthy pods behind the service, with each service typically getting its own external IP address and cloud load balancer instance.
+                    </p>
+                </div>
+                
+                <div class="bg-orange-800/40 p-4 rounded-lg border border-orange-600/50">
+                    <p class="text-white leading-relaxed">
+                        This service type is cloud-provider specific and can be expensive since each service creates a separate load balancer resource in your cloud provider's infrastructure with associated costs.
+                    </p>
+                </div>
+            </div>
+
+            <!-- LoadBalancer Features -->
+            <div class="mt-6 grid grid-cols-2 gap-3">
+                <span class="bg-orange-700/60 text-orange-200 px-3 py-1 rounded-full text-sm text-center">Layer 4 Load Balancing</span>
+                <span class="bg-orange-700/60 text-orange-200 px-3 py-1 rounded-full text-sm text-center">Cloud Provider Integration</span>
+                <span class="bg-orange-700/60 text-orange-200 px-3 py-1 rounded-full text-sm text-center">External IP</span>
+                <span class="bg-orange-700/60 text-orange-200 px-3 py-1 rounded-full text-sm text-center">TCP/UDP Protocols</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Differences -->
+    <div class="mt-10 bg-gradient-to-r from-cyan-900/50 to-blue-900/50 rounded-xl p-6 border border-cyan-500/50">
+        <h3 class="text-2xl font-bold text-white text-center mb-6">
+            <i class="fas fa-random mr-2"></i>Key Differences
+        </h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="space-y-4">
+                <div class="flex items-start">
+                    <div class="bg-cyan-500 text-white rounded-full w-6 h-6 flex items-center justify-center mr-3 mt-1 flex-shrink-0">
+                        <i class="fas fa-layer-group text-xs"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-cyan-300">OSI Layer</h4>
+                        <p class="text-cyan-100 text-sm">Ingress operates at Layer 7 (Application), while LoadBalancer operates at Layer 4 (Transport)</p>
+                    </div>
+                </div>
+                
+                <div class="flex items-start">
+                    <div class="bg-cyan-500 text-white rounded-full w-6 h-6 flex items-center justify-center mr-3 mt-1 flex-shrink-0">
+                        <i class="fas fa-dollar-sign text-xs"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-cyan-300">Cost Efficiency</h4>
+                        <p class="text-cyan-100 text-sm">One Ingress can handle multiple services, while each LoadBalancer service creates separate cloud resources</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="space-y-4">
+                <div class="flex items-start">
+                    <div class="bg-cyan-500 text-white rounded-full w-6 h-6 flex items-center justify-center mr-3 mt-1 flex-shrink-0">
+                        <i class="fas fa-route text-xs"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-cyan-300">Routing Capabilities</h4>
+                        <p class="text-cyan-100 text-sm">Ingress supports host/path-based routing, while LoadBalancer does basic round-robin load balancing</p>
+                    </div>
+                </div>
+                
+                <div class="flex items-start">
+                    <div class="bg-cyan-500 text-white rounded-full w-6 h-6 flex items-center justify-center mr-3 mt-1 flex-shrink-0">
+                        <i class="fas fa-cog text-xs"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-cyan-300">Configuration</h4>
+                        <p class="text-cyan-100 text-sm">Ingress requires a controller, LoadBalancer works out-of-the-box with cloud providers</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+<div class="bg-gradient-to-br from-blue-900/40 via-indigo-900/40 to-purple-900/40 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-blue-700/50 shadow-2xl">
+    <!-- Header -->
+    <div class="text-center mb-10">
+        <div class="inline-block bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 text-white px-8 py-4 rounded-full font-bold text-xl shadow-lg">
+            <i class="fas fa-layer-group mr-3"></i>What is a Deployment?
+        </div>
+    </div>
+
+    <!-- Content -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+        <!-- Visual Representation -->
+        <div class="flex justify-center">
+            <div class="relative w-72 h-72">
+                <!-- Deployment Controller -->
+                <div class="absolute top-4 left-1/2 transform -translate-x-1/2 bg-gradient-to-br from-blue-600 to-indigo-600 w-20 h-20 rounded-xl border-2 border-blue-400 shadow-lg flex items-center justify-center">
+                    <i class="fas fa-cogs text-white text-2xl"></i>
+                </div>
+                
+                <!-- ReplicaSet -->
+                <div class="absolute top-32 left-1/2 transform -translate-x-1/2 bg-gradient-to-br from-green-600 to-emerald-600 w-16 h-16 rounded-lg border-2 border-green-400 shadow-md flex items-center justify-center">
+                    <i class="fas fa-copy text-white text-lg"></i>
+                </div>
+                
+                <!-- Pods -->
+                <div class="absolute bottom-8 left-8 bg-gradient-to-br from-purple-500 to-pink-500 w-14 h-14 rounded-lg border-2 border-purple-400 shadow-md flex items-center justify-center">
+                    <i class="fas fa-cube text-white"></i>
+                </div>
+                <div class="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-gradient-to-br from-purple-500 to-pink-500 w-14 h-14 rounded-lg border-2 border-purple-400 shadow-md flex items-center justify-center">
+                    <i class="fas fa-cube text-white"></i>
+                </div>
+                <div class="absolute bottom-8 right-8 bg-gradient-to-br from-purple-500 to-pink-500 w-14 h-14 rounded-lg border-2 border-purple-400 shadow-md flex items-center justify-center">
+                    <i class="fas fa-cube text-white"></i>
+                </div>
+                
+                <!-- Connection Lines -->
+                <div class="absolute top-24 left-1/2 transform -translate-x-1/2 w-1 h-8 bg-gradient-to-b from-blue-400 to-green-400"></div>
+                <div class="absolute top-48 left-1/2 transform -translate-x-1/2 w-1 h-12 bg-gradient-to-b from-green-400 to-purple-400"></div>
+                <div class="absolute top-48 left-1/2 transform -translate-x-1/2 w-48 h-1 bg-gradient-to-r from-green-400 to-purple-400"></div>
+            </div>
+        </div>
+
+        <!-- Explanation -->
+        <div class="space-y-6">
+            <div class="bg-gradient-to-r from-blue-900/50 to-indigo-900/50 p-6 rounded-xl border-l-4 border-blue-400">
+                <p class="text-lg text-white leading-relaxed">
+                    A Deployment is a Kubernetes controller that provides declarative updates for Pods and ReplicaSets, allowing you to describe an application's life cycle including which images to use, the number of pods to run, and how to handle updates and rollbacks.
+                </p>
+            </div>
+            
+            <div class="bg-gradient-to-r from-indigo-900/50 to-purple-900/50 p-6 rounded-xl border-l-4 border-indigo-400">
+                <p class="text-lg text-white leading-relaxed">
+                    It manages the creation, scaling, and deletion of Pods through ReplicaSets while ensuring your application maintains the desired state you specify, automatically handling pod failures and distributing traffic across healthy instances.
+                </p>
+            </div>
+            
+            <div class="bg-gradient-to-r from-purple-900/50 to-blue-900/50 p-6 rounded-xl border-l-4 border-purple-400">
+                <p class="text-lg text-white leading-relaxed">
+                    Deployments enable powerful rollout strategies like rolling updates, blue-green deployments, and canary releases while maintaining application availability throughout the update process and providing instant rollback capabilities if issues are detected.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Features -->
+    <div class="mt-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div class="bg-gradient-to-br from-blue-800/40 to-cyan-800/40 p-5 rounded-xl border border-blue-600/50 text-center">
+            <i class="fas fa-sync-alt text-blue-300 text-2xl mb-3"></i>
+            <h4 class="font-bold text-white mb-2">Rolling Updates</h4>
+            <p class="text-blue-200 text-sm">Gradually replace old pods with new ones without downtime</p>
+        </div>
+        
+        <div class="bg-gradient-to-br from-green-800/40 to-emerald-800/40 p-5 rounded-xl border border-green-600/50 text-center">
+            <i class="fas fa-undo text-green-300 text-2xl mb-3"></i>
+            <h4 class="font-bold text-white mb-2">Rollback</h4>
+            <p class="text-green-200 text-sm">Instantly revert to previous version if issues occur</p>
+        </div>
+        
+        <div class="bg-gradient-to-br from-purple-800/40 to-pink-800/40 p-5 rounded-xl border border-purple-600/50 text-center">
+            <i class="fas fa-expand-arrows-alt text-purple-300 text-2xl mb-3"></i>
+            <h4 class="font-bold text-white mb-2">Scaling</h4>
+            <p class="text-purple-200 text-sm">Easily scale the number of pod replicas up or down</p>
+        </div>
+        
+        <div class="bg-gradient-to-br from-orange-800/40 to-yellow-800/40 p-5 rounded-xl border border-orange-600/50 text-center">
+            <i class="fas fa-heartbeat text-orange-300 text-2xl mb-3"></i>
+            <h4 class="font-bold text-white mb-2">Self-Healing</h4>
+            <p class="text-orange-200 text-sm">Automatically replaces failed or terminated pods</p>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+<div class="bg-gradient-to-br from-blue-900/40 via-cyan-900/40 to-emerald-900/40 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-cyan-500/50 shadow-2xl">
+    <!-- Header -->
+    <div class="text-center mb-10">
+        <div class="inline-block bg-gradient-to-r from-cyan-500 via-blue-500 to-emerald-500 text-white px-8 py-4 rounded-full font-bold text-xl shadow-lg">
+            <i class="fas fa-layer-group mr-3"></i>Why Use Deployments Instead of Direct Pods?
+        </div>
+    </div>
+
+    <!-- Content Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Left Side - Benefits -->
+        <div class="space-y-6">
+            <!-- Self-healing -->
+            <div class="bg-gradient-to-r from-green-900/50 to-emerald-900/50 p-6 rounded-xl border-l-4 border-green-400">
+                <div class="flex items-start">
+                    <div class="bg-green-500 p-3 rounded-lg mr-4">
+                        <i class="fas fa-heartbeat text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-white mb-2">Self-Healing Capability</h3>
+                        <p class="text-green-200 leading-relaxed">
+                            Deployments automatically monitor and maintain the desired state of your application by automatically replacing failed or terminated Pods without manual intervention, ensuring high availability and reliability.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rolling Updates -->
+            <div class="bg-gradient-to-r from-blue-900/50 to-cyan-900/50 p-6 rounded-xl border-l-4 border-blue-400">
+                <div class="flex items-start">
+                    <div class="bg-blue-500 p-3 rounded-lg mr-4">
+                        <i class="fas fa-sync-alt text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-white mb-2">Rolling Updates & Rollbacks</h3>
+                        <p class="text-blue-200 leading-relaxed">
+                            Deployments enable seamless application updates by gradually replacing old Pods with new ones while maintaining service availability, and provide instant rollback capabilities to previous stable versions if issues arise.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scaling -->
+            <div class="bg-gradient-to-r from-purple-900/50 to-indigo-900/50 p-6 rounded-xl border-l-4 border-purple-400">
+                <div class="flex items-start">
+                    <div class="bg-purple-500 p-3 rounded-lg mr-4">
+                        <i class="fas fa-expand-arrows-alt text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-white mb-2">Easy Scaling</h3>
+                        <p class="text-purple-200 leading-relaxed">
+                            With simple commands or configuration changes, Deployments allow you to scale your application up or down by adjusting replica counts, automatically managing the creation or termination of Pods to match demand.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side - Comparison -->
+        <div class="space-y-6">
+            <!-- Deployment Advantages -->
+            <div class="bg-gradient-to-br from-cyan-900/30 to-blue-900/30 p-6 rounded-xl border border-cyan-500/30">
+                <h3 class="text-xl font-bold text-white mb-4 text-center">Deployment Advantages</h3>
+                <div class="space-y-4">
+                    <div class="flex items-center">
+                        <i class="fas fa-check-circle text-green-400 mr-3 text-lg"></i>
+                        <span class="text-cyan-200">Automatic Pod replacement on failure</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i class="fas fa-check-circle text-green-400 mr-3 text-lg"></i>
+                        <span class="text-cyan-200">Zero-downtime updates and rollbacks</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i class="fas fa-check-circle text-green-400 mr-3 text-lg"></i>
+                        <span class="text-cyan-200">Declarative updates and state management</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i class="fas fa-check-circle text-green-400 mr-3 text-lg"></i>
+                        <span class="text-cyan-200">Built-in scaling capabilities</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i class="fas fa-check-circle text-green-400 mr-3 text-lg"></i>
+                        <span class="text-cyan-200">Version history and revision tracking</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Direct Pod Limitations -->
+            <div class="bg-gradient-to-br from-orange-900/30 to-red-900/30 p-6 rounded-xl border border-orange-500/30">
+                <h3 class="text-xl font-bold text-white mb-4 text-center">Direct Pod Limitations</h3>
+                <div class="space-y-4">
+                    <div class="flex items-center">
+                        <i class="fas fa-times-circle text-red-400 mr-3 text-lg"></i>
+                        <span class="text-orange-200">No automatic recovery from failures</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i class="fas fa-times-circle text-red-400 mr-3 text-lg"></i>
+                        <span class="text-orange-200">Manual intervention required for updates</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i class="fas fa-times-circle text-red-400 mr-3 text-lg"></i>
+                        <span class="text-orange-200">No built-in rollback mechanism</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i class="fas fa-times-circle text-red-400 mr-3 text-lg"></i>
+                        <span class="text-orange-200">Scaling requires manual Pod management</span>
+                    </div>
+                    <div class="flex items-center">
+                        <i class="fas fa-times-circle text-red-400 mr-3 text-lg"></i>
+                        <span class="text-orange-200">No version control or revision history</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="mt-8 bg-gradient-to-r from-emerald-900/50 to-teal-900/50 p-6 rounded-xl border-l-4 border-emerald-400">
+        <div class="flex items-start">
+            <div class="bg-emerald-500 p-3 rounded-lg mr-4">
+                <i class="fas fa-lightbulb text-white text-xl"></i>
+            </div>
+            <div>
+                <h3 class="text-xl font-bold text-white mb-2">Key Takeaway</h3>
+                <p class="text-emerald-200 leading-relaxed">
+                    While you can create Pods directly for testing or debugging purposes, Deployments provide the production-grade orchestration layer that manages Pod lifecycle, ensures application reliability, and enables seamless operations including updates, scaling, and self-healing capabilities that are essential for running applications in production environments.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+
+<div class="bg-gradient-to-br from-blue-900/40 to-cyan-900/40 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-blue-600/50 shadow-2xl">
+    <!-- Header -->
+    <div class="text-center mb-10">
+        <div class="inline-block bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-8 py-4 rounded-full font-bold text-xl shadow-lg">
+            <i class="fas fa-sync-alt mr-3"></i>Update Deployment with New Container Image
+        </div>
+    </div>
+
+    <!-- Content -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        <!-- Command Section -->
+        <div class="space-y-6">
+            <div class="bg-gradient-to-r from-blue-900/50 to-cyan-900/50 p-6 rounded-xl border-l-4 border-blue-400">
+                <h3 class="text-xl font-bold text-white mb-4">
+                    <i class="fas fa-terminal mr-2"></i>kubectl set image Command
+                </h3>
+                <div class="bg-black/60 p-4 rounded-lg border border-blue-700/50">
+                    <code class="text-green-400 font-mono text-lg">
+                        kubectl set image deployment/<span class="text-yellow-300">my-app</span> \
+                        <span class="text-cyan-300">nginx</span>=nginx:1.21.3
+                    </code>
+                </div>
+                <div class="mt-4 flex items-center text-blue-200">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    <span class="text-sm">Replaces nginx container with version 1.21.3 in my-app deployment</span>
+                </div>
+            </div>
+
+            <div class="bg-gradient-to-r from-indigo-900/50 to-purple-900/50 p-6 rounded-xl border-l-4 border-indigo-400">
+                <h3 class="text-xl font-bold text-white mb-4">
+                    <i class="fas fa-edit mr-2"></i>Edit Deployment Directly
+                </h3>
+                <div class="bg-black/60 p-4 rounded-lg border border-purple-700/50">
+                    <code class="text-green-400 font-mono text-lg">
+                        kubectl edit deployment/<span class="text-yellow-300">my-app</span>
+                    </code>
+                </div>
+                <div class="mt-4 flex items-center text-purple-200">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    <span class="text-sm">Opens deployment YAML in editor for manual image version update</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Process Flow -->
+        <div class="bg-gradient-to-br from-gray-900/60 to-gray-800/60 p-6 rounded-xl border border-gray-700">
+            <h3 class="text-xl font-bold text-white mb-6 text-center">
+                <i class="fas fa-project-diagram mr-2"></i>Rolling Update Process
+            </h3>
+            <div class="space-y-4">
+                <!-- Step 1 -->
+                <div class="flex items-center bg-blue-900/30 p-4 rounded-lg border border-blue-600/30">
+                    <div class="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center mr-4 font-bold">1</div>
+                    <div>
+                        <h4 class="font-bold text-white">New ReplicaSet Created</h4>
+                        <p class="text-blue-200 text-sm">Kubernetes creates a new ReplicaSet with updated container image</p>
+                    </div>
+                </div>
+                
+                <!-- Step 2 -->
+                <div class="flex items-center bg-green-900/30 p-4 rounded-lg border border-green-600/30">
+                    <div class="bg-green-500 text-white rounded-full w-8 h-8 flex items-center justify-center mr-4 font-bold">2</div>
+                    <div>
+                        <h4 class="font-bold text-white">Gradual Pod Replacement</h4>
+                        <p class="text-green-200 text-sm">New Pods are created while old Pods are terminated gradually</p>
+                    </div>
+                </div>
+                
+                <!-- Step 3 -->
+                <div class="flex items-center bg-purple-900/30 p-4 rounded-lg border border-purple-600/30">
+                    <div class="bg-purple-500 text-white rounded-full w-8 h-8 flex items-center justify-center mr-4 font-bold">3</div>
+                    <div>
+                        <h4 class="font-bold text-white">Health Checks</h4>
+                        <p class="text-purple-200 text-sm">Readiness probes ensure new Pods are healthy before serving traffic</p>
+                    </div>
+                </div>
+                
+                <!-- Step 4 -->
+                <div class="flex items-center bg-orange-900/30 p-4 rounded-lg border border-orange-600/30">
+                    <div class="bg-orange-500 text-white rounded-full w-8 h-8 flex items-center justify-center mr-4 font-bold">4</div>
+                    <div>
+                        <h4 class="font-bold text-white">Update Complete</h4>
+                        <p class="text-orange-200 text-sm">All Pods now running new container image, old ReplicaSet scaled to zero</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Additional Commands -->
+    <div class="mt-8 bg-gradient-to-r from-emerald-900/40 to-teal-900/40 p-6 rounded-xl border-l-4 border-emerald-400">
+        <h3 class="text-xl font-bold text-white mb-4">
+            <i class="fas fa-tools mr-2"></i>Additional Useful Commands
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-black/40 p-3 rounded-lg">
+                <code class="text-cyan-300 font-mono text-sm">kubectl rollout status deployment/my-app</code>
+                <p class="text-emerald-200 text-xs mt-1">Monitor update progress</p>
+            </div>
+            <div class="bg-black/40 p-3 rounded-lg">
+                <code class="text-cyan-300 font-mono text-sm">kubectl rollout undo deployment/my-app</code>
+                <p class="text-emerald-200 text-xs mt-1">Rollback to previous version</p>
+            </div>
+            <div class="bg-black/40 p-3 rounded-lg">
+                <code class="text-cyan-300 font-mono text-sm">kubectl get replicasets</code>
+                <p class="text-emerald-200 text-xs mt-1">Check ReplicaSet history</p>
+            </div>
+            <div class="bg-black/40 p-3 rounded-lg">
+                <code class="text-cyan-300 font-mono text-sm">kubectl describe deployment/my-app</code>
+                <p class="text-emerald-200 text-xs mt-1">View deployment details</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+<div class="bg-gradient-to-br from-blue-900/40 to-cyan-900/40 backdrop-blur-sm rounded-2xl p-8 border border-blue-700/50 shadow-2xl">
+    <!-- Header -->
+    <div class="text-center mb-10">
+        <div class="inline-block bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-8 py-4 rounded-full font-bold text-xl shadow-lg">
+            <i class="fas fa-search mr-3"></i>How to Check Pod Status
+        </div>
+    </div>
+
+    <!-- Commands Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <!-- Basic Pod Status -->
+        <div class="bg-gradient-to-br from-blue-800/50 to-blue-900/50 p-6 rounded-xl border-l-4 border-cyan-400">
+            <h3 class="text-xl font-bold text-white mb-4 flex items-center">
+                <i class="fas fa-list mr-3 text-cyan-300"></i>Basic Pod Information
+            </h3>
+            <div class="bg-black/50 p-4 rounded-lg border border-cyan-800/50">
+                <code class="text-cyan-300 font-mono text-lg">kubectl get pods</code>
+            </div>
+            <p class="text-blue-200 mt-3 text-sm">Lists all pods in the current namespace with basic status</p>
+        </div>
+
+        <!-- Detailed Pod Info -->
+        <div class="bg-gradient-to-br from-cyan-800/50 to-blue-900/50 p-6 rounded-xl border-l-4 border-blue-400">
+            <h3 class="text-xl font-bold text-white mb-4 flex items-center">
+                <i class="fas fa-info-circle mr-3 text-blue-300"></i>Detailed Pod Status
+            </h3>
+            <div class="bg-black/50 p-4 rounded-lg border border-blue-800/50">
+                <code class="text-blue-300 font-mono text-lg">kubectl describe pod &lt;pod-name&gt;</code>
+            </div>
+            <p class="text-cyan-200 mt-3 text-sm">Shows comprehensive details about a specific pod</p>
+        </div>
+    </div>
+
+    <!-- Advanced Commands -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Wide Output -->
+        <div class="bg-gradient-to-br from-indigo-800/50 to-purple-900/50 p-5 rounded-xl border border-indigo-600/50">
+            <h4 class="font-bold text-white mb-3 flex items-center">
+                <i class="fas fa-expand-alt mr-2 text-indigo-300"></i>Wide Output
+            </h4>
+            <div class="bg-black/50 p-3 rounded-lg">
+                <code class="text-indigo-300 font-mono text-sm">kubectl get pods -o wide</code>
+            </div>
+            <p class="text-indigo-200 mt-2 text-xs">Shows node and IP information</p>
+        </div>
+
+        <!-- All Namespaces -->
+        <div class="bg-gradient-to-br from-purple-800/50 to-pink-900/50 p-5 rounded-xl border border-purple-600/50">
+            <h4 class="font-bold text-white mb-3 flex items-center">
+                <i class="fas fa-layer-group mr-2 text-purple-300"></i>All Namespaces
+            </h4>
+            <div class="bg-black/50 p-3 rounded-lg">
+                <code class="text-purple-300 font-mono text-sm">kubectl get pods -A</code>
+            </div>
+            <p class="text-purple-200 mt-2 text-xs">Lists pods across all namespaces</p>
+        </div>
+
+        <!-- Watch Mode -->
+        <div class="bg-gradient-to-br from-pink-800/50 to-rose-900/50 p-5 rounded-xl border border-pink-600/50">
+            <h4 class="font-bold text-white mb-3 flex items-center">
+                <i class="fas fa-eye mr-2 text-pink-300"></i>Real-time Monitoring
+            </h4>
+            <div class="bg-black/50 p-3 rounded-lg">
+                <code class="text-pink-300 font-mono text-sm">kubectl get pods -w</code>
+            </div>
+            <p class="text-pink-200 mt-2 text-xs">Watches for pod changes in real-time</p>
+        </div>
+    </div>
+
+    <!-- Status Indicators -->
+    <div class="mt-8 bg-gradient-to-r from-gray-800/60 to-gray-900/60 p-6 rounded-xl border border-gray-700">
+        <h3 class="text-lg font-bold text-white mb-4 text-center">Common Pod Status Indicators</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="text-center">
+                <div class="w-3 h-3 bg-green-500 rounded-full mx-auto mb-2"></div>
+                <span class="text-green-300 text-sm">Running</span>
+            </div>
+            <div class="text-center">
+                <div class="w-3 h-3 bg-yellow-500 rounded-full mx-auto mb-2"></div>
+                <span class="text-yellow-300 text-sm">Pending</span>
+            </div>
+            <div class="text-center">
+                <div class="w-3 h-3 bg-red-500 rounded-full mx-auto mb-2"></div>
+                <span class="text-red-300 text-sm">Failed</span>
+            </div>
+            <div class="text-center">
+                <div class="w-3 h-3 bg-blue-500 rounded-full mx-auto mb-2"></div>
+                <span class="text-blue-300 text-sm">Succeeded</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+<div class="bg-gradient-to-br from-blue-900/40 to-cyan-900/40 backdrop-blur-sm rounded-2xl p-6 border border-blue-700/50 shadow-xl">
+    <!-- Header -->
+    <div class="text-center mb-6">
+        <div class="inline-block bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-6 py-3 rounded-full font-bold text-lg shadow-lg">
+            <i class="fas fa-scroll mr-2"></i>View Pod Logs
+        </div>
+    </div>
+
+    <!-- Content -->
+    <div class="space-y-6">
+        <!-- Basic Command -->
+        <div class="bg-gradient-to-r from-blue-800/50 to-cyan-800/50 p-5 rounded-xl border-l-4 border-blue-400">
+            <h3 class="text-xl font-bold text-white mb-3 flex items-center">
+                <i class="fas fa-terminal mr-2 text-cyan-300"></i>Basic Log Command
+            </h3>
+            <div class="bg-gray-900 rounded-lg p-4 font-mono text-sm text-green-300 border border-gray-700">
+                kubectl logs &lt;pod-name&gt;
+            </div>
+            <p class="text-blue-200 mt-3">
+                View the logs of a specific Pod in the current namespace
+            </p>
+        </div>
+
+        <!-- With Container -->
+        <div class="bg-gradient-to-r from-cyan-800/50 to-blue-800/50 p-5 rounded-xl border-l-4 border-cyan-400">
+            <h3 class="text-xl font-bold text-white mb-3 flex items-center">
+                <i class="fas fa-cube mr-2 text-blue-300"></i>Multi-Container Pods
+            </h3>
+            <div class="bg-gray-900 rounded-lg p-4 font-mono text-sm text-green-300 border border-gray-700">
+                kubectl logs &lt;pod-name&gt; -c &lt;container-name&gt;
+            </div>
+            <p class="text-cyan-200 mt-3">
+                Specify which container to view logs from in a multi-container Pod
+            </p>
+        </div>
+
+        <!-- Follow Logs -->
+        <div class="bg-gradient-to-r from-indigo-800/50 to-blue-800/50 p-5 rounded-xl border-l-4 border-indigo-400">
+            <h3 class="text-xl font-bold text-white mb-3 flex items-center">
+                <i class="fas fa-play mr-2 text-indigo-300"></i>Follow Logs in Real-time
+            </h3>
+            <div class="bg-gray-900 rounded-lg p-4 font-mono text-sm text-green-300 border border-gray-700">
+                kubectl logs -f &lt;pod-name&gt;
+            </div>
+            <p class="text-indigo-200 mt-3">
+                Stream logs continuously (similar to tail -f)
+            </p>
+        </div>
+
+        <!-- Additional Options -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-gradient-to-br from-blue-800/40 to-cyan-800/40 p-4 rounded-xl border border-blue-600/50">
+                <h4 class="font-bold text-white mb-2 flex items-center">
+                    <i class="fas fa-history mr-2 text-cyan-300"></i>Previous Logs
+                </h4>
+                <div class="bg-gray-900 rounded p-3 font-mono text-xs text-green-300 border border-gray-700">
+                    kubectl logs --previous &lt;pod-name&gt;
+                </div>
+                <p class="text-blue-200 text-sm mt-2">
+                    View logs from a previous instance of a crashed Pod
+                </p>
+            </div>
+
+            <div class="bg-gradient-to-br from-cyan-800/40 to-blue-800/40 p-4 rounded-xl border border-cyan-600/50">
+                <h4 class="font-bold text-white mb-2 flex items-center">
+                    <i class="fas fa-filter mr-2 text-blue-300"></i>Timestamps
+                </h4>
+                <div class="bg-gray-900 rounded p-3 font-mono text-xs text-green-300 border border-gray-700">
+                    kubectl logs --timestamps &lt;pod-name&gt;
+                </div>
+                <p class="text-cyan-200 text-sm mt-2">
+                    Include timestamps for each log line
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+
+<div class="bg-gradient-to-br from-red-900/40 via-orange-900/40 to-amber-900/40 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-red-600/50 shadow-2xl">
+    <!-- Header -->
+    <div class="text-center mb-8">
+        <div class="inline-block bg-gradient-to-r from-red-500 via-orange-500 to-amber-500 text-white px-6 py-3 rounded-full font-bold text-lg shadow-lg">
+            <i class="fas fa-trash-alt mr-2"></i>Delete a Pod
+        </div>
+    </div>
+
+    <!-- Content -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        <!-- Methods -->
+        <div class="space-y-6">
+            <!-- kubectl delete pod -->
+            <div class="bg-gradient-to-r from-red-900/50 to-orange-900/50 p-6 rounded-xl border-l-4 border-red-400">
+                <h3 class="text-xl font-bold text-white mb-4">
+                    <i class="fas fa-terminal mr-2"></i>Using kubectl delete
+                </h3>
+                <div class="bg-gray-900/80 rounded-lg p-4 border border-gray-700">
+                    <code class="text-red-300 font-mono text-lg">
+                        kubectl delete pod &lt;pod-name&gt;
+                    </code>
+                </div>
+                <p class="text-gray-300 mt-3 text-sm">
+                    Replace <span class="text-red-300">&lt;pod-name&gt;</span> with the actual name of your Pod
+                </p>
+            </div>
+
+            <!-- Delete by file -->
+            <div class="bg-gradient-to-r from-orange-900/50 to-amber-900/50 p-6 rounded-xl border-l-4 border-orange-400">
+                <h3 class="text-xl font-bold text-white mb-4">
+                    <i class="fas fa-file-code mr-2"></i>Using manifest file
+                </h3>
+                <div class="bg-gray-900/80 rounded-lg p-4 border border-gray-700">
+                    <code class="text-orange-300 font-mono text-lg">
+                        kubectl delete -f pod.yaml
+                    </code>
+                </div>
+                <p class="text-gray-300 mt-3 text-sm">
+                    Deletes the Pod defined in the <span class="text-orange-300">pod.yaml</span> manifest file
+                </p>
+            </div>
+        </div>
+
+        <!-- Additional Options -->
+        <div class="space-y-6">
+            <!-- Force delete -->
+            <div class="bg-gradient-to-r from-amber-900/50 to-yellow-900/50 p-6 rounded-xl border-l-4 border-amber-400">
+                <h3 class="text-xl font-bold text-white mb-4">
+                    <i class="fas fa-bolt mr-2"></i>Force Delete
+                </h3>
+                <div class="bg-gray-900/80 rounded-lg p-4 border border-gray-700">
+                    <code class="text-amber-300 font-mono text-lg">
+                        kubectl delete pod &lt;pod-name&gt; --force --grace-period=0
+                    </code>
+                </div>
+                <p class="text-gray-300 mt-3 text-sm">
+                    <span class="text-red-400 font-bold">Warning:</span> Immediate deletion without graceful termination
+                </p>
+            </div>
+
+            <!-- Delete all pods -->
+            <div class="bg-gradient-to-r from-red-900/50 to-pink-900/50 p-6 rounded-xl border-l-4 border-red-400">
+                <h3 class="text-xl font-bold text-white mb-4">
+                    <i class="fas fa-broom mr-2"></i>Delete All Pods
+                </h3>
+                <div class="bg-gray-900/80 rounded-lg p-4 border border-gray-700">
+                    <code class="text-pink-300 font-mono text-lg">
+                        kubectl delete pods --all
+                    </code>
+                </div>
+                <p class="text-gray-300 mt-3 text-sm">
+                    Deletes all Pods in the current namespace
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Important Notes -->
+    <div class="mt-8 bg-gradient-to-r from-gray-900/60 to-gray-800/60 p-6 rounded-xl border border-gray-700">
+        <h3 class="text-lg font-bold text-white mb-3 flex items-center">
+            <i class="fas fa-exclamation-triangle text-yellow-400 mr-2"></i>
+            Important Notes
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div class="flex items-start">
+                <i class="fas fa-clock text-blue-400 mt-1 mr-2"></i>
+                <span class="text-gray-300">Pods are automatically recreated if managed by a Deployment, StatefulSet, or DaemonSet</span>
+            </div>
+            <div class="flex items-start">
+                <i class="fas fa-database text-green-400 mt-1 mr-2"></i>
+                <span class="text-gray-300">Deleting a Pod does not delete its associated PersistentVolumeClaims</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+<div class="bg-gradient-to-br from-rose-900/40 via-red-900/40 to-orange-900/40 backdrop-blur-sm rounded-2xl p-8 border border-rose-700/50 shadow-2xl">
+    <!-- Header -->
+    <div class="text-center mb-10">
+        <div class="inline-block bg-gradient-to-r from-rose-500 via-red-500 to-orange-500 text-white px-8 py-4 rounded-full font-bold text-xl shadow-lg">
+            <i class="fas fa-trash-alt mr-3"></i>What Happens When a Pod Gets Deleted?
+        </div>
+    </div>
+
+    <!-- Process Flow -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        <!-- Visual Timeline -->
+        <div class="space-y-6">
+            <!-- Step 1 -->
+            <div class="flex items-start space-x-4">
+                <div class="bg-rose-500 text-white rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0 shadow-md">
+                    <span class="font-bold">1</span>
+                </div>
+                <div class="bg-rose-900/50 p-4 rounded-xl border-l-4 border-rose-400 flex-1">
+                    <h4 class="font-bold text-white mb-2">Termination Request</h4>
+                    <p class="text-rose-200 text-sm">User sends delete command via kubectl or API, marking Pod for deletion with deletionTimestamp</p>
+                </div>
+            </div>
+
+            <!-- Step 2 -->
+            <div class="flex items-start space-x-4">
+                <div class="bg-orange-500 text-white rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0 shadow-md">
+                    <span class="font-bold">2</span>
+                </div>
+                <div class="bg-orange-900/50 p-4 rounded-xl border-l-4 border-orange-400 flex-1">
+                    <h4 class="font-bold text-white mb-2">PreStop Hook Execution</h4>
+                    <p class="text-orange-200 text-sm">If defined, PreStop hooks run to gracefully shutdown applications before termination</p>
+                </div>
+            </div>
+
+            <!-- Step 3 -->
+            <div class="flex items-start space-x-4">
+                <div class="bg-yellow-500 text-white rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0 shadow-md">
+                    <span class="font-bold">3</span>
+                </div>
+                <div class="bg-yellow-900/50 p-4 rounded-xl border-l-4 border-yellow-400 flex-1">
+                    <h4 class="font-bold text-white mb-2">SIGTERM Signal</h4>
+                    <p class="text-yellow-200 text-sm">SIGTERM signal sent to main process, giving containers time to shutdown gracefully (default 30s)</p>
+                </div>
+            </div>
+
+            <!-- Step 4 -->
+            <div class="flex items-start space-x-4">
+                <div class="bg-red-600 text-white rounded-full w-10 h-10 flex items-center justify-center flex-shrink-0 shadow-md">
+                    <span class="font-bold">4</span>
+                </div>
+                <div class="bg-red-900/50 p-4 rounded-xl border-l-4 border-red-400 flex-1">
+                    <h4 class="font-bold text-white mb-2">Force Termination</h4>
+                    <p class="text-red-200 text-sm">After grace period, SIGKILL forces immediate termination of any remaining processes</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Explanation -->
+        <div class="space-y-6">
+            <div class="bg-gradient-to-r from-rose-900/60 to-red-900/60 p-6 rounded-xl border-l-4 border-rose-400">
+                <p class="text-white leading-relaxed">
+                    When a Pod deletion is initiated, Kubernetes immediately marks the Pod with a deletion timestamp and begins a graceful termination process that allows running applications to complete their work and cleanup resources properly before being forcibly removed from the cluster.
+                </p>
+            </div>
+            
+            <div class="bg-gradient-to-r from-orange-900/60 to-amber-900/60 p-6 rounded-xl border-l-4 border-orange-400">
+                <p class="text-white leading-relaxed">
+                    The kubelet on the node receives the termination signal and executes any defined PreStop hooks, then sends SIGTERM to the main process in each container, providing a configurable grace period (default 30 seconds) for applications to handle shutdown procedures before escalating to forceful termination with SIGKILL.
+                </p>
+            </div>
+            
+            <div class="bg-gradient-to-r from-red-900/60 to-rose-900/60 p-6 rounded-xl border-l-4 border-red-400">
+                <p class="text-white leading-relaxed">
+                    Throughout this process, the Pod's status transitions to "Terminating", endpoints are removed from Services, and once all containers have stopped, the Pod object is completely removed from the API server and etcd, freeing up resources for new workload scheduling.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Important Notes -->
+    <div class="mt-10 grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-gradient-to-br from-purple-900/40 to-rose-900/40 p-5 rounded-xl border border-purple-600/50">
+            <h4 class="font-bold text-white mb-3 flex items-center">
+                <i class="fas fa-exclamation-triangle text-yellow-400 mr-2"></i>
+                Critical Dependencies
+            </h4>
+            <p class="text-purple-200 text-sm">
+                Services stop routing traffic immediately upon deletion signal, so ensure your applications can handle abrupt connection loss during graceful shutdown period.
+            </p>
+        </div>
+        
+        <div class="bg-gradient-to-br from-blue-900/40 to-cyan-900/40 p-5 rounded-xl border border-blue-600/50">
+            <h4 class="font-bold text-white mb-3 flex items-center">
+                <i class="fas fa-cog text-cyan-400 mr-2"></i>
+                Configuration Options
+            </h4>
+            <p class="text-blue-200 text-sm">
+                Grace period can be customized with terminationGracePeriodSeconds, and PreStop hooks can perform custom cleanup tasks before termination begins.
+            </p>
+        </div>
+    </div>
+</div>
+
+
+
+
+<div class="bg-gradient-to-br from-cyan-900/40 to-blue-900/40 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-cyan-500/50 shadow-2xl">
+    <!-- Header -->
+    <div class="text-center mb-10">
+        <div class="inline-block bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-8 py-4 rounded-full font-bold text-xl shadow-lg">
+            <i class="fas fa-code mr-3"></i>View Pod YAML Configuration
+        </div>
+    </div>
+
+    <!-- Content -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        <!-- Command Section -->
+        <div class="space-y-6">
+            <div class="bg-gradient-to-r from-cyan-900/50 to-blue-900/50 p-6 rounded-xl border-l-4 border-cyan-400">
+                <h3 class="text-xl font-bold text-white mb-4">Using kubectl get command</h3>
+                <div class="bg-gray-900/80 p-4 rounded-lg border border-cyan-700/50">
+                    <code class="text-cyan-300 font-mono text-lg">kubectl get pod &lt;pod-name&gt; -o yaml</code>
+                </div>
+                <p class="text-cyan-200 mt-4 text-sm">Replace <span class="text-white font-mono">&lt;pod-name&gt;</span> with your actual Pod name</p>
+            </div>
+
+            <div class="bg-gradient-to-r from-blue-900/50 to-indigo-900/50 p-6 rounded-xl border-l-4 border-blue-400">
+                <h3 class="text-xl font-bold text-white mb-4">For specific namespace</h3>
+                <div class="bg-gray-900/80 p-4 rounded-lg border border-blue-700/50">
+                    <code class="text-blue-300 font-mono text-lg">kubectl get pod &lt;pod-name&gt; -n &lt;namespace&gt; -o yaml</code>
+                </div>
+                <p class="text-blue-200 mt-4 text-sm">Use <span class="text-white font-mono">-n</span> flag to specify namespace</p>
+            </div>
+        </div>
+
+        <!-- Examples and Tips -->
+        <div class="space-y-6">
+            <div class="bg-gradient-to-r from-indigo-900/50 to-purple-900/50 p-6 rounded-xl border-l-4 border-indigo-400">
+                <h3 class="text-xl font-bold text-white mb-4">Practical Example</h3>
+                <div class="bg-gray-900/80 p-4 rounded-lg border border-indigo-700/50">
+                    <code class="text-green-300 font-mono text-sm">
+                        <span class="text-gray-400"># Get all pods first</span><br>
+                        kubectl get pods<br>
+                        <span class="text-gray-400"># Then get YAML for specific pod</span><br>
+                        kubectl get pod my-app-pod -o yaml
+                    </code>
+                </div>
+            </div>
+
+            <div class="bg-gradient-to-r from-purple-900/50 to-pink-900/50 p-6 rounded-xl border-l-4 border-purple-400">
+                <h3 class="text-xl font-bold text-white mb-4">Additional Options</h3>
+                <div class="space-y-3">
+                    <div class="flex items-center">
+                        <i class="fas fa-file-export text-purple-300 mr-3"></i>
+                        <span class="text-purple-200">Save to file: <code class="text-white font-mono">-o yaml > pod-config.yaml</code></span>
+                    </div>
+                    <div class="flex items-center">
+                        <i class="fas fa-filter text-purple-300 mr-3"></i>
+                        <span class="text-purple-200">View specific fields: <code class="text-white font-mono">-o jsonpath='{.spec}'</code></span>
+                    </div>
+                    <div class="flex items-center">
+                        <i class="fas fa-eye text-purple-300 mr-3"></i>
+                        <span class="text-purple-200">View across all namespaces: <code class="text-white font-mono">-A</code></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Reference -->
+    <div class="mt-10 bg-gradient-to-r from-teal-900/40 to-green-900/40 p-6 rounded-xl border border-teal-500/50">
+        <h3 class="text-xl font-bold text-white mb-4 text-center">
+            <i class="fas fa-lightbulb mr-2"></i>Pro Tips
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="flex items-start">
+                <i class="fas fa-check-circle text-teal-300 mt-1 mr-3"></i>
+                <p class="text-teal-200">Use <code class="text-white font-mono">--export</code> flag to remove cluster-specific info</p>
+            </div>
+            <div class="flex items-start">
+                <i class="fas fa-check-circle text-teal-300 mt-1 mr-3"></i>
+                <p class="text-teal-200">Pipe to <code class="text-white font-mono">less</code> for easier reading: <code class="text-white font-mono">| less</code></p>
+            </div>
+            <div class="flex items-start">
+                <i class="fas fa-check-circle text-teal-300 mt-1 mr-3"></i>
+                <p class="text-teal-200">Use <code class="text-white font-mono">kubectl explain pod</code> for field documentation</p>
+            </div>
+            <div class="flex items-start">
+                <i class="fas fa-check-circle text-teal-300 mt-1 mr-3"></i>
+                <p class="text-teal-200">View multiple resources: <code class="text-white font-mono">kubectl get pod,svc,deploy -o yaml</code></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+<div class="bg-gradient-to-br from-blue-900/40 via-green-900/40 to-teal-900/40 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-teal-600/50 shadow-2xl">
+    <!-- Header -->
+    <div class="text-center mb-10">
+        <div class="inline-block bg-gradient-to-r from-teal-500 via-green-500 to-blue-500 text-white px-8 py-4 rounded-full font-bold text-xl shadow-lg">
+            <i class="fas fa-sync-alt mr-3"></i>What is a Rolling Update?
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center mb-10">
+        <!-- Visual Representation -->
+        <div class="flex justify-center">
+            <div class="relative w-80 h-48">
+                <!-- Old Version Pods -->
+                <div class="absolute top-0 left-0 w-32 h-32 bg-gradient-to-br from-red-500 to-pink-600 rounded-xl border-2 border-red-400 shadow-lg flex flex-col items-center justify-center">
+                    <i class="fas fa-cube text-white text-2xl mb-2"></i>
+                    <span class="text-white font-bold text-sm">v1.0</span>
+                    <span class="text-red-200 text-xs">Old Version</span>
+                </div>
+                
+                <!-- Transition Arrow -->
+                <div class="absolute top-1/2 left-1/3 transform -translate-x-1/2 -translate-y-1/2">
+                    <i class="fas fa-arrow-right text-teal-400 text-2xl mx-4"></i>
+                </div>
+                
+                <!-- New Version Pods -->
+                <div class="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl border-2 border-green-400 shadow-lg flex flex-col items-center justify-center">
+                    <i class="fas fa-cube text-white text-2xl mb-2"></i>
+                    <span class="text-white font-bold text-sm">v2.0</span>
+                    <span class="text-green-200 text-xs">New Version</span>
+                </div>
+                
+                <!-- Rolling Process Indicator -->
+                <div class="absolute bottom-2 left-1/2 transform -translate-x-1/2">
+                    <div class="flex space-x-2">
+                        <div class="w-3 h-3 bg-teal-400 rounded-full animate-pulse"></div>
+                        <div class="w-3 h-3 bg-teal-400 rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
+                        <div class="w-3 h-3 bg-teal-400 rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Explanation -->
+        <div class="space-y-6">
+            <div class="bg-gradient-to-r from-teal-900/50 to-blue-900/50 p-6 rounded-xl border-l-4 border-teal-400">
+                <p class="text-lg text-white leading-relaxed">
+                    A rolling update is a deployment strategy where Kubernetes gradually replaces old versions of your application with new versions while maintaining continuous availability and zero downtime throughout the update process.
+                </p>
+            </div>
+            
+            <div class="bg-gradient-to-r from-green-900/50 to-teal-900/50 p-6 rounded-xl border-l-4 border-green-400">
+                <p class="text-lg text-white leading-relaxed">
+                    During a rolling update, the deployment controller incrementally creates new Pods with the updated version while simultaneously terminating old Pods, ensuring that a specified number of Pods remain available and serving traffic at all times.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- How It Works -->
+    <div class="bg-gradient-to-br from-gray-900/60 to-gray-800/60 p-6 rounded-xl border border-teal-600/30">
+        <h3 class="text-xl font-bold text-teal-300 mb-4 text-center">
+            <i class="fas fa-cogs mr-2"></i>How Rolling Updates Work
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
+            <div class="bg-gradient-to-br from-blue-900/40 to-teal-900/40 p-4 rounded-lg border border-blue-600/50">
+                <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <span class="text-white font-bold">1</span>
+                </div>
+                <p class="text-blue-200 text-sm">New Pods are created with updated version</p>
+            </div>
+            
+            <div class="bg-gradient-to-br from-green-900/40 to-teal-900/40 p-4 rounded-lg border border-green-600/50">
+                <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <span class="text-white font-bold">2</span>
+                </div>
+                <p class="text-green-200 text-sm">New Pods become ready and start receiving traffic</p>
+            </div>
+            
+            <div class="bg-gradient-to-br from-yellow-900/40 to-amber-900/40 p-4 rounded-lg border border-yellow-600/50">
+                <div class="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <span class="text-white font-bold">3</span>
+                </div>
+                <p class="text-yellow-200 text-sm">Old Pods are terminated gradually</p>
+            </div>
+            
+            <div class="bg-gradient-to-br from-teal-900/40 to-blue-900/40 p-4 rounded-lg border border-teal-600/50">
+                <div class="w-8 h-8 bg-teal-500 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <span class="text-white font-bold">4</span>
+                </div>
+                <p class="text-teal-200 text-sm">Process continues until all Pods are updated</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Benefits -->
+    <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-gradient-to-br from-emerald-900/40 to-green-900/40 p-5 rounded-xl border border-emerald-600/50 text-center">
+            <i class="fas fa-clock text-emerald-300 text-2xl mb-3"></i>
+            <h4 class="font-bold text-white mb-2">Zero Downtime</h4>
+            <p class="text-emerald-200 text-sm">Application remains available throughout the deployment process</p>
+        </div>
+        
+        <div class="bg-gradient-to-br from-blue-900/40 to-indigo-900/40 p-5 rounded-xl border border-blue-600/50 text-center">
+            <i class="fas fa-undo text-blue-300 text-2xl mb-3"></i>
+            <h4 class="font-bold text-white mb-2">Easy Rollback</h4>
+            <p class="text-blue-200 text-sm">Simple to revert to previous version if issues occur</p>
+        </div>
+        
+        <div class="bg-gradient-to-br from-purple-900/40 to-pink-900/40 p-5 rounded-xl border border-purple-600/50 text-center">
+            <i class="fas fa-tachometer-alt text-purple-300 text-2xl mb-3"></i>
+            <h4 class="font-bold text-white mb-2">Gradual Deployment</h4>
+            <p class="text-purple-200 text-sm">Controlled pace reduces risk and allows for monitoring</p>
+        </div>
+    </div>
+</div>
+
+
+
+<div class="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl p-6 border border-gray-700 shadow-2xl">
+    <!-- Header -->
+    <div class="text-center mb-8">
+        <div class="inline-block bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-full font-bold text-lg shadow-lg">
+            <i class="fas fa-terminal mr-2"></i>Kubernetes Commands Cheat Sheet
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        
+        <!-- Basic Commands -->
+        <div class="bg-gradient-to-br from-blue-900/30 to-blue-800/20 rounded-xl p-5 border border-blue-700/50">
+            <h3 class="text-lg font-bold text-blue-300 mb-4 flex items-center">
+                <i class="fas fa-play-circle mr-2"></i>Basic Commands
+            </h3>
+            <div class="space-y-3">
+                <div class="bg-gray-800/50 p-3 rounded-lg border-l-4 border-blue-500">
+                    <code class="text-blue-200 text-sm">kubectl get pods</code>
+                    <p class="text-gray-400 text-xs mt-1">List all pods</p>
+                </div>
+                <div class="bg-gray-800/50 p-3 rounded-lg border-l-4 border-blue-500">
+                    <code class="text-blue-200 text-sm">kubectl get nodes</code>
+                    <p class="text-gray-400 text-xs mt-1">List all nodes</p>
+                </div>
+                <div class="bg-gray-800/50 p-3 rounded-lg border-l-4 border-blue-500">
+                    <code class="text-blue-200 text-sm">kubectl cluster-info</code>
+                    <p class="text-gray-400 text-xs mt-1">Display cluster info</p>
+                </div>
+                <div class="bg-gray-800/50 p-3 rounded-lg border-l-4 border-blue-500">
+                    <code class="text-blue-200 text-sm">kubectl version</code>
+                    <p class="text-gray-400 text-xs mt-1">Show client/server version</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Create & Apply -->
+        <div class="bg-gradient-to-br from-green-900/30 to-green-800/20 rounded-xl p-5 border border-green-700/50">
+            <h3 class="text-lg font-bold text-green-300 mb-4 flex items-center">
+                <i class="fas fa-plus-circle mr-2"></i>Create & Apply
+            </h3>
+            <div class="space-y-3">
+                <div class="bg-gray-800/50 p-3 rounded-lg border-l-4 border-green-500">
+                    <code class="text-green-200 text-sm">kubectl create deployment nginx --image=nginx</code>
+                    <p class="text-gray-400 text-xs mt-1">Create deployment</p>
+                </div>
+                <div class="bg-gray-800/50 p-3 rounded-lg border-l-4 border-green-500">
+                    <code class="text-green-200 text-sm">kubectl apply -f config.yaml</code>
+                    <p class="text-gray-400 text-xs mt-1">Apply configuration</p>
+                </div>
+                <div class="bg-gray-800/50 p-3 rounded-lg border-l-4 border-green-500">
+                    <code class="text-green-200 text-sm">kubectl create namespace dev</code>
+                    <p class="text-gray-400 text-xs mt-1">Create namespace</p>
+                </div>
+                <div class="bg-gray-800/50 p-3 rounded-lg border-l-4 border-green-500">
+                    <code class="text-green-200 text-sm">kubectl run busybox --image=busybox</code>
+                    <p class="text-gray-400 text-xs mt-1">Run pod imperatively</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Debug & Logs -->
+        <div class="bg-gradient-to-br from-yellow-900/30 to-yellow-800/20 rounded-xl p-5 border border-yellow-700/50">
+            <h3 class="text-lg font-bold text-yellow-300 mb-4 flex items-center">
+                <i class="fas fa-bug mr-2"></i>Debug & Logs
+            </h3>
+            <div class="space-y-3">
+                <div class="bg-gray-800/50 p-3 rounded-lg border-l-4 border-yellow-500">
+                    <code class="text-yellow-200 text-sm">kubectl logs pod-name</code>
+                    <p class="text-gray-400 text-xs mt-1">Show pod logs</p>
+                </div>
+                <div class="bg-gray-800/50 p-3 rounded-lg border-l-4 border-yellow-500">
+                    <code class="text-yellow-200 text-sm">kubectl describe pod pod-name</code>
+                    <p class="text-gray-400 text-xs mt-1">Describe pod details</p>
+                </div>
+                <div class="bg-gray-800/50 p-3 rounded-lg border-l-4 border-yellow-500">
+                    <code class="text-yellow-200 text-sm">kubectl exec -it pod-name -- /bin/bash</code>
+                    <p class="text-gray-400 text-xs mt-1">Execute into pod</p>
+                </div>
+                <div class="bg-gray-800/50 p-3 rounded-lg border-l-4 border-yellow-500">
+                    <code class="text-yellow-200 text-sm">kubectl get events --sort-by=.metadata.creationTimestamp</code>
+                    <p class="text-gray-400 text-xs mt-1">Show events chronologically</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modify & Update -->
+        <div class="bg-gradient-to-br from-purple-900/30 to-purple-800/20 rounded-xl p-5 border border-purple-700/50">
+            <h3 class="text-lg font-bold text-purple-300 mb-4 flex items-center">
+                <i class="fas fa-edit mr-2"></i>Modify & Update
+            </h3>
+            <div class="space-y-3">
+                <div class="bg-gray-800/50 p-3 rounded-lg border-l-4 border-purple-500">
+                    <code class="text-purple-200 text-sm">kubectl edit deployment nginx</code>
+                    <p class="text-gray-400 text-xs mt-1">Edit deployment</p>
+                </div>
+                <div class="bg-gray-800/50 p-3 rounded-lg border-l-4 border-purple-500">
+                    <code class="text-purple-200 text-sm">kubectl scale deployment nginx --replicas=3</code>
+                    <p class="text-gray-400 text-xs mt-1">Scale deployment</p>
+                </div>
+                <div class="bg-gray-800/50 p-3 rounded-lg border-l-4 border-purple-500">
+                    <code class="text-purple-200 text-sm">kubectl rollout restart deployment nginx</code>
+                    <p class="text-gray-400 text-xs mt-1">Restart deployment</p>
+                </div>
+                <div class="bg-gray-800/50 p-3 rounded-lg border-l-4 border-purple-500">
+                    <code class="text-purple-200 text-sm">kubectl set image deployment nginx nginx=nginx:1.20</code>
+                    <p class="text-gray-400 text-xs mt-1">Update container image</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Delete & Cleanup -->
+        <div class="bg-gradient-to-br from-red-900/30 to-red-800/20 rounded-xl p-5 border border-red-700/50">
+            <h3 class="text-lg font-bold text-red-300 mb-4 flex items-center">
+                <i class="fas fa-trash-alt mr-2"></i>Delete & Cleanup
+            </h3>
+            <div class="space-y-3">
+                <div class="bg-gray-800/50 p-3 rounded-lg border-l-4 border-red-500">
+                    <code class="text-red-200 text-sm">kubectl delete pod pod-name</code>
+                    <p class="text-gray-400 text-xs mt-1">Delete specific pod</p>
+                </div>
+                <div class="bg-gray-800/50 p-3 rounded-lg border-l-4 border-red-500">
+                    <code class="text-red-200 text-sm">kubectl delete -f config.yaml</code>
+                    <p class="text-gray-400 text-xs mt-1">Delete from manifest</p>
+                </div>
+                <div class="bg-gray-800/50 p-3 rounded-lg border-l-4 border-red-500">
+                    <code class="text-red-200 text-sm">kubectl delete deployment nginx</code>
+                    <p class="text-gray-400 text-xs mt-1">Delete deployment</p>
+                </div>
+                <div class="bg-gray-800/50 p-3 rounded-lg border-l-4 border-red-500">
+                    <code class="text-red-200 text-sm">kubectl delete all --all</code>
+                    <p class="text-gray-400 text-xs mt-1">Delete all resources</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Advanced -->
+        <div class="bg-gradient-to-br from-indigo-900/30 to-indigo-800/20 rounded-xl p-5 border border-indigo-700/50">
+            <h3 class="text-lg font-bold text-indigo-300 mb-4 flex items-center">
+                <i class="fas fa-rocket mr-2"></i>Advanced
+            </h3>
+            <div class="space-y-3">
+                <div class="bg-gray-800/50 p-3 rounded-lg border-l-4 border-indigo-500">
+                    <code class="text-indigo-200 text-sm">kubectl port-forward pod-name 8080:80</code>
+                    <p class="text-gray-400 text-xs mt-1">Port forward to pod</p>
+                </div>
+                <div class="bg-gray-800/50 p-3 rounded-lg border-l-4 border-indigo-500">
+                    <code class="text-indigo-200 text-sm">kubectl top nodes</code>
+                    <p class="text-gray-400 text-xs mt-1">Show node resource usage</p>
+                </div>
+                <div class="bg-gray-800/50 p-3 rounded-lg border-l-4 border-indigo-500">
+                    <code class="text-indigo-200 text-sm">kubectl get pods -o wide</code>
+                    <p class="text-gray-400 text-xs mt-1">Detailed pod info</p>
+                </div>
+                <div class="bg-gray-800/50 p-3 rounded-lg border-l-4 border-indigo-500">
+                    <code class="text-indigo-200 text-sm">kubectl config get-contexts</code>
+                    <p class="text-gray-400 text-xs mt-1">List contexts</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Tips -->
+    <div class="mt-8 bg-gradient-to-r from-gray-800 to-gray-900 rounded-xl p-5 border border-gray-700">
+        <h3 class="text-lg font-bold text-cyan-300 mb-3 flex items-center">
+            <i class="fas fa-lightbulb mr-2"></i>Quick Tips
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div class="flex items-start">
+                <span class="text-cyan-400 mr-2">•</span>
+                <span class="text-gray-300">Use <code class="text-cyan-200">-n namespace</code> for namespace-specific operations</span>
+            </div>
+            <div class="flex items-start">
+                <span class="text-cyan-400 mr-2">•</span>
+                <span class="text-gray-300">Add <code class="text-cyan-200">--watch</code> for real-time monitoring</span>
+            </div>
+            <div class="flex items-start">
+                <span class="text-cyan-400 mr-2">•</span>
+                <span class="text-gray-300">Use <code class="text-cyan-200">-l label=value</code> for label filtering</span>
+            </div>
+            <div class="flex items-start">
+                <span class="text-cyan-400 mr-2">•</span>
+                <span class="text-gray-300">Add <code class="text-cyan-200">--dry-run=client -o yaml</code> to generate YAML</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <script>
+        // Add interactive animations
+        document.addEventListener('DOMContentLoaded', function() {
+            const components = document.querySelectorAll('.component-card');
+            
+            components.forEach(component => {
+                component.addEventListener('mouseenter', function() {
+                    this.classList.add('glow');
+                });
+                
+                component.addEventListener('mouseleave', function() {
+                    this.classList.remove('glow');
+                });
+            });
+            
+            // Animate connection dots
+            const dots = document.querySelectorAll('.connection-dot');
+            dots.forEach((dot, index) => {
+                dot.style.animationDelay = `${index * 0.5}s`;
+            });
+        });
+    </script>
+</body>
+</html>
