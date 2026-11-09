@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kafka (2026 Edition) — Comprehensive Guide</title>
+  <meta name="description" content="Exhaustive Apache Kafka guide: 4.x release train, KRaft migration, tiered storage limits, share groups, KIP-848 adoption, ELR, AI inference patterns, partition sizing, security and observability.">
+  <meta name="keywords" content="Kafka 4.4, Kafka 4.3.2, KRaft, Tiered Storage, Share Groups, KIP-848, KIP-966, ELR, AI Streaming, Confluent Cloud, MSK, Redpanda, OAuth, OpenTelemetry">
+  <meta name="author" content="Braj Bhushan Kumar">
+  <meta name="theme-color" content="#4f46e5">
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%234f46e5' d='M4 5h16v2H4zm0 5h16v2H4zm0 5h16v2H4z'/%3E%3C/svg%3E">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    html { scroll-padding-top: 4.5rem; }
+    @media (min-width: 1024px) { html { scroll-padding-top: 1.5rem; } }
+    .prose-pre { white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+  </style>
+</head>
+
+<body class="bg-gray-50 text-gray-900 antialiased">
+
+  <!-- Mobile Top Bar -->
+  <header class="lg:hidden fixed top-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-b border-gray-200">
+    <div class="flex items-center justify-between px-4 h-14">
+      <span class="font-bold text-indigo-700">📚 Kafka 2026</span>
+      <button id="menuBtn" type="button" aria-label="Open navigation"
+              class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-gray-700 hover:bg-gray-100 active:bg-gray-200">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Overlay -->
+  <div id="overlay" class="fixed inset-0 bg-black/40 z-40 hidden lg:hidden"></div>
+
+  <!-- Sidebar Navigation -->
+  <nav id="sidebar"
+       class="fixed top-0 left-0 z-50 h-screen w-72 max-w-[82vw] bg-white shadow-xl p-5 overflow-y-auto
+              -translate-x-full transition-transform duration-300 ease-in-out
+              lg:translate-x-0 lg:w-64 lg:max-w-none lg:shadow-lg">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-xl font-bold text-indigo-700">📖 Contents</h2>
+      <button id="closeBtn" type="button" aria-label="Close navigation"
+              class="lg:hidden w-8 h-8 rounded-lg text-gray-500 hover:bg-gray-100 text-2xl leading-none">&times;</button>
+    </div>
+
+    <ul class="space-y-1 text-gray-700 font-medium text-sm">
+      <li><a href="#release-train" class="block px-3 py-2 rounded-lg hover:bg-indigo-50 hover:text-indigo-700">4.x Release Train</a></li>
+      <li><a href="#zkeeper" class="block px-3 py-2 rounded-lg hover:bg-indigo-50 hover:text-indigo-700">ZooKeeper (Removed)</a></li>
+      <li><a href="#kraft" class="block px-3 py-2 rounded-lg hover:bg-indigo-50 hover:text-indigo-700">KRaft & Migration</a></li>
+      <li><a href="#tiered" class="block px-3 py-2 rounded-lg hover:bg-indigo-50 hover:text-indigo-700">Tiered Storage</a></li>
+      <li><a href="#sharegroups" class="block px-3 py-2 rounded-lg hover:bg-indigo-50 hover:text-indigo-700">Share Groups</a></li>
+      <li><a href="#kip848" class="block px-3 py-2 rounded-lg hover:bg-indigo-50 hover:text-indigo-700">KIP-848 Rebalance</a></li>
+      <li><a href="#isr" class="block px-3 py-2 rounded-lg hover:bg-indigo-50 hover:text-indigo-700">ISR & ELR</a></li>
+      <li><a href="#throughput" class="block px-3 py-2 rounded-lg hover:bg-indigo-50 hover:text-indigo-700">Throughput & Sizing</a></li>
+      <li><a href="#lag" class="block px-3 py-2 rounded-lg hover:bg-indigo-50 hover:text-indigo-700">Consumer Lag</a></li>
+      <li><a href="#ai" class="block px-3 py-2 rounded-lg hover:bg-indigo-50 hover:text-indigo-700">AI / GenAI</a></li>
+      <li><a href="#cloud" class="block px-3 py-2 rounded-lg hover:bg-indigo-50 hover:text-indigo-700">Managed Cloud</a></li>
+      <li><a href="#security" class="block px-3 py-2 rounded-lg hover:bg-indigo-50 hover:text-indigo-700">Security</a></li>
+      <li><a href="#observability" class="block px-3 py-2 rounded-lg hover:bg-indigo-50 hover:text-indigo-700">Observability</a></li>
+      <li><a href="#tools" class="block px-3 py-2 rounded-lg hover:bg-indigo-50 hover:text-indigo-700">Tools</a></li>
+    </ul>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="lg:ml-64 pt-14 lg:pt-0">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+
+      <h1 class="text-3xl sm:text-4xl font-bold text-center mb-4 text-indigo-700">📚 Kafka — 2026 Comprehensive Guide</h1>
+      <p class="text-center text-sm text-gray-500 mb-10 max-w-3xl mx-auto">
+        Updated for Kafka 4.x (ZooKeeper-free), the 4.x release train, tiered storage limits, share groups, KIP-848 adoption, ELR, AI production patterns, sizing frameworks, and modern security/observability.
+      </p>
+
+      <!-- ============ 4.x Release Train ============ -->
+      <section id="release-train" class="py-6 sm:py-10">
+        <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-5">🚂 The Kafka 4.x Release Train (2025–2026)</h2>
+
+        <p class="text-base sm:text-lg text-gray-700 mb-5 leading-relaxed">
+          Kafka has moved well beyond the initial 4.0 milestone. A steady release train has shipped new capabilities, fixes, and operational improvements throughout 2026. A comprehensive guide must track these.
+        </p>
+
+        <div class="overflow-x-auto">
+          <table class="min-w-[680px] w-full text-sm border border-gray-200 text-gray-700 rounded-lg overflow-hidden">
+            <thead class="bg-gray-200">
+              <tr>
+                <th class="px-3 py-2 border text-left">Version</th>
+                <th class="px-3 py-2 border text-left">Highlights</th>
+                <th class="px-3 py-2 border text-left">Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="px-3 py-2 border font-semibold">4.0</td>
+                <td class="px-3 py-2 border">ZooKeeper removed; KRaft-only; share groups early access; new group tooling (<code class="bg-gray-100 px-1 rounded">kafka-groups.sh</code>, <code class="bg-gray-100 px-1 rounded">kafka-share-groups.sh</code>)</td>
+                <td class="px-3 py-2 border">Requires migration path via 3.9</td>
+              </tr>
+              <tr class="bg-gray-50">
+                <td class="px-3 py-2 border font-semibold">4.1</td>
+                <td class="px-3 py-2 border">Share groups preview; KIP-1071 (Kafka Streams new rebalance); KIP-1139 (JWT bearer grant)</td>
+                <td class="px-3 py-2 border">Cluster with early share groups cannot upgrade</td>
+              </tr>
+              <tr>
+                <td class="px-3 py-2 border font-semibold">4.2</td>
+                <td class="px-3 py-2 border">Share groups GA; historical tiered storage fetch throughput fix (multi-partition fetch per request)</td>
+                <td class="px-3 py-2 border">Removes 1 MiB cap bottleneck</td>
+              </tr>
+              <tr class="bg-gray-50">
+                <td class="px-3 py-2 border font-semibold">4.3.x</td>
+                <td class="px-3 py-2 border">DNS re-bootstrap (KIP-909); operational hardening; bug fixes</td>
+                <td class="px-3 py-2 border">KIP-909 improves client failover</td>
+              </tr>
+              <tr>
+                <td class="px-3 py-2 border font-semibold">4.4.0</td>
+                <td class="px-3 py-2 border">Transactional state stores in Streams (KIP-892); additional connector and API improvements</td>
+                <td class="px-3 py-2 border">Latest stable at time of writing</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="p-5 bg-indigo-50 rounded-2xl shadow-sm">
+            <h3 class="text-lg font-semibold text-indigo-800 mb-2">KIP-909 (4.3.x)</h3>
+            <p class="text-gray-700 text-sm leading-relaxed">DNS re-bootstrap lets clients re-resolve bootstrap servers periodically, improving resilience when brokers rotate behind load balancers.</p>
+          </div>
+          <div class="p-5 bg-purple-50 rounded-2xl shadow-sm">
+            <h3 class="text-lg font-semibold text-purple-800 mb-2">KIP-892 (4.4)</h3>
+            <p class="text-gray-700 text-sm leading-relaxed">Transactional state stores give Kafka Streams exactly-once semantics for stateful operations, closing a long-standing gap vs Flink.</p>
+          </div>
+        </div>
+
+        <p class="text-sm text-gray-500 mt-4 leading-relaxed">
+          <strong>Takeaway:</strong> Do not treat "Kafka 4.0" as the endpoint. Plan upgrades quarterly; validate share groups and tiered storage behavior on each minor release.
+        </p>
+      </section>
+
+      <!-- ============ ZooKeeper (Removed) ============ -->
+      <section id="zkeeper" class="py-6 sm:py-10">
+        <h2 class="text-2xl sm:text-3xl font-bold text-indigo-700 mb-5 text-center">⚠️ ZooKeeper: Removed, Not Deprecated</h2>
+
+        <p class="text-base sm:text-lg text-gray-700 mb-6 text-center max-w-3xl mx-auto leading-relaxed">
+          <strong>Apache ZooKeeper is no longer part of Kafka.</strong> Kafka 4.0 (released March 2025) <strong>eliminated</strong> ZooKeeper entirely — no fallback, no compatibility mode, and no security support.
+        </p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+          <div class="p-5 bg-red-50 rounded-2xl shadow-sm">
+            <h3 class="text-lg sm:text-xl font-semibold text-red-800 mb-2">What Changed</h3>
+            <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+              <li><strong>Kafka 3.9</strong> was the last release to support ZooKeeper.</li>
+              <li><strong>Kafka 4.0+</strong> is KRaft-only. ZooKeeper mode is gone.</li>
+              <li>ZooKeeper security support ended <strong>November 2025</strong>.</li>
+            </ul>
+          </div>
+
+          <div class="p-5 bg-amber-50 rounded-2xl shadow-sm">
+            <h3 class="text-lg sm:text-xl font-semibold text-amber-800 mb-2">Migration Path (Mandatory)</h3>
+            <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+              <li>Upgrade to <strong>Kafka 3.9</strong> (bridge release).</li>
+              <li>Migrate to KRaft <strong>while still on 3.x</strong>.</li>
+              <li>Then upgrade to <strong>Kafka 4.x</strong>.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="mt-6 p-5 bg-gray-100 rounded-2xl shadow-sm text-center">
+          <p class="text-gray-700 text-sm sm:text-base max-w-2xl mx-auto leading-relaxed">
+            <strong>Why it matters:</strong> ZooKeeper required a separate distributed system to operate, monitor, and secure. Removing it simplifies the stack and unlocks features that were difficult or impossible with ZooKeeper — such as <strong>2 million partitions per cluster</strong> and dramatically faster controller failovers.
+          </p>
+        </div>
+      </section>
+
+      <!-- ============ KRaft & Migration ============ -->
+      <section id="kraft" class="py-6 sm:py-10">
+        <h2 class="text-2xl sm:text-3xl font-extrabold text-indigo-700 mb-6 text-center">⚙️ KRaft: The Only Metadata Mode</h2>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+          <article class="bg-white shadow-sm rounded-2xl p-5">
+            <h3 class="text-lg sm:text-xl font-semibold text-green-700 mb-3">🔹 Controller Quorum</h3>
+            <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+              A small set of Kafka nodes (typically <strong>3 or 5</strong>) run the <strong>Raft consensus protocol</strong> to manage all cluster metadata. Dedicated controllers are recommended for production.
+            </p>
+          </article>
+
+          <article class="bg-white shadow-sm rounded-2xl p-5">
+            <h3 class="text-lg sm:text-xl font-semibold text-purple-700 mb-3">🔹 Brokers and Controllers</h3>
+            <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+              Nodes can be <strong>brokers</strong>, <strong>controllers</strong>, or both. <code class="bg-gray-100 px-1 rounded">process.roles=broker,controller</code> works for small clusters; <strong>separate controller nodes</strong> isolate metadata load and improve stability.
+            </p>
+          </article>
+
+          <article class="bg-white shadow-sm rounded-2xl p-5">
+            <h3 class="text-lg sm:text-xl font-semibold text-blue-700 mb-3">🔹 Scale Benefits</h3>
+            <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+              <li><strong>2 million partitions</strong> (vs ~200k with ZooKeeper).</li>
+              <li><strong>Dramatically faster</strong> controller failover.</li>
+              <li>Single system to configure and monitor.</li>
+            </ul>
+          </article>
+
+          <article class="bg-white shadow-sm rounded-2xl p-5">
+            <h3 class="text-lg sm:text-xl font-semibold text-red-700 mb-3">🔹 Pre-Vote (KIP-996)</h3>
+            <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+              Pre-vote reduces unnecessary leader elections caused by transient network issues, improving metadata stability.
+            </p>
+          </article>
+        </div>
+
+        <div class="mt-5 p-5 sm:p-6 bg-amber-50 rounded-2xl shadow-sm">
+          <h3 class="text-lg sm:text-xl font-semibold text-amber-800 mb-3">⚠️ Migration Complexity: Not a Routine Bump</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            Migrating to Kafka 4.0 is a <strong>full architectural overhaul</strong>, not just a version number change. Organizations that start the migration expecting a simple upgrade discover these realities mid-project:
+          </p>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li><strong>Controller quorum design</strong> must be planned — dedicated controllers, rack awareness, and quorum sizing.</li>
+            <li><strong>Tooling and configs</strong> must be rewritten: <code class="bg-gray-100 px-1 rounded">zookeeper.connect</code>, <code class="bg-gray-100 px-1 rounded">zookeeper.*</code>, and legacy scripts are gone.</li>
+            <li><strong>Deployment automation</strong> (Ansible, Terraform, Helm, Strimzi) needs updated templates.</li>
+            <li><strong>Monitoring</strong> must be re-plumbed to KRaft metrics (controller quorum state, metadata lag).</li>
+            <li><strong>Rollback is limited</strong> — once the bridge migration completes, going back is non-trivial.</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ============ Tiered Storage ============ -->
+      <section id="tiered" class="py-6 sm:py-10">
+        <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-5">💾 Tiered Storage (KIP-405, GA since Kafka 3.9)</h2>
+
+        <p class="text-base sm:text-lg text-gray-700 mb-5 leading-relaxed">
+          Tiered storage decouples <strong>compute</strong> from <strong>storage</strong>. Recent data stays on broker disks (<strong>hot tier</strong>), while older segments are offloaded to object storage (<strong>cold tier</strong>). Clients read historical data with <strong>no code changes</strong>.
+        </p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+          <div class="bg-white rounded-2xl shadow-sm p-5">
+            <h3 class="text-lg sm:text-xl font-semibold text-green-700 mb-2">💰 Cost Savings</h3>
+            <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+              Object storage costs a fraction of SSD/NVMe. Organizations report <strong>3–9× storage cost reductions</strong>.
+            </p>
+          </div>
+
+          <div class="bg-white rounded-2xl shadow-sm p-5">
+            <h3 class="text-lg sm:text-xl font-semibold text-blue-700 mb-2">⚡ Operational Gains</h3>
+            <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+              <li><strong>15× faster</strong> partition reassignments.</li>
+              <li><strong>13–115× faster</strong> disaster recovery.</li>
+              <li><strong>Independent scaling</strong> of compute and storage.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="mt-5 bg-white rounded-2xl shadow-sm p-5 sm:p-6">
+          <h3 class="text-lg sm:text-xl font-semibold text-red-700 mb-3">⚠️ Limitations You Must Know</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-2">
+            <li><strong>Historical read bottleneck (pre-4.2):</strong> Only one partition per fetch could pull from remote storage, capping throughput at ~1 MiB by default. Fixed in Kafka 4.2 with multi-partition remote fetch.</li>
+            <li><strong>Minimum retention constraints:</strong> Low-cost object storage tiers often require a <strong>minimum 3-day retention period</strong>. Verify policy before setting <code class="bg-gray-100 px-1 rounded">local.retention.ms</code>.</li>
+            <li><strong>Storage backend support:</strong> Only <strong>S3-API-compatible</strong> stores are certified. Non-certified object stores (some on-prem or exotic cloud options) may not be supported.</li>
+            <li><strong>Operational visibility:</strong> Remote read latency and error metrics must be actively monitored — they are separate from broker-local metrics.</li>
+            <li><strong>Migration of existing topics:</strong> Enabling tiered storage on existing topics does not retroactively offload data — only new segments are tiered.</li>
+          </ul>
+        </div>
+
+        <div class="mt-5 bg-gray-900 text-green-300 p-4 sm:p-5 rounded-xl shadow-sm overflow-x-auto text-xs sm:text-sm">
+<pre class="prose-pre"># Broker-level enablement
+remote.log.storage.system.enable=true
+remote.log.metadata.manager.class.name=org.apache.kafka.server.log.remote.metadata.storage.TopicBasedRemoteLogMetadataManager
+
+# Topic-level (example)
+kafka-topics.sh --create --topic transactions \
+  --config remote.storage.enable=true \
+  --config local.retention.ms=86400000 \
+  --config retention.ms=2592000000</pre>
+        </div>
+      </section>
+
+      <!-- ============ Share Groups ============ -->
+      <section id="sharegroups" class="py-6 sm:py-10">
+        <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-5">📬 Share Groups (KIP-932): Queues for Kafka</h2>
+
+        <p class="text-base sm:text-lg text-gray-700 mb-5 leading-relaxed">
+          Share groups bring <strong>queue-like semantics</strong> to Kafka. Unlike traditional consumer groups where each partition is assigned to exactly one consumer, <strong>multiple consumers in a share group can read from the same partition cooperatively</strong>, with <strong>per-message acknowledgment</strong>.
+        </p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+          <div class="bg-white rounded-2xl shadow-sm p-5">
+            <h3 class="text-lg sm:text-xl font-semibold text-indigo-700 mb-2">✅ When to Use</h3>
+            <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+              <li>Point-to-point messaging patterns.</li>
+              <li>Workloads previously on RabbitMQ or SQS.</li>
+              <li>Elastic consumer scaling beyond partition count.</li>
+            </ul>
+          </div>
+
+          <div class="bg-white rounded-2xl shadow-sm p-5">
+            <h3 class="text-lg sm:text-xl font-semibold text-amber-700 mb-2">⚠️ Current Status</h3>
+            <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+              <li><strong>Preview</strong> in Kafka 4.1; <strong>GA in 4.2</strong>.</li>
+              <li>Early-access clusters <strong>cannot upgrade to 4.1</strong> — keep out of production until GA.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="mt-5 p-5 bg-red-50 rounded-2xl shadow-sm">
+          <h3 class="text-lg sm:text-xl font-semibold text-red-800 mb-3">🚨 Critical Trade-offs</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-2">
+            <li><strong>No per-partition ordering:</strong> Because records are dispatched independently to consumers, share groups do <strong>not</strong> guarantee message order within a partition. Do not use for ordering-sensitive workloads.</li>
+            <li><strong>Dead-letter queue (DLQ) gap:</strong> As of late 2026, KIP-1191 (DLQ for share groups) is still in development. Records that exhaust retries are archived but <strong>not delivered to a DLQ</strong>. You must design compensating logic manually.</li>
+            <li><strong>New consumer API:</strong> Share groups use a distinct client API (<code class="bg-gray-100 px-1 rounded">KafkaShareConsumer</code>) — existing consumer code cannot be reused directly.</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ============ KIP-848 ============ -->
+      <section id="kip848" class="py-6 sm:py-10">
+        <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-5">⚡ KIP-848: Next-Gen Consumer Rebalance</h2>
+
+        <p class="text-base sm:text-lg text-gray-700 mb-5 leading-relaxed">
+          The classic rebalance protocol causes <strong>“stop-the-world” pauses</strong>. KIP-848 introduces a <strong>server-side, incremental</strong> protocol that delivers <strong>up to 20× faster rebalances</strong> and eliminates full-group synchronization barriers.
+        </p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+          <div class="bg-white rounded-2xl shadow-sm p-5">
+            <h3 class="text-lg sm:text-xl font-semibold text-green-700 mb-2">How to Enable</h3>
+            <pre class="bg-gray-900 text-green-300 p-3 rounded-lg text-xs sm:text-sm overflow-x-auto"><code>group.protocol=consumer</code></pre>
+            <p class="text-gray-700 text-sm sm:text-base mt-2">Server-side enabled by default in Kafka 4.0; clients opt in.</p>
+          </div>
+
+          <div class="bg-white rounded-2xl shadow-sm p-5">
+            <h3 class="text-lg sm:text-xl font-semibold text-blue-700 mb-2">Real-World Impact</h3>
+            <p class="text-gray-700 text-sm sm:text-base">
+              In one benchmark, rebalance time dropped from <strong>103 seconds to 5 seconds</strong>.
+            </p>
+          </div>
+        </div>
+
+        <div class="mt-5 p-5 bg-amber-50 rounded-2xl shadow-sm">
+          <h3 class="text-lg sm:text-xl font-semibold text-amber-800 mb-3">⚠️ Adoption Friction</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-2">
+            <li><strong>Classic protocol is still the default</strong> in <code class="bg-gray-100 px-1 rounded">KafkaConsumer</code>. Adoption is opt-in, so many production clusters are still running the old protocol.</li>
+            <li><strong>No regex subscription support</strong> in the current KIP-848 implementation. If you rely on topic regex subscriptions, KIP-848 will not work for those consumers.</li>
+            <li><strong>Alternative Kafka implementations</strong> (e.g., Redpanda) may not support KIP-848 yet. Verify compatibility before enabling in multi-implementation environments.</li>
+            <li><strong>Kafka Streams</strong> gained KIP-1071 support in 4.1 — earlier versions cannot use the new protocol with Streams.</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ============ ISR & ELR ============ -->
+      <section id="isr" class="py-6 sm:py-10">
+        <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-5">🛡️ ISR, ELR and Modern Durability</h2>
+
+        <div class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">Core Settings (Still Valid)</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-2">
+            <li><strong>Replication factor 3</strong> at topic creation.</li>
+            <li><strong>min.insync.replicas=2</strong> — not 3 — leaving headroom for maintenance.</li>
+            <li><strong>acks=all</strong> on producers for durability.</li>
+            <li><strong>enable.idempotence=true</strong> to prevent duplicates during retries.</li>
+          </ul>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm p-5 sm:p-6">
+          <h3 class="text-lg sm:text-xl font-semibold text-green-700 mb-3">🔹 Eligible Leader Replicas (ELR, KIP-966)</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-3 leading-relaxed">
+            ELR is a <strong>subset of ISR</strong> guaranteed to have complete data up to the high watermark. Only ELR replicas are eligible for leader election, <strong>preventing silent data loss</strong> even when ISR is non-empty.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base mb-2"><strong>Why ELR matters — a concrete failure:</strong></p>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Leader L receives messages and acknowledges to producers before followers fully replicate.</li>
+            <li>L crashes; a follower with ISR membership but incomplete data becomes leader.</li>
+            <li>Un-replicated messages are permanently lost — producers think they were written.</li>
+            <li>ELR restricts leader eligibility to replicas that <strong>provably</strong> have all acknowledged data, closing this gap.</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ============ Throughput & Sizing ============ -->
+      <section id="throughput" class="py-6 sm:py-10">
+        <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-5">🚀 Producer Throughput & Partition Sizing</h2>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+          <div class="bg-white rounded-2xl shadow-sm p-5">
+            <h3 class="text-lg sm:text-xl font-semibold text-green-700 mb-2">✅ Use LZ4 Compression</h3>
+            <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+              LZ4 offers the best balance of speed (~594 MB/s compression, ~2,428 MB/s decompression) for high-throughput workloads.
+            </p>
+          </div>
+
+          <div class="bg-white rounded-2xl shadow-sm p-5">
+            <h3 class="text-lg sm:text-xl font-semibold text-red-700 mb-2">⚠️ Avoid ZSTD</h3>
+            <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+              ZSTD has <strong>known data-corruption edge cases</strong> in certain librdkafka versions. Stick with LZ4 unless you have validated a specific version.
+            </p>
+          </div>
+
+          <div class="bg-white rounded-2xl shadow-sm p-5">
+            <h3 class="text-lg sm:text-xl font-semibold text-blue-700 mb-2">🔹 Batching</h3>
+            <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+              Increase <code class="bg-gray-100 px-1 rounded">batch.size</code> and <code class="bg-gray-100 px-1 rounded">linger.ms</code>; compression dramatically reduces network I/O.
+            </p>
+          </div>
+
+          <div class="bg-white rounded-2xl shadow-sm p-5">
+            <h3 class="text-lg sm:text-xl font-semibold text-indigo-700 mb-2">🔹 Idempotence</h3>
+            <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+              Always set <code class="bg-gray-100 px-1 rounded">enable.idempotence=true</code> to preserve ordering and avoid duplicates during retries.
+            </p>
+          </div>
+        </div>
+
+        <div class="mt-5 bg-white rounded-2xl shadow-sm p-5 sm:p-6">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">📐 Partition Count Sizing Framework</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-3 leading-relaxed">
+            Rules of thumb (avoid primes, prefer 6/12/24/60, stay under 4,000 partitions per broker) are a starting point, not a sizing method. Use the framework below:
+          </p>
+          <ol class="list-decimal list-inside text-gray-700 text-sm sm:text-base space-y-2">
+            <li><strong>Target consumer throughput:</strong> Measure single-consumer processing rate (e.g., 5 MB/s). Total desired throughput ÷ consumer rate = minimum partition count.</li>
+            <li><strong>Target producer throughput:</strong> Ensure broker count × per-broker write capacity ≥ desired write throughput. Partitions must be spread across brokers to utilize this.</li>
+            <li><strong>Replication overhead:</strong> Multiply partition count by replication factor for total replica count. Each broker should hold a balanced share; keep replicas-per-broker under ~4,000.</li>
+            <li><strong>Controller and metadata load:</strong> KRaft supports 2M partitions per cluster, but each broker should not exceed ~4,000 partitions unless stress-tested.</li>
+            <li><strong>Growth headroom:</strong> Add 30–50% capacity. Partition count cannot be reduced without topic recreation.</li>
+            <li><strong>Key cardinality:</strong> If using key-based partitioning, ensure the key space exceeds partition count to avoid hot partitions.</li>
+          </ol>
+          <p class="text-gray-700 text-sm sm:text-base mt-3 leading-relaxed">
+            <strong>Example:</strong> 300 MB/s write traffic, 5 MB/s consumer rate, RF=3. Minimum partitions = 60 for consumer parallelism. Total replicas = 180. Across 9 brokers = ~20 replicas/broker — comfortable. Add 50% headroom → 90 partitions.
+          </p>
+        </div>
+      </section>
+
+      <!-- ============ Consumer Lag ============ -->
+      <section id="lag" class="py-6 sm:py-10">
+        <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-5">📉 Consumer Lag (Still Critical)</h2>
+
+        <div class="bg-white rounded-2xl shadow-sm p-5 sm:p-6">
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-2">
+            <li><strong>Rebalance pauses</strong> are the #1 cause. Migrate to <strong>KIP-848</strong> (<code class="bg-gray-100 px-1 rounded">group.protocol=consumer</code>) for up to 20× faster rebalances.</li>
+            <li><strong>Partition count bounds parallelism</strong> — adding consumers beyond partition count does not help.</li>
+            <li>Monitor lag with <code class="bg-gray-100 px-1 rounded">kafka-consumer-groups.sh</code> or modern dashboards.</li>
+            <li>Blocking operations in the poll loop cause heartbeat failures and rebalances — keep the loop non-blocking.</li>
+            <li><strong>Cascading rebalance storms:</strong> When LLM API latency exceeds <code class="bg-gray-100 px-1 rounded">max.poll.interval.ms</code>, the consumer is evicted, triggering rebalance after rebalance. See AI section below.</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ============ AI / GenAI ============ -->
+      <section id="ai" class="py-6 sm:py-10">
+        <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-5">🤖 Kafka for AI / GenAI (2025–2026)</h2>
+
+        <p class="text-base sm:text-lg text-gray-700 mb-5 leading-relaxed">
+          Kafka has become the <strong>real-time data backbone</strong> for enterprise AI. It connects operational data with <strong>RAG pipelines</strong>, vector databases, and LLM-powered assistants. Beyond being an "event backbone," there are specific production inference patterns every architect should know.
+        </p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="bg-white rounded-2xl shadow-sm p-5">
+            <h3 class="text-lg font-semibold text-indigo-700 mb-2">1. External RPC</h3>
+            <p class="text-gray-700 text-sm leading-relaxed">
+              Consumer calls <strong>OpenAI, Anthropic, or Bedrock</strong> APIs. Simplest pattern. Risk: API latency and rate limits can exceed <code class="bg-gray-100 px-1 rounded">max.poll.interval.ms</code>.
+            </p>
+          </div>
+          <div class="bg-white rounded-2xl shadow-sm p-5">
+            <h3 class="text-lg font-semibold text-green-700 mb-2">2. Embedded Model</h3>
+            <p class="text-gray-700 text-sm leading-relaxed">
+              Run <strong>ONNX or TensorFlow Lite</strong> models inside the consumer JVM. Low latency, no network hop. Ideal for classification, filtering, or embedding.
+            </p>
+          </div>
+          <div class="bg-white rounded-2xl shadow-sm p-5">
+            <h3 class="text-lg font-semibold text-purple-700 mb-2">3. Sidecar Inference</h3>
+            <p class="text-gray-700 text-sm leading-relaxed">
+              GPU serving (Triton, vLLM, TorchServe) runs <strong>next to the Kafka processor</strong> in the same pod/host. Balances latency and model flexibility.
+            </p>
+          </div>
+        </div>
+
+        <div class="mt-5 p-5 bg-red-50 rounded-2xl shadow-sm">
+          <h3 class="text-lg sm:text-xl font-semibold text-red-800 mb-3">🚨 Cascading Rebalance Storm (Production Risk)</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            LLM API latency is variable and often exceeds 30 seconds. If a consumer blocks on an LLM call longer than <code class="bg-gray-100 px-1 rounded">max.poll.interval.ms</code>:
+          </p>
+          <ol class="list-decimal list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Broker evicts the consumer → rebalance begins.</li>
+            <li>Another consumer picks up the same records → also blocks on the LLM.</li>
+            <li>Repeat → the <strong>entire consumer group enters a rebalance storm</strong>.</li>
+          </ol>
+          <p class="text-gray-700 text-sm sm:text-base mt-3 leading-relaxed">
+            <strong>Mitigations:</strong> Use async HTTP clients with bounded timeouts, decouple LLM calls from the poll loop via internal queues, set generous <code class="bg-gray-100 px-1 rounded">max.poll.interval.ms</code> (5–10 min), or use the Kafka Streams async processing model.
+          </p>
+        </div>
+
+        <div class="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="bg-white rounded-2xl shadow-sm p-5">
+            <h3 class="text-lg sm:text-xl font-semibold text-indigo-700 mb-2">Real-Time RAG</h3>
+            <p class="text-gray-700 text-sm leading-relaxed">
+              Streaming architecture enables <strong>continuous context updates</strong> for RAG — unlike static knowledge bases that go stale.
+            </p>
+          </div>
+          <div class="bg-white rounded-2xl shadow-sm p-5">
+            <h3 class="text-lg sm:text-xl font-semibold text-purple-700 mb-2">Exactly-Once for AI</h3>
+            <p class="text-gray-700 text-sm leading-relaxed">
+              Idempotent producers + transactions handle Kafka-side exactly-once. External LLM calls need <strong>idempotency keys</strong> and compensation logic.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ Managed Cloud ============ -->
+      <section id="cloud" class="py-6 sm:py-10">
+        <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-5">☁️ Managed Kafka & Cloud-Native</h2>
+
+        <div class="overflow-x-auto">
+          <table class="min-w-[640px] w-full text-sm border border-gray-200 text-gray-700 rounded-lg overflow-hidden">
+            <thead class="bg-gray-200">
+              <tr>
+                <th class="px-3 py-2 border text-left">Service</th>
+                <th class="px-3 py-2 border text-left">Best For</th>
+                <th class="px-3 py-2 border text-left">Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td class="px-3 py-2 border font-semibold">Confluent Cloud</td><td class="px-3 py-2 border">Deepest managed Kafka ecosystem</td><td class="px-3 py-2 border">Schema Registry, connectors, stream processing; IBM acquisition announced Dec 2025.</td></tr>
+              <tr class="bg-gray-50"><td class="px-3 py-2 border font-semibold">Amazon MSK</td><td class="px-3 py-2 border">AWS-native operations</td><td class="px-3 py-2 border">In-place ZooKeeper → KRaft upgrade available; deep IAM integration.</td></tr>
+              <tr><td class="px-3 py-2 border font-semibold">Redpanda</td><td class="px-3 py-2 border">Kafka API with lower ops overhead</td><td class="px-3 py-2 border">Single binary, no JVM; strong for smaller footprints. Verify KIP-848 and share group support.</td></tr>
+              <tr class="bg-gray-50"><td class="px-3 py-2 border font-semibold">Strimzi (K8s)</td><td class="px-3 py-2 border">Self-managed on Kubernetes</td><td class="px-3 py-2 border">Operator simplifies deployment and lifecycle; supports KRaft since 0.35.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ============ Security ============ -->
+      <section id="security" class="py-6 sm:py-10">
+        <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-5">🔐 Modern Security</h2>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+          <div class="bg-white rounded-2xl shadow-sm p-5">
+            <h3 class="text-lg sm:text-xl font-semibold text-blue-700 mb-2">OAuth 2.0 / OIDC</h3>
+            <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+              Integrates with Okta, Azure AD, Keycloak. Kafka 4.1 adds <strong>JWT bearer grant type</strong> (KIP-1139) for service-to-service auth without client secrets.
+            </p>
+          </div>
+
+          <div class="bg-white rounded-2xl shadow-sm p-5">
+            <h3 class="text-lg sm:text-xl font-semibold text-green-700 mb-2">mTLS</h3>
+            <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+              Strong transport-level security with client certificates. Works well if you already have PKI infrastructure.
+            </p>
+          </div>
+
+          <div class="bg-white rounded-2xl shadow-sm p-5 sm:col-span-2">
+            <h3 class="text-lg sm:text-xl font-semibold text-purple-700 mb-2">Zero-Trust Model</h3>
+            <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+              Use <strong>strong authentication</strong> (mTLS, OAuth, SCRAM-SHA-512) — never rely on IP allowlists alone. Enforce ACLs at the topic level; separate principals for producers and consumers.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ Observability ============ -->
+      <section id="observability" class="py-6 sm:py-10">
+        <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-5">📊 Observability with OpenTelemetry</h2>
+
+        <div class="bg-white rounded-2xl shadow-sm p-5 sm:p-6">
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-2">
+            <li><strong>OTel Collector</strong> receivers and exporters for Kafka metrics, traces, and logs.</li>
+            <li><strong>W3C Trace Context</strong> propagation for end-to-end trace continuity across event pipelines.</li>
+            <li><strong>JMX → OTel</strong> for broker metrics; client-side instrumentation for producer/consumer traces.</li>
+            <li><strong>KIP-714 / KIP-1076</strong> enable brokers to collect client metrics directly — eliminating per-client exporters.</li>
+            <li><strong>KRaft-specific metrics:</strong> Monitor controller quorum state, metadata commit lag, and controller election events.</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ============ Tools ============ -->
+      <section id="tools" class="py-6 sm:py-10">
+        <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">🛠️ Kafka Tools (Current)</h2>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+          <div class="bg-white rounded-2xl shadow-sm p-5">
+            <h3 class="text-lg sm:text-xl font-semibold text-blue-700 mb-2">CLI</h3>
+            <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+              <li><code class="bg-gray-100 px-1 rounded">kafka-topics.sh</code></li>
+              <li><code class="bg-gray-100 px-1 rounded">kafka-consumer-groups.sh</code></li>
+              <li><code class="bg-gray-100 px-1 rounded">kafka-share-groups.sh</code> (new in 4.0)</li>
+              <li><code class="bg-gray-100 px-1 rounded">kafka-groups.sh</code> (new in 4.0)</li>
+            </ul>
+          </div>
+
+          <div class="bg-white rounded-2xl shadow-sm p-5">
+            <h3 class="text-lg sm:text-xl font-semibold text-green-700 mb-2">Monitoring / Management</h3>
+            <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+              <li>Confluent Control Center</li>
+              <li>AKHQ</li>
+              <li>Prometheus + Grafana</li>
+              <li>Cruise Control (rebalancing)</li>
+            </ul>
+          </div>
+
+          <div class="bg-white rounded-2xl shadow-sm p-5">
+            <h3 class="text-lg sm:text-xl font-semibold text-purple-700 mb-2">Integration</h3>
+            <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+              <li>Kafka Connect</li>
+              <li>Debezium (CDC)</li>
+              <li>MirrorMaker 2</li>
+            </ul>
+          </div>
+
+          <div class="bg-white rounded-2xl shadow-sm p-5">
+            <h3 class="text-lg sm:text-xl font-semibold text-indigo-700 mb-2">Stream Processing</h3>
+            <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+              <li>Kafka Streams (KIP-1071 in 4.1; KIP-892 in 4.4)</li>
+              <li>ksqlDB</li>
+              <li>Flink / Spark Structured Streaming</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Navigation Script -->
+  <script>
+    (function () {
+      var sidebar = document.getElementById('sidebar');
+      var overlay = document.getElementById('overlay');
+      var menuBtn = document.getElementById('menuBtn');
+      var closeBtn = document.getElementById('closeBtn');
+
+      function openMenu() {
+        sidebar.classList.remove('-translate-x-full');
+        overlay.classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+      }
+
+      function closeMenu() {
+        sidebar.classList.add('-translate-x-full');
+        overlay.classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
+      }
+
+      menuBtn.addEventListener('click', function () {
+        if (sidebar.classList.contains('-translate-x-full')) { openMenu(); }
+        else { closeMenu(); }
+      });
+
+      closeBtn.addEventListener('click', closeMenu);
+      overlay.addEventListener('click', closeMenu);
+
+      sidebar.querySelectorAll('a').forEach(function (link) {
+        link.addEventListener('click', function () {
+          if (window.innerWidth < 1024) { closeMenu(); }
+        });
+      });
+
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') { closeMenu(); }
+      });
+
+      window.addEventListener('resize', function () {
+        if (window.innerWidth >= 1024) {
+          overlay.classList.add('hidden');
+          document.body.classList.remove('overflow-hidden');
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
