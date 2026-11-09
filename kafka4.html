@@ -1,0 +1,3121 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kafka</title>
+  <meta name="description" content="Learn everything about Apache Kafka: architecture, ZooKeeper, KRaft, ISR, replication, consumer lag, partitioning, throughput tuning and best practices.">
+  <meta name="keywords" content="Kafka, Apache Kafka, ZooKeeper, KRaft, ISR, Replication, Consumer Lag, Partitions, Kafka Architecture, Kafka Best Practices">
+  <meta name="author" content="Braj Bhushan Kumar">
+  <meta name="theme-color" content="#4f46e5">
+
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%234f46e5' d='M4 5h16v2H4zm0 5h16v2H4zm0 5h16v2H4z'/%3E%3C/svg%3E">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    html { scroll-padding-top: 4.5rem; }
+    @media (min-width: 1024px) { html { scroll-padding-top: 1.5rem; } }
+    .prose-pre { white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+  </style>
+</head>
+
+<body class="bg-gray-50 text-gray-900 antialiased">
+
+  <!-- ===== Mobile Top Bar ===== -->
+  <header class="lg:hidden fixed top-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-b border-gray-200">
+    <div class="flex items-center justify-between px-4 h-14">
+      <span class="font-bold text-indigo-700">📚 Kafka</span>
+      <button id="menuBtn" type="button" aria-label="Open navigation"
+              class="inline-flex items-center justify-center w-10 h-10 rounded-lg text-gray-700 hover:bg-gray-100 active:bg-gray-200">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ===== Overlay (mobile) ===== -->
+  <div id="overlay" class="fixed inset-0 bg-black/40 z-40 hidden lg:hidden"></div>
+
+  <!-- ===== Sidebar Navigation ===== -->
+  <nav id="sidebar"
+       class="fixed top-0 left-0 z-50 h-screen w-72 max-w-[82vw] bg-white shadow-xl p-5 overflow-y-auto
+              -translate-x-full transition-transform duration-300 ease-in-out
+              lg:translate-x-0 lg:w-64 lg:max-w-none lg:shadow-lg">
+    <div class="flex items-center justify-between mb-6">
+      <h2 class="text-xl font-bold text-indigo-700">📖 Contents</h2>
+      <button id="closeBtn" type="button" aria-label="Close navigation"
+              class="lg:hidden w-8 h-8 rounded-lg text-gray-500 hover:bg-gray-100 text-2xl leading-none">&times;</button>
+    </div>
+
+    <ul class="space-y-1 text-gray-700 font-medium text-sm">
+      <li><a href="#zkeeper"        class="block px-3 py-2 rounded-lg hover:bg-indigo-50 hover:text-indigo-700">ZooKeeper</a></li>
+      <li><a href="#isr"            class="block px-3 py-2 rounded-lg hover:bg-indigo-50 hover:text-indigo-700">In-Sync Replicas</a></li>
+      <li><a href="#throughput"     class="block px-3 py-2 rounded-lg hover:bg-indigo-50 hover:text-indigo-700">Throughput</a></li>
+      <li><a href="#lag"            class="block px-3 py-2 rounded-lg hover:bg-indigo-50 hover:text-indigo-700">Consumer Lag</a></li>
+      <li><a href="#disk-full"      class="block px-3 py-2 rounded-lg hover:bg-indigo-50 hover:text-indigo-700">Broker Disk Full</a></li>
+      <li><a href="#realtimeanalytics" class="block px-3 py-2 rounded-lg hover:bg-indigo-50 hover:text-indigo-700">Real-Time Analytics</a></li>
+      <li><a href="#tools"          class="block px-3 py-2 rounded-lg hover:bg-indigo-50 hover:text-indigo-700">Kafka Tools</a></li>
+    </ul>
+  </nav>
+
+  <!-- ===== Main Content ===== -->
+  <main class="lg:ml-64 pt-14 lg:pt-0">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+
+      <h1 class="text-3xl sm:text-4xl font-bold text-center mb-10 text-indigo-700">📚 Kafka</h1>
+
+      <!-- ============ ZooKeeper ============ -->
+      <section id="zkeeper" class="py-6 sm:py-10">
+        <h2 class="text-2xl sm:text-3xl font-bold text-indigo-700 mb-5 text-center">What is ZooKeeper in Kafka?</h2>
+
+        <p class="text-base sm:text-lg text-gray-700 mb-8 text-center max-w-3xl mx-auto leading-relaxed">
+          <strong>Apache ZooKeeper</strong> is a centralized coordination service used in older Kafka
+          versions (pre-3.3) to manage cluster metadata and broker coordination. It ensures proper
+          leader election, metadata consistency, and smooth operation of the Kafka cluster.
+        </p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+          <div class="p-5 bg-indigo-50 rounded-2xl shadow-sm">
+            <h3 class="text-lg sm:text-xl font-semibold text-indigo-800 mb-2">1. Cluster Metadata Management</h3>
+            <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+              ZooKeeper stores critical metadata such as
+              <span class="font-semibold">topics, partitions, brokers, and ACLs</span>,
+              ensuring that all brokers in the Kafka cluster stay synchronized.
+            </p>
+          </div>
+
+          <div class="p-5 bg-blue-50 rounded-2xl shadow-sm">
+            <h3 class="text-lg sm:text-xl font-semibold text-blue-800 mb-2">2. Controller Election</h3>
+            <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+              ZooKeeper elects a <strong>Controller Broker</strong>, which manages
+              partition leaders and ensures fault tolerance when brokers go offline.
+            </p>
+          </div>
+
+          <div class="p-5 bg-green-50 rounded-2xl shadow-sm">
+            <h3 class="text-lg sm:text-xl font-semibold text-green-800 mb-2">3. Broker Registration</h3>
+            <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+              Brokers register themselves in ZooKeeper using
+              <code class="bg-gray-200 px-1 rounded text-sm">ephemeral znodes</code>,
+              which automatically get removed if a broker disconnects.
+            </p>
+          </div>
+
+          <div class="p-5 bg-purple-50 rounded-2xl shadow-sm">
+            <h3 class="text-lg sm:text-xl font-semibold text-purple-800 mb-2">4. Metadata Change Notifications</h3>
+            <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+              ZooKeeper notifies brokers about metadata changes, such as
+              <span class="font-semibold">new topic creation</span> or
+              <span class="font-semibold">leader reassignments</span>.
+            </p>
+          </div>
+
+          <div class="p-5 bg-pink-50 rounded-2xl shadow-sm sm:col-span-2">
+            <h3 class="text-lg sm:text-xl font-semibold text-pink-800 mb-2">5. Client Interaction</h3>
+            <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+              Kafka clients (<strong>producers and consumers</strong>) never talk to ZooKeeper directly.
+              They interact only with Kafka brokers, which handle ZooKeeper communication behind the scenes.
+            </p>
+          </div>
+        </div>
+
+        <div class="mt-8 p-5 sm:p-6 bg-gray-100 rounded-2xl shadow-sm text-center">
+          <h3 class="text-xl font-bold text-gray-800 mb-2">Conclusion</h3>
+          <p class="text-gray-700 text-sm sm:text-base max-w-2xl mx-auto leading-relaxed">
+            ZooKeeper was a critical part of Kafka’s architecture before version 3.3.
+            With <strong>KRaft mode (Kafka Raft Metadata mode)</strong>, Kafka has eliminated the need
+            for ZooKeeper, making cluster management more efficient and self-contained.
+          </p>
+        </div>
+      </section>
+
+      <!-- ============ Core Components ============ -->
+      <section class="py-6 sm:py-10">
+        <h2 class="text-2xl sm:text-3xl font-extrabold text-indigo-700 mb-6 text-center">
+          ⚙️ Kafka Core Components (Legacy vs Modern)
+        </h2>
+
+        <article class="bg-white shadow-sm rounded-2xl p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-blue-700 mb-3">🔹 1. ZooKeeper (Legacy Only)</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-3">
+            <strong>What it is:</strong> A separate service (not part of Kafka itself).
+          </p>
+
+          <h4 class="text-base sm:text-lg font-medium text-gray-800 mb-2">Role in Kafka (pre-KRaft):</h4>
+          <ul class="list-disc list-inside text-gray-600 text-sm sm:text-base space-y-1">
+            <li>Keeps cluster metadata (topics, partitions, broker IDs).</li>
+            <li>Elects the controller broker.</li>
+            <li>Tracks broker liveness (via ephemeral znodes).</li>
+            <li>Stores configurations and ACLs.</li>
+            <li><strong>Does NOT</strong> store messages → only manages coordination.</li>
+          </ul>
+          <p class="mt-4 text-gray-700 text-sm sm:text-base">
+            👉 <em>Think of ZooKeeper as the <span class="font-semibold">“cluster manager / coordinator”</span>.</em>
+          </p>
+        </article>
+
+        <article class="bg-white shadow-sm rounded-2xl p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-green-700 mb-3">🔹 2. Kafka Broker</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-3">
+            <strong>What it is:</strong> A Kafka server process (usually one per machine or container).
+          </p>
+
+          <h4 class="text-base sm:text-lg font-medium text-gray-800 mb-2">Responsibilities:</h4>
+          <ul class="list-disc list-inside text-gray-600 text-sm sm:text-base space-y-1">
+            <li>Stores messages in topics/partitions.</li>
+            <li>Handles producer writes and consumer reads.</li>
+            <li>Manages replication (leader/follower roles).</li>
+            <li>Communicates with ZooKeeper (in old mode) or Controller Quorum (in KRaft).</li>
+            <li>Each broker has a unique <code class="bg-gray-100 text-red-600 px-1 rounded">broker.id</code>.</li>
+            <li>A broker can host thousands of partitions.</li>
+          </ul>
+          <p class="mt-4 text-gray-700 text-sm sm:text-base">
+            👉 <em>Think of a broker as the <span class="font-semibold">“data warehouse + messenger”</span>.</em>
+          </p>
+        </article>
+
+        <article class="bg-white shadow-sm rounded-2xl p-5 sm:p-6">
+          <h3 class="text-lg sm:text-xl font-semibold text-purple-700 mb-3">🔹 3. Node</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-3">
+            <strong>What it is:</strong> A physical machine or VM where Kafka runs.
+          </p>
+
+          <h4 class="text-base sm:text-lg font-medium text-gray-800 mb-2">A node can run:</h4>
+          <ul class="list-disc list-inside text-gray-600 text-sm sm:text-base space-y-1">
+            <li>One Kafka broker process.</li>
+            <li>One ZooKeeper process (in old clusters).</li>
+            <li>Or both (in small test clusters, though not best practice).</li>
+          </ul>
+
+          <p class="mt-4 text-gray-700 text-sm sm:text-base leading-relaxed">
+            👉 <em>In most setups: <span class="font-semibold">One node = one broker (Kafka server).</span><br>
+            But node is hardware/OS, while broker is the Kafka process running on it.</em>
+          </p>
+        </article>
+      </section>
+
+      <!-- ============ Architecture (ZooKeeper era) ============ -->
+      <section class="py-6 sm:py-10">
+        <h2 class="text-2xl sm:text-3xl font-extrabold text-indigo-700 mb-6 text-center">
+          ⚙️ How Kafka Components Work Together (Old ZooKeeper Architecture)
+        </h2>
+
+        <article class="bg-white shadow-sm rounded-2xl p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-blue-700 mb-3">🔹 Nodes</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2"><strong>What they are:</strong> Physical or virtual machines running Kafka or ZooKeeper.</p>
+          <p class="text-gray-700 text-sm sm:text-base"><strong>Example:</strong> 3 machines → Node1, Node2, Node3.</p>
+        </article>
+
+        <article class="bg-white shadow-sm rounded-2xl p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-green-700 mb-3">🔹 ZooKeeper Ensemble</h3>
+          <ul class="list-disc list-inside text-gray-600 text-sm sm:text-base space-y-1">
+            <li>Runs on 3–5 nodes (separate or shared in dev setups).</li>
+            <li>Elects the leader broker.</li>
+            <li>Tracks broker liveness and metadata.</li>
+          </ul>
+        </article>
+
+        <article class="bg-white shadow-sm rounded-2xl p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-purple-700 mb-3">🔹 Kafka Brokers</h3>
+          <ul class="list-disc list-inside text-gray-600 text-sm sm:text-base space-y-1">
+            <li>Run on Node1, Node2, and Node3.</li>
+            <li>Each broker registers with ZooKeeper.</li>
+          </ul>
+        </article>
+
+        <article class="bg-white shadow-sm rounded-2xl p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-red-700 mb-3">🔹 Producers / Consumers</h3>
+          <ul class="list-disc list-inside text-gray-600 text-sm sm:text-base space-y-1">
+            <li>Send and receive messages via brokers.</li>
+            <li>Do <strong>not</strong> talk directly to ZooKeeper.</li>
+          </ul>
+        </article>
+
+        <article class="bg-white shadow-sm rounded-2xl p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-indigo-700 mb-3">🔹 Example Cluster</h3>
+          <ul class="list-disc list-inside text-gray-600 text-sm sm:text-base space-y-1">
+            <li><strong>Node1</strong> → runs Broker 1.</li>
+            <li><strong>Node2</strong> → runs Broker 2.</li>
+            <li><strong>Node3</strong> → runs Broker 3.</li>
+            <li><strong>Node4 &amp; Node5</strong> → run ZooKeeper ensemble.</li>
+          </ul>
+          <p class="mt-3 text-gray-700 text-sm sm:text-base">
+            <strong>Topic:</strong> <code class="bg-gray-100 text-red-600 px-1 rounded">orders</code> (3 partitions, replication factor = 2)
+          </p>
+          <ul class="list-disc list-inside text-gray-600 text-sm sm:text-base space-y-1 mt-2">
+            <li>Broker1 → leader for partition 0.</li>
+            <li>Broker2 → leader for partition 1.</li>
+            <li>Broker3 → leader for partition 2.</li>
+          </ul>
+          <p class="mt-3 text-gray-700 text-sm sm:text-base">
+            ZooKeeper tracks all metadata and ensures a new leader is elected if a broker fails.
+          </p>
+        </article>
+
+        <article class="bg-white shadow-sm rounded-2xl p-5 sm:p-6">
+          <h3 class="text-lg sm:text-xl font-semibold text-teal-700 mb-3">🔹 Analogy (Easy to Remember)</h3>
+          <ul class="list-disc list-inside text-gray-600 text-sm sm:text-base space-y-1">
+            <li><strong>ZooKeeper</strong> → Referee (keeps track of rules &amp; leaders).</li>
+            <li><strong>Brokers</strong> → Players (store &amp; serve the ball = messages).</li>
+            <li><strong>Nodes</strong> → Playground (where players &amp; referee exist).</li>
+          </ul>
+        </article>
+      </section>
+
+      <!-- ============ Number of nodes ============ -->
+      <section id="nodes" class="py-6 sm:py-10">
+        <h2 class="text-xl sm:text-2xl font-bold text-indigo-700 mb-4">📜 Number of Nodes in ZooKeeper / Kafka</h2>
+
+        <pre class="prose-pre bg-gray-900 text-green-300 p-4 sm:p-6 rounded-xl shadow-lg overflow-x-auto text-xs sm:text-sm leading-relaxed">Deciding the number of nodes (machines) in a Kafka cluster is a capacity planning exercise.
+Interviewers love this one because it tests whether you understand throughput, fault tolerance,
+and replication trade-offs.
+
+Let’s break it down:
+
+🔹 1. Factors That Decide Number of Nodes
+A. Fault Tolerance
+
+To survive N broker failures, you need at least N+1 brokers.
+
+With replication factor 3 (common setup):
+
+You need at least 3 brokers.
+
+But to survive 2 failures, you need 5 brokers (so majority quorum still works).
+
+B. Replication Factor (RF)
+
+Minimum nodes ≥ replication factor.
+
+Example: If RF = 3 → cluster must have at least 3 brokers.
+
+Otherwise, not all replicas can be placed on separate nodes.
+
+C. Topic Partition Count
+
+Each partition lives on one broker (plus replicas).
+
+Number of nodes depends on:
+
+How many partitions you need (for parallelism &amp; throughput).
+
+How many replicas (for reliability).
+
+Example:
+
+300 partitions, RF=3 → 900 replicas total.
+
+If you want to balance, each broker should hold ~100 replicas.
+
+That means you need ~9 brokers.
+
+D. Throughput &amp; Storage
+
+Each broker can handle X MB/s writes and store Y TB data.
+
+You calculate:
+
+Total incoming traffic (producer throughput).
+
+Total outgoing traffic (consumer throughput).
+
+Data retention (how many days of data to keep).
+
+Then divide by broker capacity.
+
+🔹 2. General Rules of Thumb
+
+Small dev/test clusters: 3 brokers (minimum for RF=3).
+
+Medium production: 5–7 brokers (can tolerate 1–2 failures).
+
+Large enterprise: 10–50 brokers (scale with traffic &amp; retention).
+
+Very high scale: 100+ brokers across multiple data centers.
+
+🔹 3. Example Calculation
+
+Say you want:
+
+Traffic: 200 MB/s writes.
+
+Retention: 7 days.
+
+Replication Factor: 3.
+
+Each broker can safely handle: 50 MB/s writes and 2 TB storage.
+
+Step 1. Storage requirement:
+200 MB/s × 86400 sec × 7 days = ~120 TB.
+With RF=3 → 360 TB total.
+Each broker = 2 TB → need 180 brokers for storage.
+
+Step 2. Throughput requirement:
+200 MB/s ÷ 50 MB/s = 4 brokers.
+
+Step 3. Take max(storage, throughput):
+Need 180 brokers in this case.
+
+🔹 4. Decision Framework (Interview Answer)
+
+When asked, you can say:
+
+👉 “The number of nodes in a Kafka cluster depends on replication factor, fault tolerance requirements, throughput, partition count, and storage. At minimum, you need brokers equal to replication factor. For production, 5–7 brokers are common, as that allows replication factor 3 and tolerance of 1–2 broker failures. In large setups, we calculate based on storage (retention × traffic) and throughput per broker, then size the cluster accordingly.”
+
+✅ This shows you understand theory + practical tradeoffs.
+
+Would you like me to prepare a step-by-step formula sheet (like a checklist: traffic, retention, RF → number of brokers) so you can quickly compute answers in interviews?
+
+
+
+You said:
+no of node does not depend on zookeeper
+ChatGPT said:
+
+Exactly ✅ — the number of Kafka nodes (brokers) does not depend on ZooKeeper.
+
+ZooKeeper is just a coordination service.
+
+You typically run 3 or 5 ZooKeeper nodes (odd number for quorum), independent of Kafka brokers.
+
+The Kafka broker count is decided by replication factor, fault tolerance, throughput, and storage needs — not by how many ZooKeeper nodes you have.
+
+👉 So in an interview you can say:
+“The number of brokers is sized based on replication, traffic, and storage, while ZooKeeper has its own ensemble size (usually 3 or 5) for quorum. They scale independently.”
+
+Would you like me to also prepare a short comparison table (ZooKeeper vs Broker vs Node count) for quick recall in interviews?
+
+You said:
+so if no of nodes decided by replicaton factor then where zookeeper exist
+ChatGPT said:
+
+Great question 👌 — let’s clear this up because this is exactly where many people get confused.
+
+🔹 1. Who decides number of Kafka nodes (brokers)?
+
+Replication factor (RF) gives the minimum broker count.
+
+Example: RF=3 → at least 3 brokers.
+
+Beyond that, number of brokers is decided by throughput + storage + fault tolerance, not by ZooKeeper.
+
+🔹 2. Where does ZooKeeper fit in then?
+
+ZooKeeper is a separate cluster that runs alongside Kafka.
+
+It does not store messages.
+
+It is used only for:
+
+Keeping metadata (topic configs, partition assignment).
+
+Electing the controller broker.
+
+Tracking which brokers are alive.
+
+👉 ZooKeeper is independent of broker count.
+
+🔹 3. Typical Setup (before KRaft)
+
+ZooKeeper Ensemble: 3 or 5 nodes (odd number, for quorum).
+
+Kafka Brokers: e.g., 5–7 nodes (for replication factor 3 and fault tolerance).
+
+So:
+
+Even if you have 100 Kafka brokers, you might still just have 3 or 5 ZooKeeper nodes.
+
+ZooKeeper doesn’t scale with brokers — it scales with reliability needs.
+
+🔹 4. Modern Kafka (KRaft)
+
+New Kafka versions (2.8+) can run without ZooKeeper.
+
+Metadata and leader election handled by controller quorum inside brokers.
+
+✅ Minimal Interview Answer:
+“The number of Kafka nodes is decided by replication factor, throughput, and storage — not by ZooKeeper. ZooKeeper runs as a separate 3–5 node ensemble for coordination, independent of how many brokers you have. In newer Kafka (KRaft), ZooKeeper is removed entirely.”
+
+Would you like me to also give you a diagram explanation (ZooKeeper ensemble + Kafka brokers + producers/consumers) that you can sketch quickly in an interview?
+
+You said:
+Typical Setup (before KRaft)
+
+ZooKeeper Ensemble: 3 or 5 nodes (odd number, for quorum).
+
+Kafka Brokers: e.g., 5–7 nodes (for replication factor 3 and fault tolerance).
+
+so total nodes?
+ChatGPT said:
+
+✅ Exactly — in Kafka (before KRaft), you have two types of clusters running side by side:
+
+ZooKeeper Ensemble: 3 or 5 nodes (independent).
+
+Kafka Brokers: e.g., 5–7 nodes (for RF=3 and fault tolerance).
+
+So the total physical/VM nodes = ZooKeeper nodes + Broker nodes.
+
+👉 Example setups:
+
+3 ZooKeeper + 5 Brokers = 8 total nodes.
+
+5 ZooKeeper + 7 Brokers = 12 total nodes.
+
+ZooKeeper and Brokers don’t overlap in production (though in dev/test, people sometimes co-locate them on the same machine).</pre>
+      </section>
+
+      <!-- ============ ZooKeeper setup ============ -->
+      <section id="zksetup" class="py-6 sm:py-10">
+        <h2 class="text-xl sm:text-2xl font-bold text-indigo-700 mb-4">📜 ZooKeeper Setup</h2>
+
+        <pre class="prose-pre bg-gray-900 text-green-300 p-4 sm:p-6 rounded-xl shadow-lg overflow-x-auto text-xs sm:text-sm leading-relaxed">Complete guide to setting up ZooKeeper for Kafka, explained step-by-step, from minimal local setup to a production-ready ensemble.
+
+🔹 1. Download &amp; Install ZooKeeper
+
+Option 1: Download binary
+
+wget https://downloads.apache.org/zookeeper/stable/apache-zookeeper-3.9.1-bin.tar.gz
+tar -xzf apache-zookeeper-3.9.1-bin.tar.gz
+cd apache-zookeeper-3.9.1-bin
+
+
+Option 2: Use package manager (Linux)
+
+sudo apt-get update
+sudo apt-get install zookeeperd
+
+🔹 2. Configure ZooKeeper
+
+Create a zoo.cfg file inside conf/:
+
+tickTime=2000
+dataDir=/var/lib/zookeeper
+clientPort=2181
+initLimit=5
+syncLimit=2
+
+
+Explanation:
+
+tickTime → basic time unit in ms.
+
+dataDir → directory to store ZooKeeper state.
+
+clientPort → port clients (Kafka brokers) will connect to.
+
+initLimit → number of ticks for followers to sync with leader during startup.
+
+syncLimit → number of ticks for followers to sync with leader during operation.
+
+🔹 3. Set myid (For Ensemble)
+
+If running multiple ZooKeeper nodes, each node needs a unique myid:
+
+echo 1 &gt; /var/lib/zookeeper/myid  # Node 1
+echo 2 &gt; /var/lib/zookeeper/myid  # Node 2
+echo 3 &gt; /var/lib/zookeeper/myid  # Node 3
+
+🔹 4. Configure Ensemble (Multiple Nodes)
+
+Add the following to zoo.cfg on all nodes:
+
+server.1=zk1:2888:3888
+server.2=zk2:2888:3888
+server.3=zk3:2888:3888
+
+
+Explanation:
+
+server.X=hostname:leaderPort:electionPort
+
+Each node knows about all other nodes.
+
+🔹 5. Start ZooKeeper
+
+Single-node (dev/test):
+
+bin/zkServer.sh start
+
+
+Check status:
+
+bin/zkServer.sh status
+
+
+Multi-node ensemble:
+
+Start ZooKeeper on each node individually.
+
+Ensure all nodes show Mode: leader or Mode: follower.
+
+🔹 6. Connect Kafka to ZooKeeper
+
+In Kafka server.properties:
+
+zookeeper.connect=zk1:2181,zk2:2181,zk3:2181
+
+
+Kafka brokers will register with ZooKeeper at this address.
+
+ZooKeeper handles metadata, leader election, and broker liveness.
+
+🔹 7. Verify Setup
+
+List brokers registered:
+
+bin/zookeeper-shell.sh zk1:2181
+ls /brokers/ids
+
+
+You should see the broker IDs of all active Kafka brokers.
+
+✅ Minimal interview-safe summary:
+
+Install ZooKeeper.
+
+Configure zoo.cfg with tickTime, dataDir, clientPort.
+
+Set myid for each node.
+
+Add server.X lines for ensemble.
+
+Start ZooKeeper, check status.
+
+Connect Kafka brokers using zookeeper.connect.</pre>
+      </section>
+
+      <!-- ============ Kafka setup ============ -->
+      <section id="ksetup" class="py-6 sm:py-10">
+        <h2 class="text-xl sm:text-2xl font-bold text-indigo-700 mb-4">📜 Setup Kafka</h2>
+
+        <pre class="prose-pre bg-gray-900 text-green-300 p-4 sm:p-6 rounded-xl shadow-lg overflow-x-auto text-xs sm:text-sm leading-relaxed">Step-by-step guide to set up Kafka brokers after ZooKeeper is ready,
+from local dev to production ensemble:
+
+🔹 1. Download &amp; Install Kafka
+
+Download binary:
+
+wget https://downloads.apache.org/kafka/3.5.0/kafka_2.13-3.5.0.tgz
+tar -xzf kafka_2.13-3.5.0.tgz
+cd kafka_2.13-3.5.0
+
+
+Optional: Use package managers or Docker for simpler setups.
+
+🔹 2. Configure Kafka Broker
+
+Edit config/server.properties:
+
+broker.id=1
+listeners=PLAINTEXT://:9092
+log.dirs=/var/lib/kafka/logs
+num.network.threads=3
+num.io.threads=8
+socket.send.buffer.bytes=102400
+socket.receive.buffer.bytes=102400
+socket.request.max.bytes=104857600
+log.retention.hours=168
+log.segment.bytes=1073741824
+zookeeper.connect=zk1:2181,zk2:2181,zk3:2181
+
+
+Explanation:
+
+broker.id → unique ID per broker (1, 2, 3, …).
+
+listeners → host:port to accept client connections.
+
+log.dirs → directory to store topic data.
+
+num.network.threads, num.io.threads → thread tuning for throughput.
+
+log.retention.hours, log.segment.bytes → log retention and segment size.
+
+zookeeper.connect → addresses of your ZooKeeper ensemble (for legacy Kafka).
+
+🔹 3. Start Kafka Broker
+
+Single-node (dev/test):
+
+bin/kafka-server-start.sh config/server.properties
+
+
+Multi-broker (production):
+
+Copy Kafka to multiple nodes.
+
+Assign unique broker.id on each node.
+
+Update listeners and log.dirs.
+
+Start brokers on all nodes.
+
+🔹 4. Verify Broker Registration with ZooKeeper
+bin/zookeeper-shell.sh zk1:2181
+ls /brokers/ids
+
+
+You should see broker IDs of all running brokers.
+
+🔹 5. Create a Topic (Optional Test)
+bin/kafka-topics.sh --create --topic orders \
+  --bootstrap-server localhost:9092 \
+  --partitions 3 \
+  --replication-factor 2
+
+
+Check topic metadata:
+
+bin/kafka-topics.sh --describe --topic orders --bootstrap-server localhost:9092
+
+🔹 6. Start Producers &amp; Consumers
+
+Producer:
+
+bin/kafka-console-producer.sh --topic orders --bootstrap-server localhost:9092
+
+
+Consumer:
+
+bin/kafka-console-consumer.sh --topic orders --from-beginning --bootstrap-server localhost:9092
+
+
+✅ Minimal interview-safe summary:
+
+Install Kafka on each broker node.
+
+Configure server.properties with unique broker.id, listeners, log.dirs, and zookeeper.connect.
+
+Start brokers.
+
+Verify registration with ZooKeeper.
+
+Test by creating topics and sending/receiving messages.</pre>
+      </section>
+
+      <!-- ============ KRaft ============ -->
+      <section id="kraft" class="py-6 sm:py-10">
+        <h2 class="text-2xl sm:text-3xl font-extrabold text-indigo-700 mb-6 text-center">⚙️ How KRaft Works in Kafka</h2>
+
+        <article class="bg-white shadow-sm rounded-2xl p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-green-700 mb-3">🔹 Controller Quorum</h3>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            In KRaft mode, a <strong>controller quorum</strong> replaces ZooKeeper. It is a small set of Kafka nodes (usually 3 or 5) that maintain all cluster metadata, including topic configurations, partition assignments, and broker registrations. The quorum uses the <strong>Raft consensus protocol</strong> to ensure that all metadata changes are consistent and fault-tolerant.
+          </p>
+        </article>
+
+        <article class="bg-white shadow-sm rounded-2xl p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-purple-700 mb-3">🔹 Brokers and Roles</h3>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            Kafka nodes can act as <strong>brokers</strong>, <strong>controllers</strong>, or both. Brokers store and serve messages for producers and consumers, while controller nodes manage metadata. Using <code class="bg-gray-100 px-1 rounded">process.roles</code>, a node can be configured to handle both roles, making deployment flexible.
+          </p>
+        </article>
+
+        <article class="bg-white shadow-sm rounded-2xl p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-blue-700 mb-3">🔹 Leader Election</h3>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            KRaft uses Raft to elect a <strong>controller leader</strong> from the quorum. The leader is responsible for processing all metadata changes, such as creating or deleting topics, updating partition assignments, or handling broker joins/leaves. Raft ensures that metadata updates are committed only after a majority of controllers agree, preventing inconsistencies.
+          </p>
+        </article>
+
+        <article class="bg-white shadow-sm rounded-2xl p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-red-700 mb-3">🔹 Metadata Storage</h3>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            All metadata is stored in special Kafka logs inside the controller quorum. This allows the cluster to recover state after failures without requiring an external system like ZooKeeper. Brokers query the controllers to get up-to-date metadata for topics and partitions.
+          </p>
+        </article>
+
+        <article class="bg-white shadow-sm rounded-2xl p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-teal-700 mb-3">🔹 Broker Coordination</h3>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            Regular brokers communicate with the controller quorum to register themselves, report health, and learn the current partition leadership. The controllers notify brokers about leadership changes or reassignments automatically. This removes the need for a separate coordination service.
+          </p>
+        </article>
+
+        <article class="bg-white shadow-sm rounded-2xl p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-indigo-700 mb-3">🔹 Fault Tolerance</h3>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            Since KRaft uses Raft, the controller quorum can tolerate failures of some nodes as long as a <strong>majority</strong> of controllers remain operational. This guarantees metadata consistency and enables automatic failover of controller leadership without downtime.
+          </p>
+        </article>
+
+        <article class="bg-white shadow-sm rounded-2xl p-5 sm:p-6">
+          <h3 class="text-lg sm:text-xl font-semibold text-purple-700 mb-3">✅ Summary</h3>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            KRaft integrates cluster metadata management directly into Kafka using a Raft-based controller quorum. Brokers focus on message storage, controllers focus on metadata, and Raft ensures strong consistency, leader election, and fault tolerance—all without ZooKeeper.
+          </p>
+        </article>
+      </section>
+
+      <!-- ============ KRaft setup ============ -->
+      <section class="py-6 sm:py-10">
+        <h2 class="text-xl sm:text-2xl font-bold text-indigo-700 mb-4">📜 KRaft Setup</h2>
+
+        <pre class="prose-pre bg-gray-900 text-green-300 p-4 sm:p-6 rounded-xl shadow-lg overflow-x-auto text-xs sm:text-sm leading-relaxed">Step-by-step guide to setting up Kafka in KRaft mode (without ZooKeeper),
+from single-node dev setup to a multi-node production-ready cluster:
+
+🔹 1. Download &amp; Install Kafka
+wget https://downloads.apache.org/kafka/3.5.0/kafka_2.13-3.5.0.tgz
+tar -xzf kafka_2.13-3.5.0.tgz
+cd kafka_2.13-3.5.0
+
+
+You can also use Docker or package managers for simpler setups.
+
+🔹 2. Configure Kafka for KRaft Mode
+
+Edit config/kraft/server.properties (or copy server.properties):
+
+# Node roles: broker, controller, or both
+process.roles=broker,controller
+
+# Unique ID for this node
+node.id=1
+
+# Controller quorum (ID@host:port)
+controller.quorum.voters=1@node1:9093,2@node2:9093,3@node3:9093
+
+# Client and controller listeners
+listeners=PLAINTEXT://:9092,CONTROLLER://:9093
+
+# Data storage directory
+log.dirs=/var/lib/kafka-logs
+
+# Topic defaults
+num.partitions=3
+default.replication.factor=3
+
+
+Explanation:
+
+process.roles → defines if node is broker, controller, or both.
+
+controller.quorum.voters → list of nodes forming the Raft quorum.
+
+listeners → separate ports for clients and controller communication.
+
+log.dirs → where Kafka stores logs (messages and metadata).
+
+🔹 3. Format the Metadata Log (First-time setup)
+
+Before starting KRaft, you need to format the metadata log for the controller quorum:
+
+bin/kafka-storage.sh format -t &lt;uuid&gt; -c config/kraft/server.properties
+
+
+&lt;uuid&gt; → generate a unique cluster ID (use uuidgen or kafka-storage.sh random-uuid).
+
+Example:
+
+export KAFKA_CLUSTER_ID=$(bin/kafka-storage.sh random-uuid)
+bin/kafka-storage.sh format -t $KAFKA_CLUSTER_ID -c config/kraft/server.properties
+
+🔹 4. Start Kafka Brokers / Controllers
+bin/kafka-server-start.sh config/kraft/server.properties
+
+
+Repeat on all nodes with unique node.id and adjusted listeners.
+
+Controller quorum elects a leader automatically using Raft.
+
+🔹 5. Verify Cluster
+
+Check brokers and metadata:
+
+bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092
+bin/kafka-topics.sh --bootstrap-server localhost:9092 --list
+
+
+All brokers should be registered with the controller quorum.
+
+🔹 6. Create Topics &amp; Test
+bin/kafka-topics.sh --create --topic orders \
+  --bootstrap-server localhost:9092 \
+  --partitions 3 \
+  --replication-factor 2
+
+bin/kafka-topics.sh --describe --topic orders --bootstrap-server localhost:9092
+
+
+Send and consume messages as usual:
+
+bin/kafka-console-producer.sh --topic orders --bootstrap-server localhost:9092
+bin/kafka-console-consumer.sh --topic orders --from-beginning --bootstrap-server localhost:9092
+
+
+✅ Minimal interview-safe summary:
+
+Download Kafka.
+
+Edit server.properties with process.roles=broker,controller, node.id, controller.quorum.voters, and listeners.
+
+Format the metadata log using kafka-storage.sh.
+
+Start all nodes.
+
+Verify cluster and create topics.</pre>
+      </section>
+
+      <!-- ============ ISR ============ -->
+      <section id="isr" class="py-6 sm:py-10">
+        <header class="mb-6">
+          <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Kafka ISR (In-Sync Replicas) – Detailed Explanation</h2>
+          <p class="text-base sm:text-lg text-gray-700 leading-relaxed">
+            ISR (In-Sync Replicas) is the set of replicas that are fully caught up with the leader for a Kafka partition.
+            ISR ensures that Kafka can provide <strong>strong durability and consistency guarantees</strong> for all writes.
+          </p>
+        </header>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">What is ISR?</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>ISR stands for <strong>In-Sync Replicas</strong>.</li>
+            <li>It includes the leader and all follower replicas that are fully caught up.</li>
+            <li>Only replicas in ISR are eligible to acknowledge writes when strong durability is required.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">How ISR Works</h3>
+          <ol class="list-decimal list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Each partition has a <strong>leader</strong> and multiple <strong>followers</strong>.</li>
+            <li>Followers replicate data asynchronously from the leader.</li>
+            <li>Kafka maintains a list of replicas fully caught up with the leader – the <strong>ISR</strong>.</li>
+            <li>Replicas that lag too far behind are removed from ISR until they catch up.</li>
+            <li>ISR is used to decide if a write can succeed based on <code class="bg-gray-100 px-1 rounded">min.insync.replicas</code>.</li>
+          </ol>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">ISR vs Replication Factor</h3>
+          <div class="overflow-x-auto">
+            <table class="min-w-full text-sm sm:text-base border border-gray-200 text-gray-700 rounded-lg overflow-hidden">
+              <thead class="bg-gray-100">
+                <tr>
+                  <th class="px-3 sm:px-4 py-2 border text-left">Aspect</th>
+                  <th class="px-3 sm:px-4 py-2 border text-left">Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="px-3 sm:px-4 py-2 border font-semibold">Replication Factor</td>
+                  <td class="px-3 sm:px-4 py-2 border">Total number of replicas for a partition</td>
+                </tr>
+                <tr class="bg-gray-50">
+                  <td class="px-3 sm:px-4 py-2 border font-semibold">ISR</td>
+                  <td class="px-3 sm:px-4 py-2 border">Subset of replicas fully caught up with the leader</td>
+                </tr>
+                <tr>
+                  <td class="px-3 sm:px-4 py-2 border font-semibold">min.insync.replicas</td>
+                  <td class="px-3 sm:px-4 py-2 border">Minimum number of ISR members required for a successful write</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="text-gray-700 text-sm sm:text-base mt-3 leading-relaxed">
+            <strong>Key:</strong> ISR ≤ Replication Factor. Not all replicas are guaranteed to be in-sync at all times.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">Example Scenario</h3>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            Topic partition has replication factor 3, min.insync.replicas = 2.<br>
+            ISR = {R1 (leader), R2} → Write succeeds.<br>
+            R2 goes offline → ISR = {R1} → ISR &lt; min.insync.replicas → Writes fail → <strong>NotEnoughReplicasException</strong>.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">ISR and Failover</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>If a leader fails, one of the in-sync followers is elected as the new leader.</li>
+            <li>Followers not in ISR are not eligible to become leader, preventing stale data from being served.</li>
+            <li>This ensures <strong>strong consistency and fault tolerance</strong> in Kafka.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">Monitoring ISR</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2">Use the Kafka CLI to check ISR for a partition:</p>
+          <pre class="bg-gray-900 text-green-300 text-xs sm:text-sm rounded-lg p-3 sm:p-4 overflow-x-auto whitespace-pre-wrap break-words"><code>kafka-topics.sh --describe --topic my-topic --bootstrap-server localhost:9092</code></pre>
+          <p class="text-gray-700 text-sm sm:text-base mt-3 mb-2">Sample output:</p>
+          <pre class="bg-gray-100 text-gray-800 text-xs sm:text-sm rounded-lg p-3 sm:p-4 overflow-x-auto whitespace-pre-wrap break-words"><code>Partition: 0  Leader: 1  Replicas: 1,2,3  ISR: 1,2</code></pre>
+          <p class="text-gray-700 text-sm sm:text-base mt-2">Here, ISR = {1,2} → replicas 1 and 2 are in-sync; replica 3 is behind.</p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">Summary</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>ISR = replicas fully caught up with the leader.</li>
+            <li>Essential for durable, consistent writes in Kafka.</li>
+            <li>Writes with acks=all rely on ISR and min.insync.replicas.</li>
+            <li>Monitoring ISR is critical to prevent <strong>NotEnoughReplicasException</strong>.</li>
+          </ul>
+        </section>
+      </section>
+
+      <!-- ============ NotEnoughReplicasException ============ -->
+      <section id="not-enough-replicas" class="py-6 sm:py-10">
+        <header class="mb-6">
+          <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Kafka NotEnoughReplicasException: Causes &amp; Solutions</h2>
+          <p class="text-base sm:text-lg text-gray-700 leading-relaxed">
+            The <strong>NotEnoughReplicasException</strong> occurs when a producer tries to send a message, but the Kafka broker cannot meet the required number of in-sync replicas (ISR) for a partition.
+            This ensures that Kafka maintains strong durability and consistency guarantees.
+          </p>
+        </header>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">Kafka Replication Basics</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Each topic partition has multiple <strong>replicas</strong> for fault tolerance.</li>
+            <li>One replica acts as the <strong>leader</strong> and handles all reads and writes; other replicas are <strong>followers</strong>.</li>
+            <li>Kafka tracks <strong>in-sync replicas (ISR)</strong>, which are replicas fully caught up with the leader.</li>
+            <li><code class="bg-gray-100 px-1 rounded">min.insync.replicas</code> defines the minimum number of replicas required to acknowledge a write.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">Common Causes</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-2">
+            <li><strong>Some replicas are offline:</strong> When one or more replicas are not reachable, ISR falls below <code class="bg-gray-100 px-1 rounded">min.insync.replicas</code>. Producers with <code class="bg-gray-100 px-1 rounded">acks=all</code> will get NotEnoughReplicasException.</li>
+            <li><strong>Replication factor &gt; available brokers:</strong> If a topic has replication factor 3 but only 2 brokers exist, Kafka cannot create enough replicas. Writes requiring all replicas may fail.</li>
+            <li><strong>Under-replicated partitions:</strong> Followers lagging behind the leader reduce ISR. If ISR &lt; <code class="bg-gray-100 px-1 rounded">min.insync.replicas</code>, the exception may occur.</li>
+          </ul>
+          <p class="text-gray-700 text-sm sm:text-base mt-3 leading-relaxed">
+            <strong>Key idea:</strong> The exception is triggered whenever the number of available in-sync replicas is insufficient to satisfy producer write requirements.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">How NotEnoughReplicasException Happens</h3>
+          <ol class="list-decimal list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Producer sends message with <code class="bg-gray-100 px-1 rounded">acks=all</code>.</li>
+            <li>Broker checks ISR (replicas that are fully caught up).</li>
+            <li>ISR &lt; <code class="bg-gray-100 px-1 rounded">min.insync.replicas</code>.</li>
+            <li>Broker rejects message and throws <strong>NotEnoughReplicasException</strong>.</li>
+          </ol>
+          <p class="text-gray-700 text-sm sm:text-base mt-3 leading-relaxed">
+            This mechanism ensures <strong>strong durability</strong>, preventing writes from succeeding when replication guarantees cannot be met.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">How to Fix</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Bring offline brokers back online to restore ISR.</li>
+            <li>Ensure replication factor ≤ number of brokers when creating topics.</li>
+            <li>Reduce <code class="bg-gray-100 px-1 rounded">min.insync.replicas</code> (trade-off: reduces durability).</li>
+            <li>Adjust producer <code class="bg-gray-100 px-1 rounded">acks</code> to <code class="bg-gray-100 px-1 rounded">1</code> if full replication acknowledgment is not critical.</li>
+            <li>Monitor under-replicated partitions using <code class="bg-gray-100 px-1 rounded">kafka-topics.sh --describe</code> or metrics.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">Real-World Example</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2">
+            A topic has replication factor 3 and <code class="bg-gray-100 px-1 rounded">min.insync.replicas=2</code>. One broker goes offline:
+          </p>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>ISR drops to 2 → still meets min.insync.replicas → writes succeed.</li>
+            <li>Another broker goes offline → ISR drops to 1 → less than min.insync.replicas → producer with <code class="bg-gray-100 px-1 rounded">acks=all</code> receives <strong>NotEnoughReplicasException</strong>.</li>
+          </ul>
+        </section>
+
+        <script type="application/ld+json">
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "What is Kafka NotEnoughReplicasException?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "This exception occurs when the number of in-sync replicas (ISR) is less than min.insync.replicas, preventing the broker from safely accepting writes."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "What causes NotEnoughReplicasException?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "It can happen if some replicas are offline, replication factor is greater than available brokers, or partitions are under-replicated."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "How can I fix NotEnoughReplicasException?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Bring offline brokers back online, ensure replication factor ≤ number of brokers, reduce min.insync.replicas, or adjust producer acks."
+              }
+            }
+          ]
+        }
+        </script>
+      </section>
+
+      <!-- ============ ISR drops to 0 ============ -->
+      <section id="kafka-isr-zero" class="py-6 sm:py-10">
+        <header class="mb-6">
+          <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Kafka Broker Down &amp; ISR Drops to 0</h2>
+          <p class="text-base sm:text-lg text-gray-700 leading-relaxed">
+            In Kafka, ISR (In-Sync Replica) is the set of replicas fully caught up with the leader’s log. Producers can safely write messages only if enough replicas are in sync, depending on the <code class="bg-gray-200 px-1 rounded">min.insync.replicas</code> configuration.
+            When a broker goes down and ISR for some partitions drops to 0, it means no replica is fully in sync — a critical situation.
+          </p>
+        </header>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">1️⃣ Causes</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-2">
+            <li><strong>Broker crash or shutdown:</strong> The broker hosting the leader or followers goes down unexpectedly. Followers cannot replicate messages, and the leader may be unavailable.</li>
+            <li><strong>Network partition:</strong> Followers temporarily lose connectivity to the leader. Kafka considers them out-of-sync, decreasing ISR.</li>
+            <li><strong>Disk or hardware failure:</strong> A broker cannot write to disk or serve requests. Replication stops, ISR drops.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">2️⃣ Consequences</h3>
+          <div class="overflow-x-auto">
+            <table class="min-w-full text-sm sm:text-base border border-gray-200 text-gray-700 rounded-lg overflow-hidden">
+              <thead class="bg-gray-100">
+                <tr>
+                  <th class="px-3 sm:px-4 py-2 border text-left">Issue</th>
+                  <th class="px-3 sm:px-4 py-2 border text-left">Explanation</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="px-3 sm:px-4 py-2 border font-semibold">Data loss risk</td>
+                  <td class="px-3 sm:px-4 py-2 border">If <code class="bg-gray-100 px-1 rounded">acks=all</code> is used, producers require all ISR members to acknowledge writes. With ISR=0, messages cannot be confirmed. If a new leader is elected and no replica has all messages, unreplicated messages are lost.</td>
+                </tr>
+                <tr class="bg-gray-50">
+                  <td class="px-3 sm:px-4 py-2 border font-semibold">Producers fail</td>
+                  <td class="px-3 sm:px-4 py-2 border">Producers configured with <code class="bg-gray-100 px-1 rounded">acks=all</code> will receive <code class="bg-gray-100 px-1 rounded">NotEnoughReplicasException</code> because no in-sync replicas exist. This halts message production until ISR recovers.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="text-gray-700 text-sm sm:text-base mt-3 mb-2"><strong>Additional Effects:</strong></p>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Consumer read availability may decrease if the leader broker is down.</li>
+            <li>Partitions may temporarily become unavailable until a new leader is elected.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">3️⃣ Internal Kafka Behavior</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Broker goes down → followers stop replicating.</li>
+            <li>Kafka detects ISR drop → partitions with ISR &lt; <code class="bg-gray-100 px-1 rounded">min.insync.replicas</code> become under-replicated.</li>
+            <li>Producers requiring acknowledgment from all ISR members fail writes (<code class="bg-gray-100 px-1 rounded">NotEnoughReplicasException</code>).</li>
+            <li>Once a new leader is elected from available replicas (if any), ISR is recalculated.</li>
+          </ul>
+        </section>
+      </section>
+
+      <!-- ============ Durability & Consistency ============ -->
+      <section id="durability-consistency" class="py-6 sm:py-10">
+        <header class="mb-6">
+          <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Kafka Guarantees: Strong Durability &amp; Replication Consistency</h2>
+          <p class="text-base sm:text-lg text-gray-700 leading-relaxed">
+            Kafka provides <strong>strong durability</strong> and <strong>replication consistency</strong>, ensuring that messages are never lost and replicated reliably across brokers, even in case of failures.
+          </p>
+        </header>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">1. Strong Durability</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            Durability ensures that once a message is acknowledged as written, it <strong>will not be lost</strong>, even if brokers fail.
+          </p>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-2">
+            <li><strong>Append-Only Log:</strong> Partitions store messages on disk; data is never overwritten.</li>
+            <li><strong>Replication:</strong> Each partition has a leader and multiple followers. Writes are replicated to ISR.</li>
+            <li><strong>Acknowledgment Settings:</strong>
+              <ul class="list-disc list-inside ml-4 sm:ml-6 mt-1 space-y-1">
+                <li>acks=0 → No durability guarantee</li>
+                <li>acks=1 → Durable if leader survives</li>
+                <li>acks=all / -1 → Waits for all ISR replicas → strong durability</li>
+              </ul>
+            </li>
+            <li><strong>min.insync.replicas:</strong> Minimum ISR members required to acknowledge a write. If ISR &lt; min.insync.replicas, broker rejects write → ensures durability.</li>
+          </ul>
+          <p class="text-gray-700 text-sm sm:text-base mt-3 leading-relaxed">
+            <strong>Example:</strong> Replication factor = 3, min.insync.replicas = 2 → write succeeds if leader + 1 follower acknowledge. Even if one broker fails, data is durable.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">2. Replication Consistency</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            Consistency ensures that all followers eventually have the same data as the leader, and only in-sync replicas can become leader on failover.
+          </p>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-2">
+            <li><strong>Leader-Follower Model:</strong> All writes go to leader, followers replicate asynchronously.</li>
+            <li><strong>ISR (In-Sync Replicas):</strong> Only replicas fully caught up are in ISR. Producers with acks=all rely on ISR for consistency.</li>
+            <li><strong>Follower Catch-Up:</strong> Lagging replicas are removed from ISR; once they catch up, they rejoin ISR.</li>
+            <li><strong>Leader Failover:</strong> Only replicas in ISR are eligible to become new leader, preventing stale data from being served.</li>
+          </ul>
+          <p class="text-gray-700 text-sm sm:text-base mt-3 leading-relaxed">
+            <strong>Example:</strong> Leader L1, followers F1, F2. L1 receives message M1 → replicated to F1 (in ISR), F2 lagging. Producer with acks=all → write acknowledged → consistency guaranteed. F2 catches up → ISR includes F2 → fully consistent.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">3. Key Points</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Durability = data written to disk + replicated to ISR.</li>
+            <li>Consistency = all in-sync replicas eventually have the same data.</li>
+            <li>Leader failover uses ISR to prevent stale data.</li>
+            <li>Configurations like <code class="bg-gray-100 px-1 rounded">acks</code> and <code class="bg-gray-100 px-1 rounded">min.insync.replicas</code> allow tuning durability vs performance.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">4. Real-World Analogy</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Think of a bank ledger: Leader = main ledger, Followers = branch copies.</li>
+            <li>ISR = branch copies fully updated.</li>
+            <li>A transaction is committed only when enough branches confirm → ensures durability and consistency.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">5. Monitoring Durability &amp; Consistency</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2">Use Kafka CLI to check ISR and replication status:</p>
+          <pre class="bg-gray-900 text-green-300 text-xs sm:text-sm rounded-lg p-3 sm:p-4 overflow-x-auto whitespace-pre-wrap break-words"><code>kafka-topics.sh --describe --topic my-topic --bootstrap-server localhost:9092</code></pre>
+          <p class="text-gray-700 text-sm sm:text-base mt-3 mb-2">Example output:</p>
+          <pre class="bg-gray-100 text-gray-800 text-xs sm:text-sm rounded-lg p-3 sm:p-4 overflow-x-auto whitespace-pre-wrap break-words"><code>Partition: 0  Leader: 1  Replicas: 1,2,3  ISR: 1,2,3</code></pre>
+          <p class="text-gray-700 text-sm sm:text-base mt-2">All replicas are in ISR → strong durability and consistency maintained.</p>
+        </section>
+      </section>
+
+      <!-- ============ Throughput ============ -->
+      <section id="throughput" class="py-6 sm:py-10">
+        <header class="mb-6">
+          <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Kafka Producer Low Throughput – Causes &amp; Remedies</h2>
+          <p class="text-base sm:text-lg text-gray-700 leading-relaxed">
+            Even when Kafka brokers are healthy, producers may experience low throughput. This can be due to small batch sizes, lack of compression, or network issues. Understanding these factors helps optimize Kafka producer performance.
+          </p>
+        </header>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">1. Small Batch Size or No Batching</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            Kafka producers can send messages individually or in batches. Sending messages one by one is inefficient because each message incurs network and broker processing overhead.
+          </p>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1 mb-2">
+            <li><strong>batch.size:</strong> Maximum size in bytes of a batch before sending.</li>
+            <li><strong>linger.ms:</strong> Time to wait for more messages before sending a batch.</li>
+          </ul>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            <strong>Effect:</strong> Small batches → many network calls → higher latency per message → lower throughput.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            <strong>Example:</strong> Sending 1,000 messages individually results in 1,000 requests, while batching them into 10 batches results in only 10 requests, improving performance significantly.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">2. No Compression Enabled</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            Kafka supports compressing batches using gzip, snappy, lz4, or zstd. Compression reduces the data sent over the network and decreases broker disk I/O.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            <strong>Effect:</strong> More messages per network call → fewer round-trips → higher throughput.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            <strong>Example:</strong> 10 MB of messages without compression is sent as 10 MB, while using Snappy may reduce it to 3 MB, making delivery faster.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">3. Network Congestion or High Latency</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            Producers rely on the network to send messages to brokers. High latency or network congestion slows message sending and acknowledgment, reducing throughput.
+          </p>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1 mb-2">
+            <li>Limited network bandwidth</li>
+            <li>High round-trip time due to distance between producer and broker</li>
+            <li>Firewall, VPN, or network hops causing delay</li>
+          </ul>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            <strong>Remedies:</strong> Use compression, optimize batch settings, and ensure low-latency network paths.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">4. Summary of Causes &amp; Remedies</h3>
+          <div class="overflow-x-auto">
+            <table class="min-w-full min-w-[640px] text-sm border border-gray-200 text-gray-700 rounded-lg overflow-hidden">
+              <thead class="bg-gray-100">
+                <tr>
+                  <th class="px-3 py-2 border text-left">Cause</th>
+                  <th class="px-3 py-2 border text-left">Effect on Throughput</th>
+                  <th class="px-3 py-2 border text-left">Remedy</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="px-3 py-2 border">Small batch size / no batching</td>
+                  <td class="px-3 py-2 border">Many small requests → high overhead → low throughput</td>
+                  <td class="px-3 py-2 border">Increase <code class="bg-gray-100 px-1 rounded">batch.size</code> and <code class="bg-gray-100 px-1 rounded">linger.ms</code></td>
+                </tr>
+                <tr class="bg-gray-50">
+                  <td class="px-3 py-2 border">No compression</td>
+                  <td class="px-3 py-2 border">More data over network → slower delivery</td>
+                  <td class="px-3 py-2 border">Enable <code class="bg-gray-100 px-1 rounded">compression.type</code> (gzip/snappy/lz4/zstd)</td>
+                </tr>
+                <tr>
+                  <td class="px-3 py-2 border">Network congestion / high latency</td>
+                  <td class="px-3 py-2 border">Delayed message delivery → lower throughput</td>
+                  <td class="px-3 py-2 border">Optimize network, use compression, increase batch size</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">5. Key Takeaways</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Throughput depends on producer configuration and network, not just broker health.</li>
+            <li>Batching and compression are the most important optimizations for high throughput.</li>
+            <li>Monitor producer metrics like <code class="bg-gray-100 px-1 rounded">batch-size-avg</code> and <code class="bg-gray-100 px-1 rounded">record-send-rate</code> to identify bottlenecks.</li>
+          </ul>
+        </section>
+      </section>
+
+      <!-- ============ Consumer Lag ============ -->
+      <section id="lag" class="py-6 sm:py-10">
+        <header class="mb-6">
+          <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Kafka Consumer Lag – Causes &amp; Remedies</h2>
+          <p class="text-base sm:text-lg text-gray-700 leading-relaxed">
+            Consumers in a Kafka group may lag behind the producer even when brokers are healthy. Understanding the causes and remedies helps maintain optimal message processing and group balance.
+          </p>
+        </header>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">1. Consumer Too Slow to Process Messages</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            Consumers poll messages from assigned partitions. If processing logic is slow (e.g., heavy computation, slow DB writes), the consumer cannot keep up with the producer’s message rate, causing lag.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            <strong>Effect:</strong> Messages accumulate in the broker → consumer lag increases.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            <strong>Remedies:</strong> Optimize processing logic, use asynchronous or parallel processing, scale consumer instances.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">2. Uneven Partition Assignment</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            Partitions are assigned to consumers using a partition assignment strategy (range, round-robin, sticky). Uneven distribution can overload some consumers while others are underutilized.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            <strong>Effect:</strong> Consumers with more partitions fall behind → higher lag.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            <strong>Remedies:</strong> Use round-robin or sticky assignment, increase the number of partitions, monitor per-partition lag.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">3. Network Congestion or Broker Overload</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            Slow network or overloaded brokers delay message delivery to consumers, even if brokers themselves are healthy.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            <strong>Effect:</strong> Fetch requests take longer → consumers poll less frequently → lag grows.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            <strong>Remedies:</strong> Optimize network bandwidth, enable compression, balance broker load.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">4. Blocking Operations in Consumer Code</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            Blocking operations inside the poll loop (e.g., synchronous I/O, Thread.sleep) prevent the consumer from polling regularly.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            <strong>Effect:</strong> Poll loop blocked → heartbeat may fail → broker may trigger rebalance → lag increases.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            <strong>Remedies:</strong> Move blocking tasks to separate threads or worker pools, keep the poll loop non-blocking.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">5. Summary of Causes &amp; Remedies</h3>
+          <div class="overflow-x-auto">
+            <table class="min-w-[680px] w-full text-sm border border-gray-200 text-gray-700 rounded-lg overflow-hidden">
+              <thead class="bg-gray-100">
+                <tr>
+                  <th class="px-3 py-2 border text-left">Cause</th>
+                  <th class="px-3 py-2 border text-left">Effect on Lag</th>
+                  <th class="px-3 py-2 border text-left">Remedy</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="px-3 py-2 border">Consumer too slow</td>
+                  <td class="px-3 py-2 border">Messages accumulate → high lag</td>
+                  <td class="px-3 py-2 border">Optimize processing, use async/parallel, scale consumers</td>
+                </tr>
+                <tr class="bg-gray-50">
+                  <td class="px-3 py-2 border">Uneven partition assignment</td>
+                  <td class="px-3 py-2 border">Some consumers overloaded → lag grows</td>
+                  <td class="px-3 py-2 border">Use round-robin/sticky assignor, increase partitions</td>
+                </tr>
+                <tr>
+                  <td class="px-3 py-2 border">Network congestion / broker overload</td>
+                  <td class="px-3 py-2 border">Slower fetch → lag increases</td>
+                  <td class="px-3 py-2 border">Optimize network, enable compression, balance brokers</td>
+                </tr>
+                <tr class="bg-gray-50">
+                  <td class="px-3 py-2 border">Blocking operations in consumer code</td>
+                  <td class="px-3 py-2 border">Poll loop blocked → heartbeat failure → lag</td>
+                  <td class="px-3 py-2 border">Move blocking tasks to separate threads, keep poll loop fast</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">6. Key Takeaways</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Consumer lag occurs when processing speed &lt; producer rate.</li>
+            <li>Main causes: slow processing, partition imbalance, network issues, blocking code.</li>
+            <li>Remedies: optimize processing, balance partitions, scale consumers, reduce latency, avoid blocking operations.</li>
+            <li>Monitor lag via Kafka metrics or <code class="bg-gray-100 px-1 rounded">kafka-consumer-groups.sh --describe --group &lt;group&gt;</code>.</li>
+          </ul>
+        </section>
+      </section>
+
+      <!-- ============ Consumer Lag Troubleshooting ============ -->
+      <section id="kafka-consumer-lag" class="py-6 sm:py-10">
+        <header class="mb-6">
+          <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Kafka Consumer Lag Troubleshooting</h2>
+          <p class="text-base sm:text-lg text-gray-700 leading-relaxed">
+            Consumer lag occurs when Kafka consumers in a group fall behind in processing messages from a topic. Even if brokers are healthy, lag can indicate processing bottlenecks, uneven partition assignment, or network issues.
+          </p>
+        </header>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">1️⃣ What is Consumer Lag?</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            Consumer lag is the difference between the latest offset in a partition and the last committed offset by a consumer. It shows how far behind a consumer is in processing messages.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            <strong>Example:</strong> Partition latest offset = 1500, consumer committed offset = 1400 → lag = 100 messages.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">2️⃣ Common Causes of Consumer Lag</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-2">
+            <li><strong>Slow consumer processing:</strong> Consumers take too long to process each message.</li>
+            <li><strong>Uneven partition assignment:</strong> Some consumers handle multiple hot partitions, others remain idle.</li>
+            <li><strong>Network congestion:</strong> Slow connectivity between brokers and consumers.</li>
+            <li><strong>Blocking operations:</strong> Consumer code performing synchronous/blocking I/O delays offset commits.</li>
+            <li><strong>Large message batches:</strong> Consumers taking long to deserialize or process large messages.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">3️⃣ Troubleshooting Steps</h3>
+          <ol class="list-decimal list-inside text-gray-700 text-sm sm:text-base space-y-3">
+            <li><strong>Check Consumer Lag Metrics:</strong> Use Kafka tools like <code class="bg-gray-100 px-1 rounded">kafka-consumer-groups.sh</code> or monitoring dashboards to identify lag per partition and per consumer.</li>
+            <li><strong>Inspect Consumer Code:</strong> Identify any blocking or long-running operations. Consider processing messages asynchronously or using parallel processing.</li>
+            <li><strong>Review Partition Assignment:</strong> Ensure partitions are evenly distributed among consumers in the group. Use round-robin or sticky assignor strategies for better balance.</li>
+            <li><strong>Optimize Batch Sizes:</strong> Adjust <code class="bg-gray-100 px-1 rounded">fetch.min.bytes</code>, <code class="bg-gray-100 px-1 rounded">fetch.max.wait.ms</code>, and <code class="bg-gray-100 px-1 rounded">max.poll.records</code> to allow consumers to fetch and process batches efficiently.</li>
+            <li><strong>Check Network and Broker Load:</strong> Verify there is no network bottleneck or broker overload affecting message delivery.</li>
+            <li><strong>Enable Parallel Processing:</strong> If messages are independent, consider processing them in parallel threads to reduce lag.</li>
+            <li><strong>Offset Commit Strategy:</strong> Ensure offsets are committed appropriately. Use asynchronous commits or commit after successful processing to avoid repeated processing without progress.</li>
+          </ol>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">4️⃣ Resolution Strategies</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Increase the number of consumers if partitions allow for more parallelism.</li>
+            <li>Optimize consumer processing logic to reduce per-message processing time.</li>
+            <li>Balance partitions evenly across consumers using proper assignor strategy.</li>
+            <li>Scale up consumers horizontally to handle higher message throughput.</li>
+            <li>Monitor consumer lag continuously to detect new bottlenecks early.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">5️⃣ Key Takeaways</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Consumer lag indicates how far behind consumers are in processing messages.</li>
+            <li>Lag can result from slow processing, unbalanced partitions, network issues, or blocking operations.</li>
+            <li>Regular monitoring and optimization of consumer code, partition assignments, and batch configurations help prevent lag.</li>
+            <li>Scaling consumers and distributing load evenly are key to maintaining real-time processing.</li>
+          </ul>
+        </section>
+      </section>
+
+      <!-- ============ Duplicate Messages ============ -->
+      <section id="duplicate-messages" class="py-6 sm:py-10">
+        <header class="mb-6">
+          <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Kafka Duplicate Messages – Causes &amp; Remedies</h2>
+          <p class="text-base sm:text-lg text-gray-700 leading-relaxed">
+            Kafka consumers may sometimes receive the same message multiple times due to at-least-once delivery semantics. Identifying the root causes and applying proper remedies can reduce duplicates or help achieve exactly-once processing.
+          </p>
+        </header>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">1. Consumer Not Committing Offsets Properly</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            Consumers track their read position using offsets. If offsets are not committed correctly or frequently enough, messages may be re-read after a consumer crash or restart.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            <strong>Effect:</strong> Messages are processed multiple times → duplicates occur.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            <strong>Remedy:</strong> Commit offsets only after successful message processing. Use synchronous or asynchronous commit depending on requirements.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">2. Rebalance Occurred Before Offset Commit</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            Consumer groups periodically rebalance when a consumer joins or leaves the group, or when partitions are reassigned. If a rebalance occurs before the latest offsets are committed, messages may be reassigned to another consumer and reprocessed.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            <strong>Effect:</strong> Messages are consumed again by another consumer → duplicates.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            <strong>Remedy:</strong> Commit offsets frequently, adjust <code class="bg-gray-100 px-1 rounded">max.poll.interval.ms</code> to allow sufficient processing time, and implement idempotent processing logic.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">3. Producer Retries Without Idempotence</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            Kafka producers may retry sending messages on network failures or broker unavailability. Without enabling idempotence, retries can result in the same message being written multiple times in the topic.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            <strong>Effect:</strong> Consumers see duplicate messages even if the producer logically sent each message only once.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            <strong>Remedy:</strong> Enable <code class="bg-gray-100 px-1 rounded">enable.idempotence=true</code> for the producer, or use Kafka transactions to achieve exactly-once semantics.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">4. Summary of Causes &amp; Remedies</h3>
+          <div class="overflow-x-auto">
+            <table class="min-w-[680px] w-full text-sm border border-gray-200 text-gray-700 rounded-lg overflow-hidden">
+              <thead class="bg-gray-100">
+                <tr>
+                  <th class="px-3 py-2 border text-left">Cause</th>
+                  <th class="px-3 py-2 border text-left">Effect on Duplicates</th>
+                  <th class="px-3 py-2 border text-left">Remedy</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="px-3 py-2 border">Consumer not committing offsets properly</td>
+                  <td class="px-3 py-2 border">Messages reprocessed after restart → duplicates</td>
+                  <td class="px-3 py-2 border">Commit offsets after successful processing, use auto-commit wisely</td>
+                </tr>
+                <tr class="bg-gray-50">
+                  <td class="px-3 py-2 border">Rebalance before offset commit</td>
+                  <td class="px-3 py-2 border">Another consumer reprocesses messages → duplicates</td>
+                  <td class="px-3 py-2 border">Commit frequently, adjust <code class="bg-gray-100 px-1 rounded">max.poll.interval.ms</code>, implement idempotent processing</td>
+                </tr>
+                <tr>
+                  <td class="px-3 py-2 border">Producer retries without idempotence</td>
+                  <td class="px-3 py-2 border">Broker writes the same message multiple times → duplicates</td>
+                  <td class="px-3 py-2 border">Enable <code class="bg-gray-100 px-1 rounded">enable.idempotence=true</code> or use Kafka transactions</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">5. Key Takeaways</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Kafka defaults to at-least-once delivery → duplicates are possible.</li>
+            <li>Duplicate messages often arise from offset mismanagement, rebalances, or non-idempotent producer retries.</li>
+            <li>Exactly-once processing requires a combination of idempotent producers, transactions, and careful offset commits.</li>
+          </ul>
+        </section>
+      </section>
+
+      <!-- ============ Duplicate Example ============ -->
+      <section id="kafka-consumer-duplicate-example" class="py-6 sm:py-10">
+        <header class="mb-6">
+          <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Kafka Consumer Duplicate Message – Example Scenario</h2>
+          <p class="text-base sm:text-lg text-gray-700 leading-relaxed">
+            This example illustrates how a Kafka consumer can receive the same message multiple times due to offset commit issues.
+          </p>
+        </header>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">Setup</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li><strong>Topic:</strong> <code class="bg-gray-100 px-1 rounded">orders</code></li>
+            <li><strong>Partition:</strong> 1</li>
+            <li><strong>Consumer Group:</strong> <code class="bg-gray-100 px-1 rounded">order-processors</code></li>
+            <li><strong>Producer sends messages:</strong> <code class="bg-gray-100 px-1 rounded">Order1</code>, <code class="bg-gray-100 px-1 rounded">Order2</code>, <code class="bg-gray-100 px-1 rounded">Order3</code></li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">Step 1: Consumer Reads Messages</h3>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            The consumer reads <code class="bg-gray-100 px-1 rounded">Order1</code> and <code class="bg-gray-100 px-1 rounded">Order2</code> from the topic.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">Step 2: Offset Commit Issue</h3>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            The consumer crashes <strong>before committing the offset</strong> for <code class="bg-gray-100 px-1 rounded">Order2</code>.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">Step 3: Consumer Restart</h3>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            On restart, Kafka sends messages starting from the <strong>last committed offset</strong>, which was for <code class="bg-gray-100 px-1 rounded">Order1</code>.
+            The consumer now reads <code class="bg-gray-100 px-1 rounded">Order2</code> again, resulting in a duplicate message.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">Step 4: Result</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2"><code class="bg-gray-100 px-1 rounded">Order2</code> is processed twice.</p>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            If the processing logic is not <strong>idempotent</strong>, this can lead to duplicate charges, duplicate shipping, or inconsistent state in the application.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">Key Takeaways</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Consumer duplicate messages often occur due to offsets not being committed properly.</li>
+            <li>Idempotent processing logic is critical to handle duplicates safely.</li>
+            <li>Manual offset commits or exactly-once semantics can prevent duplicate processing.</li>
+          </ul>
+        </section>
+      </section>
+
+      <!-- ============ Offset Committing ============ -->
+      <section id="kafka-offset-committing" class="py-6 sm:py-10">
+        <header class="mb-6">
+          <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Kafka Offset Committing – Explained</h2>
+          <p class="text-base sm:text-lg text-gray-700 leading-relaxed">
+            Kafka consumers track which messages they have processed using offsets. Proper offset management ensures reliable processing and avoids duplicates or message loss.
+          </p>
+        </header>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">1. Types of Offset Commit</h3>
+
+          <div class="mb-5">
+            <h4 class="text-base sm:text-lg font-semibold text-gray-800 mb-2">a) Automatic Offset Commit</h4>
+            <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+              Controlled via <code class="bg-gray-100 px-1 rounded">enable.auto.commit=true</code>. Kafka commits the latest offset automatically at intervals defined by <code class="bg-gray-100 px-1 rounded">auto.commit.interval.ms</code>, regardless of whether messages were fully processed.
+            </p>
+            <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed"><strong>Risk:</strong> Crashes between auto-commit intervals can lead to skipped or duplicate messages.</p>
+            <p class="text-gray-700 text-sm sm:text-base leading-relaxed"><strong>Example:</strong> Consumer reads messages 1–3, auto-commit interval 5 seconds, crashes before processing message 3 fully → message 3 may be considered processed, causing duplicates or message loss.</p>
+          </div>
+
+          <div>
+            <h4 class="text-base sm:text-lg font-semibold text-gray-800 mb-2">b) Manual Offset Commit</h4>
+            <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+              Controlled via <code class="bg-gray-100 px-1 rounded">enable.auto.commit=false</code>. Consumers explicitly commit offsets only after successfully processing messages.
+            </p>
+            <p class="text-gray-700 text-sm sm:text-base mb-1">Methods:</p>
+            <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1 mb-2">
+              <li><code class="bg-gray-100 px-1 rounded">commitSync()</code> – synchronous commit, waits for broker acknowledgment.</li>
+              <li><code class="bg-gray-100 px-1 rounded">commitAsync()</code> – asynchronous commit, non-blocking but may fail silently.</li>
+            </ul>
+            <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+              Reduces duplicates because only successfully processed messages are committed.
+            </p>
+          </div>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">2. When Offset Commit Happens</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li><strong>Automatic:</strong> Periodically based on <code class="bg-gray-100 px-1 rounded">auto.commit.interval.ms</code>.</li>
+            <li><strong>Manual:</strong> Only when <code class="bg-gray-100 px-1 rounded">commitSync()</code> or <code class="bg-gray-100 px-1 rounded">commitAsync()</code> is called.</li>
+            <li><strong>Rebalance:</strong> Uncommitted offsets may be reassigned to another consumer, leading to potential reprocessing.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">3. Offset Storage</h3>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            Offsets are stored in the special Kafka topic <code class="bg-gray-100 px-1 rounded">__consumer_offsets</code>, ensuring high durability. Consumers fetch the last committed offset on startup.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">4. Common Issues</h3>
+          <div class="overflow-x-auto">
+            <table class="min-w-[680px] w-full text-sm border border-gray-200 text-gray-700 rounded-lg overflow-hidden">
+              <thead class="bg-gray-100">
+                <tr>
+                  <th class="px-3 py-2 border text-left">Issue</th>
+                  <th class="px-3 py-2 border text-left">Cause</th>
+                  <th class="px-3 py-2 border text-left">Effect</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="px-3 py-2 border">Duplicate messages</td>
+                  <td class="px-3 py-2 border">Consumer crashes before manual commit</td>
+                  <td class="px-3 py-2 border">Messages reprocessed on restart</td>
+                </tr>
+                <tr class="bg-gray-50">
+                  <td class="px-3 py-2 border">Message loss</td>
+                  <td class="px-3 py-2 border">Auto-commit occurs before processing completes</td>
+                  <td class="px-3 py-2 border">Messages may be skipped or lost</td>
+                </tr>
+                <tr>
+                  <td class="px-3 py-2 border">Offset out of sync</td>
+                  <td class="px-3 py-2 border">Long processing without commit</td>
+                  <td class="px-3 py-2 border">Consumer may lag or process duplicates after rebalance</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">5. Best Practices</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Use manual offset commits for critical applications.</li>
+            <li>Commit offsets after successfully processing messages.</li>
+            <li>Use <code class="bg-gray-100 px-1 rounded">commitSync()</code> for reliability; <code class="bg-gray-100 px-1 rounded">commitAsync()</code> for high throughput.</li>
+            <li>Handle rebalances properly using <code class="bg-gray-100 px-1 rounded">ConsumerRebalanceListener</code>.</li>
+            <li>Implement idempotent processing logic to handle duplicates safely.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">6. Example Scenario</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            Consumer reads messages: <code class="bg-gray-100 px-1 rounded">Order1</code>, <code class="bg-gray-100 px-1 rounded">Order2</code>, <code class="bg-gray-100 px-1 rounded">Order3</code>. Auto-commit interval = 5 seconds.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            Consumer crashes before auto-commit → Kafka resends <code class="bg-gray-100 px-1 rounded">Order1</code> and <code class="bg-gray-100 px-1 rounded">Order2</code> on restart.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            Without manual commits or idempotent logic, <code class="bg-gray-100 px-1 rounded">Order2</code> is processed twice, leading to duplicates.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">Key Takeaways</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Offsets track which messages have been processed by consumers.</li>
+            <li>Automatic commits are convenient but can lead to duplicates or message loss.</li>
+            <li>Manual commits give control and reduce duplicate processing.</li>
+            <li>Combine offset management with idempotent processing and proper rebalance handling for reliability.</li>
+          </ul>
+        </section>
+      </section>
+
+      <!-- ============ Broker Disk Full ============ -->
+      <section id="disk-full" class="py-6 sm:py-10">
+        <header class="mb-6">
+          <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Kafka Broker Disk Full – Consequences &amp; Remedies</h2>
+          <p class="text-base sm:text-lg text-gray-700 leading-relaxed">
+            When a Kafka broker runs out of disk space, it impacts writes, partition availability, and replication. Understanding the internal behavior helps prevent production disruptions and maintain high availability.
+          </p>
+        </header>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">1. Stops Accepting Writes</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            Kafka brokers reject new messages if there is insufficient disk space to avoid corrupting log segments. Producers attempting to write will receive errors such as <code class="bg-gray-100 px-1 rounded">DiskError</code> or <code class="bg-gray-100 px-1 rounded">NotEnoughReplicasException</code>.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            <strong>Effect:</strong> Applications experience write failures and message throughput decreases.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            <strong>Remedy:</strong> Increase broker disk capacity, delete old log segments, or configure log retention policies to free up space. Monitor disk usage to prevent reaching critical thresholds.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">2. Partitions Become Unavailable</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            Each partition has a leader broker responsible for reads and writes. If the leader runs out of disk space, the partition becomes temporarily unavailable for writes.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            <strong>Effect:</strong> Writes fail on affected partitions, and some consumers may experience read delays depending on replica availability.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            <strong>Remedy:</strong> Maintain a proper replication factor so another broker can become leader. Monitor leader brokers and partition availability regularly.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">3. Replication Fails</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            Followers replicate log segments from the leader broker. If a broker’s disk is full, followers cannot replicate new data, increasing replication lag.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            <strong>Effect:</strong> The ISR (in-sync replica) count drops. Producers using <code class="bg-gray-100 px-1 rounded">acks=all</code> may experience write failures. Durability and fault-tolerance guarantees are temporarily affected.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            <strong>Remedy:</strong> Increase disk space, reassign partitions to brokers with sufficient space using <code class="bg-gray-100 px-1 rounded">kafka-reassign-partitions.sh</code>, and monitor ISR status.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">4. Summary of Consequences &amp; Remedies</h3>
+          <div class="overflow-x-auto">
+            <table class="min-w-[680px] w-full text-sm border border-gray-200 text-gray-700 rounded-lg overflow-hidden">
+              <thead class="bg-gray-100">
+                <tr>
+                  <th class="px-3 py-2 border text-left">Consequence</th>
+                  <th class="px-3 py-2 border text-left">Internal Behavior</th>
+                  <th class="px-3 py-2 border text-left">Remedy</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="px-3 py-2 border">Stops accepting writes</td>
+                  <td class="px-3 py-2 border">Broker rejects new messages → producers get errors</td>
+                  <td class="px-3 py-2 border">Increase disk, delete old logs, configure retention policies, monitor disk usage</td>
+                </tr>
+                <tr class="bg-gray-50">
+                  <td class="px-3 py-2 border">Partitions become unavailable</td>
+                  <td class="px-3 py-2 border">Partition leader cannot write → writes blocked</td>
+                  <td class="px-3 py-2 border">Maintain replication factor, monitor leader partitions</td>
+                </tr>
+                <tr>
+                  <td class="px-3 py-2 border">Replication fails</td>
+                  <td class="px-3 py-2 border">Followers cannot replicate → ISR drops, write failures</td>
+                  <td class="px-3 py-2 border">Increase disk, reassign partitions, monitor ISR</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">5. Key Takeaways</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Kafka brokers must have sufficient disk space to handle writes and replication.</li>
+            <li>Disk-full brokers stop accepting writes, cause partition unavailability, and prevent replication.</li>
+            <li>Monitoring disk usage, ISR, and leader brokers is critical for high availability.</li>
+            <li>Proactive log retention policies and partition reassignment prevent production disruptions.</li>
+          </ul>
+        </section>
+      </section>
+
+      <!-- ============ Uneven Partition Traffic ============ -->
+      <section id="kafka-uneven-partition" class="py-6 sm:py-10">
+        <header class="mb-6">
+          <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Kafka Uneven Partition Traffic</h2>
+          <p class="text-base sm:text-lg text-gray-700 leading-relaxed">
+            Kafka topics are divided into partitions to achieve parallelism. Sometimes, one partition receives most of the messages while others remain idle. This section explains why this happens and how to fix it.
+          </p>
+        </header>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">1️⃣ Causes</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-2">
+            <li><strong>Key-based partitioning with the same key:</strong> Messages with the same key always go to the same partition, causing hot partitions.</li>
+            <li><strong>Custom partitioner issues:</strong> An incorrectly implemented partitioner may always return the same partition.</li>
+            <li><strong>Default partitioner with null key:</strong> Round-robin only works if the key is <code class="bg-gray-100 px-1 rounded">null</code>. Using a constant key results in skewed distribution.</li>
+            <li><strong>Small number of partitions:</strong> Even with round-robin, timing and batching can cause uneven load in topics with very few partitions.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">2️⃣ Effects of Uneven Partitioning</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li><strong>Uneven broker load:</strong> The broker handling the hot partition may become a bottleneck.</li>
+            <li><strong>Reduced throughput:</strong> Idle partitions waste cluster resources.</li>
+            <li><strong>Increased latency:</strong> Messages queue in the overloaded partition, causing delays.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">3️⃣ How Kafka Assigns Partitions</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-2">
+            <li><strong>Key provided:</strong> Kafka computes <code class="bg-gray-100 px-1 rounded">partition = hash(key) % numPartitions</code>. Same key → same partition → ordered messages per key.</li>
+            <li><strong>No key provided (key=null):</strong> Kafka distributes messages round-robin across partitions → even distribution.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">4️⃣ How to Fix Uneven Partition Traffic</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Use <code class="bg-gray-100 px-1 rounded">null</code> keys for round-robin distribution if ordering by key is not required.</li>
+            <li>Use varied or dynamic keys to avoid hot partitions.</li>
+            <li>Increase the number of partitions to improve distribution and parallelism.</li>
+            <li>Check custom partitioner logic to ensure even key distribution.</li>
+            <li>Monitor partition load using Kafka metrics like <code class="bg-gray-100 px-1 rounded">BytesInPerPartition</code>.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">5️⃣ Example Scenario</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            Topic <code class="bg-gray-100 px-1 rounded">orders</code> has 3 partitions. All messages use the key <code class="bg-gray-100 px-1 rounded">"user123"</code>.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            Kafka computes <code class="bg-gray-100 px-1 rounded">partition = hash("user123") % 3</code> → always partition 1. Partitions 0 and 2 remain idle.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            <strong>Fix:</strong> Use different keys (e.g., <code class="bg-gray-100 px-1 rounded">userID % 3</code>) or set <code class="bg-gray-100 px-1 rounded">key=null</code> for round-robin distribution.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">Key Takeaways</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Uneven partition traffic is often caused by constant or poorly distributed keys.</li>
+            <li>Null keys result in round-robin distribution; varied keys balance hash-based partitioning.</li>
+            <li>Monitor partitions and increase partition count if needed to improve throughput and parallelism.</li>
+          </ul>
+        </section>
+      </section>
+
+      <!-- ============ Partition Assignment ============ -->
+      <section id="partition-assignment" class="py-6 sm:py-10">
+        <header class="mb-6">
+          <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Kafka Partition Assignment</h2>
+          <p class="text-base sm:text-lg text-gray-700 leading-relaxed">
+            Kafka topics are divided into partitions to achieve parallelism and scalability. Partition assignment affects message ordering, throughput, and load distribution for both producers and consumers.
+          </p>
+        </header>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">1️⃣ Producer Side: Message Partition Assignment</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-3 leading-relaxed">
+            When a producer sends a message to a topic, Kafka decides which partition will store it using the following strategies:
+          </p>
+
+          <h4 class="text-base sm:text-lg font-semibold text-gray-800 mb-2">a) Key-based Partitioning</h4>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1 mb-3">
+            <li>If a key is provided, Kafka computes <code class="bg-gray-100 px-1 rounded">partition = hash(key) % numPartitions</code>.</li>
+            <li>Messages with the same key always go to the same partition, preserving order per key.</li>
+          </ul>
+
+          <h4 class="text-base sm:text-lg font-semibold text-gray-800 mb-2">b) Round-Robin Partitioning</h4>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1 mb-3">
+            <li>If <code class="bg-gray-100 px-1 rounded">key=null</code>, Kafka distributes messages evenly across all partitions using round-robin.</li>
+            <li>Ideal when ordering is not required, ensuring balanced load.</li>
+          </ul>
+
+          <h4 class="text-base sm:text-lg font-semibold text-gray-800 mb-2">c) Custom Partitioners</h4>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>You can implement custom logic to decide partitions based on message content, user ID, or region.</li>
+            <li>Ensure the logic evenly distributes messages to avoid hot partitions.</li>
+          </ul>
+
+          <div class="overflow-x-auto mt-4">
+            <table class="min-w-[560px] w-full text-sm border border-gray-200 text-gray-700 rounded-lg overflow-hidden">
+              <thead class="bg-gray-100">
+                <tr>
+                  <th class="px-3 py-2 border text-left">Strategy</th>
+                  <th class="px-3 py-2 border text-left">Ordering</th>
+                  <th class="px-3 py-2 border text-left">Load Distribution</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="px-3 py-2 border">Key-based</td>
+                  <td class="px-3 py-2 border">Preserved per key</td>
+                  <td class="px-3 py-2 border">May cause hot partition if keys are skewed</td>
+                </tr>
+                <tr class="bg-gray-50">
+                  <td class="px-3 py-2 border">Round-robin</td>
+                  <td class="px-3 py-2 border">Not guaranteed</td>
+                  <td class="px-3 py-2 border">Even distribution</td>
+                </tr>
+                <tr>
+                  <td class="px-3 py-2 border">Custom</td>
+                  <td class="px-3 py-2 border">Depends on logic</td>
+                  <td class="px-3 py-2 border">Depends on implementation</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">2️⃣ Consumer Side: Partition Assignment</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-3 leading-relaxed">
+            Consumers read messages in consumer groups. Kafka assigns partitions to consumers to balance load and ensure parallel processing.
+          </p>
+
+          <h4 class="text-base sm:text-lg font-semibold text-gray-800 mb-2">a) Range Assignor</h4>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1 mb-3">
+            <li>Assigns contiguous partitions to each consumer.</li>
+            <li>Example: 4 partitions, 2 consumers → consumer1: 0-1, consumer2: 2-3.</li>
+          </ul>
+
+          <h4 class="text-base sm:text-lg font-semibold text-gray-800 mb-2">b) Round-Robin Assignor</h4>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1 mb-3">
+            <li>Assigns partitions evenly across consumers in a round-robin manner.</li>
+            <li>Helps avoid uneven load when partitions have varying traffic.</li>
+          </ul>
+
+          <h4 class="text-base sm:text-lg font-semibold text-gray-800 mb-2">c) Sticky Assignor</h4>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1 mb-3">
+            <li>Minimizes partition movement during rebalances.</li>
+            <li>Keeps partitions assigned to the same consumer whenever possible.</li>
+          </ul>
+
+          <h4 class="text-base sm:text-lg font-semibold text-gray-800 mb-2">d) Rebalance</h4>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>When consumers join or leave, Kafka reassigns partitions across available consumers.</li>
+            <li>Consumers may temporarily stop fetching messages during rebalance.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">3️⃣ Important Considerations</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>If consumers &gt; partitions → some consumers remain idle.</li>
+            <li>If consumers &lt; partitions → some consumers handle multiple partitions.</li>
+            <li>Skewed keys may create hot partitions → monitor key distribution.</li>
+            <li>Uneven partition assignment can lead to consumer lag → monitor <code class="bg-gray-100 px-1 rounded">ConsumerLag</code>.</li>
+            <li>More partitions → higher parallelism and throughput.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">4️⃣ Example Scenario</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            Topic: <code class="bg-gray-100 px-1 rounded">orders</code> with 3 partitions.<br>
+            Producer sends messages with key = <code class="bg-gray-100 px-1 rounded">"user123"</code>.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            Kafka computes <code class="bg-gray-100 px-1 rounded">partition = hash("user123") % 3 → partition 1</code>.
+            All messages go to partition 1 → hot partition.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            Fix: Use <code class="bg-gray-100 px-1 rounded">key=null</code> for round-robin distribution or vary the key (e.g., <code class="bg-gray-100 px-1 rounded">userID</code>) to distribute messages evenly.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">Key Takeaways</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Producer decides partition: key-based, round-robin, or custom.</li>
+            <li>Key-based partitioning guarantees order but may create hot partitions.</li>
+            <li>Consumer assignment ensures parallel processing: range, round-robin, sticky assignor.</li>
+            <li>Partition count and key distribution directly affect throughput and latency.</li>
+            <li>Monitor partition load and consumer lag for optimal performance.</li>
+          </ul>
+        </section>
+      </section>
+
+      <!-- ============ Message Ordering ============ -->
+      <section id="kafka-message-order" class="py-6 sm:py-10">
+        <header class="mb-6">
+          <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Kafka Message Ordering Guarantee</h2>
+          <p class="text-base sm:text-lg text-gray-700 leading-relaxed">
+            Kafka guarantees message ordering at the <strong>partition level</strong>. Messages produced to a single partition are delivered to consumers in the same order they were written. Ordering across partitions is not guaranteed.
+          </p>
+        </header>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">1️⃣ Partition-Level Ordering</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            Messages are always appended in order within a partition. Consumers reading a partition will always see messages in the order they were produced.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            <strong>Example:</strong> Topic <code class="bg-gray-100 px-1 rounded">orders</code> with 3 partitions. Messages sent to partition 0:
+          </p>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1 mb-2">
+            <li>Order1 → Order2 → Order3</li>
+          </ul>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            Consumer reading partition 0 sees messages in the same sequence.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">2️⃣ Key-Based Ordering</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            Using a message key ensures all messages with the same key are sent to the <strong>same partition</strong>. This guarantees ordering for related messages.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base mb-1"><strong>Example:</strong></p>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1 mb-2">
+            <li>UserID: "123" → all orders go to partition 1</li>
+            <li>UserID: "456" → all orders go to partition 2</li>
+          </ul>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            Messages for the same user are ordered, while messages for different users may be interleaved across partitions.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">3️⃣ Factors That Can Affect Ordering</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li><strong>Producer retries:</strong> Without <code class="bg-gray-100 px-1 rounded">enable.idempotence=true</code>, retries may reorder messages.</li>
+            <li><strong>Multiple partitions:</strong> Ordering is guaranteed only within a partition, not across partitions.</li>
+            <li><strong>Consumer concurrency:</strong> Multiple consumers reading from different partitions may process messages out of global order.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">4️⃣ Best Practices for Maintaining Order</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Use message keys to ensure related messages go to the same partition.</li>
+            <li>Keep related messages in a single partition to preserve processing order.</li>
+            <li>Enable <code class="bg-gray-100 px-1 rounded">enable.idempotence=true</code> for producers to maintain order during retries.</li>
+            <li>Be aware that parallelism across partitions can break global order.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">5️⃣ Key Takeaways</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Kafka guarantees message order only at the partition level.</li>
+            <li>Messages with the same key always go to the same partition → order preserved per key.</li>
+            <li>Messages across different partitions may arrive out of order to consumers.</li>
+            <li>Use idempotent producers to prevent ordering issues during retries.</li>
+            <li>Design systems around partition-level ordering, not topic-level global order.</li>
+          </ul>
+        </section>
+      </section>
+
+      <!-- ============ Broker Load Balancing ============ -->
+      <section id="kafka-broker-load-balancing" class="py-6 sm:py-10">
+        <header class="mb-6">
+          <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Kafka Broker Load Balancing &amp; Partition Redistribution</h2>
+          <p class="text-base sm:text-lg text-gray-700 leading-relaxed">
+            High-traffic topics can cause uneven load across brokers, leading to some brokers being overloaded. Proper partition distribution and cluster adjustments help achieve efficient resource utilization and prevent performance bottlenecks.
+          </p>
+        </header>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">1️⃣ Understanding Uneven Load</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            Kafka distributes topic partitions across brokers. When traffic is skewed, some partitions may receive significantly more messages than others. If multiple high-traffic partitions are assigned to the same broker, it can become a bottleneck, affecting:
+          </p>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Broker CPU and memory usage</li>
+            <li>Network throughput</li>
+            <li>Disk I/O and storage pressure</li>
+            <li>Producer and consumer performance</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">2️⃣ Common Causes</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Skewed key distribution → some partitions receive more messages due to key hashing.</li>
+            <li>Uneven partition assignment → multiple hot partitions assigned to the same broker.</li>
+            <li>Insufficient number of partitions → limits parallelism across brokers.</li>
+            <li>Cluster growth without rebalancing → newly added brokers are underutilized.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">3️⃣ Strategies to Redistribute Load</h3>
+
+          <h4 class="text-base sm:text-lg font-semibold text-gray-800 mb-2">a) Increase Partition Count</h4>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1 mb-3">
+            <li>Adding more partitions allows traffic to be distributed more evenly across brokers.</li>
+            <li>Ensure new partitions are allocated to underutilized brokers.</li>
+          </ul>
+
+          <h4 class="text-base sm:text-lg font-semibold text-gray-800 mb-2">b) Rebalance Partitions Across Brokers</h4>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1 mb-3">
+            <li>Use Kafka tools like <code class="bg-gray-100 px-1 rounded">kafka-reassign-partitions.sh</code> to manually redistribute partitions.</li>
+            <li>Reassignment moves replicas from overloaded brokers to underutilized brokers while maintaining replication factor.</li>
+          </ul>
+
+          <h4 class="text-base sm:text-lg font-semibold text-gray-800 mb-2">c) Review Key Distribution</h4>
+          <p class="text-gray-700 text-sm sm:text-base mb-1">Skewed keys can cause hot partitions. Consider:</p>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1 mb-3">
+            <li>Using more diverse keys</li>
+            <li>Randomizing keys or using composite keys</li>
+            <li>Switching to round-robin partitioning if ordering per key is not critical</li>
+          </ul>
+
+          <h4 class="text-base sm:text-lg font-semibold text-gray-800 mb-2">d) Add More Brokers</h4>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1 mb-3">
+            <li>Expanding the cluster allows partitions to spread across more brokers, reducing load on individual brokers.</li>
+            <li>After adding brokers, trigger a partition rebalance to utilize the new resources.</li>
+          </ul>
+
+          <h4 class="text-base sm:text-lg font-semibold text-gray-800 mb-2">e) Monitor and Automate</h4>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Continuously monitor broker metrics: CPU, memory, disk I/O, and network throughput.</li>
+            <li>Use automated tools (e.g., Cruise Control) for dynamic partition rebalancing and load optimization.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">4️⃣ Example Scenario</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            Topic <code class="bg-gray-100 px-1 rounded">orders</code> has 12 partitions and 3 brokers. Partitions 1, 2, and 3 are hot, all on broker 1.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base mb-1">Steps to fix:</p>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1 mb-2">
+            <li>Use <code class="bg-gray-100 px-1 rounded">kafka-reassign-partitions.sh</code> to move partitions 2 and 3 to brokers 2 and 3.</li>
+            <li>Add 3 more partitions to increase parallelism.</li>
+            <li>Ensure key distribution is balanced so hot partitions don’t accumulate on a single broker.</li>
+          </ul>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            Result: All brokers share traffic more evenly, reducing CPU, network, and disk pressure on broker 1.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">5️⃣ Key Takeaways</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Uneven broker load can cause bottlenecks even if brokers are healthy.</li>
+            <li>Partition reassignment, increasing partitions, and adding brokers help redistribute load efficiently.</li>
+            <li>Monitor key distribution to prevent hot partitions.</li>
+            <li>Automated tools like Cruise Control can help maintain balanced clusters dynamically.</li>
+          </ul>
+        </section>
+      </section>
+
+      <!-- ============ Large Messages ============ -->
+      <section id="kafka-large-messages" class="py-6 sm:py-10">
+        <header class="mb-6">
+          <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Handling Large Messages in Kafka</h2>
+          <p class="text-base sm:text-lg text-gray-700 leading-relaxed">
+            Large messages in Kafka can cause replication delays, increase broker memory usage, and slow down consumers. Configuring Kafka properly ensures efficient processing and avoids bottlenecks.
+          </p>
+        </header>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">1️⃣ Problems Caused by Large Messages</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Replication delay due to large payloads moving across the network.</li>
+            <li>High memory usage on brokers and consumers.</li>
+            <li>Increased latency in consumer processing.</li>
+            <li>Potential for OutOfMemoryError if default message size limits are exceeded.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">2️⃣ Kafka Configuration Changes</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            To efficiently handle large messages, adjust the following configurations:
+          </p>
+          <div class="overflow-x-auto">
+            <table class="min-w-[720px] w-full text-sm border border-gray-200 text-gray-700 rounded-lg overflow-hidden">
+              <thead class="bg-gray-100">
+                <tr>
+                  <th class="px-3 py-2 border text-left">Configuration</th>
+                  <th class="px-3 py-2 border text-left">Description</th>
+                  <th class="px-3 py-2 border text-left">Recommended Change</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="px-3 py-2 border">message.max.bytes (broker)</td>
+                  <td class="px-3 py-2 border">Maximum size of a single message the broker accepts.</td>
+                  <td class="px-3 py-2 border">Increase to accommodate largest expected message.</td>
+                </tr>
+                <tr class="bg-gray-50">
+                  <td class="px-3 py-2 border">replica.fetch.max.bytes (broker)</td>
+                  <td class="px-3 py-2 border">Maximum bytes a follower can fetch in one request from leader.</td>
+                  <td class="px-3 py-2 border">Set higher than message.max.bytes for large message replication.</td>
+                </tr>
+                <tr>
+                  <td class="px-3 py-2 border">fetch.message.max.bytes (consumer)</td>
+                  <td class="px-3 py-2 border">Maximum message size a consumer can fetch in one request.</td>
+                  <td class="px-3 py-2 border">Increase to match message.max.bytes on broker.</td>
+                </tr>
+                <tr class="bg-gray-50">
+                  <td class="px-3 py-2 border">max.request.size (producer)</td>
+                  <td class="px-3 py-2 border">Maximum size of a produce request.</td>
+                  <td class="px-3 py-2 border">Increase to accommodate large messages.</td>
+                </tr>
+                <tr>
+                  <td class="px-3 py-2 border">compression.type (producer)</td>
+                  <td class="px-3 py-2 border">Compress messages to reduce network usage.</td>
+                  <td class="px-3 py-2 border">Enable compression (snappy, gzip, or zstd).</td>
+                </tr>
+                <tr class="bg-gray-50">
+                  <td class="px-3 py-2 border">batch.size &amp; linger.ms (producer)</td>
+                  <td class="px-3 py-2 border">Batching helps reduce overhead for large messages.</td>
+                  <td class="px-3 py-2 border">Increase batch.size and linger.ms for efficiency.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">3️⃣ Best Practices for Large Messages</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Prefer splitting extremely large messages into smaller chunks for better parallelism and reduced latency.</li>
+            <li>Enable compression to reduce network load and broker memory usage.</li>
+            <li>Monitor replication lag and consumer processing times after configuration changes.</li>
+            <li>Ensure all brokers, producers, and consumers have consistent message size configurations to avoid failures.</li>
+            <li>Consider using a separate topic for large messages to avoid impacting high-throughput topics.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">4️⃣ Example Scenario</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            Topic <code class="bg-gray-100 px-1 rounded">file-uploads</code> receives messages up to 50MB. Default <code class="bg-gray-100 px-1 rounded">message.max.bytes=1MB</code> causes producers to fail.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base mb-1">Steps to fix:</p>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1 mb-2">
+            <li>Set <code class="bg-gray-100 px-1 rounded">message.max.bytes=52428800</code> on all brokers.</li>
+            <li>Increase <code class="bg-gray-100 px-1 rounded">replica.fetch.max.bytes</code> to 60MB to allow replication.</li>
+            <li>Set producer <code class="bg-gray-100 px-1 rounded">max.request.size=52428800</code> and enable <code class="bg-gray-100 px-1 rounded">compression.type=snappy</code>.</li>
+            <li>Set consumer <code class="bg-gray-100 px-1 rounded">fetch.message.max.bytes=52428800</code> to allow fetching large messages.</li>
+          </ul>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            Result: Large messages are successfully produced, replicated, and consumed without delays or failures.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">5️⃣ Key Takeaways</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Kafka requires configuration adjustments to handle large messages efficiently.</li>
+            <li>Ensure message size configs are consistent across brokers, producers, and consumers.</li>
+            <li>Compression and batching improve performance for large messages.</li>
+            <li>Monitor replication lag and consumer performance after increasing message sizes.</li>
+            <li>Splitting extremely large messages can further improve throughput and reduce bottlenecks.</li>
+          </ul>
+        </section>
+      </section>
+
+      <!-- ============ Replication Factor ============ -->
+      <section id="kafka-replication-factor" class="py-6 sm:py-10">
+        <header class="mb-6">
+          <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Kafka Replication Factor and Broker Failures</h2>
+          <p class="text-base sm:text-lg text-gray-700 leading-relaxed">
+            A replication factor of 1 means each partition has only one replica (the leader) and no backups. If the broker hosting the partition crashes, it can lead to data loss and unavailability. Proper replication and cluster design are critical to ensure durability and fault tolerance.
+          </p>
+        </header>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">1️⃣ Problem Overview</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2">With replication factor = 1:</p>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Each partition has only one replica (the leader).</li>
+            <li>No follower replicas exist to take over if the leader broker fails.</li>
+            <li>Broker failure can cause permanent data loss for messages not yet consumed or replicated.</li>
+            <li>Consumers cannot read from partitions on the failed broker until it recovers.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">2️⃣ Potential Consequences</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-2">
+            <li><strong>Data Loss:</strong> Messages on the crashed broker that were not replicated to another broker are lost permanently.</li>
+            <li><strong>Partition Unavailability:</strong> Consumers cannot fetch messages from partitions on the failed broker until it recovers.</li>
+            <li><strong>Application Impact:</strong> Downstream applications relying on real-time data may see missing or delayed data.</li>
+            <li><strong>Manual Recovery Required:</strong> Administrators must restore data from backups or redo operations.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">3️⃣ Redesign Strategies</h3>
+
+          <h4 class="text-base sm:text-lg font-semibold text-gray-800 mb-2">a) Increase Replication Factor</h4>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1 mb-3">
+            <li>Set replication factor ≥ 2 (recommended ≥ 3 for production).</li>
+            <li>Each partition will have multiple replicas distributed across different brokers.</li>
+            <li>If one broker fails, another replica can become the leader with no data loss.</li>
+          </ul>
+
+          <h4 class="text-base sm:text-lg font-semibold text-gray-800 mb-2">b) Use min.insync.replicas</h4>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1 mb-3">
+            <li>Configure <code class="bg-gray-100 px-1 rounded">min.insync.replicas</code> ≥ 2 with <code class="bg-gray-100 px-1 rounded">acks=all</code> on producers.</li>
+            <li>Ensures messages are acknowledged only when replicated to the required number of brokers.</li>
+            <li>Provides strong durability and prevents message loss if a broker crashes before replication.</li>
+          </ul>
+
+          <h4 class="text-base sm:text-lg font-semibold text-gray-800 mb-2">c) Distribute Partitions Across Brokers</h4>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1 mb-3">
+            <li>Spread replicas of partitions evenly across brokers to avoid single points of failure.</li>
+            <li>Avoid co-locating leader and replicas of the same partition on the same broker.</li>
+          </ul>
+
+          <h4 class="text-base sm:text-lg font-semibold text-gray-800 mb-2">d) Monitor and Automate Failover</h4>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Enable Kafka’s automatic leader election to promote in-sync replicas quickly.</li>
+            <li>Use monitoring tools to detect broker failures and under-replicated partitions proactively.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">4️⃣ Example Scenario</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            Topic <code class="bg-gray-100 px-1 rounded">payments</code> with replication factor = 1, partition 0 leader on broker 1.
+          </p>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1 mb-2">
+            <li>Broker 1 crashes → partition 0 unavailable → data on that broker lost.</li>
+            <li>Redesign:
+              <ul class="list-disc list-inside ml-4 sm:ml-6 mt-1 space-y-1">
+                <li>Set replication factor = 3.</li>
+                <li>Distribute replicas across brokers 1, 2, 3.</li>
+                <li>Configure producer with <code class="bg-gray-100 px-1 rounded">acks=all</code> and <code class="bg-gray-100 px-1 rounded">min.insync.replicas=2</code>.</li>
+              </ul>
+            </li>
+          </ul>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            Result: Even if broker 1 fails, partition 0 remains available on broker 2 or 3, ensuring no data loss.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">5️⃣ Key Takeaways</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>A replication factor of 1 is unsafe for critical topics; it risks permanent data loss on broker failure.</li>
+            <li>Increase replication factor and use <code class="bg-gray-100 px-1 rounded">min.insync.replicas</code> with <code class="bg-gray-100 px-1 rounded">acks=all</code> for durability.</li>
+            <li>Distribute replicas across brokers to avoid single points of failure.</li>
+            <li>Monitor ISR and under-replicated partitions to ensure high availability.</li>
+          </ul>
+        </section>
+      </section>
+
+      <!-- ============ Ordering per Key ============ -->
+      <section id="kafka-message-ordering" class="py-6 sm:py-10">
+        <header class="mb-6">
+          <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Ensuring Message Ordering per Key in Kafka</h2>
+          <p class="text-base sm:text-lg text-gray-700 leading-relaxed">
+            Kafka guarantees message ordering only within a single partition. To ensure strict ordering per key across multiple partitions, careful topic design, partitioning strategy, and consumer configuration are required.
+          </p>
+        </header>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">1️⃣ Problem Overview</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            In a scenario where a service consumes messages from a topic with multiple partitions, ordering can break if:
+          </p>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1 mb-2">
+            <li>Messages with the same key are sent to different partitions.</li>
+            <li>Consumers process partitions independently without coordination.</li>
+          </ul>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            To guarantee ordering per key, messages with the same key must always go to the same partition, and each partition should be consumed by a single consumer at a time.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">2️⃣ Design Strategies</h3>
+
+          <h4 class="text-base sm:text-lg font-semibold text-gray-800 mb-2">a) Key-based Partitioning</h4>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1 mb-3">
+            <li>Use the message key to determine the partition. Kafka’s default partitioner hashes the key to a partition.</li>
+            <li>All messages with the same key go to the same partition, maintaining ordering.</li>
+          </ul>
+
+          <h4 class="text-base sm:text-lg font-semibold text-gray-800 mb-2">b) Single Consumer per Partition</h4>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1 mb-3">
+            <li>In a consumer group, Kafka ensures each partition is consumed by only one consumer at a time.</li>
+            <li>This guarantees that messages in a partition are processed in order.</li>
+          </ul>
+
+          <h4 class="text-base sm:text-lg font-semibold text-gray-800 mb-2">c) Partition Count Planning</h4>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1 mb-3">
+            <li>The number of partitions should balance throughput and ordering requirements.</li>
+            <li>Too few partitions → limited parallelism.</li>
+            <li>Too many partitions → can increase consumer group complexity but does not break ordering per key.</li>
+          </ul>
+
+          <h4 class="text-base sm:text-lg font-semibold text-gray-800 mb-2">d) Avoid Rebalancing During Critical Processing</h4>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Consumer rebalances can temporarily pause consumption and change partition ownership.</li>
+            <li>Minimize unnecessary consumer joins/leaves during critical processing to maintain strict ordering.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">3️⃣ Example Scenario</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            Topic: <code class="bg-gray-100 px-1 rounded">orders</code><br>
+            Partitions: 4<br>
+            Consumers: 2 in the same consumer group<br>
+            Key: <code class="bg-gray-100 px-1 rounded">customerId</code>
+          </p>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1 mb-2">
+            <li>Kafka hashes each <code class="bg-gray-100 px-1 rounded">customerId</code> to determine the partition.</li>
+            <li>All orders for a specific customer always go to the same partition.</li>
+            <li>Each partition is consumed by a single consumer → strict order per customerId is preserved.</li>
+            <li>Different customerIds may go to different partitions → allows parallelism while maintaining per-key ordering.</li>
+          </ul>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            Result: Each customer’s orders are processed in the exact order they were produced, while multiple customers’ orders are processed in parallel across partitions.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">4️⃣ Best Practices</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Always provide a key when ordering is required.</li>
+            <li>Design partition count based on expected key cardinality and throughput.</li>
+            <li>Monitor consumer rebalances and handle them gracefully to prevent ordering gaps.</li>
+            <li>Consider idempotent processing if exactly-once semantics are needed alongside ordering.</li>
+            <li>For very large-scale topics, combine key-based partitioning with batch processing to optimize throughput.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">5️⃣ Key Takeaways</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Kafka guarantees ordering only within a partition, not across partitions.</li>
+            <li>Use message keys to direct related messages to the same partition.</li>
+            <li>Ensure a single consumer per partition to maintain processing order.</li>
+            <li>Plan partitions carefully to balance throughput and ordering requirements.</li>
+            <li>Minimize unnecessary consumer group rebalances during critical message processing.</li>
+          </ul>
+        </section>
+      </section>
+
+      <!-- ============ Real-Time Analytics ============ -->
+      <section id="realtimeanalytics" class="py-6 sm:py-10">
+        <header class="mb-6">
+          <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Building a Real-Time Analytics System with Kafka</h2>
+          <p class="text-base sm:text-lg text-gray-700 leading-relaxed">
+            Real-time analytics systems require ingesting high-volume events from multiple services, processing them instantly, and producing aggregated insights for dashboards or downstream systems. Kafka acts as the backbone for event streaming, while a processing framework handles computation.
+          </p>
+        </header>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">1️⃣ Architecture Overview</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2">The system consists of:</p>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li><strong>Producers:</strong> Services emitting events (e.g., user actions, transactions, logs).</li>
+            <li><strong>Kafka Topics:</strong> Logical streams of events grouped by type (e.g., <code class="bg-gray-100 px-1 rounded">user-events</code>, <code class="bg-gray-100 px-1 rounded">transactions</code>).</li>
+            <li><strong>Partitions:</strong> Enable parallelism. Each topic has multiple partitions to allow concurrent processing.</li>
+            <li><strong>Consumers:</strong> Real-time analytics applications consuming events for aggregation and metrics computation.</li>
+            <li><strong>Processing Framework:</strong> Kafka Streams, Flink, or Spark Streaming to aggregate, enrich, and transform events in real time.</li>
+            <li><strong>Output / Storage:</strong> Aggregated results sent to dashboards, databases, or other systems for reporting.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">2️⃣ Producer Design</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Each service publishes events to Kafka topics asynchronously to ensure low latency.</li>
+            <li>Messages can be keyed for consistent partitioning (e.g., <code class="bg-gray-100 px-1 rounded">userId</code> or <code class="bg-gray-100 px-1 rounded">transactionId</code>) to preserve ordering.</li>
+            <li>Enable batching and compression for high throughput.</li>
+            <li>Set <code class="bg-gray-100 px-1 rounded">acks=all</code> and appropriate <code class="bg-gray-100 px-1 rounded">retries</code> for strong durability guarantees.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">3️⃣ Topic and Partition Strategy</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Use separate topics for different event types to simplify processing.</li>
+            <li>Assign enough partitions to maximize parallelism for consumer processing.</li>
+            <li>Ensure partitions are well-distributed across brokers to balance load.</li>
+            <li>Use keys for events that require per-entity aggregation (e.g., user-level metrics).</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">4️⃣ Consumer and Processing Framework</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-2">
+            <li>Consumers can be part of a consumer group to distribute partitions evenly and achieve parallel processing.</li>
+            <li>Use a stream processing framework (Kafka Streams, Flink, Spark Streaming) to:
+              <ul class="list-disc list-inside ml-4 sm:ml-6 mt-1 space-y-1">
+                <li>Aggregate events in real-time (counts, sums, averages).</li>
+                <li>Join multiple streams if needed (e.g., correlate transactions with user events).</li>
+                <li>Perform windowed computations for time-based metrics (e.g., per-minute or per-hour analytics).</li>
+                <li>Filter, transform, or enrich events before storage or dashboards.</li>
+              </ul>
+            </li>
+            <li>Enable exactly-once processing semantics if required to avoid duplicate aggregation.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">5️⃣ Output and Storage</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Aggregated results can be pushed to dashboards (e.g., Grafana, Kibana) or metrics stores (e.g., Prometheus, ClickHouse).</li>
+            <li>For downstream processing, results can be published to another Kafka topic.</li>
+            <li>Ensure the storage layer supports high write throughput and low-latency reads for near real-time reporting.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">6️⃣ Example Scenario</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            Services: <code class="bg-gray-100 px-1 rounded">web-app</code>, <code class="bg-gray-100 px-1 rounded">mobile-app</code> → produce events to topic <code class="bg-gray-100 px-1 rounded">user-actions</code> (8 partitions).
+            Kafka Streams consumer reads all partitions, aggregates user activity per minute, and writes results to <code class="bg-gray-100 px-1 rounded">analytics-summary</code> topic → consumed by dashboard service.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            Outcome: Real-time metrics for active users, top actions, and trends are available within seconds of events being produced.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">7️⃣ Key Takeaways</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Kafka topics and partitions enable parallelism and ordering guarantees per key.</li>
+            <li>Proper producer configuration ensures high throughput and durability.</li>
+            <li>Stream processing frameworks allow near real-time aggregation and analytics.</li>
+            <li>Consumer groups provide scalability while maintaining per-partition ordering.</li>
+            <li>Output should be written to dashboards or storage systems optimized for fast reads.</li>
+          </ul>
+        </section>
+      </section>
+
+      <!-- ============ Consumer Recovery ============ -->
+      <section id="consumer-recovery" class="py-6 sm:py-10">
+        <header class="mb-6">
+          <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Kafka Consumer Recovery After Microservice Downtime</h2>
+          <p class="text-base sm:text-lg text-gray-700 leading-relaxed">
+            When a microservice consuming from Kafka goes down for several hours, it must be able to catch up on all missed messages once it comes back online — without losing data. To achieve this, we need to configure consumers, offsets, and retention policies carefully.
+          </p>
+        </header>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">1️⃣ Consumer Configuration</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-3">
+            <li><strong>Consumer Group ID</strong><br>
+              The microservice should always use the same <code class="bg-gray-100 px-1 rounded">group.id</code>.<br>
+              Kafka will track offsets per consumer group. When the service comes back, it resumes from the last committed offset instead of starting over.
+            </li>
+            <li><strong>Enable Auto Commit?</strong><br>
+              Prefer manual offset commits (<code class="bg-gray-100 px-1 rounded">enable.auto.commit=false</code>) to have fine-grained control.<br>
+              Commit offsets <em>after successful processing</em> of messages → avoids marking messages as consumed before they are really processed.
+            </li>
+            <li><strong>max.poll.interval.ms</strong><br>
+              Increase if the service may take longer to process a batch of messages.<br>
+              Prevents Kafka from thinking the consumer is dead during heavy processing.
+            </li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">2️⃣ Offset Management</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-3">
+            <li><strong>Committed Offsets</strong><br>
+              Kafka stores offsets in a special internal topic: <code class="bg-gray-100 px-1 rounded">__consumer_offsets</code>.<br>
+              If the service goes down, offsets remain unchanged until it comes back.<br>
+              On restart, the consumer resumes from the last committed offset, continuing where it left off.
+            </li>
+            <li><strong>auto.offset.reset</strong><br>
+              <code class="bg-gray-100 px-1 rounded">earliest</code> → if no committed offset is found (e.g., new consumer group), start from the beginning of the topic.<br>
+              <code class="bg-gray-100 px-1 rounded">latest</code> → start from new messages only.<br>
+              For catching up on missed data → use committed offsets (default behavior).
+            </li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">3️⃣ Retention Policies</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-3">
+            <li><strong>log.retention.hours (Broker Level)</strong><br>
+              Defines how long Kafka keeps messages (default 168 hours = 7 days).<br>
+              Must be longer than the maximum downtime you expect for consumers.
+            </li>
+            <li><strong>log.retention.bytes</strong><br>
+              Retain messages based on size as well as time.<br>
+              Ensure disk capacity can hold enough backlog for consumers to catch up.
+            </li>
+            <li><strong>Consumer Lag and Retention</strong><br>
+              If retention period is too short, old messages may expire before the service comes back → data loss.<br>
+              Configure retention so that the topic retains messages at least as long as possible consumer downtime.
+            </li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">4️⃣ Example Scenario</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-2">
+            <li>Microservice <code class="bg-gray-100 px-1 rounded">order-processor</code> goes down at 2 PM.</li>
+            <li>It has consumed and committed offsets up to message <code class="bg-gray-100 px-1 rounded">Order500</code>.</li>
+            <li>During downtime, producers keep writing new orders (<code class="bg-gray-100 px-1 rounded">Order501</code> to <code class="bg-gray-100 px-1 rounded">Order1200</code>).</li>
+            <li>Kafka retains all messages in topic <code class="bg-gray-100 px-1 rounded">orders</code> because retention is 7 days.</li>
+            <li>At 6 PM, the microservice restarts:
+              <ul class="list-disc list-inside ml-4 sm:ml-6 mt-1 space-y-1">
+                <li>Kafka checks the <code class="bg-gray-100 px-1 rounded">__consumer_offsets</code> topic.</li>
+                <li>Finds the last committed offset = <code class="bg-gray-100 px-1 rounded">Order500</code>.</li>
+                <li>Resumes consuming from <code class="bg-gray-100 px-1 rounded">Order501</code> onward.</li>
+              </ul>
+            </li>
+            <li><strong>Result:</strong> The service catches up on all missed messages without losing any data.</li>
+          </ul>
+        </section>
+      </section>
+
+      <!-- ============ NetworkProcessorAvgIdlePercent ============ -->
+      <section class="py-6 sm:py-10">
+        <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-5">Kafka NetworkProcessorAvgIdlePercent Low</h2>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">1️⃣ What It Means</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            <span class="font-semibold">NetworkProcessorAvgIdlePercent</span> measures how much time broker network threads (handling producer/consumer I/O) are idle.<br>
+            <span class="font-semibold">Low value</span> (e.g., consistently &lt; 0.2 or 20%) → network threads are busy almost all the time.<br>
+            This indicates the broker is <span class="font-semibold">network I/O bound</span>.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">2️⃣ Causes</h3>
+          <div class="overflow-x-auto">
+            <table class="min-w-[560px] w-full text-sm border border-gray-200 text-gray-700 rounded-lg overflow-hidden">
+              <thead class="bg-gray-200">
+                <tr>
+                  <th class="px-3 py-2 border text-left">Cause</th>
+                  <th class="px-3 py-2 border text-left">Explanation</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="px-3 py-2 border">High client traffic</td>
+                  <td class="px-3 py-2 border">Too many producers/consumers sending or fetching data at once.</td>
+                </tr>
+                <tr class="bg-gray-50">
+                  <td class="px-3 py-2 border">Insufficient network threads (<code class="bg-gray-100 px-1 rounded">num.network.threads</code>)</td>
+                  <td class="px-3 py-2 border">Too few threads configured, defaults may not handle heavy load.</td>
+                </tr>
+                <tr>
+                  <td class="px-3 py-2 border">Large requests/responses</td>
+                  <td class="px-3 py-2 border">Oversized messages or batches keep network threads busy longer.</td>
+                </tr>
+                <tr class="bg-gray-50">
+                  <td class="px-3 py-2 border">Slow disk or CPU saturation</td>
+                  <td class="px-3 py-2 border">Threads blocked waiting for disk writes or CPU cycles.</td>
+                </tr>
+                <tr>
+                  <td class="px-3 py-2 border">Network bottlenecks</td>
+                  <td class="px-3 py-2 border">NIC bandwidth limits, packet drops, or high latency.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">3️⃣ Troubleshooting Steps</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-2">
+            <li><span class="font-semibold">Check broker metrics</span> – Compare with <code class="bg-gray-100 px-1 rounded">RequestHandlerAvgIdlePercent</code>, CPU, and disk I/O.</li>
+            <li><span class="font-semibold">Analyze traffic</span> – Look for spikes or imbalanced partition traffic.</li>
+            <li><span class="font-semibold">Inspect message sizes</span> – Check producer configs (<code class="bg-gray-100 px-1 rounded">batch.size</code>, <code class="bg-gray-100 px-1 rounded">linger.ms</code>, <code class="bg-gray-100 px-1 rounded">compression.type</code>).</li>
+            <li><span class="font-semibold">Validate broker configs</span> – Review <code class="bg-gray-100 px-1 rounded">num.network.threads</code> and <code class="bg-gray-100 px-1 rounded">socket.request.max.bytes</code>.</li>
+            <li><span class="font-semibold">Check cluster balance</span> – Ensure partitions are evenly spread across brokers.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">4️⃣ Possible Fixes</h3>
+          <div class="overflow-x-auto">
+            <table class="min-w-[560px] w-full text-sm border border-gray-200 text-gray-700 rounded-lg overflow-hidden">
+              <thead class="bg-gray-200">
+                <tr>
+                  <th class="px-3 py-2 border text-left">Fix</th>
+                  <th class="px-3 py-2 border text-left">When to Apply</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="px-3 py-2 border">Increase <code class="bg-gray-100 px-1 rounded">num.network.threads</code></td>
+                  <td class="px-3 py-2 border">If network threads are consistently saturated.</td>
+                </tr>
+                <tr class="bg-gray-50">
+                  <td class="px-3 py-2 border">Tune producer configs</td>
+                  <td class="px-3 py-2 border">Use compression, adjust batch size and linger to optimize request handling.</td>
+                </tr>
+                <tr>
+                  <td class="px-3 py-2 border">Add brokers or rebalance partitions</td>
+                  <td class="px-3 py-2 border">If load is too high for current cluster capacity.</td>
+                </tr>
+                <tr class="bg-gray-50">
+                  <td class="px-3 py-2 border">Upgrade hardware/network</td>
+                  <td class="px-3 py-2 border">If NIC bandwidth or system resources are limiting throughput.</td>
+                </tr>
+                <tr>
+                  <td class="px-3 py-2 border">Investigate disk/CPU bottlenecks</td>
+                  <td class="px-3 py-2 border">If network threads are blocked waiting for slow I/O.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <!-- ============ Skipping / Out of order ============ -->
+      <section class="py-6 sm:py-10">
+        <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-5">
+          Kafka Consumers Skipping Messages or Processing Out of Order After Rebalance
+        </h2>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">1️⃣ What Happens</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            In Kafka, when a consumer group rebalance occurs, partitions are reassigned to consumers.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base mb-1 leading-relaxed">During the rebalance:</p>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1 mb-2">
+            <li>Consumers may lose ownership of partitions temporarily.</li>
+            <li>Uncommitted messages may be reprocessed by another consumer.</li>
+          </ul>
+          <p class="text-gray-700 text-sm sm:text-base mb-1 leading-relaxed">If offsets are committed incorrectly or auto-commit is delayed, consumers can:</p>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Skip messages (offset advanced before processing).</li>
+            <li>Process messages out of order (messages reassigned to a different consumer).</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">2️⃣ Causes</h3>
+          <div class="overflow-x-auto">
+            <table class="min-w-[560px] w-full text-sm border border-gray-200 text-gray-700 rounded-lg overflow-hidden">
+              <thead class="bg-gray-200">
+                <tr>
+                  <th class="px-3 py-2 border text-left">Cause</th>
+                  <th class="px-3 py-2 border text-left">Explanation</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="px-3 py-2 border">Auto offset commit too frequent or too early</td>
+                  <td class="px-3 py-2 border">Messages may be marked consumed before actual processing, causing skipped messages.</td>
+                </tr>
+                <tr class="bg-gray-50">
+                  <td class="px-3 py-2 border">Long rebalance duration</td>
+                  <td class="px-3 py-2 border">During rebalance, messages assigned to a consumer may be reassigned to another consumer, causing temporary out-of-order processing.</td>
+                </tr>
+                <tr>
+                  <td class="px-3 py-2 border">Multiple consumers per partition</td>
+                  <td class="px-3 py-2 border">Only one consumer can consume from a partition at a time; improper group setup may cause unexpected reassignments.</td>
+                </tr>
+                <tr class="bg-gray-50">
+                  <td class="px-3 py-2 border">Manual offset commit mismanagement</td>
+                  <td class="px-3 py-2 border">If offsets are committed before processing completes, skipped messages may occur.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">3️⃣ Consumer Group Configuration Changes</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-3">
+            <li><strong>Disable auto commit</strong><br>
+              <code class="bg-gray-100 px-1 rounded">enable.auto.commit=false</code><br>
+              Commit offsets after successful processing of messages.
+            </li>
+            <li><strong>Use a smaller max.poll.records</strong><br>
+              Reduces the number of messages in a poll, allowing faster processing and more frequent commits.
+            </li>
+            <li><strong>Tune session.timeout.ms and heartbeat.interval.ms</strong><br>
+              Reduce unnecessary rebalances caused by heartbeat timeouts.
+            </li>
+            <li><strong>Implement idempotent processing</strong><br>
+              Even if messages are reprocessed after a rebalance, the final state remains correct.
+            </li>
+            <li><strong>Use partition-aware logic</strong><br>
+              For strict ordering, ensure messages for a key always go to the same partition and are processed by one consumer.
+            </li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">4️⃣ Example Scenario</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            Topic <code class="bg-gray-100 px-1 rounded">orders</code> with 3 partitions, consumer group <code class="bg-gray-100 px-1 rounded">order-processors</code> with 2 consumers.
+          </p>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Consumer A owns partition 0 &amp; 1; Consumer B owns partition 2.</li>
+            <li>Consumer B crashes → rebalance occurs.</li>
+            <li>Partition 2 is reassigned to Consumer A.</li>
+            <li>Messages already fetched by Consumer A from partition 0 &amp; 1 are processed first; partition 2 messages start later.</li>
+            <li>Without proper offset handling, messages from partition 2 could appear out of order relative to partition 0 &amp; 1.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">✅ Key Takeaways</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Rebalances temporarily interrupt consumption; proper offset management prevents skipped messages.</li>
+            <li>Disable auto-commit, commit after processing, and tune rebalance/heartbeat settings.</li>
+            <li>For strict ordering, combine key-based partitioning with careful consumer configuration.</li>
+          </ul>
+        </section>
+      </section>
+
+      <!-- ============ Producer retries ============ -->
+      <section class="py-6 sm:py-10">
+        <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-5">Kafka Producer Retrying Messages Indefinitely</h2>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">1️⃣ What Happens</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            Kafka producers can be configured to retry sending messages if the broker does not acknowledge them.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base mb-2 leading-relaxed">
+            When a producer is retrying indefinitely, messages accumulate in the topic and create a backlog.
+          </p>
+          <p class="text-gray-700 text-sm sm:text-base mb-1 leading-relaxed">This behavior can lead to:</p>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Increased latency for new messages.</li>
+            <li>Memory pressure on producer clients.</li>
+            <li>Risk of duplicate messages if retries are not idempotent.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">2️⃣ Possible Causes</h3>
+          <div class="overflow-x-auto">
+            <table class="min-w-[560px] w-full text-sm border border-gray-200 text-gray-700 rounded-lg overflow-hidden">
+              <thead class="bg-gray-200">
+                <tr>
+                  <th class="px-3 py-2 border text-left">Cause</th>
+                  <th class="px-3 py-2 border text-left">Explanation</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="px-3 py-2 border">Broker unavailable or network issues</td>
+                  <td class="px-3 py-2 border">Producer cannot reach the broker or receives timeouts.</td>
+                </tr>
+                <tr class="bg-gray-50">
+                  <td class="px-3 py-2 border">Replication issues</td>
+                  <td class="px-3 py-2 border">If <code class="bg-gray-100 px-1 rounded">acks=all</code> and the minimum number of in-sync replicas are not available, producer retries continuously.</td>
+                </tr>
+                <tr>
+                  <td class="px-3 py-2 border">Misconfigured retry settings</td>
+                  <td class="px-3 py-2 border"><code class="bg-gray-100 px-1 rounded">retries</code> is set very high or <code class="bg-gray-100 px-1 rounded">delivery.timeout.ms</code> is too large, causing indefinite retries.</td>
+                </tr>
+                <tr class="bg-gray-50">
+                  <td class="px-3 py-2 border">Slow brokers or high load</td>
+                  <td class="px-3 py-2 border">Brokers cannot process requests quickly enough → producer keeps retrying.</td>
+                </tr>
+                <tr>
+                  <td class="px-3 py-2 border">Idempotence not enabled</td>
+                  <td class="px-3 py-2 border">Without idempotence, retries may cause duplicates if messages eventually succeed.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">3️⃣ Configuration Adjustments</h3>
+
+          <h4 class="text-base sm:text-lg font-semibold text-gray-800 mb-2">Producer-side</h4>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-2 mb-4">
+            <li><strong>Limit retries</strong><br><code class="bg-gray-100 px-1 rounded">retries</code> → set a reasonable number (e.g., 5-10). Prevents infinite retry loops.</li>
+            <li><strong>Set delivery timeout</strong><br><code class="bg-gray-100 px-1 rounded">delivery.timeout.ms</code> → bounds the total time a message can be retried.</li>
+            <li><strong>Enable idempotence</strong><br><code class="bg-gray-100 px-1 rounded">enable.idempotence=true</code> → ensures retries don’t produce duplicates.</li>
+            <li><strong>Adjust retry backoff</strong><br><code class="bg-gray-100 px-1 rounded">retry.backoff.ms</code> → space out retries to reduce broker load.</li>
+          </ul>
+
+          <h4 class="text-base sm:text-lg font-semibold text-gray-800 mb-2">Broker-side</h4>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-2">
+            <li><strong>Ensure sufficient ISR</strong><br>Increase <code class="bg-gray-100 px-1 rounded">min.insync.replicas</code> and ensure enough replicas are available to acknowledge messages.</li>
+            <li><strong>Monitor broker health</strong><br>Check for under-replicated partitions, disk space, and network saturation.</li>
+            <li><strong>Tune request timeouts</strong><br><code class="bg-gray-100 px-1 rounded">replica.lag.time.max.ms</code> and <code class="bg-gray-100 px-1 rounded">replica.socket.timeout.ms</code> to reduce prolonged replication failures.</li>
+          </ul>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">4️⃣ Example Scenario</h3>
+          <p class="text-gray-700 text-sm sm:text-base leading-relaxed">
+            Topic <code class="bg-gray-100 px-1 rounded">orders</code> with replication factor 3 and <code class="bg-gray-100 px-1 rounded">acks=all</code>.<br>
+            Broker 2 goes down temporarily → only 2 replicas available.<br>
+            Producer configured with <code class="bg-gray-100 px-1 rounded">retries=Integer.MAX_VALUE</code>.<br>
+            Producer keeps retrying messages indefinitely until Broker 2 returns → backlog grows in producer memory and topic queue.<br>
+            Fix: set <code class="bg-gray-100 px-1 rounded">retries=10</code>, <code class="bg-gray-100 px-1 rounded">delivery.timeout.ms=120000</code>, enable idempotence. Producer retries only a bounded number of times, reducing backlog and preventing duplicate processing.
+          </p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">✅ Key Takeaways</h3>
+          <ul class="list-disc list-inside text-gray-700 text-sm sm:text-base space-y-1">
+            <li>Infinite retries can overwhelm producers and topics.</li>
+            <li>Combine bounded retries, delivery timeout, and idempotence to ensure safe, controlled message delivery.</li>
+            <li>Monitor broker health and replication status to prevent retry storms.</li>
+          </ul>
+        </section>
+      </section>
+
+      <!-- ============ Tools ============ -->
+      <section id="tools" class="py-6 sm:py-10">
+        <h2 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Kafka Tools and Utilities</h2>
+        <p class="text-gray-700 text-sm sm:text-base mb-6 leading-relaxed">
+          Kafka has a rich ecosystem of tools that help with monitoring, management, debugging, and performance tuning.
+        </p>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">1️⃣ Kafka CLI Tools</h3>
+          <p class="text-gray-700 text-sm sm:text-base mb-3">Kafka ships with a set of command-line utilities:</p>
+          <div class="overflow-x-auto">
+            <table class="min-w-[560px] w-full text-sm border border-gray-200 text-gray-700 rounded-lg overflow-hidden">
+              <thead class="bg-gray-200">
+                <tr>
+                  <th class="px-3 py-2 border text-left">Tool</th>
+                  <th class="px-3 py-2 border text-left">Purpose</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td class="px-3 py-2 border font-mono text-xs sm:text-sm">kafka-topics.sh</td><td class="px-3 py-2 border">Create, list, describe, and delete topics.</td></tr>
+                <tr class="bg-gray-50"><td class="px-3 py-2 border font-mono text-xs sm:text-sm">kafka-console-producer.sh</td><td class="px-3 py-2 border">Send messages to a topic from the command line.</td></tr>
+                <tr><td class="px-3 py-2 border font-mono text-xs sm:text-sm">kafka-console-consumer.sh</td><td class="px-3 py-2 border">Read messages from a topic in real-time.</td></tr>
+                <tr class="bg-gray-50"><td class="px-3 py-2 border font-mono text-xs sm:text-sm">kafka-consumer-groups.sh</td><td class="px-3 py-2 border">Monitor consumer group offsets, lag, and reset offsets.</td></tr>
+                <tr><td class="px-3 py-2 border font-mono text-xs sm:text-sm">kafka-configs.sh</td><td class="px-3 py-2 border">Change or describe broker, topic, or client configurations.</td></tr>
+                <tr class="bg-gray-50"><td class="px-3 py-2 border font-mono text-xs sm:text-sm">kafka-acls.sh</td><td class="px-3 py-2 border">Manage access control for topics and clusters.</td></tr>
+                <tr><td class="px-3 py-2 border font-mono text-xs sm:text-sm">kafka-broker-api-versions.sh</td><td class="px-3 py-2 border">Check broker-supported API versions.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="text-gray-700 text-sm sm:text-base mt-3"><strong>Use case:</strong> Quick testing, debugging, or ad-hoc management of Kafka topics and consumers.</p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">2️⃣ Monitoring &amp; Management Tools</h3>
+          <div class="overflow-x-auto">
+            <table class="min-w-[560px] w-full text-sm border border-gray-200 text-gray-700 rounded-lg overflow-hidden">
+              <thead class="bg-gray-200">
+                <tr>
+                  <th class="px-3 py-2 border text-left">Tool</th>
+                  <th class="px-3 py-2 border text-left">Purpose</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td class="px-3 py-2 border">Confluent Control Center</td><td class="px-3 py-2 border">GUI to monitor clusters, topics, consumer lag, and throughput.</td></tr>
+                <tr class="bg-gray-50"><td class="px-3 py-2 border">Kafka Manager (Yahoo)</td><td class="px-3 py-2 border">Cluster monitoring, topic and partition management, broker health checks.</td></tr>
+                <tr><td class="px-3 py-2 border">CMAK (Cluster Manager for Apache Kafka)</td><td class="px-3 py-2 border">Open-source tool to monitor and manage multiple Kafka clusters.</td></tr>
+                <tr class="bg-gray-50"><td class="px-3 py-2 border">Prometheus + Grafana</td><td class="px-3 py-2 border">Metrics collection and visualization using JMX metrics from brokers and consumers.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="text-gray-700 text-sm sm:text-base mt-3"><strong>Use case:</strong> Real-time monitoring, alerting, and capacity planning.</p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">3️⃣ Data Integration Tools</h3>
+          <div class="overflow-x-auto">
+            <table class="min-w-[560px] w-full text-sm border border-gray-200 text-gray-700 rounded-lg overflow-hidden">
+              <thead class="bg-gray-200">
+                <tr>
+                  <th class="px-3 py-2 border text-left">Tool</th>
+                  <th class="px-3 py-2 border text-left">Purpose</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td class="px-3 py-2 border">Kafka Connect</td><td class="px-3 py-2 border">Scalable ETL framework to move data in/out of Kafka (databases, files, cloud systems).</td></tr>
+                <tr class="bg-gray-50"><td class="px-3 py-2 border">Debezium</td><td class="px-3 py-2 border">Change Data Capture (CDC) tool that streams database changes to Kafka.</td></tr>
+                <tr><td class="px-3 py-2 border">MirrorMaker 2</td><td class="px-3 py-2 border">Replicate topics across Kafka clusters for geo-redundancy.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="text-gray-700 text-sm sm:text-base mt-3"><strong>Use case:</strong> Integrating Kafka with other systems, replicating data, or streaming database changes.</p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6 mb-5">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">4️⃣ Stream Processing &amp; Analytics Tools</h3>
+          <div class="overflow-x-auto">
+            <table class="min-w-[560px] w-full text-sm border border-gray-200 text-gray-700 rounded-lg overflow-hidden">
+              <thead class="bg-gray-200">
+                <tr>
+                  <th class="px-3 py-2 border text-left">Tool</th>
+                  <th class="px-3 py-2 border text-left">Purpose</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td class="px-3 py-2 border">Kafka Streams</td><td class="px-3 py-2 border">Java library for real-time stream processing inside the application.</td></tr>
+                <tr class="bg-gray-50"><td class="px-3 py-2 border">ksqlDB</td><td class="px-3 py-2 border">SQL-like interface for real-time Kafka stream processing.</td></tr>
+                <tr><td class="px-3 py-2 border">Flink / Spark Structured Streaming</td><td class="px-3 py-2 border">Advanced real-time analytics on Kafka streams.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="text-gray-700 text-sm sm:text-base mt-3"><strong>Use case:</strong> Real-time transformation, aggregation, or analytics on event streams.</p>
+        </section>
+
+        <section class="bg-white rounded-2xl shadow-sm p-5 sm:p-6">
+          <h3 class="text-lg sm:text-xl font-semibold text-gray-800 mb-3">5️⃣ Debugging &amp; Testing Tools</h3>
+          <div class="overflow-x-auto">
+            <table class="min-w-[560px] w-full text-sm border border-gray-200 text-gray-700 rounded-lg overflow-hidden">
+              <thead class="bg-gray-200">
+                <tr>
+                  <th class="px-3 py-2 border text-left">Tool</th>
+                  <th class="px-3 py-2 border text-left">Purpose</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td class="px-3 py-2 border">Kafka Tool</td><td class="px-3 py-2 border">GUI to browse topics, partitions, and messages.</td></tr>
+                <tr class="bg-gray-50"><td class="px-3 py-2 border">AKHQ</td><td class="px-3 py-2 border">Web UI for Kafka to inspect topics, consumer groups, and schema registry.</td></tr>
+                <tr><td class="px-3 py-2 border">Schema Registry</td><td class="px-3 py-2 border">Centralized storage and management of Avro/Protobuf/JSON schemas.</td></tr>
+                <tr class="bg-gray-50"><td class="px-3 py-2 border">Kafka JConsole / JMX</td><td class="px-3 py-2 border">Monitor internal broker metrics, memory, and thread usage.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="text-gray-700 text-sm sm:text-base mt-3"><strong>Use case:</strong> Inspecting messages, schema validation, troubleshooting lag, and latency issues.</p>
+        </section>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- ===== Mobile Navigation Script ===== -->
+  <script>
+    (function () {
+      var sidebar = document.getElementById('sidebar');
+      var overlay = document.getElementById('overlay');
+      var menuBtn = document.getElementById('menuBtn');
+      var closeBtn = document.getElementById('closeBtn');
+
+      function openMenu() {
+        sidebar.classList.remove('-translate-x-full');
+        overlay.classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+      }
+
+      function closeMenu() {
+        sidebar.classList.add('-translate-x-full');
+        overlay.classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
+      }
+
+      menuBtn.addEventListener('click', function () {
+        if (sidebar.classList.contains('-translate-x-full')) { openMenu(); }
+        else { closeMenu(); }
+      });
+
+      closeBtn.addEventListener('click', closeMenu);
+      overlay.addEventListener('click', closeMenu);
+
+      sidebar.querySelectorAll('a').forEach(function (link) {
+        link.addEventListener('click', function () {
+          if (window.innerWidth < 1024) { closeMenu(); }
+        });
+      });
+
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') { closeMenu(); }
+      });
+
+      window.addEventListener('resize', function () {
+        if (window.innerWidth >= 1024) {
+          overlay.classList.add('hidden');
+          document.body.classList.remove('overflow-hidden');
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
