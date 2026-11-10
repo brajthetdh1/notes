@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Apache Kafka Mock Test — 100 MCQs</title>
+<style>
+  :root{
+    --brand:#312e81;
+    --brand-dark:#1e1b4b;
+    --accent:#6366f1;
+    --ok:#10b981;
+    --bad:#ef4444;
+    --warn:#f59e0b;
+    --bg:#eef2f7;
+    --card:#ffffff;
+    --line:#d8e0ea;
+    --text:#1c2733;
+    --muted:#64748b;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--text);line-height:1.55;
+    -webkit-text-size-adjust:100%;
+  }
+  header.topbar{
+    position:sticky;top:0;z-index:30;display:flex;align-items:center;justify-content:space-between;
+    gap:10px;padding:12px 16px;background:var(--brand);color:#fff;
+    box-shadow:0 2px 10px rgba(0,0,0,.18);
+  }
+  .brand{font-weight:700;font-size:1rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .pill{background:rgba(255,255,255,.2);padding:2px 9px;border-radius:99px;font-size:.7rem;font-weight:600;white-space:nowrap}
+  .timer{
+    font-variant-numeric:tabular-nums;font-weight:700;font-size:1rem;
+    background:rgba(255,255,255,.16);padding:6px 13px;border-radius:10px;white-space:nowrap;
+  }
+  .timer.low{background:#dc2626;animation:pulse 1s infinite}
+  @keyframes pulse{50%{opacity:.6}}
+
+  .layout{display:grid;grid-template-columns:250px 1fr;gap:18px;max-width:1240px;margin:18px auto;padding:0 14px 70px}
+  @media (max-width:900px){ .layout{grid-template-columns:1fr} }
+
+  /* ---------- palette ---------- */
+  aside.palette{
+    background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;
+    height:fit-content;position:sticky;top:74px;
+  }
+  @media (max-width:900px){ aside.palette{position:static} }
+  .palette-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-weight:700;font-size:.9rem;margin-bottom:8px}
+  .legend{display:flex;flex-wrap:wrap;gap:8px;font-size:.7rem;color:var(--muted);margin-bottom:10px}
+  .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:4px;vertical-align:-1px;border:1px solid var(--line)}
+  .lg-ans{background:#d1fae5;border-color:#10b981!important}
+  .lg-mark{background:#fef3c7;border-color:#f59e0b!important}
+  .lg-cur{background:var(--brand)}
+  .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;max-height:430px;overflow:auto;padding-right:4px}
+  .pbtn{
+    border:1px solid var(--line);background:#f8fafc;color:var(--text);border-radius:8px;
+    padding:7px 0;font-size:.76rem;font-weight:600;cursor:pointer;transition:.12s;
+  }
+  .pbtn:hover{transform:translateY(-1px);border-color:var(--brand)}
+  .pbtn.seen{background:#eef2ff;border-color:#c7d2fe}
+  .pbtn.answered{background:#d1fae5;border-color:#10b981}
+  .pbtn.marked{background:#fef3c7;border-color:#f59e0b}
+  .pbtn.current{background:var(--brand);color:#fff;border-color:var(--brand);box-shadow:0 0 0 2px rgba(49,46,129,.3)}
+
+  /* ---------- main ---------- */
+  .progressbar{height:8px;background:#dbe3ec;border-radius:99px;overflow:hidden;margin-bottom:14px}
+  .progressbar > div{height:100%;width:0;background:linear-gradient(90deg,var(--brand),var(--accent));transition:width .25s}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;box-shadow:0 2px 10px rgba(16,40,70,.05)}
+  @media (max-width:520px){ .card{padding:16px} }
+  .qhead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+  .qnum{font-size:.76rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--brand)}
+  .marktag{font-size:.7rem;font-weight:700;background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:99px;border:1px solid #fbbf24}
+  .qtext{font-size:1.04rem;font-weight:600;margin:0 0 18px}
+  @media (max-width:520px){ .qtext{font-size:.98rem} }
+
+  .options{display:grid;gap:10px}
+  .option{
+    display:flex;align-items:flex-start;gap:12px;text-align:left;width:100%;
+    background:#f8fafc;border:1.5px solid var(--line);border-radius:11px;padding:13px 15px;
+    cursor:pointer;font:inherit;color:inherit;transition:.14s;
+  }
+  .option:hover{border-color:var(--brand);background:#f5f5ff}
+  .option .key{
+    flex:0 0 26px;height:26px;display:grid;place-items:center;border-radius:7px;
+    background:#e2e8f0;font-weight:700;font-size:.8rem;color:#334155;
+  }
+  .option .otext{flex:1;font-size:.95rem}
+  .option.selected{border-color:var(--brand);background:#e8e8fb}
+  .option.selected .key{background:var(--brand);color:#fff}
+  .option.correct{border-color:var(--ok);background:#ecfdf5}
+  .option.correct .key{background:var(--ok);color:#fff}
+  .option.wrong{border-color:var(--bad);background:#fef2f2}
+  .option.wrong .key{background:var(--bad);color:#fff}
+  .option.locked{cursor:default}
+  .option.locked:hover{border-color:var(--line);background:#f8fafc}
+
+  .explain{margin-top:18px;border-left:4px solid var(--ok);background:#f0fdf4;border-radius:0 11px 11px 0;padding:14px 16px;font-size:.92rem}
+  .explain-title{font-weight:700;color:#166534;margin-bottom:6px}
+
+  .controls{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+  .btn{
+    border:1.5px solid transparent;border-radius:10px;padding:10px 16px;font:inherit;font-weight:600;
+    font-size:.88rem;cursor:pointer;transition:.14s;
+  }
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn.primary{background:var(--brand);color:#fff}
+  .btn.primary:hover:not(:disabled){background:var(--brand-dark)}
+  .btn.ghost{background:#fff;border-color:var(--line);color:var(--text)}
+  .btn.ghost:hover{border-color:var(--brand);color:var(--brand)}
+  .btn.warn{background:#fff7ed;border-color:#fdba74;color:#b45309}
+  .btn.warn:hover{background:#ffedd5}
+  .btn.danger{background:#fef2f2;border-color:#fca5a5;color:#b91c1c;margin-left:auto}
+  .btn.danger:hover{background:#fee2e2}
+  @media (max-width:520px){ .btn.danger{margin-left:0;width:100%} }
+  .hint{margin-top:12px;font-size:.75rem;color:var(--muted)}
+  @media (max-width:640px){ .hint{display:none} }
+
+  /* ---------- results ---------- */
+  .scorecard{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px;text-align:center;margin-bottom:18px}
+  .scorecard h2{margin:0 0 4px}
+  .bignum{font-size:3rem;font-weight:800;color:var(--brand);line-height:1.1}
+  .stats{display:flex;justify-content:center;gap:24px;flex-wrap:wrap;margin-top:16px;font-size:.9rem}
+  .stats b{display:block;font-size:1.3rem}
+  .st-ok b{color:var(--ok)} .st-bad b{color:var(--bad)} .st-skip b{color:var(--muted)}
+
+  .filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .fbtn{border:1.5px solid var(--line);background:#fff;border-radius:99px;padding:7px 15px;font:inherit;font-size:.8rem;font-weight:600;cursor:pointer;color:var(--text)}
+  .fbtn.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+
+  .revitem{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--line);border-radius:11px;padding:16px 18px;margin-bottom:12px}
+  .revitem.ok{border-left-color:var(--ok)}
+  .revitem.bad{border-left-color:var(--bad)}
+  .revitem.skip{border-left-color:#94a3b8}
+  .revq{font-weight:600;margin:0 0 10px;font-size:.95rem}
+  .revline{font-size:.86rem;margin:3px 0}
+  .revline .lbl{color:var(--muted);font-weight:600;display:inline-block;min-width:108px}
+  .revexp{margin-top:10px;font-size:.85rem;background:#f8fafc;border-radius:8px;padding:10px 12px;color:#334155}
+  .tagbad{color:var(--bad);font-weight:700}
+  .tagok{color:var(--ok);font-weight:700}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">📨 Apache Kafka Mock Test <span class="pill" id="qcountPill">100 Questions</span></div>
+  <div class="timer" id="timer">120:00</div>
+</header>
+
+<div class="layout">
+  <aside class="palette" id="palette">
+    <div class="palette-head">
+      <span>Question Palette</span>
+      <button class="fbtn" id="togglePalette" style="padding:3px 10px;font-size:.72rem">Hide</button>
+    </div>
+    <div class="legend" id="legend">
+      <span><i class="lg-cur"></i>Current</span>
+      <span><i class="lg-ans"></i>Answered</span>
+      <span><i class="lg-mark"></i>Marked</span>
+      <span><i></i>Not visited</span>
+    </div>
+    <div class="grid" id="pgrid"></div>
+  </aside>
+
+  <main class="main">
+    <div id="quizView">
+      <div class="progressbar"><div id="pbar"></div></div>
+      <div class="card">
+        <div class="qhead">
+          <span class="qnum" id="qnum">Question 1 of 100</span>
+          <span class="marktag" id="markTag" hidden>★ Marked for review</span>
+        </div>
+        <p class="qtext" id="qtext"></p>
+        <div class="options" id="options"></div>
+        <div class="explain" id="explainBox" hidden>
+          <div class="explain-title" id="explainTitle"></div>
+          <div class="explain-body" id="explainText"></div>
+        </div>
+      </div>
+      <div class="controls">
+        <button class="btn ghost" id="btnPrev">← Previous</button>
+        <button class="btn ghost" id="btnMark">★ Mark for Review</button>
+        <button class="btn warn"  id="btnShow">👁 Show Answer</button>
+        <button class="btn primary" id="btnNext">Next →</button>
+        <button class="btn danger" id="btnSubmit">Submit Test</button>
+      </div>
+      <div class="hint">Keyboard: <b>1–4</b> select option · <b>← →</b> navigate · <b>R</b> mark for review · <b>S</b> show answer</div>
+    </div>
+
+    <div id="resultView" hidden></div>
+  </main>
+</div>
+
+<script>
+/* ============================================================
+   QUESTION BANK — 100 Apache Kafka MCQs
+   o = options, a = index of correct option, e = explanation
+   ============================================================ */
+const QS = [
+/* ---------- 1–16 : Fundamentals & architecture ---------- */
+{q:"What is Apache Kafka best described as?",
+ o:["A relational database","A distributed event streaming platform","A full-text search engine","A container orchestrator"],a:1,
+ e:"Kafka is a distributed, partitioned and replicated commit log used to publish, store and process streams of records in real time. It is not a database or a search engine — it is the transport and storage layer for events."},
+
+{q:"What is a Kafka broker?",
+ o:["A client library bundled with the producer","A server process that stores records and serves producers and consumers","A ZooKeeper node","A schema registry instance"],a:1,
+ e:"A broker is one Kafka server process. A cluster is a set of brokers. Each broker owns a set of partition replicas, and clients (producers/consumers) connect directly to brokers."},
+
+{q:"What is a topic in Kafka?",
+ o:["A logical category or feed name to which records are published","A physical disk volume","A consumer group","A broker identifier"],a:0,
+ e:"A topic is a named, logical stream of records (e.g. orders, clicks, payments). Physically a topic is split into partitions distributed across brokers."},
+
+{q:"What is a partition?",
+ o:["A backup copy of a broker","An ordered, immutable sequence of records that keeps growing on disk","A consumer thread","A network port"],a:1,
+ e:"Partitions provide parallelism and ordering: records are appended sequentially and each record gets a monotonically increasing offset. A topic is split into one or more partitions."},
+
+{q:"What is the broker default for num.partitions when a topic is auto-created?",
+ o:["1","3","6","12"],a:0,
+ e:"The broker default num.partitions is 1. Production topics normally set the partition count explicitly at creation time, since increasing partitions later breaks key-to-partition mapping."},
+
+{q:"By default, what does the producer's record key determine?",
+ o:["The retention period","The target partition, computed as hash(key) % numPartitions","The compression codec","The consumer group"],a:1,
+ e:"The default partitioner hashes the key and maps it to a partition. The same key always lands in the same partition, which is what preserves per-key ordering."},
+
+{q:"If a record has a null key, how does the modern default partitioner behave?",
+ o:["It always writes to partition 0","It uses a sticky partitioner that batches to one partition, then moves to another","It writes a random partition per record with no batching","It throws an exception"],a:1,
+ e:"Since KIP-480 the default is the sticky partitioner: a batch goes to one partition until it fills, then switches. Null keys therefore give no ordering guarantee across records."},
+
+{q:"Within a single consumer group, what is guaranteed per partition?",
+ o:["Every consumer reads every partition","Exactly one consumer is assigned each partition at a time","Two consumers can share one partition","No partition is assigned"],a:1,
+ e:"Kafka assigns each partition to exactly one consumer in the group at any moment. This is how parallel consumption scales while avoiding duplicate processing within a group."},
+
+{q:"What is an offset?",
+ o:["A monotonically increasing identifier of a record inside a partition","The broker id","The byte size of a message","The number of partitions in a topic"],a:0,
+ e:"Offsets are sequential per partition and never reused. Consumers track their position by committing offsets."},
+
+{q:"Can two different consumer groups read the same topic independently?",
+ o:["No, only one group may read a topic","Yes — each group maintains its own committed offsets","Only when acks=all","Only for compacted topics"],a:1,
+ e:"Consumer groups are isolated: each has its own offsets in __consumer_offsets, so a group can replay or re-process independently of other groups."},
+
+{q:"What was ZooKeeper's role in legacy Kafka clusters?",
+ o:["It stored the actual messages","It stored cluster metadata and elected the controller broker","It compressed log segments","It served consumer fetch requests"],a:1,
+ e:"ZooKeeper held topics, partitions, ACLs and broker liveness (via ephemeral znodes), and elected the controller. Clients never talked to ZooKeeper directly."},
+
+{q:"Which Kafka release made KRaft (ZooKeeper-less) production ready?",
+ o:["0.10","2.0","3.3","4.0"],a:2,
+ e:"KRaft became production-ready in Kafka 3.3 (KIP-500). ZooKeeper support was then deprecated and removed entirely in Kafka 4.0."},
+
+{q:"What is the default log retention in Kafka?",
+ o:["24 hours","7 days (168 hours)","30 days","Forever"],a:1,
+ e:"log.retention.hours defaults to 168 hours (7 days). You can also cap retention by bytes with log.retention.bytes; whichever limit is hit first triggers deletion."},
+
+{q:"Which field is NOT part of a Kafka record?",
+ o:["Key","Value","Timestamp","Row id"],a:3,
+ e:"A record consists of a key, value, timestamp and optional headers. There is no auto-generated row id — offsets are assigned by the partition, not the record."},
+
+{q:"Which of these is NOT a core Kafka API?",
+ o:["Producer API","Consumer API","Streams API","JDBC API"],a:3,
+ e:"The core APIs are Producer, Consumer, Streams, Connect and Admin. JDBC is a Java database API, not a Kafka API (though Kafka Connect has JDBC connectors)."},
+
+{q:"What does the Admin API let you do?",
+ o:["Programmatically manage topics, partitions, configs and ACLs","Read records from a topic","Write records to a topic","Compress log segments"],a:0,
+ e:"AdminClient exposes createTopics, deleteTopics, createPartitions, describeConfigs, createAcls and more — useful for automation instead of shelling out to CLI tools."},
+
+/* ---------- 17–35 : Producers, consumers, topics ---------- */
+{q:"What does acks=0 mean for a producer?",
+ o:["The producer does not wait for any acknowledgement from the broker","Only the leader acknowledges","All ISR members must acknowledge","The producer waits exactly one second"],a:0,
+ e:"acks=0 fires and forgets — maximum throughput, but records can be silently lost if the broker is unavailable or the leader fails."},
+
+{q:"What does acks=1 mean?",
+ o:["The producer waits for all replicas","The leader writes to its log and acknowledges without waiting for followers","The producer never acknowledges","The broker acknowledges after log compaction"],a:1,
+ e:"acks=1 is the classic throughput/durability compromise: fast, but records can be lost if the leader dies before followers replicate."},
+
+{q:"Which acks value gives the strongest durability?",
+ o:["0","1","all (or -1)","2"],a:2,
+ e:"acks=all (-1) waits for all in-sync replicas. Combined with min.insync.replicas >= 2 it provides the strongest durability guarantee."},
+
+{q:"What does linger.ms control?",
+ o:["How long the producer waits to accumulate a batch before sending","How long the broker retains records","The consumer poll timeout","The maximum replication lag"],a:0,
+ e:"linger.ms trades a little latency for much larger batches and fewer requests. Raising it from 0 to 5–50 ms often improves throughput significantly."},
+
+{q:"What does batch.size control?",
+ o:["The maximum bytes a batch can reach before it is sent","The number of partitions per topic","The broker socket buffer size","The number of consumer threads"],a:0,
+ e:"batch.size is a per-partition byte cap. Once reached (or linger.ms expires) the batch is sent. Default is 16384 bytes; 64–256 KB is common for high-throughput producers."},
+
+{q:"Which compression codec is NOT supported by Kafka producers?",
+ o:["gzip","snappy","lz4","brotli"],a:3,
+ e:"compression.type accepts none, gzip, snappy, lz4 and zstd. Brotli is a web compression algorithm and is not a Kafka producer codec."},
+
+{q:"What does enable.idempotence=true guarantee?",
+ o:["Exactly-once delivery across all topics","No duplicate records caused by producer retries for a given partition","Automatic compression","Ordering across partitions"],a:1,
+ e:"The idempotent producer attaches a producer id and sequence number so the broker can drop duplicates from retries. It also implies acks=all and preserves ordering."},
+
+{q:"What is a consumer group rebalance?",
+ o:["Reassigning partitions among the consumers of a group","Rebalancing disk usage across brokers","Changing a topic's replication factor","Restarting a broker"],a:0,
+ e:"A rebalance redistributes partition ownership when group membership or subscriptions change. Consumption pauses briefly during the process."},
+
+{q:"Which does NOT normally trigger a consumer group rebalance?",
+ o:["A consumer joining the group","A consumer crashing or leaving","A partition being added to a subscribed topic","A producer increasing batch.size"],a:3,
+ e:"Producer configuration has no effect on consumer group membership. Joins, leaves, subscription changes and topic/partition changes are what trigger rebalances."},
+
+{q:"What does max.poll.records control?",
+ o:["The maximum number of records returned by a single poll() call","The number of records stored per log segment","The number of records per producer batch","The number of records per transaction"],a:0,
+ e:"Lowering max.poll.records makes each poll cheaper and helps avoid exceeding max.poll.interval.ms during heavy processing."},
+
+{q:"If processing takes longer than max.poll.interval.ms, what happens?",
+ o:["The consumer is considered failed and the group rebalances","The broker deletes the pending records","The producer retries the records","Nothing at all"],a:0,
+ e:"The consumer is evicted from the group and its partitions go to another consumer, causing duplicates or out-of-order processing. Increase the interval or reduce max.poll.records."},
+
+{q:"What does session.timeout.ms control in the classic consumer protocol?",
+ o:["How long the broker waits for heartbeats before declaring a consumer dead","How long records live on disk","How long a transaction may stay open","How long a producer waits for acks"],a:0,
+ e:"Heartbeats are sent by a background thread. If none arrive within session.timeout.ms the coordinator removes the consumer and triggers a rebalance."},
+
+{q:"When does auto.offset.reset=earliest apply?",
+ o:["Only when the consumer group has no valid committed offset","Every time a consumer starts up","When the broker restarts","When retention expires"],a:0,
+ e:"It is a fallback, not a policy: it kicks in when the committed offset is missing or out of range. Otherwise the group resumes from its committed offsets."},
+
+{q:"What does auto.offset.reset=latest mean?",
+ o:["Start from the beginning of the partition","Start from the end — only records produced after the consumer starts are read","Start from offset 0","Skip every record"],a:1,
+ e:"latest is the client default. It is dangerous for new consumer groups on active topics, because everything produced before the group started is skipped."},
+
+{q:"Where are committed consumer offsets stored in modern Kafka?",
+ o:["ZooKeeper znodes","The internal __consumer_offsets topic","A broker properties file","The producer's local disk"],a:1,
+ e:"__consumer_offsets is a compacted internal topic. Storing offsets in Kafka removed the ZooKeeper dependency and scales far better for many groups."},
+
+{q:"What is the difference between commitSync() and commitAsync()?",
+ o:["Both behave identically","commitSync blocks until the broker acknowledges; commitAsync does not block","commitAsync is transactional","commitSync never persists the offset"],a:1,
+ e:"commitSync is reliable but slower and must be retried on failure. commitAsync is faster but can silently fail — typically used inside a poll loop with a final commitSync on shutdown."},
+
+{q:"What does group.id identify?",
+ o:["The consumer group whose offsets and partition assignments are tracked together","The topic being consumed","The broker serving the request","The producer session"],a:0,
+ e:"group.id is the namespace for group membership and committed offsets. Changing it effectively starts a brand-new consumer group."},
+
+{q:"What is the purpose of a partitioner?",
+ o:["To choose which partition a record is written to","To compress records before sending","To replicate records to followers","To commit consumer offsets"],a:0,
+ e:"The partitioner implements the assignment strategy — key hashing, sticky/round-robin for null keys, or a custom class set via partitioner.class."},
+
+{q:"What happens when retries are exhausted and delivery.timeout.ms elapses?",
+ o:["The record is silently dropped by the broker","The producer fails the send and reports the error to the application","The record is written to a different topic","The record is stored in ZooKeeper"],a:1,
+ e:"delivery.timeout.ms bounds the total time (including retries) a record may take. When it expires the send fails and the callback receives an exception — the application must handle it."},
+
+/* ---------- 36–50 : Replication & ISR ---------- */
+{q:"What is the replication factor?",
+ o:["The number of copies of each partition spread across brokers","The number of consumers in a group","The number of topics in a cluster","The number of partitions in a topic"],a:0,
+ e:"replication.factor=3 means three copies of every partition on three different brokers. It is the primary defence against broker failure."},
+
+{q:"What is the ISR?",
+ o:["The set of replicas fully caught up with the leader","The set of offline brokers","The list of active consumers","The internal topics in a cluster"],a:0,
+ e:"In-Sync Replicas includes the leader plus every follower within replica.lag.time.max.ms of the leader. Only ISR members can acknowledge acks=all writes or be elected leader."},
+
+{q:"What does min.insync.replicas define?",
+ o:["The minimum number of in-sync replicas required to acknowledge an acks=all write","The minimum replication factor allowed","The number of controllers in a quorum","The minimum partition count"],a:0,
+ e:"If ISR < min.insync.replicas the broker rejects the write with NotEnoughReplicasException rather than accept data that is not safely replicated."},
+
+{q:"With acks=all and ISR below min.insync.replicas, what happens?",
+ o:["The write succeeds anyway","The broker rejects the write with NotEnoughReplicasException","The producer silently falls back to acks=0","The topic is deleted"],a:1,
+ e:"This is Kafka choosing durability over availability for that partition. Fix it by restoring brokers, adding capacity, or (carefully) lowering min.insync.replicas."},
+
+{q:"Which replica handles all reads and writes for a partition?",
+ o:["The leader","Any follower","The controller","The replica with the most free disk"],a:0,
+ e:"Clients only read from and write to the leader. Followers replicate passively; consumers can optionally read from followers only in newer, opt-in configurations."},
+
+{q:"What is the leader's High Watermark?",
+ o:["The offset up to which all ISR members have replicated; consumers can only read up to it","The disk usage of the leader","The number of log segments","The largest record size"],a:0,
+ e:"The high watermark separates committed from uncommitted data. A consumer never sees records beyond it, which is what prevents exposing data that could be lost on a leader change."},
+
+{q:"What is the Log End Offset (LEO)?",
+ o:["The offset of the next record that will be appended to the log","The offset the consumer last read","The high watermark","The first offset still in the log"],a:0,
+ e:"LEO = last written offset + 1. Replication lag is essentially the difference between the leader's LEO and a follower's LEO."},
+
+{q:"What is unclean leader election?",
+ o:["Promoting an out-of-sync replica to leader, which risks silent data loss","Electing a leader via ZooKeeper","Electing a controller broker","Rolling back a committed transaction"],a:0,
+ e:"Enabled by unclean.leader.election.enable=true, it trades durability for availability: the partition comes back but records that only the old leader had are lost."},
+
+{q:"What does replica.lag.time.max.ms control?",
+ o:["How long a follower may lag before it is removed from the ISR","How long a consumer may go between polls","How long records are retained","The producer's retry backoff"],a:0,
+ e:"A follower that has not caught up within this window is dropped from the ISR. It rejoins automatically once it catches up to the leader's log."},
+
+{q:"What is an under-replicated partition?",
+ o:["A partition whose ISR is smaller than its replication factor","A partition with no leader","A partition with no consumers","A partition with a single log segment"],a:0,
+ e:"Under-replicated partitions mean durability is temporarily reduced. Monitor this metric closely — a rising count usually precedes outages."},
+
+{q:"What is the preferred leader?",
+ o:["The first replica in the partition's replica assignment list","The newest replica added to the cluster","The replica holding the most data","A randomly chosen replica"],a:0,
+ e:"Kafka tries to make the preferred leader the actual leader for balanced load. If it is not, auto.leader.rebalance.enable or kafka-leader-election.sh can restore it."},
+
+{q:"Which setting enables unclean leader election?",
+ o:["unclean.leader.election.enable=true","auto.leader.rebalance.enable=true","min.insync.replicas=0","acks=0"],a:0,
+ e:"It is disabled by default in production-safe configurations. Enabling it can restore availability at the cost of losing acknowledged-looking data."},
+
+{q:"What happens when the broker hosting a partition leader fails?",
+ o:["The controller elects a new leader from the ISR","Consumers keep reading from the dead broker","The partition is deleted","Every producer must be restarted"],a:0,
+ e:"Failover is automatic: the controller picks an in-sync replica, updates metadata and notifies clients, which refresh their metadata and reconnect."},
+
+{q:"In legacy Kafka, who elects the controller broker?",
+ o:["ZooKeeper","The producer","The group coordinator","An external load balancer"],a:0,
+ e:"ZooKeeper elected the controller via an ephemeral znode. In KRaft, the controller quorum elects a controller leader using Raft."},
+
+{q:"What is a partition reassignment used for?",
+ o:["Moving replicas between brokers to rebalance disk, CPU or network load","Renaming a topic","Deleting old records","Changing a consumer group id"],a:0,
+ e:"kafka-reassign-partitions.sh moves replicas while keeping the replication factor. It is essential when adding brokers or after a broker has been offline for a long time."},
+
+/* ---------- 51–65 : Delivery semantics, transactions, ordering ---------- */
+{q:"What is at-most-once delivery?",
+ o:["Offsets are committed before processing, so a crash can lose messages","Messages are never lost","Messages are delivered at least once","Messages are delivered exactly once"],a:0,
+ e:"Commit first, process second: a crash between the two means the message is skipped. Fast but lossy."},
+
+{q:"What is at-least-once delivery?",
+ o:["Offsets are committed after processing, so a crash can cause reprocessing","Messages are never duplicated","Messages may be lost","Messages are exactly once"],a:0,
+ e:"Process first, commit second. This is Kafka's default behaviour, which is why idempotent consumer logic is strongly recommended."},
+
+{q:"Which Kafka Streams setting gives exactly-once processing?",
+ o:["processing.guarantee=exactly_once_v2","acks=1","enable.auto.commit=true","enable.idempotence=false"],a:0,
+ e:"exactly_once_v2 (the modern replacement for exactly_once) combines idempotent producers with transactions and atomic offset commits across the whole Streams topology."},
+
+{q:"What does a transactional.id do?",
+ o:["Enables transactions and fences out zombie producer instances with the same id","Sets the consumer group id","Sets the target topic","Configures the replication factor"],a:0,
+ e:"The transaction coordinator uses transactional.id to associate an epoch with a producer. An older instance with the same id is fenced off so it cannot commit stale data."},
+
+{q:"What does sendOffsetsToTransaction() do?",
+ o:["Commits consumer offsets atomically together with the produced records","Rolls back an open transaction","Resets the consumer group offsets","Deletes offsets from __consumer_offsets"],a:0,
+ e:"This is the heart of consume-transform-produce exactly-once: the output records and the input offsets become one atomic unit."},
+
+{q:"With isolation.level=read_committed, what does a consumer see?",
+ o:["Only records from committed transactions (plus non-transactional records up to the high watermark)","All records, including aborted ones","No records at all","Only aborted records"],a:0,
+ e:"read_committed filters out records from aborted transactions and anything beyond the Last Stable Offset, so consumers never see rolled-back data."},
+
+{q:"Which isolation level can expose aborted transactional records?",
+ o:["read_uncommitted","read_committed","SERIALIZABLE","REPEATABLE READ"],a:0,
+ e:"read_uncommitted is the consumer default and returns everything written, including records from transactions that were later aborted."},
+
+{q:"Kafka guarantees record ordering…",
+ o:["Within a single partition","Across the whole topic","Across all topics in a cluster","Across replicated clusters"],a:0,
+ e:"Ordering is per partition only. Different partitions of the same topic have no ordering relationship, which is why partitioning strategy matters for ordered processing."},
+
+{q:"How do you preserve ordering for a given entity?",
+ o:["Use the entity id as the record key so all its records land in the same partition","Set acks=0","Increase the partition count","Disable idempotence"],a:0,
+ e:"Keying by entity id (user id, order id) pins all its records to one partition, and one partition is always consumed by exactly one consumer per group."},
+
+{q:"Which combination can break record ordering?",
+ o:["Retries without idempotence, or spreading one key across partitions","Using a single partition","Enabling idempotence","Enabling compression"],a:0,
+ e:"Without idempotence, a failed batch that is retried can be reordered relative to later batches. Idempotence (with max.in.flight <= 5) fixes this."},
+
+{q:"What is the default value of max.in.flight.requests.per.connection?",
+ o:["1","5","10","100"],a:1,
+ e:"The default is 5. With idempotence enabled, up to 5 in-flight requests are safe and ordering is preserved; without idempotence, anything above 1 can reorder records on retry."},
+
+{q:"In KRaft mode, what provides consensus over cluster metadata?",
+ o:["The Raft protocol among controllers","ZooKeeper's ZAB protocol","Paxos among brokers","A single controller node with no consensus"],a:0,
+ e:"Controllers replicate a metadata log using Raft. A majority must acknowledge a change before it is committed, giving consistency without ZooKeeper."},
+
+{q:"What does the KRaft controller quorum manage?",
+ o:["Cluster metadata, broker registration and leader election","Message storage on disk","Consumer offsets only","Schema versions"],a:0,
+ e:"Controllers handle metadata and leadership, while brokers store and serve data. A node can take both roles via process.roles=broker,controller."},
+
+{q:"What is a zombie producer?",
+ o:["An older producer instance fenced off by a newer one using the same transactional.id","A broker with no leader","A consumer that stopped polling","A topic with zero partitions"],a:0,
+ e:"Fencing raises a ProducerFencedException in the old instance, preventing it from committing work after a replacement has taken over."},
+
+{q:"Enabling idempotence implicitly sets which configuration?",
+ o:["acks=all, retries>0 and max.in.flight <= 5","acks=0","enable.auto.commit=true","compression.type=none"],a:0,
+ e:"If you enable idempotence while setting a conflicting value (e.g. acks=1), the producer raises a ConfigException at startup."},
+
+/* ---------- 66–85 : Operations, admin, monitoring ---------- */
+{q:"Which tool creates a topic from the command line?",
+ o:["kafka-topics.sh --create","kafka-console-producer.sh","kafka-consumer-groups.sh","kafka-storage.sh"],a:0,
+ e:"kafka-topics.sh --create --topic orders --partitions 3 --replication-factor 3 --bootstrap-server host:9092. Also usable: --alter to change configs and --delete to remove."},
+
+{q:"How do you check consumer lag for a specific group?",
+ o:["kafka-consumer-groups.sh --describe --group <name>","kafka-topics.sh --list","kafka-console-consumer.sh","kafka-acls.sh --list"],a:0,
+ e:"The output shows CURRENT-OFFSET, LOG-END-OFFSET and LAG per partition. A steadily growing LAG means consumers cannot keep up."},
+
+{q:"How is consumer lag calculated?",
+ o:["Log end offset minus the group's committed offset, summed across partitions","The number of partitions in the topic","The broker's disk usage","The number of consumer groups"],a:0,
+ e:"Per partition: lag = LEO - committed offset. The group's total lag is the sum over all assigned partitions."},
+
+{q:"Which is a common cause of rising consumer lag?",
+ o:["Slow message processing in the consumer","Adding more partitions","Enabling compression","Raising acks to all"],a:0,
+ e:"Slow processing, blocking I/O in the poll loop, uneven partition assignment and broker/network saturation are the usual suspects. Fix by parallelising work or scaling consumers."},
+
+{q:"What happens when a broker's disk fills up?",
+ o:["It stops accepting writes and its partitions can lose ISR","It automatically deletes old topics","It switches to in-memory storage","Nothing changes"],a:0,
+ e:"The broker refuses new writes, followers cannot replicate, ISR shrinks and acks=all producers start seeing NotEnoughReplicasException. Monitor disk and retention proactively."},
+
+{q:"What is a log segment?",
+ o:["A file containing a contiguous chunk of a partition's log, rolled by size or time","A consumer fetch batch","A broker process","A unit of replication"],a:0,
+ e:"Segments (default 1 GB, log.segment.bytes) are the unit of retention, compaction and deletion. Old segments are removed as a whole."},
+
+{q:"What does log.cleanup.policy=compact do?",
+ o:["Keeps at least the latest record per key and removes older versions","Deletes all records after one hour","Compresses every record with gzip","Truncates the topic on restart"],a:0,
+ e:"Compaction retains the latest value for each key indefinitely, which makes the topic usable as a changelog or materialised state store."},
+
+{q:"Where is log compaction most useful?",
+ o:["Changelog and state-restoration topics that only need the latest value per key","Audit topics that must keep every event","Topic metadata storage","Broker configuration storage"],a:0,
+ e:"Kafka Streams uses compacted changelog topics for state stores; the compacted topic lets a restarted instance rebuild state efficiently."},
+
+{q:"What is Kafka Connect used for?",
+ o:["Running scalable source and sink connectors that move data in and out of Kafka","Writing stream processing jobs","Managing schemas","Monitoring broker health"],a:0,
+ e:"Connect provides a managed runtime for connectors (databases, S3, Elasticsearch, HDFS…), handling offset tracking, rebalancing and fault tolerance."},
+
+{q:"What is MirrorMaker 2 used for?",
+ o:["Replicating topics between Kafka clusters for disaster recovery, migration and geo-redundancy","Compacting topics in a single cluster","Authenticating clients","Balancing partitions inside one cluster"],a:0,
+ e:"MM2 is built on Connect and replicates data, offsets and topic configs between clusters, mapping topic names and preserving consumer group progress."},
+
+{q:"What is Debezium?",
+ o:["A change data capture (CDC) connector that streams database changes into Kafka","A monitoring dashboard","A schema registry","A custom partitioner"],a:0,
+ e:"Debezium reads database transaction logs (binlog, WAL, redo) and emits row-level change events, enabling event-driven architectures without dual writes."},
+
+{q:"What is Schema Registry for?",
+ o:["Centrally storing and versioning Avro, Protobuf or JSON schemas used by producers and consumers","Storing consumer offsets","Managing ACLs","Compacting topic logs"],a:0,
+ e:"It enforces schema compatibility rules (backward, forward, full) so producers and consumers can evolve independently without breaking each other."},
+
+{q:"What is a dead letter queue in a Kafka pipeline?",
+ o:["A destination topic for records that repeatedly fail processing","A queue for expired offsets","A broker's error log file","A standby replica"],a:0,
+ e:"Routing poison messages to a DLQ keeps the main consumer moving, and preserves the failing records for later inspection and replay."},
+
+{q:"What is the default Kafka broker client port?",
+ o:["2181","5432","9092","3306"],a:2,
+ e:"9092 is the conventional PLAINTEXT listener port; 2181 is ZooKeeper, 5432 PostgreSQL and 3306 MySQL. KRaft controllers typically use 9093."},
+
+{q:"Which internal topic stores committed consumer offsets?",
+ o:["__consumer_offsets","__transaction_state","__cluster_metadata","__schema_registry"],a:0,
+ e:"__consumer_offsets is compacted and keyed by group/topic/partition, so each group-partition pair keeps only its latest offset."},
+
+{q:"What requirement must a compacted topic satisfy?",
+ o:["Records must have a non-null key","Records must be under 1 KB","The topic must have exactly one partition","Consumers must use read_committed"],a:0,
+ e:"Compaction is key-based, so a null key cannot be compacted. Producers writing to a compacted topic with null keys are rejected."},
+
+{q:"Which internal topic stores transaction metadata?",
+ o:["__transaction_state","__consumer_offsets","__cluster_metadata","__txn_log"],a:0,
+ e:"__transaction_state records ongoing and completed transactions, managed by the transaction coordinator."},
+
+{q:"What is rack awareness used for?",
+ o:["Spreading replicas across racks or availability zones so a rack failure cannot take out all copies","Routing producers to the nearest broker","Compressing records","Balancing consumer groups"],a:0,
+ e:"Set broker.rack on each broker; Kafka then places replicas on distinct racks where possible, keeping the ISR alive through a zone outage."},
+
+{q:"What is Cruise Control?",
+ o:["A tool that continuously rebalances partitions and replicas across brokers based on measured load","A Kafka client library","A compression codec","A schema registry"],a:0,
+ e:"Cruise Control monitors broker metrics and proposes or executes reassignments to fix hotspots, and can also drive self-healing cluster expansion."},
+
+/* ---------- 86–100 : KRaft, Streams, modern features ---------- */
+{q:"In KRaft, what values can process.roles take?",
+ o:["broker, controller, or both","leader or follower","producer or consumer","primary or secondary"],a:0,
+ e:"process.roles=broker,controller combines both on one node — fine for development, but production usually separates controllers onto dedicated nodes."},
+
+{q:"What must be run before starting a KRaft node for the first time?",
+ o:["kafka-storage.sh format with a cluster id","kafka-topics.sh --create","zookeeper-server-start.sh","kafka-consumer-groups.sh --reset-offsets"],a:0,
+ e:"kafka-storage.sh random-uuid generates the id, then kafka-storage.sh format -t <uuid> -c config/kraft/server.properties initialises the metadata log directory."},
+
+{q:"What does controller.quorum.voters list?",
+ o:["The controllers forming the Raft quorum, written as id@host:port","The brokers allowed to join","The consumers allowed to read","The topics in the cluster"],a:0,
+ e:"Every node needs the same voters list, e.g. 1@node1:9093,2@node2:9093,3@node3:9093. Misconfiguration here is a common reason a KRaft cluster fails to start."},
+
+{q:"How many controllers are needed to tolerate one controller failure?",
+ o:["1","2","3","5"],a:2,
+ e:"Raft needs a majority. Three controllers tolerate one failure; five tolerate two. An even number gives no extra fault tolerance and adds latency."},
+
+{q:"In Kafka Streams, what is a KTable?",
+ o:["A changelog abstraction that holds the latest value per key","A partition of a topic","A consumer group","A broker process"],a:0,
+ e:"A KTable represents a continuously updated table. Updates replace the previous value for that key, and the underlying state can be restored from a compacted changelog topic."},
+
+{q:"In Kafka Streams, what is a KStream?",
+ o:["An abstraction of an append-only, unbounded stream of records","A local state store","A schema definition","A connector configuration"],a:0,
+ e:"Every record in a KStream is an independent event. You can filter, map, join, aggregate and write it to a new topic."},
+
+{q:"Which storage engine backs Kafka Streams state stores by default?",
+ o:["RocksDB","PostgreSQL","Redis","ZooKeeper"],a:0,
+ e:"RocksDB provides an embedded, persistent key-value store. In-memory stores are also available for small state, and state is fault-tolerant because it is backed by a changelog topic."},
+
+{q:"Which is a valid window type in Kafka Streams?",
+ o:["Tumbling, hopping, sliding and session windows","Only fixed windows","Only rolling windows","Only calendar windows"],a:0,
+ e:"Tumbling = fixed non-overlapping; hopping = fixed overlapping; sliding = based on record timestamps; session = gaps of inactivity. All are used with windowed aggregations and joins."},
+
+{q:"What is ksqlDB?",
+ o:["A SQL engine for continuous stream processing on Kafka topics","A relational database with ACID transactions","A schema registry","A connector runtime"],a:0,
+ e:"ksqlDB lets you write persistent queries against streams and tables in SQL, creating derived topics that update continuously as new events arrive."},
+
+{q:"What do share groups (KIP-932) enable?",
+ o:["Queue-like consumption where multiple consumers can cooperatively read the same partition","Faster replication","Schema evolution","Client-side encryption"],a:0,
+ e:"Share groups relax the one-consumer-per-partition rule, allowing many consumers to share a partition with per-record acknowledgement — useful for queue-style workloads."},
+
+{q:"What does tiered storage (KIP-405) do?",
+ o:["Offloads older log segments to remote object storage while recent data stays on local disk","Compresses all records with zstd","Adds a second replication factor","Encrypts the log at rest"],a:0,
+ e:"Tiered storage decouples retention from local disk size, so you can keep months of data cheaply while keeping hot data on fast local disks. GA in Kafka 3.9."},
+
+{q:"Which client lets an application create and delete topics programmatically?",
+ o:["AdminClient","KafkaProducer","KafkaConsumer","Schema Registry client"],a:0,
+ e:"AdminClient is part of the standard Java client library and exposes the full admin API, including partitions, configs, ACLs and consumer group operations."},
+
+{q:"What is the broker default for default.replication.factor?",
+ o:["1","2","3","0"],a:0,
+ e:"The broker default is 1, which is not safe for production. Set default.replication.factor=3 (or pass --replication-factor explicitly) for any durable topic."},
+
+{q:"What is the KRaft metadata log topic called?",
+ o:["__cluster_metadata","__consumer_offsets","__transaction_state","__metadata"],a:0,
+ e:"Controllers write all cluster metadata into __cluster_metadata. Brokers replicate it locally so they can serve metadata requests quickly."},
+
+{q:"Which is a genuine benefit of KRaft over ZooKeeper?",
+ o:["A single system to operate, faster controller failover and better metadata scalability","It removes the need for replication","It eliminates consumer groups","It removes partitions"],a:0,
+ e:"KRaft removes a second distributed system, makes controller failover nearly instant, and scales to far more partitions because the full metadata set is held in memory on every controller."}
+];
+
+/* ============================================================
+   STATE + APP LOGIC
+   ============================================================ */
+const TOTAL_SECONDS = 120 * 60;   // 2 hours
+let remaining = TOTAL_SECONDS;
+let timerId = null;
+
+const state = {
+  cur: 0,
+  ans:     new Array(QS.length).fill(null),
+  revealed:new Array(QS.length).fill(false),
+  marked:  new Array(QS.length).fill(false),
+  visited: new Array(QS.length).fill(false),
+  submitted:false
+};
+
+const $ = id => document.getElementById(id);
+const LETTERS = ['A','B','C','D'];
+
+/* ---------- Timer ---------- */
+function fmt(s){
+  const m = Math.floor(s/60), sec = s%60;
+  return String(m).padStart(2,'0') + ':' + String(sec).padStart(2,'0');
+}
+function updateTimer(){
+  const t = $('timer');
+  t.textContent = fmt(remaining);
+  t.classList.toggle('low', remaining <= 300);
+}
+function startTimer(){
+  clearInterval(timerId);
+  timerId = setInterval(()=>{
+    remaining--;
+    if(remaining <= 0){
+      remaining = 0; updateTimer(); clearInterval(timerId);
+      submitExam(true); return;
+    }
+    updateTimer();
+  }, 1000);
+}
+
+/* ---------- Palette ---------- */
+function buildPalette(){
+  const g = $('pgrid');
+  g.innerHTML = '';
+  for(let i=0;i<QS.length;i++){
+    const b = document.createElement('button');
+    b.className = 'pbtn';
+    b.textContent = i+1;
+    b.dataset.i = i;
+    b.addEventListener('click', ()=> goTo(i));
+    g.appendChild(b);
+  }
+}
+function refreshPalette(){
+  document.querySelectorAll('.pbtn').forEach(b=>{
+    const i = +b.dataset.i;
+    b.className = 'pbtn';
+    if(state.visited[i]) b.classList.add('seen');
+    if(state.marked[i])  b.classList.add('marked');
+    if(state.ans[i] !== null) b.classList.add('answered');
+    if(i === state.cur) b.classList.add('current');
+  });
+}
+
+/* ---------- Progress ---------- */
+function refreshProgress(){
+  const done = state.ans.filter(a=>a!==null).length;
+  $('pbar').style.width = (done / QS.length * 100) + '%';
+}
+
+/* ---------- Render question ---------- */
+function renderQuestion(){
+  const i = state.cur, q = QS[i];
+  state.visited[i] = true;
+
+  $('qnum').textContent = 'Question ' + (i+1) + ' of ' + QS.length;
+  $('qtext').textContent = q.q;
+  $('markTag').hidden = !state.marked[i];
+
+  const wrap = $('options');
+  wrap.innerHTML = '';
+  q.o.forEach((opt, idx)=>{
+    const btn = document.createElement('button');
+    btn.className = 'option';
+    btn.type = 'button';
+
+    const key = document.createElement('span');
+    key.className = 'key';
+    key.textContent = LETTERS[idx];
+
+    const txt = document.createElement('span');
+    txt.className = 'otext';
+    txt.textContent = opt;
+
+    btn.appendChild(key);
+    btn.appendChild(txt);
+
+    if(state.ans[i] === idx) btn.classList.add('selected');
+
+    if(state.revealed[i]){
+      btn.classList.add('locked');
+      if(idx === q.a) btn.classList.add('correct');
+      else if(state.ans[i] === idx) btn.classList.add('wrong');
+    } else {
+      btn.addEventListener('click', ()=> selectOption(idx));
+    }
+    wrap.appendChild(btn);
+  });
+
+  // explanation
+  const box = $('explainBox');
+  if(state.revealed[i]){
+    box.hidden = false;
+    $('explainTitle').textContent = '✅ Correct answer: ' + LETTERS[q.a] + ' — ' + q.o[q.a];
+    $('explainText').textContent = q.e;
+    $('btnShow').textContent = '🙈 Hide Answer';
+  } else {
+    box.hidden = true;
+    $('btnShow').textContent = '👁 Show Answer';
+  }
+
+  // button states
+  $('btnPrev').disabled = (i === 0);
+  $('btnNext').disabled = (i === QS.length - 1);
+  $('btnMark').textContent = state.marked[i] ? '★ Unmark' : '★ Mark for Review';
+
+  refreshPalette();
+  refreshProgress();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+/* ---------- Actions ---------- */
+function selectOption(idx){
+  if(state.submitted) return;
+  const i = state.cur;
+  if(state.revealed[i]) return;
+  state.ans[i] = (state.ans[i] === idx) ? null : idx;  // click again to clear
+  renderQuestion();
+}
+function goTo(i){
+  if(i < 0 || i >= QS.length) return;
+  state.cur = i;
+  renderQuestion();
+}
+function toggleMark(){
+  if(state.submitted) return;
+  state.marked[state.cur] = !state.marked[state.cur];
+  renderQuestion();
+}
+function toggleReveal(){
+  if(state.submitted) return;
+  state.revealed[state.cur] = !state.revealed[state.cur];
+  renderQuestion();
+}
+
+/* ---------- Submit / Results ---------- */
+function submitExam(auto){
+  if(state.submitted) return;
+  if(!auto){
+    const unanswered = state.ans.filter(a=>a===null).length;
+    const msg = 'Submit the test now?\n\nAnswered: ' + (QS.length - unanswered) +
+                '\nUnanswered: ' + unanswered +
+                '\n\nYou will still be able to review every answer and explanation.';
+    if(!confirm(msg)) return;
+  }
+  state.submitted = true;
+  clearInterval(timerId);
+  $('quizView').hidden = true;
+  $('resultView').hidden = false;
+  renderResults(auto);
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function renderResults(auto){
+  let correct=0, wrong=0, skipped=0;
+  QS.forEach((q,i)=>{
+    if(state.ans[i] === null) skipped++;
+    else if(state.ans[i] === q.a) correct++;
+    else wrong++;
+  });
+  const pct = Math.round(correct / QS.length * 100);
+  const used = TOTAL_SECONDS - remaining;
+
+  let grade, gradeColor;
+  if(pct >= 90){ grade='Outstanding 🏆'; gradeColor='#16a34a'; }
+  else if(pct >= 75){ grade='Strong 👍'; gradeColor='#0d9488'; }
+  else if(pct >= 60){ grade='Pass ✅'; gradeColor='#f59e0b'; }
+  else if(pct >= 40){ grade='Needs review 📖'; gradeColor='#ea580c'; }
+  else { grade='Keep practising 🔁'; gradeColor='#dc2626'; }
+
+  let html = '';
+  if(auto) html += '<div class="card" style="border-left:5px solid #dc2626;margin-bottom:16px"><b>⏰ Time expired.</b> The test was submitted automatically.</div>';
+
+  html += '<div class="scorecard">' +
+    '<h2>Test Complete</h2>' +
+    '<div class="bignum">' + pct + '%</div>' +
+    '<div style="color:' + gradeColor + ';font-weight:700;font-size:1.05rem">' + grade + '</div>' +
+    '<div class="stats">' +
+      '<div class="st-ok"><b>' + correct + '</b>Correct</div>' +
+      '<div class="st-bad"><b>' + wrong + '</b>Incorrect</div>' +
+      '<div class="st-skip"><b>' + skipped + '</b>Unanswered</div>' +
+      '<div><b>' + fmt(used) + '</b>Time used</div>' +
+    '</div>' +
+    '<div style="margin-top:20px">' +
+      '<button class="btn primary" id="btnRetake">🔄 Retake Test</button> ' +
+      '<button class="btn ghost" id="btnBackTop">↑ Back to top</button>' +
+    '</div>' +
+  '</div>';
+
+  html += '<div class="filters">' +
+      '<button class="fbtn active" data-f="all">All (' + QS.length + ')</button>' +
+      '<button class="fbtn" data-f="wrong">Incorrect (' + wrong + ')</button>' +
+      '<button class="fbtn" data-f="skipped">Unanswered (' + skipped + ')</button>' +
+      '<button class="fbtn" data-f="correct">Correct (' + correct + ')</button>' +
+    '</div>';
+
+  QS.forEach((q,i)=>{
+    let status, cls;
+    if(state.ans[i] === null){ status='skipped'; cls='skip'; }
+    else if(state.ans[i] === q.a){ status='correct'; cls='ok'; }
+    else { status='wrong'; cls='bad'; }
+
+    html += '<div class="revitem ' + cls + '" data-status="' + status + '">' +
+      '<p class="revq">Q' + (i+1) + '. ' + q.q + '</p>';
+
+    if(state.ans[i] === null){
+      html += '<div class="revline"><span class="lbl">Your answer:</span><span class="tagbad">Not answered</span></div>';
+      html += '<div class="revline"><span class="lbl">Correct answer:</span><span class="tagok">' +
+              LETTERS[q.a] + ') ' + q.o[q.a] + '</span></div>';
+    } else if(state.ans[i] === q.a){
+      html += '<div class="revline"><span class="lbl">Your answer:</span><span class="tagok">' +
+              LETTERS[state.ans[i]] + ') ' + q.o[state.ans[i]] + ' ✓</span></div>';
+    } else {
+      html += '<div class="revline"><span class="lbl">Your answer:</span><span class="tagbad">' +
+              LETTERS[state.ans[i]] + ') ' + q.o[state.ans[i]] + ' ✗</span></div>';
+      html += '<div class="revline"><span class="lbl">Correct answer:</span><span class="tagok">' +
+              LETTERS[q.a] + ') ' + q.o[q.a] + '</span></div>';
+    }
+
+    html += '<div class="revexp"><b>Explanation:</b> ' + q.e + '</div>';
+    html += '</div>';
+  });
+
+  $('resultView').innerHTML = html;
+
+  // wire up results buttons
+  $('btnRetake').addEventListener('click', retake);
+  $('btnBackTop').addEventListener('click', ()=> window.scrollTo({top:0,behavior:'smooth'}));
+
+  document.querySelectorAll('.fbtn[data-f]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      document.querySelectorAll('.fbtn[data-f]').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+      const f = b.dataset.f;
+      document.querySelectorAll('.revitem').forEach(it=>{
+        it.style.display = (f === 'all' || it.dataset.status === f) ? '' : 'none';
+      });
+    });
+  });
+}
+
+function retake(){
+  state.ans.fill(null);
+  state.revealed.fill(false);
+  state.marked.fill(false);
+  state.visited.fill(false);
+  state.cur = 0;
+  state.submitted = false;
+
+  remaining = TOTAL_SECONDS;
+  updateTimer();
+  startTimer();
+
+  $('resultView').hidden = true;
+  $('quizView').hidden = false;
+  renderQuestion();
+}
+
+/* ---------- Wiring ---------- */
+$('btnPrev').addEventListener('click', ()=> goTo(state.cur - 1));
+$('btnNext').addEventListener('click', ()=> goTo(state.cur + 1));
+$('btnMark').addEventListener('click', toggleMark);
+$('btnShow').addEventListener('click', toggleReveal);
+$('btnSubmit').addEventListener('click', ()=> submitExam(false));
+
+$('togglePalette').addEventListener('click', ()=>{
+  const g = $('pgrid'), l = $('legend');
+  const hidden = g.style.display === 'none';
+  g.style.display = hidden ? '' : 'none';
+  l.style.display = hidden ? '' : 'none';
+  $('togglePalette').textContent = hidden ? 'Hide' : 'Show';
+});
+
+document.addEventListener('keydown', (e)=>{
+  if(state.submitted) return;
+  if(e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  const k = e.key;
+  if(k === 'ArrowRight'){ e.preventDefault(); goTo(state.cur + 1); }
+  else if(k === 'ArrowLeft'){ e.preventDefault(); goTo(state.cur - 1); }
+  else if(['1','2','3','4'].includes(k)){ e.preventDefault(); selectOption(+k - 1); }
+  else if(k.toLowerCase() === 'r'){ e.preventDefault(); toggleMark(); }
+  else if(k.toLowerCase() === 's'){ e.preventDefault(); toggleReveal(); }
+});
+
+/* ---------- Boot ---------- */
+$('qcountPill').textContent = QS.length + ' Questions';
+buildPalette();
+updateTimer();
+startTimer();
+renderQuestion();
+</script>
+</body>
+</html>
