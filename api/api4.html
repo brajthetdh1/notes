@@ -1,0 +1,1487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API Design — Volume 4: Request/Response Design</title>
+<style>
+  :root{
+    --ink:#1c1410;
+    --ink-soft:#443229;
+    --muted:#7a6558;
+    --line:#eee0d5;
+    --bg:#fdf8f3;
+    --card:#ffffff;
+    --rust:#c2410c;
+    --rust-soft:#ffedd5;
+    --rust-deep:#7c2d12;
+    --copper:#b45309;
+    --copper-soft:#fef3c7;
+    --teal:#0f766e;
+    --rose:#be123c;
+    --amber:#a16207;
+    --blue:#1d4ed8;
+    --shadow:0 1px 2px rgba(80,40,10,.06), 0 8px 24px -8px rgba(80,40,10,.14);
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 8% -10%, #ffedd5 0%, transparent 60%),
+      radial-gradient(1000px 500px at 100% 0%, #fef3c7 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:"Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    line-height:1.72;
+    font-size:16.5px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px 90px;}
+
+  header.hero{
+    background:linear-gradient(135deg,#431407 0%, #7c2d12 45%, #9a3412 100%);
+    color:#fff7ed;
+    padding:64px 22px 56px;
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::after{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      radial-gradient(600px 300px at 85% 15%, rgba(249,115,22,.42), transparent 70%),
+      radial-gradient(520px 280px at 12% 92%, rgba(234,88,12,.4), transparent 70%);
+    pointer-events:none;
+  }
+  .hero-inner{max-width:1080px;margin:0 auto;position:relative;z-index:2;}
+  .eyebrow{
+    display:inline-block;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;
+    font-weight:700;padding:7px 15px;border-radius:999px;
+    background:rgba(251,146,60,.18);border:1px solid rgba(251,146,60,.5);
+    color:#fdba74;margin-bottom:20px;
+  }
+  header.hero h1{
+    font-size:clamp(1.9rem, 4.4vw, 3rem);line-height:1.15;margin:0 0 16px;
+    font-weight:800;letter-spacing:-.02em;
+  }
+  header.hero h1 span{
+    background:linear-gradient(90deg,#fdba74,#fcd34d);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  header.hero p.lede{font-size:1.06rem;color:#fed7aa;max-width:780px;margin:0 0 26px;}
+  .meta-chips{display:flex;flex-wrap:wrap;gap:10px;}
+  .chip{
+    font-size:.78rem;font-weight:600;padding:7px 14px;border-radius:999px;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#ffedd5;
+  }
+
+  .roadmap{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:26px 28px;margin-top:-34px;position:relative;z-index:5;
+  }
+  .roadmap h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 16px;font-weight:700;
+  }
+  .roadmap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;}
+  .roadmap-item{
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:.86rem;
+    background:#fffdfa;opacity:.7;
+  }
+  .roadmap-item.done{
+    border-color:#fdba74;background:linear-gradient(180deg,#fff7ed,#ffffff);opacity:1;
+  }
+  .roadmap-item.current{
+    border-color:#fb923c;background:linear-gradient(180deg,#ffedd5,#ffffff);opacity:1;
+    box-shadow:0 0 0 3px rgba(194,65,12,.14);
+  }
+  .roadmap-item .tag{
+    display:inline-block;font-size:.64rem;font-weight:800;letter-spacing:.08em;
+    padding:2px 8px;border-radius:999px;margin-bottom:6px;
+  }
+  .tag-done{background:var(--copper-soft);color:var(--rust-deep);}
+  .tag-now{background:#fed7aa;color:#9a3412;}
+  .tag-next{background:#e7e5e4;color:#57534e;}
+  .roadmap-item strong{display:block;color:var(--ink);font-size:.89rem;}
+
+  nav.toc{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:22px 26px;margin:26px 0 44px;
+  }
+  nav.toc h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 14px;font-weight:700;
+  }
+  nav.toc ol{
+    margin:0;padding-left:0;list-style:none;counter-reset:toc;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:8px 26px;
+  }
+  nav.toc li{
+    counter-increment:toc;font-size:.93rem;padding:6px 0 6px 34px;
+    position:relative;border-bottom:1px dashed #f7ece0;
+  }
+  nav.toc li::before{
+    content:counter(toc);position:absolute;left:0;top:7px;width:22px;height:22px;
+    border-radius:7px;background:var(--rust-soft);color:var(--rust);
+    font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center;
+  }
+  nav.toc a{color:var(--ink-soft);text-decoration:none;font-weight:500;}
+  nav.toc a:hover{color:var(--rust);}
+
+  .part-band{display:flex;align-items:center;gap:16px;margin:56px 0 26px;}
+  .part-band .bar{
+    width:5px;height:44px;border-radius:99px;
+    background:linear-gradient(180deg,var(--rust),#fb923c);
+  }
+  .part-band.copper .bar{background:linear-gradient(180deg,var(--copper),#fbbf24);}
+  .part-band.teal .bar{background:linear-gradient(180deg,var(--teal),#2dd4bf);}
+  .part-band h2{margin:0;font-size:1.5rem;letter-spacing:-.01em;font-weight:800;}
+  .part-band .sub{
+    display:block;font-size:.82rem;font-weight:600;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.12em;margin-top:2px;
+  }
+
+  article.q{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:0 0 26px;margin-bottom:28px;overflow:hidden;
+    scroll-margin-top:24px;
+  }
+  .q-head{
+    display:flex;gap:16px;align-items:flex-start;padding:22px 28px 18px;
+    border-bottom:1px solid #f7ecdf;background:linear-gradient(180deg,#fffaf5,#ffffff);
+  }
+  .q-num{
+    flex:none;width:42px;height:42px;border-radius:12px;display:flex;
+    align-items:center;justify-content:center;font-weight:800;font-size:.92rem;color:#fff;
+    background:linear-gradient(135deg,#c2410c,#ea580c);
+    box-shadow:0 6px 14px -6px rgba(194,65,12,.7);
+  }
+  .copper .q-num{background:linear-gradient(135deg,#b45309,#d97706);box-shadow:0 6px 14px -6px rgba(180,83,9,.7);}
+  .teal .q-num{background:linear-gradient(135deg,#0f766e,#14b8a6);box-shadow:0 6px 14px -6px rgba(15,118,110,.7);}
+  .q-head h3{margin:0;font-size:1.14rem;font-weight:700;line-height:1.4;letter-spacing:-.01em;}
+  .q-body{padding:22px 28px 0;}
+  .q-body p{margin:0 0 15px;color:var(--ink-soft);}
+  .q-body p:last-child{margin-bottom:0;}
+  .q-body h4{margin:24px 0 10px;font-size:.95rem;font-weight:800;color:var(--ink);}
+  .q-body h4::before{content:"▹";color:var(--rust);margin-right:8px;font-size:.85rem;}
+  .copper .q-body h4::before{color:var(--copper);}
+  .teal .q-body h4::before{color:var(--teal);}
+  .q-body ul,.q-body ol{margin:0 0 16px;padding-left:22px;color:var(--ink-soft);}
+  .q-body li{margin-bottom:8px;}
+  .q-body li::marker{color:var(--rust);}
+  .copper .q-body li::marker{color:var(--copper);}
+  .teal .q-body li::marker{color:var(--teal);}
+  strong{color:var(--ink);font-weight:700;}
+  code{
+    background:#fdf5ec;border:1px solid #eee0d5;border-radius:6px;padding:1px 6px;
+    font-size:.87em;font-family:"SFMono-Regular",Consolas,monospace;color:#9a3412;
+  }
+
+  .callout{border-radius:12px;padding:14px 18px;margin:18px 0 4px;font-size:.93rem;border-left:4px solid;}
+  .callout .label{
+    display:block;font-size:.68rem;font-weight:800;letter-spacing:.13em;
+    text-transform:uppercase;margin-bottom:5px;
+  }
+  .callout p{margin:0 0 8px;font-size:.93rem;}
+  .callout p:last-child{margin-bottom:0;}
+  .answer{background:linear-gradient(180deg,#fff7ed,#ffffff);border-color:var(--rust);}
+  .answer .label{color:var(--rust-deep);}
+  .tip{background:linear-gradient(180deg,#f0fdfa,#ffffff);border-color:var(--teal);}
+  .tip .label{color:#0f766e;}
+  .tradeoff{background:linear-gradient(180deg,#fffbeb,#ffffff);border-color:var(--amber);}
+  .tradeoff .label{color:#a16207;}
+  .pitfall{background:linear-gradient(180deg,#fff1f2,#ffffff);border-color:var(--rose);}
+  .pitfall .label{color:#be123c;}
+
+  .table-scroll{overflow-x:auto;margin:18px 0;border-radius:12px;border:1px solid var(--line);}
+  table{width:100%;border-collapse:collapse;font-size:.87rem;background:#fff;}
+  thead th{
+    background:#fdfaf6;text-align:left;padding:11px 14px;font-weight:800;
+    font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+    border-bottom:2px solid var(--line);white-space:nowrap;
+  }
+  tbody td{padding:11px 14px;border-bottom:1px solid #f9f1e9;color:var(--ink-soft);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:nth-child(even){background:#fffdfb;}
+  tbody td:first-child{font-weight:700;color:var(--ink);}
+
+  .next-part{
+    background:linear-gradient(135deg,#431407,#9a3412);color:#ffedd5;
+    border-radius:var(--radius);padding:32px 34px;margin-top:50px;box-shadow:var(--shadow);
+  }
+  .next-part h3{margin:0 0 12px;font-size:1.2rem;color:#fff;font-weight:800;}
+  .next-part p{margin:0 0 16px;color:#fed7aa;font-size:.95rem;}
+  .next-list{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:10px;list-style:none;padding:0;margin:0;
+  }
+  .next-list li{
+    background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
+    border-radius:10px;padding:10px 14px;font-size:.86rem;color:#ffedd5;
+  }
+
+  @media (max-width:640px){
+    .q-head{padding:18px 18px 15px;}
+    .q-body{padding:18px 18px 0;}
+    header.hero{padding:44px 18px 46px;}
+    .roadmap{padding:20px;}
+    nav.toc{padding:18px;}
+    nav.toc ol{grid-template-columns:1fr;}
+  }
+  @media print{
+    body{background:#fff;}
+    article.q, nav.toc, .roadmap{box-shadow:none;page-break-inside:avoid;}
+    header.hero{background:#431407 !important;-webkit-print-color-adjust:exact;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Volume 4 · Section 4 of 18</span>
+    <h1>API Design for System Interviews<br><span>Request/Response Design</span></h1>
+    <p class="lede">
+      The mechanics of list endpoints at scale. How to paginate without breaking at page 10,000, how to design
+      filtering and sorting syntax that is safe and composable, how to shape responses so mobile clients are not
+      downloading megabytes of fields they do not need, and how to keep a query from melting the database.
+    </p>
+    <div class="meta-chips">
+      <span class="chip">10 Questions</span>
+      <span class="chip">500+ words each</span>
+      <span class="chip">Scale-focused</span>
+      <span class="chip">Anti-patterns named</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ROADMAP -->
+  <section class="roadmap">
+    <h2>Answer-Series Roadmap</h2>
+    <div class="roadmap-grid">
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 1 — Complete</span>
+        <strong>Fundamentals &amp; Style Selection</strong>
+        API vs protocol vs service, contracts, styles, paradigms
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 2 — Complete</span>
+        <strong>Resource Modeling &amp; REST Design</strong>
+        Resources, URLs, nesting, HTTP methods, representations
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 3 — Complete</span>
+        <strong>Contracts, Versioning &amp; Evolution</strong>
+        Breaking changes, versioning, deprecation, schema evolution
+      </div>
+      <div class="roadmap-item current">
+        <span class="tag tag-now">Volume 4 — You are here</span>
+        <strong>Request/Response Design</strong>
+        Pagination, filtering, sorting, field selection, envelopes
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 5</span>
+        <strong>Idempotency &amp; Correctness</strong>
+        Idempotency keys, conditional requests, retries
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 6</span>
+        <strong>Authentication &amp; Authorization</strong>
+        OAuth, JWT, RBAC, ABAC, IDOR
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 7</span>
+        <strong>Rate Limiting &amp; Quotas</strong>
+        Algorithms, distributed enforcement, headers
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 8</span>
+        <strong>Error Handling &amp; Status Codes</strong>
+        RFC 7807, retryability, partial failures
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 9</span>
+        <strong>API Gateways &amp; Management</strong>
+        Routing, BFF, canary, gateway vs mesh
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 10</span>
+        <strong>Performance &amp; Caching</strong>
+        HTTP caching, compression, HTTP/2 and HTTP/3
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 11</span>
+        <strong>Async APIs &amp; Webhooks</strong>
+        202 Accepted, callbacks, signatures, SSE
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 12–13</span>
+        <strong>GraphQL &amp; gRPC Deep Dives</strong>
+        N+1, DataLoader, streaming RPCs, gRPC-Web
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 14</span>
+        <strong>Security &amp; Abuse Prevention</strong>
+        OWASP API Top 10, injection, SSRF, enumeration
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 15</span>
+        <strong>Observability &amp; Operations</strong>
+        Metrics, tracing, deployment, incidents
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 16–17</span>
+        <strong>Lifecycle, Governance &amp; 17 Problems</strong>
+        Design reviews, DX, classic API prompts
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 18</span>
+        <strong>Senior &amp; Staff Trade-offs</strong>
+        Choosing between every pair of options
+      </div>
+    </div>
+  </section>
+
+  <!-- TOC -->
+  <nav class="toc">
+    <h2>Questions Answered in This Volume</h2>
+    <ol>
+      <li><a href="#q1">Offset vs cursor vs keyset pagination</a></li>
+      <li><a href="#q2">How do you paginate across shards?</a></li>
+      <li><a href="#q3">How do you design filtering syntax safely?</a></li>
+      <li><a href="#q4">How do you design multi-field sorting?</a></li>
+      <li><a href="#q5">Field selection and partial responses</a></li>
+      <li><a href="#q6">How do you handle partial success in batch operations?</a></li>
+      <li><a href="#q7">Response envelopes, metadata, and errors</a></li>
+      <li><a href="#q8">Link headers and HATEOAS pagination</a></li>
+      <li><a href="#q9">How do you design a search endpoint?</a></li>
+      <li><a href="#q10">Preventing unbounded queries and query abuse</a></li>
+    </ol>
+  </nav>
+
+  <!-- ================= PART A ================= -->
+  <div class="part-band">
+    <div class="bar"></div>
+    <h2>Part A — Pagination
+      <span class="sub">The single most consequential decision in a list endpoint</span>
+    </h2>
+  </div>
+
+  <!-- Q1 -->
+  <article class="q" id="q1">
+    <div class="q-head">
+      <div class="q-num">1</div>
+      <h3>What is the difference between offset, cursor, and keyset pagination?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p><strong>Offset pagination</strong> skips N rows and returns the next page — simple, but O(N) and
+        inconsistent when data changes. <strong>Cursor pagination</strong> encodes the position of the last item seen
+        and asks for "items after this" — consistent and O(1), but cannot jump to page 50.
+        <strong>Keyset pagination</strong> is the implementation of cursor pagination using an indexed column
+        (usually the primary key or a timestamp), and it is what almost every large list API actually uses
+        underneath.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Aspect</th><th>Offset</th><th>Cursor</th><th>Keyset</th></tr></thead>
+          <tbody>
+            <tr><td>Parameter</td><td><code>?page=5&amp;limit=20</code> or <code>?offset=100</code></td><td><code>?cursor=eyJpZCI6MTIzfQ==</code></td><td><code>?after_id=123&amp;limit=20</code></td></tr>
+            <tr><td>Complexity per request</td><td>O(offset + limit)</td><td>O(limit)</td><td>O(limit)</td></tr>
+            <tr><td>Consistency under writes</td><td>Breaks — items skip or duplicate</td><td>Stable</td><td>Stable</td></tr>
+            <tr><td>Jump to page N</td><td>Yes</td><td>No</td><td>No</td></tr>
+            <tr><td>Total count</td><td>Easy (but expensive)</td><td>Hard</td><td>Hard</td></tr>
+            <tr><td>Best for</td><td>Admin dashboards, small datasets, numbered pages</td><td>Infinite scroll, feeds, exports</td><td>Time-series, activity feeds, any large list</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Why offset pagination breaks at scale</h4>
+      <p>An offset query <code>SELECT * FROM orders ORDER BY created_at LIMIT 20 OFFSET 100000</code> requires the
+      database to find and discard 100,000 rows before returning the next 20. This is O(offset) — it gets linearly
+      slower as the user pages deeper. On a large table, page 5,000 can take seconds while page 1 is instant. The
+      database cannot skip rows it has not scanned; there is no "start at position 100,000" without walking
+      through the first 100,000.</p>
+      <p>The second problem is that offset pagination is not stable under writes. If an item is inserted between
+      page 1 and page 2, every subsequent page shifts by one, and the user sees one item twice and misses another.
+      In a feed where items are inserted constantly, this is a visible bug — "I saw this post twice" or "this post
+      disappeared".</p>
+
+      <h4>How cursor pagination fixes it</h4>
+      <p>A cursor encodes the position of the last item on the current page — usually as the sort key of that item,
+      or an opaque token containing it. The next request says "give me items after this one", which the database can
+      answer with an index seek rather than a scan:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Style</th><th>Request</th><th>SQL</th></tr></thead>
+          <tbody>
+            <tr><td>Offset</td><td><code>?page=3&amp;limit=20</code></td><td><code>LIMIT 20 OFFSET 40</code></td></tr>
+            <tr><td>Keyset</td><td><code>?after_id=123&amp;limit=20</code></td><td><code>WHERE id &gt; 123 ORDER BY id LIMIT 20</code></td></tr>
+            <tr><td>Composite keyset</td><td><code>?after_created=2024-01-15T10:30:00Z&amp;after_id=123</code></td><td><code>WHERE (created_at, id) &gt; ('2024-01-15T10:30:00Z', 123) ORDER BY created_at, id LIMIT 20</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The composite form is the one that actually works in production. A single sort key is rarely unique
+      (many items share a timestamp), so the tiebreaker is a unique column — usually the primary key. The sort
+      order must be <code>(created_at, id)</code> with a matching composite index, and the cursor carries both
+      values.</p>
+
+      <h4>The opaque cursor pattern</h4>
+      <p>Most public APIs do not expose <code>after_id</code> directly — they encode the position into an opaque
+      string:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Style</th><th>Request</th><th>Pros</th><th>Cons</th></tr></thead>
+          <tbody>
+            <tr><td>Transparent</td><td><code>?after_id=123&amp;after_created=...</code></td><td>Debuggable, easy to construct by hand</td><td>Exposes internal structure; hard to change</td></tr>
+            <tr><td>Opaque</td><td><code>?cursor=eyJpZCI6MTIzLCJ0IjoxNzA1MzE0MjAwfQ==</code></td><td>Internal details hidden; can evolve the encoding</td><td>Harder to debug; clients must not parse it</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Opaque cursors are base64-encoded JSON or a signed token. The client must treat them as a black box — its
+      only job is to pass the cursor from the previous response into the next request. Documenting this as a
+      requirement is critical, because clients that parse cursors will break when the encoding changes.</p>
+
+      <h4>What about total counts?</h4>
+      <p>Offset pagination makes total counts trivial (one <code>COUNT(*)</code> query) but expensive on large
+      tables. Cursor pagination makes them awkward — there is no cheap way to know how many pages remain. The
+      pragmatic approach: <strong>do not return total counts for large lists</strong>. Return a
+      <code>has_more</code> boolean, which the server can compute from "did we get more than <code>limit</code>
+      rows". If a total count is genuinely required (search results, reports), compute it once and cache it, or
+      accept the cost of a counted query.</p>
+
+      <h4>Hybrid: cursor internally, offset externally</h4>
+      <p>Some UIs need numbered pages (admin dashboards, data tables). A design that supports both is possible:
+      the client sends <code>?cursor=...</code> for "next/previous", and the server still exposes
+      <code>?page=N</code> which internally translates to a keyset query where possible. This is more complex but
+      gives the UI the page numbers it needs while keeping the backend efficient.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Offset pagination is simple for small datasets but breaks at scale and is inconsistent under writes.
+        Cursor pagination is the right default for any large list, but it cannot support "jump to page 50". Choose
+        based on the UI: numbered pages need offset (or a hybrid), infinite scroll and feeds need cursors.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q2 -->
+  <article class="q" id="q2">
+    <div class="q-head">
+      <div class="q-num">2</div>
+      <h3>How do you paginate across shards or distributed data?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Cross-shard pagination is a merge problem: each shard returns its own sorted page, and a merge layer
+        combines them into a single global page. The correct approach is <strong>keyset pagination with a global
+        cursor</strong> — the cursor encodes the last-seen value of the global sort key, and each shard returns only
+        items after that value. Scatter-gather with offset is the naive approach and it does not work at scale.</p>
+      </div>
+
+      <h4>Why offset does not work across shards</h4>
+      <p>Consider a feed sharded by <code>user_id</code>, with 10 shards. A request for page 3
+      (<code>OFFSET 40 LIMIT 20</code>) must ask every shard for "rows 40–60", then merge the 200 total results and
+      return the top 20 by the global sort key. Each shard returns 20 rows, most of which are discarded. For
+      page 50, each shard returns 1,000 rows, most of which are discarded. The fan-out cost grows linearly with
+      depth, and the tail latency is the max of 10 shards. This does not scale.</p>
+
+      <h4>Keyset pagination across shards</h4>
+      <p>With keyset, the request is <code>?after_created_at=2024-01-15T10:30:00Z&amp;after_id=123&amp;limit=20</code>.
+      Every shard executes <code>WHERE (created_at, id) &gt; ('2024-01-15T10:30:00Z', 123) ORDER BY created_at, id
+      LIMIT 20</code>. Each shard returns at most 20 rows starting from the cursor. The merge layer combines them,
+      sorts by the same key, and returns the top 20.</p>
+      <p>This is O(limit) per shard, not O(offset). It is stable under writes (a new item with a newer timestamp
+      goes to the next page, not to page 2). And the merge is a bounded K-way merge of at most
+      <code>shards × limit</code> rows, which is trivial.</p>
+
+      <h4>The bounded fan-out problem</h4>
+      <p>The merge layer must still contact every shard for every request. With 100 shards, this is 100 RPCs per
+      page — potentially slow and expensive. Mitigations:</p>
+      <ul>
+        <li><strong>Co-locate by the query key.</strong> If the query is "a user's feed", shard the feed by
+        <code>user_id</code> — then one shard has all the user's items, and no fan-out is needed. This is the
+        best fix: design the shard key so that the dominant query is single-shard.</li>
+        <li><strong>Precompute the merged list.</strong> For feeds, fan out on write: when a new item is created,
+        push it into every follower's materialized feed table, which is itself sorted. Then the read is a single
+        shard. This trades write cost for read speed.</li>
+        <li><strong>Parallel fan-out with a deadline.</strong> If fan-out is unavoidable, issue all shard requests
+        in parallel and use a deadline — if some shards are slow, return a partial page with a note that results
+        may be incomplete, rather than blocking on the slowest shard.</li>
+        <li><strong>Hierarchical shards.</strong> Group shards into "super-shards" with a rollup layer. The merge
+        contacts super-shards, which contact their members. This reduces the number of RPCs but adds a layer.</li>
+      </ul>
+
+      <h4>Consistency across shards</h4>
+      <p>A cross-shard query reads from shards at slightly different points in time. An item written to shard A
+      one second ago may not be visible, while an item written to shard B is. The result is a page that is
+      "almost complete" — a new item appears on the next page fetch, or an item is temporarily missing. For most
+      feeds and lists this is acceptable; for anything requiring a strict global snapshot, a distributed
+      transaction or a version-based read is required.</p>
+
+      <h4>The "just use a search index" alternative</h4>
+      <p>For queries that need true cross-shard sorting and filtering, the pragmatic answer is often to not query
+      the operational database at all. Stream changes via CDC (Volume 4 of the distributed systems series) into
+      a search index — Elasticsearch, OpenSearch, Typesense, Meilisearch — and query that. The index handles
+      sorting, filtering, and pagination across the entire dataset efficiently, at the cost of eventual
+      consistency (typically a few seconds of lag).</p>
+
+      <h4>What the cursor must contain</h4>
+      <p>In a cross-shard system, the cursor must be global — it cannot reference a specific shard, because the
+      next page may involve different shards. A global cursor contains the value of the global sort key
+      (<code>created_at, id</code>), possibly encoded as an opaque token. Each shard applies the same predicate,
+      so the merged result is consistent regardless of which shards contributed to which page.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Implementing cross-shard pagination with offset and then being surprised that page 50 times out. The
+        fan-out cost is invisible on page 1 and catastrophic on page 100. Keyset pagination is the only design
+        that scales to deep pages, and it must be designed in from the start.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART B ================= -->
+  <div class="part-band copper">
+    <div class="bar"></div>
+    <h2>Part B — Filtering, Sorting &amp; Shaping
+      <span class="sub">The parameters that decide what a list endpoint can do</span>
+    </h2>
+  </div>
+
+  <!-- Q3 -->
+  <article class="q copper" id="q3">
+    <div class="q-head">
+      <div class="q-num">3</div>
+      <h3>How do you design filtering syntax safely?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Use <strong>explicit, whitelisted query parameters</strong> for each filterable field, not a free-form
+        expression language. Each filter is documented, typed, and indexed. A general-purpose filter DSL is a
+        security risk (injection, unbounded query cost) and a maintenance burden (you cannot support arbitrary
+        filters efficiently without an index for each).</p>
+      </div>
+
+      <h4>The three approaches</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Approach</th><th>Example</th><th>When to use</th></tr></thead>
+          <tbody>
+            <tr><td>Individual query params</td><td><code>?status=active&amp;created_after=2024-01-01</code></td><td>Known, finite set of filters — the default for most APIs</td></tr>
+            <tr><td>Structured filter object</td><td><code>?filter[status]=active&amp;filter[amount][gte]=100</code></td><td>Many fields, consistent operations — some JSON:API-style APIs</td></tr>
+            <tr><td>Expression language</td><td><code>?filter=status eq "active" and amount gt 100</code></td><td>Complex Boolean logic, usually behind a search service (OData, FIQL)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Why explicit parameters are the default</h4>
+      <p>An explicit parameter per filter has enormous advantages:</p>
+      <ul>
+        <li><strong>It is typed.</strong> <code>created_after</code> is a date; the parser knows how to validate
+        it. <code>status</code> is an enum; invalid values can be rejected.</li>
+        <li><strong>It maps to an index.</strong> Each supported filter has an index in the database, and only
+        queries that use an indexed filter are allowed. This prevents an unbounded scan.</li>
+        <li><strong>It is documented.</strong> Every filter appears in the reference docs with its type and
+        semantics. Clients know exactly what is supported.</li>
+        <li><strong>It is safe.</strong> There is no parser to exploit — the parameters are simple strings, and
+        they are bound as SQL parameters, not concatenated.</li>
+        <li><strong>It is versionable.</strong> Adding a filter is a non-breaking change; changing one is
+        documented.</li>
+      </ul>
+
+      <h4>The filter DSL danger</h4>
+      <p>A general-purpose filter language is seductive — it looks flexible and powerful — but it breaks the
+      core promise of an API: <em>that every supported operation is efficient and safe</em>. A DSL that accepts
+      any expression will happily accept <code>substring(content, 1, 3) = "abc"</code>, which the database cannot
+      answer without a full scan. The result is a query that looks reasonable to the client and destroys the
+      database. Even worse, a badly designed DSL is a SQL injection vector or an unbounded resource
+      exhaustion vector.</p>
+      <p>If you genuinely need a filter DSL (usually because you are exposing a search product), push it behind
+      a search service (Elasticsearch, Typesense) that is designed for it, and expose only the operations that
+      service can handle efficiently. Do not build a DSL on top of a transactional database.</p>
+
+      <h4>The naming conventions</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Operation</th><th>Convention</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr><td>Equality</td><td><code>?field=value</code></td><td><code>?status=active</code></td></tr>
+            <tr><td>Comparison</td><td><code>?field_gt=</code>, <code>field_gte=</code>, <code>field_lt=</code>, <code>field_lte=</code></td><td><code>?amount_gte=100</code></td></tr>
+            <tr><td>Range</td><td><code>?field_min=&amp;field_max=</code> or <code>?field[gte]=&amp;field[lte]=</code></td><td><code>?created_after=...&amp;created_before=...</code></td></tr>
+            <tr><td>Multi-value (OR)</td><td>Comma-separated or repeated param</td><td><code>?status=active,pending</code></td></tr>
+            <tr><td>Negation</td><td><code>?field_not=</code> or <code>?field_ne=</code></td><td><code>?status_not=cancelled</code></td></tr>
+            <tr><td>Null check</td><td><code>?field_is_null=true</code></td><td><code>?deleted_at_is_null=true</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The bracket syntax (<code>filter[status]=active</code>) is popular in JSON:API-style APIs because it groups
+      all filters under one namespace and avoids parameter name collisions. The flat syntax (<code>?status=active</code>)
+      is simpler and what most APIs use. Either is fine — pick one and be consistent.</p>
+
+      <h4>Implicit defaults and safety</h4>
+      <p>Every list endpoint should have <strong>mandatory filters</strong> when the underlying table is large.
+      "List all orders" without a date filter is a query that returns billions of rows. The safe design is:</p>
+      <ul>
+        <li><strong>Default filters.</strong> If no date range is given, default to "last 30 days" or "the current
+        tenant's recent orders", not "everything".</li>
+        <li><strong>Required filters.</strong> Some endpoints require at least one filter — <code>/orders</code>
+        without <code>?user_id=</code> is a 400, not a full table scan.</li>
+        <li><strong>Maximum results.</strong> Even with filters, a result set can be huge — a hard cap (e.g., the
+        list endpoint returns at most 10,000 items and then a hint to narrow) prevents accidental overload.</li>
+        <li><strong>Index-aware.</strong> Document which filters use an index and which are slow. Better: reject
+        filters that would trigger a scan, and tell the client which filters are allowed on this endpoint.</li>
+      </ul>
+
+      <h4>The "filter and page" interaction</h4>
+      <p>Pagination and filtering must be designed together. A cursor pagination scheme assumes a stable sort key;
+      a filter that changes the result set between requests (e.g., a filter on a field that is being updated)
+      makes the cursor unstable. The standard rule: <strong>filters must be deterministic</strong> — the same
+      filter applied at two points in time must produce a consistent view of history, even if new items have been
+      added. This is usually achieved by combining the filter with the sort key in the cursor, so the position is
+      absolute rather than relative to a changing result set.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Exposing a filter on a field that is not indexed. It works in development with 1,000 rows and takes 30
+        seconds in production with 10 million. Every filter parameter must be backed by an index, and the index
+        must be checked by the query planner — the API should verify that the query plan uses the index before
+        deploying the filter.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q4 -->
+  <article class="q copper" id="q4">
+    <div class="q-head">
+      <div class="q-num">4</div>
+      <h3>How do you design multi-field sorting?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Use a <strong>comma-separated list of field names with optional direction prefixes</strong>, and
+        whitelist the sortable fields. Every sortable field must be indexed, and every sort must have a unique
+        tiebreaker (usually the primary key) so pagination is stable. Never accept an arbitrary sort expression —
+        it is a performance and injection risk.</p>
+      </div>
+
+      <h4>The syntax</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Style</th><th>Example</th><th>Pros</th><th>Cons</th></tr></thead>
+          <tbody>
+            <tr><td>Prefix</td><td><code>?sort=-created_at,+name</code></td><td>Compact; widely used (JSON:API)</td><td>Easy to misread as negation</td></tr>
+            <tr><td>Suffix</td><td><code>?sort=created_at:desc,name:asc</code></td><td>Explicit</td><td>More verbose</td></tr>
+            <tr><td>Separate params</td><td><code>?sort_by=created_at&amp;sort_dir=desc</code></td><td>Simple</td><td>Cannot express multi-field</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The prefix convention (<code>-field</code> for descending, no prefix or <code>+</code> for ascending) is
+      the most common. It is compact, easy to parse, and the "minus" reads as "descending" once you know the
+      convention. Document it clearly in the getting-started guide.</p>
+
+      <h4>Always include a tiebreaker</h4>
+      <p>A sort on <code>created_at</code> alone is not stable — many rows share a timestamp. If pagination uses
+      the sort key as a cursor, a set of rows with equal timestamps has no defined order, and pagination can
+      duplicate or skip them. The fix is to always add the primary key as a final tiebreaker:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Request</th><th>Actual sort</th></tr></thead>
+          <tbody>
+            <tr><td><code>?sort=-created_at</code></td><td><code>ORDER BY created_at DESC, id DESC</code></td></tr>
+            <tr><td><code>?sort=name</code></td><td><code>ORDER BY name ASC, id ASC</code></td></tr>
+            <tr><td><code>?sort=-status,name</code></td><td><code>ORDER BY status DESC, name ASC, id ASC</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The tiebreaker is invisible to the client — it is not in the response, it is not in the sort spec. It
+      exists only to guarantee that two rows that are "equal" under the client's sort still have a deterministic
+      order, which makes cursor pagination correct.</p>
+
+      <h4>Indexes must match the sort</h4>
+      <p>A sort that does not match an index requires the database to sort the entire result set in memory (or on
+      disk). At a million rows, this is a full sort — slow and memory-hungry. The index must be
+      <code>(filter_col, sort_col1, sort_col2, ..., pk)</code> in the exact order the sort will use. If a client
+      can sort by any of five fields, you need at least five indexes, and that is a real cost on write.</p>
+      <p>The standard mitigation: <strong>limit the sortable fields</strong> to a small, curated set with known
+      indexes. An API that accepts any field for sorting is an API that forces the database to sort on unindexed
+      columns, which will fail under load. Document the sortable fields, and reject any others.</p>
+
+      <h4>The composite sort + filter pattern</h4>
+      <p>Most real list endpoints filter and sort. A common query: "orders for user 42, sorted by created_at
+      descending". The index must be <code>(user_id, created_at DESC, id DESC)</code> — the filter column first,
+      then the sort columns in the same direction. This lets the database seek to the user's orders and then walk
+      the index in the sort order, returning <code>LIMIT 20</code> without sorting.</p>
+      <p>If the index is <code>(created_at, id)</code> but the query is <code>WHERE user_id = 42 ORDER BY
+      created_at</code>, the database must find all of user 42's orders and then sort them — a potentially large
+      intermediate result. This is why composite indexes must match the query pattern, and why exposing "sort by
+      any field, filter by any field" is expensive.</p>
+
+      <h4>Collation and case sensitivity</h4>
+      <p>Sorting strings brings the collation problem. "Apple" sorts before "apple" in some collations (ASCII),
+      and after in others (case-insensitive). This is a locale and database setting, but it matters for the
+      client — the API must document the collation used, or the client will see orderings it cannot predict.</p>
+      <p>The pragmatic answer: use the database's default collation, document it, and if a client needs a specific
+      collation, expose a parameter (<code>?sort=name&amp;collation=ci</code>). Most APIs skip this and accept the
+      default — it is fine for English but occasionally surprising for other languages.</p>
+
+      <h4>Nulls in sorting</h4>
+      <p>Where do nulls sort? PostgreSQL sorts NULLs last on ASC by default, Oracle sorts them first. MySQL sorts
+      NULLs first on ASC. There is no cross-database standard, and even within a database the behaviour can be
+      configured. The API must document the behaviour (or, better, treat nulls consistently across all sort
+      fields by using <code>NULLS LAST</code> on both directions). Without this, "sorted by last_name" is
+      ambiguous for rows with no last name.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Every sortable field is an index, and every index is a write cost. An API that lets clients sort by any
+        field is an API that pays to maintain an index on every field. Curate the sortable set to what clients
+        actually need (usually 2–5 fields), document it, and reject the rest. The "flexible" design is actually the
+        expensive one.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q5 -->
+  <article class="q copper" id="q5">
+    <div class="q-head">
+      <div class="q-num">5</div>
+      <h3>How do you design field selection and partial responses?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A field selection parameter (<code>?fields=id,name,email</code>) lets the client specify which fields
+        to include, reducing payload size for mobile clients and avoiding the over-fetching that plagues REST.
+        The main design questions are <strong>scope</strong> (which resources can be shaped), <strong>syntax</strong>
+        (comma-separated vs nested), and <strong>defaults</strong> (a "full" representation when no selection is
+        given).</p>
+      </div>
+
+      <h4>Why field selection matters</h4>
+      <p>A <code>GET /users/42</code> that returns a 40-field user object is 4 KB. On a mobile client listing 100
+      users, that is 400 KB, most of which is fields the client does not display. Field selection lets the mobile
+      client request <code>?fields=id,name,avatar_url</code> and get 400 bytes per user — 40 KB total. This is
+      the same problem GraphQL solves, done within the REST idiom.</p>
+      <p>The cost is that the field-selection parameter is a new dimension in the API surface: every combination of
+      fields must be supported by the server, and the response shape is not fixed. This complicates caching (the
+      same URL with different fields is a different response), codegen (typed clients must handle optional fields),
+      and contract testing (which shapes are valid?).</p>
+
+      <h4>The syntax</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Style</th><th>Example</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>Comma-separated</td><td><code>?fields=id,name,email</code></td><td>Simple, most common</td></tr>
+            <tr><td>Bracket-specified</td><td><code>?fields[users]=id,name&amp;fields[orders]=id,total</code></td><td>Per-resource-type, JSON:API</td></tr>
+            <tr><td>Bracket-list</td><td><code>?fields[]=id&amp;fields[]=name</code></td><td>Some frameworks prefer this</td></tr>
+            <tr><td>Nested</td><td><code>?fields=id,name,orders(id,total)</code></td><td>Field selection on related resources — powerful but complex</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The comma-separated form is the pragmatic default. Nested selection is powerful but essentially rebuilds
+      GraphQL's query language inside a query parameter, and it is rarely worth the complexity.</p>
+
+      <h4>Defaults and mandatory fields</h4>
+      <p>When no <code>fields</code> parameter is given, the API should return the full representation. This is
+      the backward-compatible default that keeps existing clients working. When <code>fields</code> is given, only
+      those fields are returned — plus any "mandatory" fields the API decides are non-negotiable (usually
+      <code>id</code> and <code>type</code> for polymorphic resources).</p>
+      <p>Mandatory fields exist because some operations require them — a client that fetches a list of IDs to
+      display needs the IDs even if it does not list them in <code>fields</code>. Documenting that <code>id</code>
+      is always returned is important, so clients do not accidentally break their code.</p>
+
+      <h4>Field selection and the "expand/include" pattern</h4>
+      <p>Field selection is different from <strong>expansion</strong>. Field selection controls which fields of the
+      current resource to return. Expansion controls which related resources to inline:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Parameter</th><th>Purpose</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr><td><code>fields=</code></td><td>Which fields of this resource</td><td><code>?fields=id,name</code></td></tr>
+            <tr><td><code>expand=</code> / <code>include=</code></td><td>Which related resources to inline</td><td><code>?expand=customer,items</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Expansion replaces the "N+1 problem" of fetching a list and then fetching each item's related resource.
+      A request for 20 orders with <code>?expand=customer</code> returns each order with its customer inlined,
+      saving 20 round trips. This is the REST equivalent of GraphQL's nested selection, scoped to named
+      relationships rather than arbitrary depth.</p>
+
+      <h4>The cost of field selection</h4>
+      <ul>
+        <li><strong>Cache fragmentation.</strong> <code>?fields=id,name</code> and <code>?fields=id,email</code>
+        are different URLs, so caches store them separately. This increases cache miss rate and storage cost.</li>
+        <li><strong>Type complexity.</strong> A typed client must handle a response with optional fields — either
+        by making every field optional (annoying) or by generating a separate type per field set (complex).</li>
+        <li><strong>Contract testing.</strong> The contract is now a family of shapes, not a single one. Testing
+        every combination is exponential, so testing must sample.</li>
+        <li><strong>Backend implementation.</strong> The server must project the requested fields without returning
+        the full row — which is trivial in a document store, harder in a relational database where "select only
+        these columns" means generating dynamic SQL.</li>
+      </ul>
+
+      <h4>When field selection is worth it</h4>
+      <p>Field selection is worth the complexity when:</p>
+      <ul>
+        <li><strong>Payload size is a real problem</strong> — mobile clients on metered connections, or list
+        endpoints returning large objects.</li>
+        <li><strong>The resource has many fields</strong> that different clients need subsets of.</li>
+        <li><strong>The clients are diverse</strong> — mobile wants minimal, web wants more, partners want
+        everything.</li>
+      </ul>
+      <p>It is overkill when the resource is small (5 fields) or all clients need all fields. In that case, just
+      return the full object and save the complexity.</p>
+
+      <h4>The GraphQL comparison</h4>
+      <p>Field selection is REST's answer to GraphQL's core value proposition. GraphQL does it more elegantly
+      (selection is the query, no separate parameter) and more powerfully (arbitrary depth, nested relationships,
+      fragments). REST field selection is a coarser tool — it cannot express "user.name but order.totals only" — but
+      it addresses the same over-fetching problem with a fraction of the complexity. Choose based on how much of
+      GraphQL's power you actually need.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Implementing field selection but forgetting the fields that clients need to construct subsequent
+        requests. If <code>fields=name</code> omits <code>id</code>, the client cannot build
+        <code>/users/{id}</code> for the next request. Mandatory fields (<code>id</code>, type discriminators, links)
+        should always be included regardless of the <code>fields</code> parameter — or the API must document the
+        consequence.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q6 -->
+  <article class="q copper" id="q6">
+    <div class="q-head">
+      <div class="q-num">6</div>
+      <h3>How do you handle partial success in batch operations?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Return a <strong>per-item result</strong>, not a single status for the whole batch. Each item gets its own
+        success/failure status and, if it failed, its own error code and message. The top-level response is
+        <code>207 Multi-Status</code> (or <code>200</code> with a structured body) indicating that the batch was
+        processed — the individual outcomes are in the array.</p>
+      </div>
+
+      <h4>The three semantics</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Semantics</th><th>Behaviour</th><th>Client sees</th></tr></thead>
+          <tbody>
+            <tr><td>All-or-nothing</td><td>Any failure rolls back the entire batch</td><td>Top-level error; nothing changed</td></tr>
+            <tr><td>Best-effort (partial success)</td><td>Each item succeeds or fails independently</td><td>Mixed results; client must handle</td></tr>
+            <tr><td>Fail-fast</td><td>Stop at the first failure; prior items are committed</td><td>Partial results; unclear what happened to the rest</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Fail-fast is almost never the right choice — it is ambiguous (which items committed?) and forces the
+      client to reconstruct state. The real choice is between all-or-nothing and best-effort, and the right answer
+      depends on the domain.</p>
+
+      <h4>When all-or-nothing is right</h4>
+      <p>Some operations are only meaningful as a unit. A transfer of $100 from A to B plus a credit of $100 to
+      C plus a debit of $100 from D — if any fails, the whole thing is invalid. Similarly, a batch insert of a
+      shopping cart's line items: if one item is out of stock, the cart is not orderable.</p>
+      <p>The implementation requires a transaction, which limits the batch size (transaction size limits, lock
+      contention, rollback cost). The response is a single 400 with an error identifying the failing item — but
+      the client gets no information about which items would have succeeded, because none did.</p>
+
+      <h4>When best-effort is right</h4>
+      <p>Most batch operations are independent: creating 100 users, updating 50 records, deleting 20 items. One
+      failure does not invalidate the others, and forcing the client to fix one bad item to get the other 99
+      through is user-hostile. Best-effort is the default for bulk imports, list updates, and any operation where
+      items are independent.</p>
+      <p>The implementation is simpler (each item is its own transaction) and the batch can be larger. The
+      complexity is entirely in the response — the client must inspect each item and decide what to retry.</p>
+
+      <h4>The response shape</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Pattern</th><th>Body</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Array of results</td>
+              <td><code>[{"status": 201, "id": 1}, {"status": 409, "error": {...}}, {"status": 201, "id": 3}]</code></td>
+              <td>Simplest; matches the order of the request</td>
+            </tr>
+            <tr>
+              <td>Envelope with counts</td>
+              <td><code>{"succeeded": 98, "failed": 2, "results": [...]}</code></td>
+              <td>Adds a summary; useful when the client wants a quick check</td>
+            </tr>
+            <tr>
+              <td>Correlated by client ID</td>
+              <td><code>{"id": "a", "status": 201, ...}, {"id": "b", "status": 409, ...}</code></td>
+              <td>Each item carries a client-provided ID so the client can correlate without relying on order</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The correlated form is the most robust — a client that reorders its request or filters the response still
+      knows which item is which. If the client can provide IDs, this is worth it; if not, matching by array index
+      is the standard.</p>
+
+      <h4>The status code question</h4>
+      <p>What status code should a batch with partial success return?</p>
+      <ul>
+        <li><strong>207 Multi-Status</strong> (from WebDAV) — explicitly designed for this case. It signals "the
+        batch was processed; inspect the body". Rarely used outside WebDAV because it is not widely understood.</li>
+        <li><strong>200 OK</strong> — the request was processed successfully (even if some items failed). The body
+        contains the per-item statuses. This is what many APIs do and is defensible: the API call succeeded, the
+        item operations are in the body.</li>
+        <li><strong>400 / 422</strong> — if any item failed, treat the whole batch as a bad request. This conflicts
+        with best-effort semantics (partial success was expected) and forces the client to look at the body to see
+        which failed.</li>
+        <li><strong>207 or 200</strong> — the pragmatic answer. Use <code>200</code> with a clear body for best-effort
+        batches, and document that per-item failures are in the response.</li>
+      </ul>
+      <p>The one status that is definitely wrong: <strong>returning 200 with an error message in the body for the
+      whole batch</strong>. That is the RPC-over-REST anti-pattern (Volume 2, Question 10), and it breaks every
+      monitoring and alerting system.</p>
+
+      <h4>Idempotency in batch operations</h4>
+      <p>A batch operation that partially succeeded must be safe to retry. If the client retries the entire batch,
+      the already-succeeded items will fail with "already exists" or be duplicated. The mitigations:</p>
+      <ul>
+        <li><strong>Per-item idempotency keys.</strong> Each item carries its own idempotency key, so a retry of
+        an already-processed item is a no-op. This is the standard.</li>
+        <li><strong>Upsert semantics.</strong> Each item is an upsert, not an insert — a retry updates the already-existing
+        record instead of failing.</li>
+        <li><strong>Client-side retry only the failed items.</strong> The client inspects the response, identifies
+        the failures, and retries only those. This requires the response to be unambiguous about which items
+        failed, which is why the correlated response is worth the complexity.</li>
+      </ul>
+
+      <h4>Batch size limits</h4>
+      <p>Every batch endpoint must have a maximum size — usually 100 or 1,000 items. Without a limit, a client will
+      send 1 million items and the server will exhaust memory. The limit should be documented, enforced with a
+      clear error, and chosen based on the transaction size and typical item size. If a client needs to process
+      more, they use a bulk API (Volume 1, Question 14) that chunks the work.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Returning a single status code for a batch and putting per-item details in a nested array that nobody
+        reads. The client sees 200 and assumes everything worked, then later discovers that 5 of 100 items failed.
+        The response shape must make per-item failures impossible to miss — either through a top-level summary
+        (<code>{"succeeded": 95, "failed": 5}</code>) or through a response structure that requires the client to
+        inspect the array.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART C ================= -->
+  <div class="part-band teal">
+    <div class="bar"></div>
+    <h2>Part C — Response Shape &amp; Safety
+      <span class="sub">Envelopes, links, search, and query limits</span>
+    </h2>
+  </div>
+
+  <!-- Q7 -->
+  <article class="q teal" id="q7">
+    <div class="q-head">
+      <div class="q-num">7</div>
+      <h3>Should you wrap responses in an envelope? What goes in it?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Use an envelope for <strong>collections</strong> (where you need pagination metadata) but return
+        <strong>bare objects</strong> for single resources. The envelope holds the array plus pagination state
+        (<code>next_cursor</code>, <code>has_more</code>, <code>total</code>) and sometimes links or metadata.
+        Wrapping a single resource in <code>{"data": {...}}</code> adds a layer of indirection that most clients
+        do not need.</p>
+      </div>
+
+      <h4>Three envelope styles</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Style</th><th>Collection</th><th>Single resource</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Bare</td>
+              <td><code>[{...}, {...}]</code></td>
+              <td><code>{...}</code></td>
+              <td>Simplest; no place for metadata</td>
+            </tr>
+            <tr>
+              <td>Data-wrapped</td>
+              <td><code>{"data": [...]}</code></td>
+              <td><code>{"data": {...}}</code></td>
+              <td>Always an object at the top level</td>
+            </tr>
+            <tr>
+              <td>Metadata-envelope</td>
+              <td><code>{"data": [...], "meta": {"total": 1000, "cursor": "..."}}</code></td>
+              <td><code>{"data": {...}, "meta": {...}}</code></td>
+              <td>Best for collections; optional for resources</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The argument for a bare array on collections</h4>
+      <p>A bare array is the simplest shape — <code>GET /users</code> returns <code>[...]</code>. The advantage is
+      clarity: the response is obviously a list. The disadvantage is that there is nowhere to put pagination
+      metadata. A bare array cannot carry <code>next_cursor</code> — it must go in a <code>Link</code> header
+      (Question 8), which is the HTTP-native way to express pagination.</p>
+      <p>Bare arrays are defensible when pagination is via <code>Link</code> headers. They are wrong when you
+      want to return counts, cursors, or other metadata, because headers become a dumping ground.</p>
+
+      <h4>The argument for an envelope</h4>
+      <p>An envelope is future-proof — you can add fields to <code>meta</code> without breaking the response shape.
+      This is why most modern APIs wrap collections:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Field</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>data</code></td><td>The array of resources</td></tr>
+            <tr><td><code>meta.has_more</code></td><td>Whether there is another page (cheaper than total)</td></tr>
+            <tr><td><code>meta.next_cursor</code></td><td>Cursor for the next page; null if last</td></tr>
+            <tr><td><code>meta.prev_cursor</code></td><td>Cursor for the previous page; null on first page</td></tr>
+            <tr><td><code>meta.total</code></td><td>Total count (expensive; omit or make optional)</td></tr>
+            <tr><td><code>meta.limit</code></td><td>Effective page size (may differ from requested)</td></tr>
+            <tr><td><code>links.self</code>, <code>links.next</code>, <code>links.prev</code></td><td>URLs for navigation</td></tr>
+            <tr><td><code>warnings</code></td><td>Non-fatal issues (e.g., "some records could not be loaded")</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Should single resources be enveloped?</h4>
+      <p>Wrapping a single resource in <code>{"data": {...}}</code> is a stylistic choice. It gives consistency with
+      the collection form, and it provides a place for metadata about the resource (links, warnings). It also
+      allows the server to return the resource with related links without polluting the resource itself.</p>
+      <p>The counter-argument is that a single resource is not a list, and forcing a <code>.data</code> access on
+      every client is unnecessary indirection. Many APIs (Stripe, GitHub) return bare objects for single
+      resources and enveloped collections. This is the pragmatic default and is what most clients find easiest.</p>
+
+      <h4>Error responses must not be enveloped</h4>
+      <p>One rule that is not stylistic: <strong>error responses must use a consistent shape</strong>, and it
+      should be the same shape everywhere. RFC 7807 (Problem Details for HTTP APIs) is the standard:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Field</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>type</code></td><td>A URI identifying the error type</td></tr>
+            <tr><td><code>title</code></td><td>A short human-readable summary</td></tr>
+            <tr><td><code>status</code></td><td>The HTTP status code</td></tr>
+            <tr><td><code>detail</code></td><td>A human-readable explanation</td></tr>
+            <tr><td><code>instance</code></td><td>A URI identifying this specific occurrence</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Error envelopes should not be nested inside the success envelope. A 200 with an error in the body is
+      always wrong (Volume 8 covers this in detail). Errors use 4xx/5xx status codes and the RFC 7807 body, and
+      they are not wrapped in <code>{"data": ...}</code> — the top-level object is the problem.</p>
+
+      <h4>The JSON:API style</h4>
+      <p>JSON:API is a specification that mandates a particular envelope structure — <code>data</code>,
+      <code>included</code>, <code>links</code>, <code>meta</code>, <code>errors</code> — with strict rules about
+      how resources relate. It is more prescriptive than necessary for most APIs, but for teams that want a
+      standard, it removes the ambiguity. Most APIs implement a lighter version: <code>data</code> +
+      <code>meta</code> + <code>links</code>, without JSON:API's full resource linkage.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Envelopes are more future-proof but less ergonomic. Bare responses are simpler but constrain
+        pagination to headers. The pragmatic middle: enveloped collections (where metadata is necessary), bare
+        single resources (where it is not). Consistent error envelopes across everything, regardless of
+        success-shape.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q8 -->
+  <article class="q teal" id="q8">
+    <div class="q-head">
+      <div class="q-num">8</div>
+      <h3>What is the Link header, and how does it express pagination?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>The <code>Link</code> header (RFC 8288) carries hypermedia relations in HTTP headers, most commonly
+        pagination links. A paginated response includes
+        <code>Link: &lt;https://api.example.com/users?cursor=abc&gt;; rel="next"</code> so clients can follow it
+        without constructing URLs. It is the HTTP-native alternative to putting <code>next_cursor</code> in a JSON
+        envelope.</p>
+      </div>
+
+      <h4>The syntax</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Relation</th><th>Meaning</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr><td><code>self</code></td><td>The current page</td><td><code>&lt;/users?page=2&gt;; rel="self"</code></td></tr>
+            <tr><td><code>next</code></td><td>The next page</td><td><code>&lt;/users?page=3&gt;; rel="next"</code></td></tr>
+            <tr><td><code>prev</code> / <code>previous</code></td><td>The previous page</td><td><code>&lt;/users?page=1&gt;; rel="prev"</code></td></tr>
+            <tr><td><code>first</code></td><td>The first page</td><td><code>&lt;/users?page=1&gt;; rel="first"</code></td></tr>
+            <tr><td><code>last</code></td><td>The last page</td><td><code>&lt;/users?page=100&gt;; rel="last"</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>A response can include multiple relations in one header, separated by commas:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Header</th></tr></thead>
+          <tbody>
+            <tr><td><code>Link: &lt;/users?page=1&gt;; rel="first", &lt;/users?page=3&gt;; rel="next", &lt;/users?page=1&gt;; rel="prev"</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Why the Link header matters</h4>
+      <ul>
+        <li><strong>It keeps the body simple.</strong> A bare array response plus a <code>Link</code> header is the
+        cleanest possible paginated response — no envelope, no metadata, just data and navigation.</li>
+        <li><strong>It is HTTP-native.</strong> Clients that understand HTTP (browsers, crawlers, HTTP libraries)
+        know what <code>Link</code> means. It is not a bespoke convention.</li>
+        <li><strong>It supports discovery.</strong> A client does not need to know the URL structure — it follows
+        the <code>next</code> link. This means the API can change its pagination URL format without breaking
+        clients, as long as the header is updated.</li>
+        <li><strong>It works with both offset and cursor.</strong> The URL inside the <code>Link</code> header can
+        be <code>?page=3</code> (offset) or <code>?cursor=abc</code> (cursor) — the client does not need to know.</li>
+      </ul>
+
+      <h4>The GitHub API precedent</h4>
+      <p>GitHub's REST API is the most prominent example of <code>Link</code>-header pagination:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Response</th></tr></thead>
+          <tbody>
+            <tr><td><code>HTTP/1.1 200 OK</code></td></tr>
+            <tr><td><code>Link: &lt;https://api.github.com/user/repos?page=3&gt;; rel="next", &lt;https://api.github.com/user/repos?page=1&gt;; rel="first"</code></td></tr>
+            <tr><td><code>[{...}, {...}, ...]</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Clients parse the <code>Link</code> header for the <code>rel="next"</code> entry and follow it. If it is
+      absent, there is no next page. This is elegant and works — the body is a clean array, and pagination
+      information is in the headers where HTTP clients expect it.</p>
+
+      <h4>When to prefer Link vs an envelope</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Prefer Link header</th><th>Prefer envelope</th></tr></thead>
+          <tbody>
+            <tr><td>Bare array responses are acceptable</td><td>You need <code>has_more</code> or <code>total</code> in the body</td></tr>
+            <tr><td>You want HTTP-native semantics</td><td>You want a consistent JSON shape for all responses</td></tr>
+            <tr><td>You want to keep the body clean</td><td>You want the metadata to be visible in dev tools without reading headers</td></tr>
+            <tr><td>Clients use a library that parses Link</td><td>Clients are hand-written and would rather not parse headers</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The trade-off</h4>
+      <p>The <code>Link</code> header is more "HTTP-correct", but it is also less visible. A developer looking at
+      the response in a browser dev tools network panel sees the body immediately and the headers only after
+      clicking. A <code>next_cursor</code> in the body is visible at a glance. This is a real usability
+      difference, and it is why many modern APIs use envelopes rather than headers, even though the header is
+      technically more elegant.</p>
+      <p>The pragmatic answer: use both. Return a bare array with a <code>Link</code> header for HTTP-native
+      clients, and also include a small envelope with <code>next_cursor</code> for convenience. Or just pick one
+      and be consistent — the difference is not large enough to justify the complexity of dual formats.</p>
+
+      <h4>Link headers beyond pagination</h4>
+      <p>RFC 8288 defines the <code>Link</code> header for any hypermedia relation, not just pagination. It can
+      also express:</p>
+      <ul>
+        <li><code>rel="deprecation"</code> — pointing to a deprecation notice (Volume 3, Question 3).</li>
+        <li><code>rel="describedby"</code> — pointing to documentation or schema.</li>
+        <li><code>rel="author"</code>, <code>rel="license"</code> — metadata about the resource.</li>
+        <li><code>rel="preload"</code> — hinting at a resource that will be needed (related to performance).</li>
+      </ul>
+      <p>This makes the <code>Link</code> header a general-purpose hypermedia mechanism, of which pagination is the
+      most common use case. Using it for deprecation and documentation is good practice — it makes the API
+      self-describing at the HTTP layer.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Hardcoding the pagination URL structure in clients. A client that reads
+        <code>response.headers['Link']</code> and follows <code>rel="next"</code> is future-proof; a client that
+        constructs <code>?page=N+1</code> itself will break when the URL structure changes. The whole point of the
+        <code>Link</code> header is that clients do not need to construct URLs — use it that way.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q9 -->
+  <article class="q teal" id="q9">
+    <div class="q-head">
+      <div class="q-num">9</div>
+      <h3>How do you design a search endpoint?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A search endpoint is fundamentally different from a list endpoint: it has a <strong>query</strong>
+        (free-text), often spans multiple entity types, and needs relevance ranking rather than a fixed sort. It
+        should be a separate endpoint (<code>GET /search?q=...</code>) backed by a search engine
+        (Elasticsearch, OpenSearch, Typesense, Meilisearch), not by the transactional database.</p>
+      </div>
+
+      <h4>Why search is a separate concern</h4>
+      <p>A list endpoint (<code>GET /users?status=active</code>) is a filter over a single resource type, backed
+      by indexed columns in the operational database. A search endpoint (<code>GET /search?q=alice</code>) is a
+      relevance-ranked match across many fields — name, email, bio, posts, comments — and often across multiple
+      entity types. The operational database cannot answer this efficiently:</p>
+      <ul>
+        <li><strong>Full-text matching requires an inverted index.</strong> SQL's <code>LIKE '%alice%'</code> cannot
+        use a standard B-tree index and forces a full scan.</li>
+        <li><strong>Relevance ranking is not SQL's strength.</strong> Even with <code>tsvector</code> (PostgreSQL
+        full-text search), ranking and highlighting are rudimentary.</li>
+        <li><strong>Cross-entity search</strong> spans multiple tables, each with its own join graph — the query
+        becomes a monster that no one wants to maintain.</li>
+        <li><strong>Fuzzy matching, stemming, synonyms, typo tolerance</strong> — these are the domain of a search
+        engine, and they matter enormously for user experience.</li>
+      </ul>
+
+      <h4>The standard architecture</h4>
+      <ol>
+        <li><strong>Operational database</strong> is the source of truth (PostgreSQL, MySQL).</li>
+        <li><strong>CDC (Change Data Capture)</strong> streams changes to a message queue (Kafka).</li>
+        <li><strong>Indexer</strong> consumes the stream and updates the search index (Elasticsearch).</li>
+        <li><strong>Search endpoint</strong> queries the index and returns results, with a reference back to the
+        source-of-truth IDs.</li>
+        <li><strong>Hydration</strong> — the endpoint either returns the search-index document directly (if it
+        contains enough data) or fetches the full resource from the database by ID.</li>
+      </ol>
+      <p>This decouples search from the operational database entirely — search load does not affect transactional
+      performance, and the search index can be rebuilt from the source of truth at any time.</p>
+
+      <h4>The endpoint design</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Parameter</th><th>Purpose</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr><td><code>q</code></td><td>The free-text query</td><td><code>?q=vintage+camera</code></td></tr>
+            <tr><td><code>type</code></td><td>Filter to one or more entity types</td><td><code>?type=product,article</code></td></tr>
+            <tr><td><code>filters</code></td><td>Structured filters (facets)</td><td><code>?brand=canon&amp;price_max=500</code></td></tr>
+            <tr><td><code>sort</code></td><td>Relevance (default), price, date</td><td><code>?sort=price_asc</code></td></tr>
+            <tr><td><code>cursor</code> / <code>page</code></td><td>Pagination</td><td><code>?cursor=...</code></td></tr>
+            <tr><td><code>limit</code></td><td>Page size</td><td><code>?limit=20</code></td></tr>
+            <tr><td><code>highlight</code></td><td>Whether to include highlighted snippets</td><td><code>?highlight=true</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The response shape</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Field</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>results</code></td><td>Array of results, each with an <code>id</code>, <code>type</code>, <code>score</code>, and either a full document or a reference</td></tr>
+            <tr><td><code>highlight</code></td><td>Snippets with <code>&lt;em&gt;</code> or <code>&lt;mark&gt;</code> tags around matched terms</td></tr>
+            <tr><td><code>facets</code></td><td>Counts per filter value (e.g., <code>{"brand": {"canon": 42, "nikon": 37}}</code>)</td></tr>
+            <tr><td><code>meta.total</code></td><td>Total count of matches (search engines often provide this cheaply)</td></tr>
+            <tr><td><code>meta.took_ms</code></td><td>How long the search took, for debugging</td></tr>
+            <tr><td><code>meta.corrected_query</code></td><td>Spelling-corrected version of the query, if different</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The facets are what make search useful for e-commerce and content platforms — they let the client display
+      "filter by brand: Canon (42), Nikon (37)" without a separate aggregation query.</p>
+
+      <h4>Ranking and relevance</h4>
+      <p>A search endpoint must return results in <strong>relevance order</strong> by default, not by ID or date.
+      The engine's relevance score (BM25, TF-IDF, or a learned ranking model) determines the order. Clients
+      should not need to specify a sort to get good results — the default is "best match first".</p>
+      <p>Relevance is often tunable per field — a match in the title should rank higher than a match in the body.
+      The engine supports field boosting (<code>title^3, body^1</code>), and the API should expose this to the
+      client only if the client genuinely needs to control it (usually it does not — the backend sets the
+      boost).</p>
+
+      <h4>Pagination in search</h4>
+      <p>Search results are typically paginated with offset (the search engine handles it), but for very deep
+      pages, the same scale problem applies — the engine must score millions of documents to return page 500.
+      Elasticsearch's <code>search_after</code> is the equivalent of cursor pagination, using the sort key and
+      document ID as a cursor. For most search UIs, offset up to a few hundred pages is fine; beyond that, the
+      UI should encourage refinement (narrower query, additional filters) rather than deep paging.</p>
+
+      <h4>What not to do</h4>
+      <ul>
+        <li><strong>Search in the operational database with <code>LIKE '%term%'</code>.</strong> It cannot use an
+        index, scans the whole table, and will time out.</li>
+        <li><strong>Return unranked results.</strong> Users expect "best match first"; a search that returns
+        results in insertion order is broken.</li>
+        <li><strong>Search across everything without type filtering.</strong> A search for "apple" returns the
+        fruit, the company, and the user's contact named Apple — the client needs to filter by type.</li>
+        <li><strong>Expose the search engine's query DSL directly.</strong> Elasticsearch's query DSL is powerful
+        and dangerous — it can be used to run expensive queries. The API should expose a curated query
+        interface, not the raw DSL.</li>
+        <li><strong>Return the raw search-engine response.</strong> The engine's response contains internal
+        metadata that clients do not need and should not depend on. Normalise it to a stable schema.</li>
+      </ul>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Search is a separate endpoint backed by Elasticsearch, fed by CDC from the operational database.
+        It returns ranked results with highlights and facets, and the operational database is never queried with
+        <code>LIKE</code>." That demonstrates you understand the separation of concerns and the data-flow
+        architecture.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q10 -->
+  <article class="q teal" id="q10">
+    <div class="q-head">
+      <div class="q-num">10</div>
+      <h3>How do you prevent unbounded queries and query abuse?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Layer four defences: <strong>mandatory filters or defaults</strong> (no unfiltered queries on large
+        tables), <strong>hard result caps</strong> (reject requests for more than N items), <strong>query complexity
+        limits</strong> (reject filters, sorts, or expansions that would be expensive), and <strong>server-side
+        timeouts</strong> (a query that runs longer than T is killed). Each layer protects against a different
+        attack; together they bound the worst case.</p>
+      </div>
+
+      <h4>The threat model</h4>
+      <p>Unbounded queries come from three sources:</p>
+      <ul>
+        <li><strong>Accidental.</strong> A client that forgets a filter, or a UI that fetches "all orders" with
+        no date range. This is the most common cause.</li>
+        <li><strong>Careless.</strong> A client that calls <code>GET /users?limit=1000000</code> because it
+        wants to "cache everything". This works once and then kills the database.</li>
+        <li><strong>Malicious.</strong> An attacker that deliberately crafts expensive queries to overload the
+        system (an OWASP API4:2023 "Unrestricted Resource Consumption" attack).</li>
+      </ul>
+      <p>The same defences help with all three. The problem is that a query is not obviously expensive — it
+      looks like any other request. The API must decide, on the server side, whether a request is safe before
+      executing it.</p>
+
+      <h4>Defence 1 — Mandatory filters</h4>
+      <p>On a large table, no query is allowed to run without a filter that uses an index. The API enforces this:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Endpoint</th><th>Required filter</th><th>Behaviour without it</th></tr></thead>
+          <tbody>
+            <tr><td><code>GET /orders</code></td><td><code>?user_id=</code> or <code>?date_from=</code></td><td>400 with an error naming the required filter</td></tr>
+            <tr><td><code>GET /events</code></td><td><code>?from=</code></td><td>Default to last 24 hours (with a warning header)</td></tr>
+            <tr><td><code>GET /users</code></td><td><code>?org_id=</code> (in a multi-tenant app)</td><td>Tenant is derived from the auth token; no explicit filter needed</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The error message should tell the client exactly which filter to add — this converts a 400 into a
+      fixable problem rather than a mystery.</p>
+
+      <h4>Defence 2 — Hard result caps</h4>
+      <p>Every list endpoint has a maximum page size (typically 100, sometimes 1,000). A request for more
+      returns 400 with a clear error, or (more forgiving) is silently capped with a warning:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Client request</th><th>Server behaviour</th></tr></thead>
+          <tbody>
+            <tr><td><code>?limit=50</code></td><td>Returns 50 items</td></tr>
+            <tr><td><code>?limit=500</code></td><td>400: "limit must be between 1 and 100"</td></tr>
+            <tr><td><code>?limit=500</code> (with capping)</td><td>Returns 100 items, header <code>Warning: 199 - "limit capped at 100"</code></td></tr>
+            <tr><td>No <code>limit</code></td><td>Default of 20 or 50</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The 400 approach is stricter and forces clients to be honest about their intent. The capping approach is
+      friendlier but hides the problem. Either is defensible; the 400 is better for internal APIs, the capping for
+      public ones (where clients might not read errors).</p>
+
+      <h4>Defence 3 — Query complexity limits</h4>
+      <p>The cost of a query depends not just on <code>limit</code> but on <em>what the query does</em>. A query
+      that joins five tables, sorts by an unindexed column, and filters with a wildcard is expensive regardless
+      of the limit. The API should estimate the cost before executing:</p>
+      <ul>
+        <li><strong>Whitelist filters.</strong> Only filters backed by an index are accepted. The set of accepted
+        filters is small and documented.</li>
+        <li><strong>Whitelist sorts.</strong> Same — only sorts with indexes. Sorting by an unindexed column
+        returns 400 with a clear error.</li>
+        <li><strong>Limit expansions.</strong> If the endpoint supports <code>?expand=customer,items</code>, cap the
+        number of expansions (e.g., 3) and the depth (no nested expansions).</li>
+        <li><strong>Limit filter combinations.</strong> Some combinations are expensive even if each filter is
+        indexed — "sort by date, filter by tag" may be a cross-index query. Cap the number of filters or reject
+        combinations that are known to be slow.</li>
+        <li><strong>Cost function.</strong> Compute a cost estimate (number of filters × expansion factor × limit)
+        and reject requests above a threshold. This is what GraphQL's query complexity analysis does — the same
+        idea applies to REST.</li>
+      </ul>
+
+      <h4>Defence 4 — Server-side timeouts</h4>
+      <p>No query should be allowed to run unbounded. The database should have a <code>statement_timeout</code> (or
+      the equivalent), and the API should have a request-level timeout that kills the query and returns 504
+      (Gateway Timeout) or 503. The client then knows the query was too expensive and can refine it. Without a
+      timeout, one bad query holds a database connection for minutes, and a few of them exhaust the connection
+      pool.</p>
+      <p>The timeout should be tuned to the endpoint: a search query might be allowed 2 seconds, a list endpoint
+      500 ms, a report endpoint 30 seconds. Documented timeouts are part of the API contract — a client that
+      needs more than the timeout must use an async endpoint (Volume 1, Question 13).</p>
+
+      <h4>The layered defence in practice</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Layer</th><th>Protects against</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr><td>Mandatory filters</td><td>Accidental full-table scans</td><td><code>GET /orders</code> requires <code>user_id</code></td></tr>
+            <tr><td>Result caps</td><td>Memory and bandwidth abuse</td><td><code>limit</code> max 100</td></tr>
+            <tr><td>Filter/sort whitelists</td><td>Unindexed scans</td><td>Only filters with indexes are accepted</td></tr>
+            <tr><td>Cost limits</td><td>Expensive combinations</td><td>Max 3 filters, no nested expansions</td></tr>
+            <tr><td>Timeouts</td><td>Any runaway query</td><td><code>statement_timeout = 500ms</code></td></tr>
+            <tr><td>Rate limiting</td><td>Repeated abusive requests</td><td>Volume 7 covers this in detail</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Each layer catches what the others miss. Mandatory filters catch the obvious case; whitelists catch
+      the subtle case; timeouts catch the case nobody anticipated. There is no single defence that is
+      sufficient, which is why the layers are complementary.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Relying on the client to add <code>LIMIT</code>. A client that does not is the client that crashes
+        the database. The <code>LIMIT</code> must be enforced by the server, and the server must also cap the
+        total cost of the query — not just the row count. A <code>LIMIT 100</code> query that joins six tables
+        and sorts by an unindexed column is still expensive.</p>
+      </div>
+
+      <h4>The ethical dimension</h4>
+      <p>Unbounded queries are not just a technical problem — they are a fairness problem. One client sending a
+      million-row query can degrade service for every other client. Enforcing limits is not hostile to clients;
+      it is protective of the shared resource. The API should communicate this clearly — the docs should state
+      the limits, the errors should explain why the request was rejected, and the limits should be generous
+      enough that no reasonable client hits them.</p>
+    </div>
+  </article>
+
+  <!-- NEXT PART -->
+  <section class="next-part">
+    <h3>Coming in Volume 5 — Idempotency &amp; Correctness</h3>
+    <p>Volume 5 turns to the correctness mechanisms that make retries safe: idempotency keys (design, storage,
+    TTLs, concurrency), conditional requests (ETags, If-Match, If-None-Match), optimistic concurrency, lost-update
+    prevention, safe retries, retry budgets, and the difference between client-side and server-side retries.</p>
+    <ul class="next-list">
+      <li>What idempotency actually guarantees</li>
+      <li>Idempotency key design and storage</li>
+      <li>Concurrent requests with the same key</li>
+      <li>ETags and conditional requests</li>
+      <li>Optimistic concurrency with If-Match</li>
+      <li>Lost-update prevention</li>
+      <li>Retryable vs non-retryable errors</li>
+      <li>Retry budgets and circuit breakers</li>
+      <li>Client-side vs server-side retries</li>
+      <li>Exactly-once semantics and its cost</li>
+    </ul>
+  </section>
+
+</div>
+</body>
+</html>
