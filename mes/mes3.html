@@ -1,0 +1,1768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Messaging Systems — Section 3: Publish/Subscribe &amp; Event Streaming</title>
+<style>
+  :root{
+    --ink:#0f172a;
+    --ink-soft:#334155;
+    --muted:#64748b;
+    --line:#f0dfd3;
+    --bg:#fdf7f2;
+    --card:#ffffff;
+    --orange:#c2410c;
+    --orange-soft:#ffedd5;
+    --orange-deep:#7c2d12;
+    --red:#b91c1c;
+    --teal:#0d9488;
+    --amber:#b45309;
+    --rose:#e11d48;
+    --blue:#2563eb;
+    --shadow:0 1px 2px rgba(67,20,7,.06), 0 8px 24px -8px rgba(67,20,7,.14);
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 8% -10%, #ffedd5 0%, transparent 60%),
+      radial-gradient(1000px 500px at 100% 0%, #fed7aa 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:"Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    line-height:1.72;
+    font-size:16.5px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px 90px;}
+
+  header.hero{
+    background:linear-gradient(135deg,#431407 0%, #7c2d12 45%, #9a3412 100%);
+    color:#fff7ed;
+    padding:64px 22px 56px;
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::after{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      radial-gradient(600px 300px at 85% 15%, rgba(251,146,60,.4), transparent 70%),
+      radial-gradient(520px 280px at 12% 92%, rgba(234,88,12,.42), transparent 70%);
+    pointer-events:none;
+  }
+  .hero-inner{max-width:1080px;margin:0 auto;position:relative;z-index:2;}
+  .eyebrow{
+    display:inline-block;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;
+    font-weight:700;padding:7px 15px;border-radius:999px;
+    background:rgba(253,186,116,.16);border:1px solid rgba(253,186,116,.45);
+    color:#fdba74;margin-bottom:20px;
+  }
+  header.hero h1{
+    font-size:clamp(1.9rem, 4.4vw, 3rem);line-height:1.15;margin:0 0 16px;
+    font-weight:800;letter-spacing:-.02em;
+  }
+  header.hero h1 span{
+    background:linear-gradient(90deg,#fdba74,#fed7aa);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  header.hero p.lede{font-size:1.06rem;color:#fed7aa;max-width:790px;margin:0 0 26px;}
+  .meta-chips{display:flex;flex-wrap:wrap;gap:10px;}
+  .chip{
+    font-size:.78rem;font-weight:600;padding:7px 14px;border-radius:999px;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#ffedd5;
+  }
+
+  .roadmap{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:26px 28px;margin-top:-34px;position:relative;z-index:5;
+  }
+  .roadmap h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 16px;font-weight:700;
+  }
+  .roadmap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;}
+  .roadmap-item{
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:.86rem;
+    background:#fffcf9;opacity:.7;
+  }
+  .roadmap-item.done{
+    border-color:#fdba74;background:linear-gradient(180deg,#fff7ed,#ffffff);opacity:1;
+  }
+  .roadmap-item.current{
+    border-color:#fb923c;background:linear-gradient(180deg,#ffedd5,#ffffff);opacity:1;
+    box-shadow:0 0 0 3px rgba(194,65,12,.14);
+  }
+  .roadmap-item .tag{
+    display:inline-block;font-size:.64rem;font-weight:800;letter-spacing:.08em;
+    padding:2px 8px;border-radius:999px;margin-bottom:6px;
+  }
+  .tag-done{background:var(--orange-soft);color:var(--orange-deep);}
+  .tag-now{background:#fed7aa;color:#7c2d12;}
+  .tag-next{background:#e2e8f0;color:#475569;}
+  .roadmap-item strong{display:block;color:var(--ink);font-size:.89rem;}
+
+  nav.toc{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:22px 26px;margin:26px 0 44px;
+  }
+  nav.toc h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 14px;font-weight:700;
+  }
+  nav.toc ol{
+    margin:0;padding-left:0;list-style:none;counter-reset:toc;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:8px 26px;
+  }
+  nav.toc li{
+    counter-increment:toc;font-size:.92rem;padding:6px 0 6px 34px;
+    position:relative;border-bottom:1px dashed #fbeee3;
+  }
+  nav.toc li::before{
+    content:counter(toc);position:absolute;left:0;top:7px;width:22px;height:22px;
+    border-radius:7px;background:var(--orange-soft);color:var(--orange);
+    font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center;
+  }
+  nav.toc a{color:var(--ink-soft);text-decoration:none;font-weight:500;}
+  nav.toc a:hover{color:var(--orange);}
+
+  .part-band{display:flex;align-items:center;gap:16px;margin:56px 0 26px;}
+  .part-band .bar{
+    width:5px;height:44px;border-radius:99px;
+    background:linear-gradient(180deg,var(--orange),#fb923c);
+  }
+  .part-band.red .bar{background:linear-gradient(180deg,var(--red),#f87171);}
+  .part-band.teal .bar{background:linear-gradient(180deg,var(--teal),#2dd4bf);}
+  .part-band.blue .bar{background:linear-gradient(180deg,var(--blue),#60a5fa);}
+  .part-band h2{margin:0;font-size:1.5rem;letter-spacing:-.01em;font-weight:800;}
+  .part-band .sub{
+    display:block;font-size:.82rem;font-weight:600;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.12em;margin-top:2px;
+  }
+
+  article.q{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:0 0 26px;margin-bottom:28px;overflow:hidden;
+    scroll-margin-top:24px;
+  }
+  .q-head{
+    display:flex;gap:16px;align-items:flex-start;padding:22px 28px 18px;
+    border-bottom:1px solid #fbeee3;background:linear-gradient(180deg,#fffcf9,#ffffff);
+  }
+  .q-num{
+    flex:none;width:42px;height:42px;border-radius:12px;display:flex;
+    align-items:center;justify-content:center;font-weight:800;font-size:.92rem;color:#fff;
+    background:linear-gradient(135deg,#c2410c,#ea580c);
+    box-shadow:0 6px 14px -6px rgba(194,65,12,.7);
+  }
+  .red .q-num{background:linear-gradient(135deg,#b91c1c,#ef4444);box-shadow:0 6px 14px -6px rgba(185,28,28,.7);}
+  .teal .q-num{background:linear-gradient(135deg,#0d9488,#14b8a6);box-shadow:0 6px 14px -6px rgba(13,148,136,.7);}
+  .blue .q-num{background:linear-gradient(135deg,#2563eb,#3b82f6);box-shadow:0 6px 14px -6px rgba(37,99,235,.7);}
+  .q-head h3{margin:0;font-size:1.13rem;font-weight:700;line-height:1.4;letter-spacing:-.01em;}
+  .q-body{padding:22px 28px 0;}
+  .q-body p{margin:0 0 15px;color:var(--ink-soft);}
+  .q-body p:last-child{margin-bottom:0;}
+  .q-body h4{margin:24px 0 10px;font-size:.95rem;font-weight:800;color:var(--ink);}
+  .q-body h4::before{content:"▹";color:var(--orange);margin-right:8px;font-size:.85rem;}
+  .red .q-body h4::before{color:var(--red);}
+  .teal .q-body h4::before{color:var(--teal);}
+  .blue .q-body h4::before{color:var(--blue);}
+  .q-body ul,.q-body ol{margin:0 0 16px;padding-left:22px;color:var(--ink-soft);}
+  .q-body li{margin-bottom:8px;}
+  .q-body li::marker{color:var(--orange);}
+  .red .q-body li::marker{color:var(--red);}
+  .teal .q-body li::marker{color:var(--teal);}
+  .blue .q-body li::marker{color:var(--blue);}
+  strong{color:var(--ink);font-weight:700;}
+  code{
+    background:#fef5ee;border:1px solid #f0dfd3;border-radius:6px;padding:1px 6px;
+    font-size:.87em;font-family:"SFMono-Regular",Consolas,monospace;color:#9a3412;
+  }
+
+  .callout{border-radius:12px;padding:14px 18px;margin:18px 0 4px;font-size:.93rem;border-left:4px solid;}
+  .callout .label{
+    display:block;font-size:.68rem;font-weight:800;letter-spacing:.13em;
+    text-transform:uppercase;margin-bottom:5px;
+  }
+  .callout p{margin:0 0 8px;font-size:.93rem;}
+  .callout p:last-child{margin-bottom:0;}
+  .answer{background:linear-gradient(180deg,#fff7ed,#ffffff);border-color:var(--orange);}
+  .answer .label{color:var(--orange-deep);}
+  .tip{background:linear-gradient(180deg,#f0fdfa,#ffffff);border-color:var(--teal);}
+  .tip .label{color:#0f766e;}
+  .tradeoff{background:linear-gradient(180deg,#fffbeb,#ffffff);border-color:var(--amber);}
+  .tradeoff .label{color:#b45309;}
+  .pitfall{background:linear-gradient(180deg,#fff1f2,#ffffff);border-color:var(--rose);}
+  .pitfall .label{color:#be123c;}
+
+  .table-scroll{overflow-x:auto;margin:18px 0;border-radius:12px;border:1px solid var(--line);}
+  table{width:100%;border-collapse:collapse;font-size:.87rem;background:#fff;}
+  thead th{
+    background:#fdf8f4;text-align:left;padding:11px 14px;font-weight:800;
+    font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+    border-bottom:2px solid var(--line);white-space:nowrap;
+  }
+  tbody td{padding:11px 14px;border-bottom:1px solid #fef5ee;color:var(--ink-soft);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:nth-child(even){background:#fffdfb;}
+  tbody td:first-child{font-weight:700;color:var(--ink);}
+
+  .next-part{
+    background:linear-gradient(135deg,#431407,#9a3412);color:#ffedd5;
+    border-radius:var(--radius);padding:32px 34px;margin-top:50px;box-shadow:var(--shadow);
+  }
+  .next-part h3{margin:0 0 12px;font-size:1.2rem;color:#fff;font-weight:800;}
+  .next-part p{margin:0 0 16px;color:#fed7aa;font-size:.95rem;}
+  .next-list{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:10px;list-style:none;padding:0;margin:0;
+  }
+  .next-list li{
+    background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
+    border-radius:10px;padding:10px 14px;font-size:.86rem;color:#ffedd5;
+  }
+
+  @media (max-width:640px){
+    .q-head{padding:18px 18px 15px;}
+    .q-body{padding:18px 18px 0;}
+    header.hero{padding:44px 18px 46px;}
+    .roadmap{padding:20px;}
+    nav.toc{padding:18px;}
+    nav.toc ol{grid-template-columns:1fr;}
+  }
+  @media print{
+    body{background:#fff;}
+    article.q, nav.toc, .roadmap{box-shadow:none;page-break-inside:avoid;}
+    header.hero{background:#431407 !important;-webkit-print-color-adjust:exact;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Messaging Series · Section 3 of 10</span>
+    <h1>Messaging Systems for System Design<br><span>Publish/Subscribe &amp; Event Streaming</span></h1>
+    <p class="lede">
+      Kafka from the inside out: the broker-and-partition architecture, ISR and the high-water mark, the acks ladder,
+      idempotent producers and transactions that make exactly-once real, log compaction that turns a topic into a
+      table, tiered storage that keeps petabytes without filling broker disks, stream processing with Kafka Streams,
+      the metrics that reveal a cluster in trouble, and the honest comparison with Pulsar and Kinesis.
+    </p>
+    <div class="meta-chips">
+      <span class="chip">14 Questions</span>
+      <span class="chip">500+ words each</span>
+      <span class="chip">Kafka internals</span>
+      <span class="chip">Operational detail</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ROADMAP -->
+  <section class="roadmap">
+    <h2>Messaging Answer-Series Roadmap</h2>
+    <div class="roadmap-grid">
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 1 — Complete</span>
+        <strong>Chat Applications &amp; Real-Time Messaging</strong>
+        1-on-1, groups, protocols, ordering, delivery, presence, sync, E2E
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 2 — Complete</span>
+        <strong>Message Queues &amp; Distributed Brokers</strong>
+        Queue design, acks, offsets, DLQs, persistence, consumer groups, backpressure
+      </div>
+      <div class="roadmap-item current">
+        <span class="tag tag-now">Section 3 — You are here</span>
+        <strong>Publish/Subscribe &amp; Event Streaming</strong>
+        Kafka architecture, partitions, ISR, exactly-once, compaction, tiered storage
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Section 4</span>
+        <strong>Push Notification Systems</strong>
+        Multi-channel, preferences, retries, provider outages
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Section 5</span>
+        <strong>Real-Time Protocols &amp; Connection Management</strong>
+        WebSocket, SSE, polling, gateway fleets, connection draining
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Section 6</span>
+        <strong>Delivery Guarantees, Ordering &amp; Idempotency</strong>
+        At-least-once, exactly-once, per-key ordering, idempotency keys
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Section 7</span>
+        <strong>Fan-Out &amp; Group Messaging</strong>
+        Write vs read fan-out, hot groups, broadcast channels
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Section 8</span>
+        <strong>Event-Driven Architecture</strong>
+        Events vs commands, event sourcing, CQRS, outbox, schemas
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Section 9</span>
+        <strong>Operational Concerns &amp; Failure Modes</strong>
+        Monitoring, tracing, poison pills, broker outages, multi-tenancy
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Section 10</span>
+        <strong>Classic System Design Problems</strong>
+        8 end-to-end messaging design prompts solved
+      </div>
+    </div>
+  </section>
+
+  <!-- TOC -->
+  <nav class="toc">
+    <h2>Questions Answered in This Section</h2>
+    <ol>
+      <li><a href="#q1">Design a pub/sub system like Kafka</a></li>
+      <li><a href="#q2">Kafka's architecture: brokers, topics, partitions, replicas, KRaft</a></li>
+      <li><a href="#q3">What is a partition, and why does it matter?</a></li>
+      <li><a href="#q4">How do you choose the right number of partitions?</a></li>
+      <li><a href="#q5">What is the ISR, and how does it relate to durability?</a></li>
+      <li><a href="#q6">Kafka's delivery guarantees and exactly-once</a></li>
+      <li><a href="#q7">How does the acks setting affect durability and latency?</a></li>
+      <li><a href="#q8">Exactly-once processing with idempotent producers and transactions</a></li>
+      <li><a href="#q9">Retention: hot vs cold, and how long to keep messages</a></li>
+      <li><a href="#q10">Log compaction and event sourcing</a></li>
+      <li><a href="#q11">Tiered storage for petabyte-scale retention</a></li>
+      <li><a href="#q12">Kafka Streams and stream vs batch processing</a></li>
+      <li><a href="#q13">Monitoring a Kafka cluster: the metrics that matter</a></li>
+      <li><a href="#q14">Kafka vs Pulsar vs Kinesis</a></li>
+    </ol>
+  </nav>
+
+  <!-- ================= PART A ================= -->
+  <div class="part-band">
+    <div class="bar"></div>
+    <h2>Part A — Kafka Architecture &amp; Data Model
+      <span class="sub">Brokers, partitions, replicas, and the controller</span>
+    </h2>
+  </div>
+
+  <!-- Q1 -->
+  <article class="q" id="q1">
+    <div class="q-head">
+      <div class="q-num">1</div>
+      <h3>Design a pub/sub system like Kafka that supports topics, partitions, producers, consumers, and consumer groups.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A Kafka-like pub/sub system is a partitioned, replicated, append-only log. A topic is split into partitions;
+        each partition is an ordered log with one leader and N-1 followers; producers append to partitions; consumers
+        in a group each own a subset of partitions and track their offset; a controller manages cluster metadata and
+        leader election. The design's power comes from the log abstraction: everything else — replay, fan-out,
+        ordering, exactly-once — follows from it.</p>
+      </div>
+
+      <h4>The abstraction: a log, not a queue</h4>
+      <p>The fundamental design choice is that messages are appended to a log and retained, not deleted on consumption.
+      A consumer reads from the log at its own offset; advancing the offset is the consumer's business, not the
+      broker's. Multiple consumer groups read the same log independently, each at its own offset. This single choice
+      gives replay, multiple independent consumers, and decoupling between producer and consumer pace — none of which
+      a destructive queue can provide.</p>
+
+      <h4>Topics and partitions</h4>
+      <p>A topic is a named stream of messages. It is divided into partitions, which are the unit of parallelism,
+      replication, and ordering. Each partition is an independent, ordered log. Messages within a partition have a
+      strict order defined by their offset; messages across partitions have no ordering guarantee. The producer
+      chooses a partition via a key hash (same key → same partition → same order) or round-robin (no ordering, better
+      balance).</p>
+      <p>Partitioning is what makes the system scale: 100 partitions can be spread across 10 brokers, each broker
+      handling 10 partitions, and each partition's throughput adds to the total. It also bounds the consumer
+      parallelism: a consumer group can have at most one consumer per partition, so the maximum parallelism is the
+      partition count.</p>
+
+      <h4>Brokers and replication</h4>
+      <p>A broker is a server that stores partitions and serves producers and consumers. Each partition has one
+      leader (which accepts writes and serves reads for consistency-sensitive consumers) and N-1 followers (which
+      replicate from the leader). The replication factor is typically 3. Followers that are caught up to the leader's
+      high-water mark form the ISR (in-sync replica set). If the leader fails, a follower from the ISR is promoted;
+      if all ISR members fail, the partition is unavailable unless unclean leader election is enabled (which risks
+      data loss).</p>
+
+      <h4>The controller</h4>
+      <p>One broker is elected controller (via KRaft or ZooKeeper). The controller maintains cluster metadata:
+      which brokers are alive, which partitions they own, which replica is leader, which replicas are in the ISR. It
+      detects broker failures via heartbeats and triggers leader election. The controller is a metadata-only role —
+      it does not carry message traffic — but it is critical to cluster health, and its availability is a
+      prerequisite for partitions being available.</p>
+
+      <h4>Producers</h4>
+      <p>A producer serializes a message, chooses a partition (by key hash or round-robin), batches messages for the
+      same partition, compresses the batch, and sends it to the partition leader. The leader appends to its log and
+      replicates; the producer receives an ack based on its <code>acks</code> setting. The producer also handles
+      retries, metadata refresh on leader changes, and idempotence (sequence numbers per partition) to avoid
+      duplicates from retries.</p>
+
+      <h4>Consumers and consumer groups</h4>
+      <p>A consumer subscribes to a topic and joins a consumer group. The group coordinator assigns each partition to
+      exactly one consumer in the group, so the group collectively consumes the topic once, with the work distributed.
+      Each consumer tracks its offset locally, and periodically commits it to the broker (in the
+      <code>__consumer_offsets</code> topic) so a restart or rebalance resumes from the committed position. A
+      rebalance reassigns partitions when consumers join or leave.</p>
+
+      <h4>The read path</h4>
+      <p>Consumers fetch from the leader (or from a follower if fetch-from-follower is configured for
+      cross-datacenter reads) by offset. The broker serves reads from the page cache for recently written segments,
+      and from disk for older ones, with a sparse offset index to seek efficiently. The consumer reads a batch,
+      processes it, and commits the next offset. This is why Kafka can sustain high read throughput on commodity
+      hardware: reads are sequential and mostly served from memory.</p>
+
+      <h4>What the design enables</h4>
+      <ul>
+        <li><strong>Fan-out:</strong> any number of consumer groups can read the same topic, each at its own offset.</li>
+        <li><strong>Replay:</strong> a consumer can seek back and reprocess, as long as the messages are retained.</li>
+        <li><strong>Ordering:</strong> per-partition, which is sufficient for most use cases (per-user, per-order).</li>
+        <li><strong>Throughput:</strong> partitioning and sequential I/O scale horizontally.</li>
+        <li><strong>Durability:</strong> replication with acks-all and ISR-based leader election ensures no committed
+        message is lost.</li>
+      </ul>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>The log model gives replay and fan-out, but it costs storage (messages are retained, not deleted), and it
+        constrains ordering to partitions (no global order). A destructive queue is simpler and cheaper for small
+        volumes, but cannot replay and cannot serve multiple independent consumers without duplication. Kafka's model
+        is the right one when fan-out, replay, or scale matter; the destructive queue is right when none do.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Open with: “This is a partitioned log, not a queue. Topics split into partitions; each partition is a
+        replicated ordered log; consumers read at their own offset; the controller manages leadership.” That names
+        the abstraction and its consequences before any component diagram.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q2 -->
+  <article class="q" id="q2">
+    <div class="q-head">
+      <div class="q-num">2</div>
+      <h3>Explain Kafka's architecture from the ground up: brokers, topics, partitions, replicas, and the role of ZooKeeper (or KRaft).</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A Kafka cluster is a set of brokers (servers) that store partitions. A topic is a logical stream split
+        into partitions; each partition is replicated across brokers with one leader and followers. A controller
+        (elected via ZooKeeper historically, via KRaft in modern versions) manages metadata: broker liveness, partition
+        assignment, and leader election. Producers write to partition leaders; consumers read from them and track
+        offsets.</p>
+      </div>
+
+      <h4>Brokers</h4>
+      <p>A broker is a Kafka server. It stores the partitions assigned to it (each as a set of log segment files on
+      disk), serves producer and consumer requests, replicates partitions from leader to follower, and participates
+      in controller election. A cluster typically has 3–30 brokers; more brokers means more partitions can be spread
+      and more parallel I/O. Brokers are identified by an integer ID, and partition placement is determined by the
+      controller.</p>
+
+      <h4>Topics and partitions</h4>
+      <p>A topic is a named stream, created with a partition count and replication factor. Each partition is an
+      ordered, immutable log with a monotonically increasing offset. Partitions are the unit of parallelism and
+      ordering. The partition count is fixed at creation (it can be increased, but not decreased, and increasing
+      it changes key-to-partition mapping), so it must be chosen with future scale in mind.</p>
+
+      <h4>Replicas and leaders</h4>
+      <p>Each partition has a replication factor R (typically 3). One replica is the leader; the others are followers.
+      Producers write to the leader; followers fetch from the leader and append to their own logs. Consumers read
+      from the leader (by default) or from a follower (for cross-datacenter reads). The ISR (in-sync replica set) is
+      the subset of replicas that are caught up to the leader's high-water mark; only ISR members are eligible for
+      leader election.</p>
+
+      <h4>The controller</h4>
+      <p>The controller is one broker elected by the cluster. It maintains the cluster metadata: broker liveness,
+      partition leadership, ISR membership, topic configuration. It detects broker failures via heartbeats and
+      reassigns leadership. It is a metadata role — it does not carry message traffic — but it is critical to cluster
+      availability, and a controller failure triggers a new election (which takes seconds and briefly delays
+      metadata changes).</p>
+
+      <h4>ZooKeeper vs KRaft</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Aspect</th><th>ZooKeeper (legacy)</th><th>KRaft (modern)</th></tr></thead>
+          <tbody>
+            <tr><td>Metadata store</td><td>External ZooKeeper ensemble</td><td>Internal Raft-based metadata quorum</td></tr>
+            <tr><td>Controller election</td><td>ZooKeeper ephemeral nodes</td><td>Raft leader election among controllers</td></tr>
+            <tr><td>Scaling limit</td><td>~200k partitions (ZooKeeper write limit)</td><td>Millions of partitions</td></tr>
+            <tr><td>Operational complexity</td><td>Two systems to run (Kafka + ZooKeeper)</td><td>One system</td></tr>
+            <tr><td>Failover speed</td><td>Slower (ZooKeeper session timeout)</td><td>Faster (Raft election in ms)</td></tr>
+            <tr><td>Status</td><td>Deprecated (removal in Kafka 4.0)</td><td>Default from Kafka 3.3+</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>KRaft replaced ZooKeeper by embedding a Raft-based metadata quorum in Kafka itself. The controller quorum is a
+      set of controller nodes (typically 3 or 5) that replicate metadata via Raft; one is the active controller, the
+      others are hot standbys. This removes the operational burden of ZooKeeper, removes the ZooKeeper write bottleneck
+      that limited clusters to ~200k partitions, and makes failover faster and more reliable.</p>
+
+      <h4>The write path in full</h4>
+      <ol>
+        <li>Producer sends a batch to a partition leader (after metadata lookup).</li>
+        <li>Leader appends to its log, assigns offsets, and updates the high-water mark (the highest offset replicated
+        to all ISR members).</li>
+        <li>Followers fetch from the leader, append, and send their high-water mark.</li>
+        <li>Leader acks the producer based on <code>acks</code>: 0 (no ack), 1 (leader only), all (all ISR).</li>
+        <li>The message becomes visible to consumers once it is at or below the high-water mark (for read-committed
+        consumers) or immediately (for read-uncommitted consumers).</li>
+      </ol>
+
+      <h4>The read path</h4>
+      <p>Consumers fetch by offset from the leader. The broker reads from the page cache if the segment is recent, or
+      from disk with an offset index to seek. The consumer processes the batch, commits the next offset to the
+      coordinator, and repeats. Fetch size and max poll records control batching; the consumer's throughput is
+      bounded by the fetch size times the poll frequency.</p>
+
+      <h4>What the architecture optimizes for</h4>
+      <p>Sequential I/O (appends are the fastest disk pattern), horizontal scaling (partitions spread across
+      brokers), replication for durability, and decoupling of producer and consumer pace (the log absorbs bursts and
+      lets consumers catch up later). The architecture does not optimize for per-message routing (no exchanges),
+      per-message priority (no priority queues), or global ordering (only per-partition). Those are the costs of
+      the log model, and they are acceptable for the workloads Kafka targets.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Assuming the controller is on the data path. It is not — producers and consumers talk to partition leaders
+        directly. A controller failure delays metadata changes (leader election, topic creation) but does not stop
+        message flow on existing partitions. Confusing the two leads to over-estimating the controller's
+        criticality.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q3 -->
+  <article class="q" id="q3">
+    <div class="q-head">
+      <div class="q-num">3</div>
+      <h3>What is a Kafka partition, and why does it matter? How does partitioning relate to ordering and parallelism?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A partition is an ordered, immutable log that is the unit of parallelism, replication, and ordering in
+        Kafka. Messages within a partition are strictly ordered by offset; messages across partitions are not. More
+        partitions means more parallel producers, consumers, and brokers — but also more overhead, longer rebalances,
+        and no cross-partition ordering.</p>
+      </div>
+
+      <h4>The partition as the atomic unit</h4>
+      <p>Kafka's design decisions all reduce to the partition. A topic is a collection of partitions; a broker hosts
+      some partitions; a leader is a per-partition role; a consumer group assigns partitions to consumers. There is
+      no cluster-wide ordering or atomicity — every guarantee and every scaling property is scoped to a partition.
+      Understanding this is the key to understanding Kafka's trade-offs.</p>
+
+      <h4>Ordering</h4>
+      <p>Within a partition, messages are appended in order, each with a monotonically increasing offset. A consumer
+      reading from the partition receives them in that order. This is the only ordering guarantee Kafka provides, and
+      it is sufficient for most use cases because the partition key usually matches the entity whose order matters:
+      per-user events, per-order events, per-device telemetry. All events for a given key land on the same partition
+      (because the producer hashes the key), so their order is preserved.</p>
+      <p>Across partitions, there is no order. A consumer reading all partitions of a topic may see events from
+      different partitions interleaved arbitrarily. If the application needs global order, it must either use a
+      single partition (which sacrifices parallelism) or impose order at read time (sorting, sequence numbers,
+      timestamps) — which is expensive and usually a sign that the ordering requirement should be scoped to a key.</p>
+
+      <h4>Parallelism</h4>
+      <p>Partitions are the unit of producer and consumer parallelism. A producer with 100 partitions can write to
+      100 partitions in parallel, using multiple threads and multiple broker connections. A consumer group with 100
+      partitions can have up to 100 consumer instances, each processing one partition. Adding partitions increases the
+      maximum throughput and the maximum consumer parallelism, at the cost of more per-partition overhead.</p>
+      <p>The consumer parallelism is capped at the partition count — extra consumers sit idle. This is why partition
+      count is chosen for the maximum expected consumer parallelism, not just the current producer throughput. A
+      topic with 10 partitions can never have more than 10 active consumers in a group, no matter how much lag
+      accumulates.</p>
+
+      <h4>The key-to-partition mapping</h4>
+      <p>The producer chooses a partition via a partitioner. The default is a hash of the key mod the partition
+      count, which gives the same key the same partition (order preserved) and distributes keys across partitions
+      (balance, assuming keys are uniformly distributed). Without a key, the producer round-robins or uses a sticky
+      partitioner that batches consecutive messages to the same partition for efficiency.</p>
+      <p>The key choice is therefore a design decision: if the key is the user ID, per-user order is preserved and
+      per-user throughput is bounded by one partition. If the key is a finer-grained ID, more parallelism but no
+      per-user order. If there is no key, maximum parallelism but no ordering at all. The key must be chosen to match
+      the ordering requirement.</p>
+
+      <h4>Replication and failure</h4>
+      <p>Each partition is replicated independently. If a broker fails, only the partitions it led are affected; the
+      others continue serving. The replication unit is the partition, so replication cost scales with partition count:
+      more partitions means more replicas to fetch, more ISR tracking, and more leader elections when a broker
+      fails. A broker with 1,000 partition replicas that fails triggers 1,000 leader elections, which can take
+      seconds to minutes.</p>
+
+      <h4>Hot partitions</h4>
+      <p>A partition can be hot (receiving disproportionate traffic) if the key distribution is skewed. A celebrity
+      user ID, a best-selling product ID, or a large tenant ID creates a hot partition, which becomes a bottleneck
+      because its leader broker is overloaded while others idle. The fixes are key salting (prefix the key with a
+      random or hashed suffix to spread it), a different key, or dedicated partitions for known hot keys. The
+      partition model does not prevent hotspots; it concentrates them.</p>
+
+      <h4>The partition count trade-off</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Too few partitions</th><th>Too many partitions</th></tr></thead>
+          <tbody>
+            <tr><td>Limited producer/consumer parallelism</td><td>Longer rebalances</td></tr>
+            <tr><td>Throughput capped at one leader's capacity</td><td>More open files, more memory per broker</td></tr>
+            <tr><td>Hot partitions more likely</td><td>More replication traffic and leader elections</td></tr>
+            <tr><td>Cannot scale consumers later without over-provisioning</td><td>Higher end-to-end latency (more batching, more metadata)</td></tr>
+            <tr><td>—</td><td>Controller metadata grows; KRaft raises the ceiling but does not remove the cost</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Changing partition count</h4>
+      <p>Partitions can be added but not removed. Adding partitions changes the key-to-partition mapping for all keys
+      (because the hash mod N changes), which breaks ordering for keys that move — the same key now lands on a
+      different partition, and messages before and after the change can be out of order relative to each other. The
+      standard workaround is to over-provision at creation or to use a partitioner that preserves ordering across
+      changes (rare). This is why partition count is a decision made once and lived with.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: “Partitions are the unit of ordering and parallelism. I'll choose the partition key to match the
+        entity whose order matters — user_id for per-user event streams — and size the partition count for the
+        maximum consumer parallelism I expect.” That names both constraints and the decision they drive.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q4 -->
+  <article class="q" id="q4">
+    <div class="q-head">
+      <div class="q-num">4</div>
+      <h3>How do you choose the right number of partitions for a topic? What are the trade-offs of too few vs too many?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Size partitions for the maximum consumer parallelism you expect, not the current throughput. A practical
+        starting point is <code>max(producer throughput / per-partition throughput, consumer parallelism)</code>, then
+        round up and over-provision by 1.5–2×. Too few caps throughput and cannot scale consumers; too many increases
+        rebalance time, broker overhead, and end-to-end latency.</p>
+      </div>
+
+      <h4>The two constraints</h4>
+      <p>Partition count is bounded from below by throughput and from above by overhead. The lower bound comes from
+      the per-partition throughput ceiling: a single partition leader can sustain roughly 10–50 MB/s on commodity
+      hardware, so a topic writing 200 MB/s needs at least 4–20 partitions. The other lower bound is consumer
+      parallelism: a group cannot have more consumers than partitions, so a topic that must support 50 parallel
+      consumers needs at least 50 partitions.</p>
+      <p>The upper bound comes from the cost of each partition. Every partition is an open file handle, a replication
+      stream, an ISR entry, and a piece of controller metadata. Thousands of partitions on a cluster are manageable;
+      hundreds of thousands strain the controller, increase rebalance time, and make leader elections slow. KRaft
+      raises the ceiling substantially (millions of partitions in theory), but the per-partition cost does not
+      disappear.</p>
+
+      <h4>A practical sizing method</h4>
+      <ol>
+        <li><strong>Estimate target throughput</strong> (e.g., 100 MB/s peak).</li>
+        <li><strong>Divide by per-partition throughput</strong> (e.g., 20 MB/s) → 5 partitions minimum for writes.</li>
+        <li><strong>Estimate consumer parallelism</strong> (e.g., 20 consumers to keep up) → 20 partitions minimum.</li>
+        <li><strong>Take the maximum</strong> → 20 partitions.</li>
+        <li><strong>Over-provision 1.5–2×</strong> for growth and skew → 30–40 partitions.</li>
+        <li><strong>Round to a number with good divisors</strong> (e.g., 32 or 48) so partition assignment is even
+        across consumers and brokers.</li>
+      </ol>
+      <p>The over-provisioning is insurance: partitions cannot be removed, and adding them later breaks key ordering.
+      Starting with 2× the immediate need is cheap compared to the migration cost.</p>
+
+      <h4>Too few partitions</h4>
+      <ul>
+        <li><strong>Throughput ceiling.</strong> The topic cannot exceed the throughput of its partitions' leaders,
+        no matter how many producers or brokers are available.</li>
+        <li><strong>Consumer starvation.</strong> Extra consumers sit idle; the group's parallelism is capped.</li>
+        <li><strong>Hot partitions.</strong> With few partitions, a skewed key has fewer destinations and concentrates
+        more load on each.</li>
+        <li><strong>No headroom.</strong> A traffic spike cannot be absorbed by adding consumers, because there is
+        nothing for them to consume.</li>
+      </ul>
+
+      <h4>Too many partitions</h4>
+      <ul>
+        <li><strong>Longer rebalances.</strong> A rebalance moves partition assignments; more partitions means a
+        larger assignment to compute, distribute, and apply. A 10,000-partition topic can take tens of seconds to
+        rebalance, during which consumption pauses.</li>
+        <li><strong>Higher end-to-end latency.</strong> Batching is less effective (fewer messages per partition per
+        batch), and the consumer polls more partitions, adding per-fetch overhead.</li>
+        <li><strong>More broker resources.</strong> Each partition consumes file handles, memory for indexes and
+        buffers, and replication bandwidth. Thousands of partitions per broker is a real operational burden.</li>
+        <li><strong>Slower leader elections.</strong> A broker failure with 5,000 partition leaders triggers 5,000
+        elections, which can take minutes to complete and leaves those partitions briefly unavailable.</li>
+        <li><strong>Controller pressure.</strong> Even with KRaft, the controller must track metadata for every
+        partition; very large clusters hit scaling limits in metadata propagation.</li>
+      </ul>
+
+      <h4>The partition-to-consumer ratio</h4>
+      <p>A common rule is 2–4 partitions per consumer, so that a consumer failure can be absorbed (its partitions are
+      redistributed) without overloading the remaining consumers, and so that adding a consumer gives a meaningful
+      throughput increase. With 1 partition per consumer, any failure halves throughput; with 100 partitions per
+      consumer, adding a consumer gives little benefit and a failure redistributes too many partitions.</p>
+
+      <h4>The partition-to-broker ratio</h4>
+      <p>A healthy cluster has partitions spread evenly across brokers, with a replication factor of 3 so each
+      broker hosts a mix of leaders and followers. The total partition count per broker should be in the hundreds to
+      low thousands for most clusters; beyond that, the per-broker overhead (file handles, replication threads,
+      memory) becomes significant. If the topic needs 100,000 partitions, the cluster needs enough brokers to keep
+      each broker's count reasonable.</p>
+
+      <h4>Partitions and replication cost</h4>
+      <p>Replication cost scales with partition count: each partition has R replicas, each replica is a separate fetch
+      stream, and each ISR is tracked individually. A topic with 1,000 partitions and replication factor 3 has 3,000
+      replicas, and a broker failure triggers 1,000 leader elections. The overhead is not linear in message rate —
+      it is linear in partition count — so very high partition counts are expensive even at low message rates.</p>
+
+      <h4>When to add partitions</h4>
+      <p>Add partitions when throughput is capped or consumer parallelism is insufficient. The migration is not free:
+      existing keys move to different partitions (breaking per-key order across the change), so the process is:</p>
+      <ol>
+        <li>Plan the increase during low traffic.</li>
+        <li>Add partitions to the topic (the broker handles reassignment).</li>
+        <li>Accept that existing keys may move; consumers that need strict order must reconcile.</li>
+        <li>Monitor lag and throughput during the transition.</li>
+      </ol>
+      <p>Because the migration is painful, over-provisioning at creation is the preferred strategy. The cost of
+      extra partitions is small compared to the cost of a partition-count change on a live topic.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Partition count is a one-way decision with a long shadow. Too few caps the topic's ceiling; too many adds
+        operational overhead that compounds. The right answer is usually 2× the immediate need, rounded to a number
+        with good divisors, chosen with the maximum expected consumer parallelism in mind.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q5 -->
+  <article class="q" id="q5">
+    <div class="q-head">
+      <div class="q-num">5</div>
+      <h3>What is the role of the ISR (in-sync replica) list? How does a broker enter or leave the ISR, and what does that mean for durability?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>The ISR is the set of replicas that are caught up to the leader's high-water mark. Only ISR members are
+        eligible for leader election, and <code>acks=all</code> waits for the ISR to acknowledge. A replica leaves the
+        ISR when it falls behind the leader by more than <code>replica.lag.time.max.ms</code>; it re-enters when it
+        catches up. The ISR size is the durability guarantee: a partition with ISR size 2 can tolerate one failure.</p>
+      </div>
+
+      <h4>What the ISR is, precisely</h4>
+      <p>Each partition has one leader and N-1 followers. Followers continuously fetch from the leader. A follower is
+      in the ISR if it has fetched and acknowledged all messages up to the leader's high-water mark within the last
+      <code>replica.lag.time.max.ms</code> (default 10 seconds). The ISR is therefore a dynamic set — it shrinks
+      when a follower falls behind and grows when it catches up. The leader's high-water mark is the highest offset
+      replicated to all ISR members, and it is the boundary below which messages are considered committed.</p>
+
+      <h4>Entering and leaving the ISR</h4>
+      <ul>
+        <li><strong>Leaving:</strong> a follower that falls behind by more than the lag time threshold (measured in
+        time, not bytes) is removed from the ISR by the leader. This happens when the follower's disk is slow, its
+        network is congested, it is paused by GC, or it has crashed. The removal is reported to the controller, which
+        persists the new ISR.</li>
+        <li><strong>Re-entering:</strong> a follower that catches up to the leader's high-water mark rejoins the ISR.
+        It must first fetch all messages it missed, then acknowledge the high-water mark; the leader then adds it
+        back. There is no "partial" state — a replica is either in the ISR or not.</li>
+      </ul>
+
+      <h4>How the ISR relates to durability</h4>
+      <p>The ISR is the mechanism that makes <code>acks=all</code> meaningful. With <code>acks=all</code>, the leader
+      waits for all ISR members to acknowledge before responding to the producer. So when the producer receives an
+      ack, the message is on all ISR members — the durability guarantee. If the leader then fails, a follower from the
+      ISR is promoted and has the message. If a follower had left the ISR, it is not eligible for promotion, and the
+      message is not considered committed until the ISR shrinks to a size where the remaining members have it.</p>
+      <p>The critical setting is <code>min.insync.replicas</code> (typically 2). If the ISR shrinks below this
+      threshold, the leader rejects writes with <code>NOT_ENOUGH_REPLICAS</code> — it refuses to accept writes it
+      cannot guarantee durably. This is the trade-off between availability and durability: with ISR=2, one broker
+      failure still allows writes; with ISR=1, no writes are accepted, and the partition is unavailable until a
+      replica catches up.</p>
+
+      <h4>The ISR shrink and the unclean election</h4>
+      <p>If the ISR shrinks to 1 (only the leader is in sync) and then the leader fails, the partition has no eligible
+      leader — all other replicas are out of sync. The partition becomes unavailable unless
+      <code>unclean.leader.election.enable=true</code>, which allows an out-of-sync replica to be promoted. That
+      restores availability but loses the messages the out-of-sync replica did not have — a data-loss event. For any
+      system with a no-loss requirement, unclean election must be disabled, and the partition is unavailable until an
+      ISR member returns.</p>
+
+      <h4>The ISR and latency</h4>
+      <p>The ISR size directly affects write latency with <code>acks=all</code>: the leader waits for all ISR members,
+      so the slowest ISR member determines the latency. A follower on a slow disk or a congested network slows every
+      write. This is why ISR health matters: an ISR member that is consistently slow adds latency to every produce,
+      even if it never leaves the ISR. The mitigation is to monitor per-replica fetch lag and replace or repair slow
+      replicas before they degrade the whole partition.</p>
+
+      <h4>ISR and the high-water mark</h4>
+      <p>The high-water mark is the offset below which all ISR members have the message. Consumers with
+      <code>isolation.level=read_committed</code> read only up to the high-water mark; consumers with
+      <code>read_uncommitted</code> read up to the leader's log end offset (LEO), which may include messages not yet
+      replicated. This is why read-committed consumers are safer: they never see messages that could be lost on a
+      leader failure.</p>
+
+      <h4>Operational signals</h4>
+      <ul>
+        <li><strong>UnderReplicatedPartitions:</strong> the count of partitions whose ISR is smaller than the
+        replication factor. A non-zero value means a replica is lagging or down. This is the single most important
+        Kafka health metric.</li>
+        <li><strong>ISR shrink rate:</strong> how often replicas leave the ISR. A high rate means instability
+        (network, disk, GC).</li>
+        <li><strong>ISR expand rate:</strong> how often replicas rejoin. A high rate paired with a high shrink rate
+        means replicas are flapping.</li>
+        <li><strong>Per-replica fetch lag:</strong> bytes or time behind the leader. A replica approaching the lag
+        threshold is about to leave the ISR.</li>
+      </ul>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Setting <code>min.insync.replicas=1</code> to maximize availability and then expecting no data loss. With
+        that setting, <code>acks=all</code> degrades to <code>acks=1</code> — the leader acks without any follower
+        having the message — and a leader failure loses the last few writes. The whole point of the ISR is defeated.
+        The minimum for durability is 2.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART B ================= -->
+  <div class="part-band red">
+    <div class="bar"></div>
+    <h2>Part B — Delivery Guarantees &amp; Exactly-Once
+      <span class="sub">Acks, idempotence, and transactions</span>
+    </h2>
+  </div>
+
+  <!-- Q6 -->
+  <article class="q red" id="q6">
+    <div class="q-head">
+      <div class="q-num">6</div>
+      <h3>What are the different delivery guarantees in Kafka, and how do you achieve exactly-once semantics?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Kafka offers at-most-once (fire and forget), at-least-once (retries with acks, possible duplicates), and
+        exactly-once (idempotent producer plus transactions, or idempotent consumer plus dedup). Exactly-once in
+        Kafka is real for Kafka-to-Kafka pipelines via the transactional API; for Kafka-to-external-system it requires
+        idempotent writes or a transactional outbox. There is no free exactly-once.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Guarantee</th><th>Configuration</th><th>Failure behaviour</th><th>Cost</th></tr></thead>
+          <tbody>
+            <tr><td>At-most-once</td><td><code>acks=0</code>, no retries</td><td>Messages lost on failure</td><td>Lowest latency, no durability</td></tr>
+            <tr><td>At-least-once</td><td><code>acks=all</code>, retries, <code>enable.idempotence=false</code></td><td>Duplicates on retry or consumer crash</td><td>Higher latency, duplicates possible</td></tr>
+            <tr><td>Exactly-once (idempotent producer)</td><td><code>enable.idempotence=true</code></td><td>No duplicates from producer retries; consumer duplicates still possible</td><td>Slight overhead, sequence numbers</td></tr>
+            <tr><td>Exactly-once (transactions)</td><td>Idempotent producer + <code>transactional.id</code> + read-committed consumer</td><td>Atomic produce-consume-commit across Kafka topics</td><td>Higher overhead, transaction coordinator</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>At-most-once</h4>
+      <p>The producer sends and does not wait for an ack (<code>acks=0</code>) and does not retry. If the broker is
+      slow or the network drops the message, it is lost. The consumer commits the offset before processing, so a
+      crash loses the message. This is acceptable for metrics, logs, and telemetry — loss-tolerant data — and for
+      nothing else.</p>
+
+      <h4>At-least-once</h4>
+      <p>The default and most common configuration: <code>acks=all</code>, retries with backoff, and the consumer
+      commits after processing. The producer's retry can duplicate a message if the original write succeeded but the
+      ack was lost; the consumer's crash between processing and commit can reprocess. At-least-once is the right
+      default for most systems, provided consumers are idempotent (dedup by message ID, or upsert semantics).</p>
+
+      <h4>Idempotent producer</h4>
+      <p>The producer assigns a sequence number to each message per partition. The broker tracks the last sequence
+      number per producer ID per partition. A retried message with a sequence number already seen is deduplicated: the
+      broker returns the existing offset instead of appending again. This eliminates the producer-side duplicate — the
+      most common source of exactly-once violations — at the cost of a small per-batch sequence field and a broker-side
+      dedup cache. Idempotence is the foundation of exactly-once; without it, the transactional layer cannot work.</p>
+
+      <h4>Transactions</h4>
+      <p>The transactional API extends idempotence to multiple partitions and topics. A transactional producer
+      initializes a transaction, writes to multiple partitions, and commits. The broker's transaction coordinator
+      tracks the transaction's state; consumers with <code>isolation.level=read_committed</code> see the writes only
+      after the commit, and never see the writes of an aborted transaction. The sequence is:</p>
+      <ol>
+        <li>Producer calls <code>beginTransaction()</code>.</li>
+        <li>Producer sends messages to one or more partitions (they are appended but marked as part of the
+        transaction).</li>
+        <li>Producer sends the consumer offsets it has processed as part of the same transaction (the
+        <code>sendOffsetsToTransaction</code> call).</li>
+        <li>Producer calls <code>commitTransaction()</code>; the coordinator commits atomically.</li>
+        <li>Read-committed consumers now see the messages.</li>
+      </ol>
+      <p>If the producer crashes before committing, the transaction times out and is aborted; read-committed consumers
+      never see the messages, and the consumer offsets are not advanced. This is the exact-once guarantee for
+      Kafka-to-Kafka: read from topic A, process, write to topic B, commit offsets — all atomic.</p>
+
+      <h4>Where exactly-once ends</h4>
+      <p>The transactional API covers Kafka producers and consumers. It does not cover external systems. Writing to a
+      database in a transaction and then producing to Kafka is not atomic — one can succeed and the other fail. The
+      standard solution is the transactional outbox: write the message to an outbox table in the same database
+      transaction as the business change, then a relay reads the outbox and publishes to Kafka. The relay must handle
+      deduplication (by outbox ID) and retry. This gives exactly-once effects across the database-Kafka boundary, at
+      the cost of a relay component and a bit of latency.</p>
+
+      <h4>Consumer-side exactly-once</h4>
+      <p>A consumer that processes messages and writes to an external system must be idempotent, because the
+      at-least-once delivery is unavoidable for external writes. The patterns are: an idempotency key stored in the
+      target system; an upsert instead of an insert; a dedup table keyed by message ID; or a transaction in the target
+      system that includes the processed-message record. Without one of these, the consumer will eventually write the
+      same result twice.</p>
+
+      <h4>The cost of exactly-once</h4>
+      <p>Transactions add latency (the commit waits for the coordinator), overhead (the producer maintains transaction
+      state, the coordinator maintains a log), and complexity (transaction timeout tuning, abort handling). They are
+      worth it for financial data, inventory, and anything where a duplicate is a bug. They are overkill for metrics,
+      logs, and feeds. The right answer is per-topic: exactly-once for the ledger, at-least-once with idempotent
+      consumer for the search index, at-most-once for telemetry.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: “Exactly-once for Kafka-to-Kafka via transactions; at-least-once plus an idempotent consumer for
+        anything that writes to an external system; and an outbox if the write originates in a database.” That
+        separates the three boundaries and names the mechanism for each.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q7 -->
+  <article class="q red" id="q7">
+    <div class="q-head">
+      <div class="q-num">7</div>
+      <h3>How does the <code>acks</code> setting affect durability and latency?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p><code>acks=0</code> gives the lowest latency and no durability — the producer does not wait for any
+        acknowledgement. <code>acks=1</code> waits for the leader to write locally — moderate latency, but the message
+        can be lost if the leader fails before replication. <code>acks=all</code> waits for all ISR members —
+        highest durability, highest latency. The setting is a direct trade-off between the three.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Setting</th><th>Waits for</th><th>Durability</th><th>Latency</th><th>Use case</th></tr></thead>
+          <tbody>
+            <tr><td><code>acks=0</code></td><td>Nothing</td><td>None — lost on any failure</td><td>Lowest</td><td>Metrics, logs, telemetry</td></tr>
+            <tr><td><code>acks=1</code></td><td>Leader's local write</td><td>Lost if leader fails before replication</td><td>Moderate</td><td>Loss-tolerant event streams</td></tr>
+            <tr><td><code>acks=all</code></td><td>All ISR members</td><td>No loss if ISR &gt; min.insync.replicas</td><td>Highest</td><td>Payments, inventory, anything that matters</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4><code>acks=0</code></h4>
+      <p>The producer sends the message and moves on. It does not wait for the broker to acknowledge, so it has no
+      idea whether the message was written, whether it reached the wrong leader, or whether the broker was down. The
+      latency is just the network send time (often sub-millisecond). The throughput is highest because there is no
+      round trip. The cost is complete loss of durability — any failure loses the in-flight messages, and the producer
+      cannot even detect it. This is appropriate only for data whose loss is acceptable.</p>
+
+      <h4><code>acks=1</code></h4>
+      <p>The producer waits for the leader to append to its local log, then receives an ack. The message is durable on
+      one broker, but not replicated. If the leader crashes before followers fetch it, the message is lost — and
+      because the producer was acked, it will not retry. The latency is one round trip to the leader (a few
+      milliseconds in the same datacenter). The throughput is high because the leader does not wait for followers.
+      This is the historical default, and it is the wrong default for anything that matters.</p>
+
+      <h4><code>acks=all</code> (also <code>acks=-1</code>)</h4>
+      <p>The producer waits for all ISR members to acknowledge. The message is durable on every in-sync replica. The
+      latency is the round trip to the leader plus the round trip from the leader to the slowest follower (the ISR's
+      slowest member determines the latency). The throughput is lower because each write waits for replication. This
+      is the only setting that delivers the no-loss guarantee, provided <code>min.insync.replicas</code> is at least
+      2 and unclean leader election is disabled.</p>
+
+      <h4>The interaction with <code>min.insync.replicas</code></h4>
+      <p><code>acks=all</code> waits for all ISR members, but if the ISR has shrunk to 1 (only the leader), then
+      "all" means the leader only — the same as <code>acks=1</code>. <code>min.insync.replicas</code> prevents this:
+      it is the minimum ISR size below which the leader rejects writes. With <code>min.insync.replicas=2</code>, a
+      leader with ISR=1 refuses writes with <code>NOT_ENOUGH_REPLICAS</code> rather than accepting them without
+      durability. This is the correct configuration for no-loss: <code>acks=all</code> +
+      <code>min.insync.replicas=2</code> + <code>unclean.leader.election.enable=false</code>.</p>
+
+      <h4>Latency in detail</h4>
+      <p>The latency of <code>acks=all</code> is dominated by the slowest ISR member. If one follower has a slow disk
+      or is on a congested network, every write waits for it. This is why a slow replica is a latency problem for the
+      whole partition, not just for that replica. The mitigations: monitor per-replica fetch lag and replace slow
+      replicas; use <code>acks=all</code> with a small ISR (2 or 3) rather than a large one; and consider
+      <code>acks=all</code> only for topics that need it, using <code>acks=1</code> for the rest.</p>
+
+      <h4>The throughput interaction</h4>
+      <p>Higher acks means lower throughput per producer because each message waits for a round trip. This is
+      mitigated by batching: the producer sends a batch and waits for one ack, so the round trip is amortized across
+      the batch. With a batch of 100 messages, the per-message latency cost of <code>acks=all</code> is 1/100 of the
+      round trip. This is why high-throughput systems use large batches and <code>acks=all</code> together — they get
+      durability without paying the full latency cost per message.</p>
+
+      <h4>The durability interaction</h4>
+      <p>The no-loss guarantee requires that the ack is sent only after the message is durable. <code>acks=1</code>
+      acks before replication, so a leader failure loses the message. <code>acks=all</code> acks after replication, so
+      a leader failure promotes a follower that has the message. The guarantee is not absolute — if all ISR members
+      fail simultaneously (a rack failure), the message is lost even with <code>acks=all</code>, unless the
+      replication is spread across failure domains (racks, AZs). This is why replica placement matters as much as the
+      acks setting.</p>
+
+      <h4>The producer retry interaction</h4>
+      <p>With <code>acks=all</code>, a failed ack (timeout, leader change) causes a producer retry. Without
+      idempotence, the retry can duplicate a message if the original write succeeded. With idempotence enabled, the
+      retry is deduplicated by the broker's sequence number check. This is why idempotence should always accompany
+      <code>acks=all</code> — the two together give no-loss and no-duplicate, which is what most systems actually
+      want.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Setting <code>acks=all</code> and assuming no loss, while leaving <code>min.insync.replicas=1</code> and
+        <code>unclean.leader.election.enable=true</code>. The acks setting is necessary but not sufficient; the other
+        two settings determine whether the ISR guarantee actually holds. The correct trio is
+        <code>acks=all</code> + <code>min.insync.replicas=2</code> + unclean election disabled.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q8 -->
+  <article class="q red" id="q8">
+    <div class="q-head">
+      <div class="q-num">8</div>
+      <h3>How do you achieve exactly-once processing without sacrificing throughput? What role do idempotent producers and transactional consumers play?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>The throughput cost of exactly-once comes from the extra round trips (transaction coordination,
+        sequence-number checks) and the read-committed latency (waiting for the high-water mark). You recover the
+        throughput by batching aggressively, keeping transactions short, and confining exactly-once to the topics
+        that need it. The role of the idempotent producer is to eliminate duplicates from retries; the transactional
+        consumer is to make the read-process-write-commit sequence atomic.</p>
+      </div>
+
+      <h4>Why exactly-once is expensive</h4>
+      <p>Exactly-once requires three additions over at-least-once: idempotent production (sequence numbers and dedup
+      on the broker), transactional writes (a transaction coordinator, a transaction log, a two-phase commit across
+      partitions), and read-committed consumption (waiting for the high-water mark, which adds latency). Each adds
+      overhead: CPU for sequence tracking, network for the coordinator, latency for the commit. Without careful
+      design, throughput can drop by 30–50%.</p>
+
+      <h4>Idempotent producers</h4>
+      <p>The producer assigns a monotonic sequence number to every message per partition and includes it in the
+      record batch. The broker maintains the last sequence number per producer ID per partition; if a batch arrives
+      with a sequence number less than or equal to the last seen, it is a duplicate and is dropped (the broker returns
+      the original offset). This eliminates the most common duplicate: the retry that follows a lost ack. The
+      overhead is a few bytes per batch and a small in-memory dedup structure on the broker; the throughput cost is
+      negligible.</p>
+      <p>Idempotence is enabled with <code>enable.idempotence=true</code>, which also forces <code>acks=all</code> and
+      <code>retries &gt; 0</code>. It is the foundation of exactly-once: without it, the transactional layer has
+      nothing to build on.</p>
+
+      <h4>Transactional producers</h4>
+      <p>A producer with a <code>transactional.id</code> can write to multiple partitions atomically. The producer
+      begins a transaction, writes to topics, optionally sends consumer offsets, and commits. The transaction
+      coordinator (a broker role) tracks the transaction's state in an internal topic
+      (<code>__transaction_state</code>). On commit, the coordinator writes a commit marker to each partition's log;
+      read-committed consumers see the messages only after the marker.</p>
+      <p>The atomicity covers produce-to-Kafka and commit-offset-to-Kafka in one transaction. This is the exactly-once
+      guarantee for the Kafka-to-Kafka pipeline: the input offsets and the output messages are committed together, so
+      a reprocessing after failure starts from the committed offset and does not duplicate the output.</p>
+
+      <h4>Read-committed consumers</h4>
+      <p>A consumer with <code>isolation.level=read_committed</code> reads only up to the last stable offset (LSO),
+      which is the high-water mark minus any in-flight transactions. It never sees the messages of a transaction that
+      has not committed, and it does not advance its position past an open transaction. The cost is latency: the
+      consumer waits for the transaction to commit before seeing the messages. For short transactions (a few
+      milliseconds), the latency cost is small; for long transactions (seconds), it is significant.</p>
+
+      <h4>Recovering throughput</h4>
+      <ul>
+        <li><strong>Batch aggressively.</strong> Larger batches amortize the per-batch sequence overhead and the
+        coordinator round trips. <code>batch.size</code> and <code>linger.ms</code> should be tuned for the throughput
+        target, not the default.</li>
+        <li><strong>Keep transactions short.</strong> A transaction that spans thousands of messages holds the LSO
+        open and adds latency for read-committed consumers. A transaction per batch (a few hundred messages) is a
+        better trade-off than a transaction per record or a transaction per hour.</li>
+        <li><strong>Confine exactly-once.</strong> Only the topics that need it should be transactional. The
+        high-volume telemetry topic can be at-least-once with idempotent consumers; the payment ledger topic is
+        transactional. Most systems have a small set of topics that genuinely need exactly-once.</li>
+        <li><strong>Use idempotent consumers where possible.</strong> If the consumer's write is idempotent (upsert,
+        dedup key), the Kafka transaction is unnecessary — at-least-once plus idempotent write equals exactly-once
+        effects, without the transaction overhead. This is often the better trade-off.</li>
+      </ul>
+
+      <h4>Transactional consumers in Kafka Streams</h4>
+      <p>Kafka Streams uses the transactional API internally: a stream processor reads from input topics, writes to
+      output topics and state stores, and commits the offsets and the output in one transaction. This is exactly-once
+      stream processing without the application having to manage transactions. The cost is the same as any
+      transaction: higher latency, coordinator overhead, and the requirement that input and output are both Kafka.</p>
+
+      <h4>The external-system boundary</h4>
+      <p>Exactly-once across Kafka and a database requires one of: (1) the transactional outbox (write to the
+      database and the outbox in one transaction, then relay); (2) a two-phase commit between Kafka and the database
+      (rare, complex, and slow); (3) an idempotent write to the database keyed by the Kafka message ID (simplest, but
+      requires the database to enforce the uniqueness). For most systems, the idempotent write or the outbox is the
+      right choice; two-phase commit is almost never worth the complexity.</p>
+
+      <h4>The throughput reality</h4>
+      <p>In practice, exactly-once with batching and short transactions costs 10–30% throughput compared to
+      at-least-once. For most systems, that is acceptable given the correctness benefit. If the workload is
+      throughput-bound and cannot afford the cost, the alternative is at-least-once plus idempotent consumers, which
+      gives the same end-to-end effect with less overhead — the application just has to be designed for it.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Exactly-once via transactions is the strongest guarantee, but it costs throughput and latency and requires
+        all participants to be Kafka. Idempotent consumers give the same effect for external systems at lower
+        overhead, but require the application to implement deduplication. The right choice is per-boundary: use
+        transactions for Kafka-to-Kafka, idempotent consumers for Kafka-to-external.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART C ================= -->
+  <div class="part-band teal">
+    <div class="bar"></div>
+    <h2>Part C — Retention, Compaction &amp; Tiered Storage
+      <span class="sub">How long to keep data, and where to keep it</span>
+    </h2>
+  </div>
+
+  <!-- Q9 -->
+  <article class="q teal" id="q9">
+    <div class="q-head">
+      <div class="q-num">9</div>
+      <h3>How long should messages be retained? How do you support both short-term hot retention and long-term cold storage?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Hot retention is sized for the consumer's catch-up window (a weekend outage, a slow consumer) — typically
+        7–30 days. Cold retention extends this to months or years for audit, replay, and new-consumer bootstrapping,
+        using tiered storage (messages moved to object storage as they age). The choice is driven by how long a
+        consumer might lag, how long the business needs history, and how much disk budget the brokers have.</p>
+      </div>
+
+      <h4>The four retention questions</h4>
+      <ol>
+        <li><strong>How long can a consumer lag?</strong> The retention must exceed the maximum plausible lag, or the
+        consumer loses data. A consumer that is down for a weekend needs at least 3 days of retention; one that is
+        down for a month needs 30 days or more.</li>
+        <li><strong>How long does the business need history?</strong> Audit, compliance, and reprocessing require
+        longer retention. Financial data may need years; telemetry may need days.</li>
+        <li><strong>How much disk budget is available?</strong> Retention costs storage proportional to throughput ×
+        retention time. A topic at 100 MB/s with 7 days of retention uses ~60 TB (before replication); 30 days uses
+        ~260 TB. Replication factor multiplies this.</li>
+        <li><strong>How is retention enforced?</strong> By time (<code>retention.ms</code>), by size
+        (<code>retention.bytes</code>), or both. The smaller of the two limits applies.</li>
+      </ol>
+
+      <h4>Hot retention</h4>
+      <p>Hot retention is the messages kept on the broker's local disk. The broker serves consumers from these
+      messages, using the page cache for recent segments and disk for older ones. The hot retention is sized for the
+      active consumption: the messages a consumer might need to catch up, plus a margin for the slowest consumer.
+      For most topics, 7–30 days of hot retention is sufficient, because a consumer lagging more than that is
+      effectively broken and needs a reset.</p>
+      <p>The disk budget is the constraint. A broker with 10 TB of disk and replication factor 3 can host about
+      3.3 TB of unique messages per broker; across 10 brokers, that is 33 TB of unique messages, or about 4 days at
+      100 MB/s. Longer hot retention requires more brokers, more disk, or tiered storage.</p>
+
+      <h4>Cold retention</h4>
+      <p>Cold retention is for messages that are older than the hot window but still needed for audit, compliance,
+      or replay. The traditional approach was to copy messages to an external store (S3, HDFS) via a connector
+      (Kafka Connect S3 sink, or a custom job). This works but is operationally heavy: the copy is separate from the
+      broker, the consumer cannot read the cold data through Kafka, and the schema evolution must be handled
+      separately.</p>
+      <p>The modern approach is tiered storage (Question 11): the broker itself moves old segments to object storage
+      and serves them transparently when a consumer reads from a cold offset. This gives cold retention without a
+      separate copy pipeline, and the consumer sees a single topic regardless of where the messages actually live.</p>
+
+      <h4>The retention policy choices</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Policy</th><th>Mechanism</th><th>Use case</th></tr></thead>
+          <tbody>
+            <tr><td>Time-based delete</td><td><code>retention.ms</code></td><td>Event streams, logs, telemetry</td></tr>
+            <tr><td>Size-based delete</td><td><code>retention.bytes</code></td><td>Bounded disk usage, when time is less important</td></tr>
+            <tr><td>Compaction</td><td><code>cleanup.policy=compact</code></td><td>Changelogs, state stores, CDC (Question 10)</td></tr>
+            <tr><td>Compact + delete</td><td><code>cleanup.policy=compact,delete</code></td><td>Changelogs that also need a time bound</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The retention and consumer interaction</h4>
+      <p>A consumer that falls behind the retention window cannot catch up — the messages it needed are gone. The
+      consumer's committed offset is now below the earliest available offset, and the broker returns an
+      <code>OffsetOutOfRange</code> error. The consumer's <code>auto.offset.reset</code> policy determines what
+      happens: <code>earliest</code> jumps to the earliest available (skipping the lost messages), <code>latest</code>
+      jumps to the end (skipping everything not yet consumed), or <code>none</code> fails the consumer. None of these
+      is a recovery — the messages are simply gone. This is why retention must exceed the maximum plausible consumer
+      lag.</p>
+
+      <h4>Retention and compliance</h4>
+      <p>Some data must be retained for a fixed period (financial records for 7 years, medical data for 10 years).
+      Kafka is not the right primary store for this — it is a transport and a buffer, not an archive. The archive
+      should be an object store or a database with proper lifecycle management. Kafka's role is to deliver the data
+      to the archive reliably; the archive's role is to keep it. Conflating the two leads to enormous Kafka retention
+      costs and a fragile archive.</p>
+
+      <h4>The cost curve</h4>
+      <p>Hot retention is expensive: SSD-backed broker disk, replicated 3×, with the operational overhead of a
+      Kafka cluster. Cold retention is cheap: object storage at a fraction of the cost, with lifecycle policies that
+      move it to infrequent-access or archive tiers. The right design keeps the hot window small (days) and the cold
+      window large (months or years), using tiered storage or an external archive to bridge them.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Long hot retention is simple (no separate store) but expensive and operationally heavy. Short hot
+        retention plus tiered storage is cheaper and gives the same consumer experience, at the cost of a more complex
+        storage layer. Short hot retention plus an external archive is cheapest, but the archive is a separate system
+        with its own query semantics and its own operational burden.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q10 -->
+  <article class="q teal" id="q10">
+    <div class="q-head">
+      <div class="q-num">10</div>
+      <h3>What is log compaction? How does it enable event sourcing and CDC without growing unboundedly?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Log compaction retains at least the last value for every key, deleting older values for the same key. It
+        turns a topic into a durable, replayable table: consumers can reconstruct the current state by reading from
+        the beginning, and the log grows with the number of distinct keys, not the number of updates. It is the
+        mechanism behind Kafka's changelog topics, event sourcing, and CDC.</p>
+      </div>
+
+      <h4>How compaction works</h4>
+      <p>A topic with <code>cleanup.policy=compact</code> is periodically scanned by a cleaner thread. The cleaner
+      reads each partition's segments and identifies, for each key, the latest offset. Older offsets for the same key
+      are removed; the latest is retained. A tombstone (a message with a null value) is retained for a configurable
+      time (<code>delete.retention.ms</code>) to signal deletion to consumers, then removed. The result is a log
+      where each key appears at most once (plus tombstones during the grace period), and the total size is bounded by
+      the number of keys and their value sizes, not by the number of updates.</p>
+      <p>The compaction is asynchronous and runs in the background. Recent messages (within the last segment) are not
+      compacted until the segment is rolled, so the tail of the log is append-only and uncompacted. Consumers see the
+      full history up to the compaction point, then the compacted tail — which is fine, because a consumer that reads
+      from the beginning and keeps the latest value per key reconstructs the same state regardless of whether old
+      versions are present.</p>
+
+      <h4>Why this enables event sourcing</h4>
+      <p>Event sourcing stores the sequence of events that produced the current state, rather than the state itself.
+      The events are the source of truth; the state is derived by replaying them. In Kafka, the events are the
+      messages in a compacted topic; the state is reconstructed by a consumer that applies each event to a local
+      store. The compacted topic is a durable event log that is also a state store — it holds every event that has
+      not been superseded, and the latest value for each key is enough to rebuild the state for that key.</p>
+      <p>The compaction means the event log does not grow with every update: a user's profile updated 1,000 times
+      leaves one value in the compacted topic (plus tombstones), not 1,000. The state can still be reconstructed
+      because the latest event contains the full state (or the last delta, depending on the event design). The cost
+      is that the history of individual updates is lost — for that, you need a separate, non-compacted topic that
+      retains every event.</p>
+
+      <h4>Why this enables CDC</h4>
+      <p>Change data capture streams database changes (inserts, updates, deletes) into Kafka. Each change is a
+      message keyed by the primary key. A compacted CDC topic holds the latest state of each row, not every change —
+      which is exactly what a downstream service needs to reconstruct a read model. A service that bootstraps from
+      the compacted topic gets the current state of every row, without replaying the entire change history. A service
+      that needs the history reads a non-compacted topic; a service that needs the current state reads the compacted
+      one.</p>
+      <p>The standard pattern is two topics: a compacted "state" topic for bootstrapping and a non-compacted "events"
+      topic for history. Both are produced by the same CDC connector, and consumers choose the one that matches their
+      need.</p>
+
+      <h4>Compaction and state stores</h4>
+      <p>Kafka Streams uses compacted topics for its state store changelogs. When a stateful operation (count,
+      aggregate, join) updates a state store, the change is written to a compacted changelog topic. If the stream
+      processor restarts, it replays the changelog to rebuild the state store. Because the changelog is compacted, the
+      replay is bounded by the number of keys, not the number of updates — a stream with millions of updates per key
+      still rebuilds in seconds.</p>
+
+      <h4>The tombstone handling</h4>
+      <p>A delete in CDC or event sourcing must be represented as a tombstone: a message with the key and a null
+      value. The compacted topic retains the tombstone for <code>delete.retention.ms</code> (default 24 hours) so that
+      consumers see the deletion, then removes it. A consumer that reads from the beginning and replays the tombstones
+      correctly reconstructs the deleted state; a consumer that starts after the tombstone is gone will not see the
+      key at all, which is also correct (the key is deleted). The grace period must be long enough for all consumers
+      to see the tombstone, or a consumer that starts too late will not know the key was deleted.</p>
+
+      <h4>When compaction is the wrong choice</h4>
+      <ul>
+        <li><strong>Event streams that need full history:</strong> if every event matters (audit, analytics), use
+        delete, not compact. Compaction loses the intermediate events.</li>
+        <li><strong>High-cardinality keys:</strong> if every message has a unique key (e.g., a UUID per message),
+        compaction has nothing to remove — each key appears once, so the log grows like a delete topic, but with
+        compaction overhead.</li>
+        <li><strong>Large values:</strong> compaction keeps the latest value per key; a topic with multi-megabyte
+        values and many keys retains all of them, which may be too much for the broker disk.</li>
+      </ul>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Compaction turns a log into a table, which is powerful for event sourcing and CDC but loses the full
+        history. The standard design is two topics: a compacted state topic for bootstrapping and a non-compacted
+        events topic for history. The consumer chooses based on what it needs.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q11 -->
+  <article class="q teal" id="q11">
+    <div class="q-head">
+      <div class="q-num">11</div>
+      <h3>How do you serve petabyte-scale historical data without running out of disk on the brokers? Explain tiered storage.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Tiered storage moves old log segments from broker disk to object storage (S3, GCS, Azure Blob) and serves
+        reads from object storage transparently when a consumer requests a cold offset. The broker keeps a local
+        cache of recent segments for hot reads, and fetches cold segments on demand. The result is effectively
+        unlimited retention at object-storage cost, without a separate copy pipeline.</p>
+      </div>
+
+      <h4>The problem</h4>
+      <p>A Kafka cluster's retention is bounded by broker disk. A topic at 100 MB/s with 30 days of retention uses
+      ~260 TB of unique messages; with replication factor 3, that is ~780 TB of broker disk. At $0.10/GB/month for
+      SSD, that is ~$78,000/month — and it scales linearly with throughput and retention. The traditional answer was
+      to copy old messages to S3 via a connector and query the archive separately, which works but creates two systems
+      and two query paths.</p>
+
+      <h4>How tiered storage works</h4>
+      <p>The broker's log is split into segments. Recent segments are on local disk (the hot tier); older segments are
+      uploaded to object storage (the cold tier) and then removed from local disk. The broker maintains an index
+      mapping offsets to segment locations (local or object), so a consumer reading an old offset triggers a fetch
+      from object storage into the broker's cache, which then serves the consumer. The consumer is unaware of the
+      tiering — it reads from the topic as usual, and the broker handles the cold fetch transparently.</p>
+      <p>The upload happens asynchronously: a segment is uploaded when it is closed (reaches its size or time limit),
+      and the local copy is removed after the upload is confirmed. The broker keeps a configurable amount of recent
+      data on local disk (the "local retention") and uploads the rest. The cold data is immutable — once uploaded, a
+      segment is never modified — so object storage is a natural fit.</p>
+
+      <h4>What this enables</h4>
+      <ul>
+        <li><strong>Effectively unlimited retention:</strong> months or years of history at object-storage prices
+        (~$0.02/GB/month vs ~$0.10+ for broker SSD).</li>
+        <li><strong>Consumer catch-up for long outages:</strong> a consumer that lagged for weeks can still catch up
+        from the cold tier.</li>
+        <li><strong>New consumer bootstrapping:</strong> a new service can read the full history from the cold tier
+        to build its state, without waiting for a separate backfill.</li>
+        <li><strong>Compliance and audit:</strong> the full history is available for regulatory queries without
+        keeping it on expensive broker disk.</li>
+        <li><strong>Smaller clusters:</strong> the broker disk is sized for the hot tier, not the full retention, which
+        reduces cost and simplifies capacity planning.</li>
+      </ul>
+
+      <h4>The latency trade-off</h4>
+      <p>Reading from object storage is slower than reading from local disk (tens of milliseconds vs single-digit
+      milliseconds), plus the broker's fetch and cache overhead. For real-time consumers, this is invisible — they read
+      from the hot tier. For batch consumers, backfills, or new-consumer bootstrap, the cold reads are slower but
+      happen in parallel and are not latency-sensitive. The design should ensure that the hot tier covers the
+      real-time working set, so the cold tier is only hit by cold reads.</p>
+
+      <h4>The cache</h4>
+      <p>The broker caches fetched cold segments locally (LRU, bounded by size). A consumer reading a cold range
+      sequentially fetches each segment once; a consumer re-reading the same range hits the cache. The cache size is
+      a tuning parameter: larger cache means more cold reads are fast, at the cost of disk. A common design is to
+      size the cache for the "warm" tier — data that is older than the hot window but still accessed regularly.</p>
+
+      <h4>The implementations</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Platform</th><th>Tiered storage</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>Apache Kafka 3.6+</td><td>Native (KIP-405)</td><td>Plugins for S3, GCS, Azure; production-ready from 3.9</td></tr>
+            <tr><td>Confluent Cloud</td><td>Native, managed</td><td>Transparent tiering; no configuration of the object store</td></tr>
+            <tr><td>Redpanda</td><td>Native</td><td>Tiered storage built in; claims no JVM overhead</td></tr>
+            <tr><td>WarpStream</td><td>Object-storage-native</td><td>Disaggregated: all data in S3, stateless brokers</td></tr>
+            <tr><td>Amazon MSK</td><td>Managed tiered storage</td><td>Available on MSK; transparent to clients</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The disaggregated-storage direction</h4>
+      <p>The logical extreme of tiered storage is disaggregated storage: the brokers hold no persistent data, and
+      everything lives in object storage. WarpStream and similar systems do this — the "broker" is stateless, and all
+      reads and writes go to S3. This makes the broker fleet ephemeral and cheap to scale, at the cost of higher
+      per-operation latency (every read is an S3 GET). It is a different trade-off from tiered storage: tiered
+      storage keeps the hot tier fast and pushes only cold data to S3; disaggregated storage pushes everything to S3
+      and relies on caching for hot data. The right choice depends on the latency sensitivity and the read/write
+      ratio.</p>
+
+      <h4>The operational benefits</h4>
+      <p>Beyond cost, tiered storage simplifies operations: brokers can be added or replaced without re-replicating
+      the full history (the cold tier is shared), retention can be extended without adding disk, and the cluster's
+      storage capacity is decoupled from its compute capacity. This is the same principle as separating compute and
+      storage in a data warehouse — it lets each dimension scale independently.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: “I'll use tiered storage to keep the hot window on broker disk and push older segments to S3, so
+        retention is bounded by object-storage cost rather than broker disk. The broker caches recent cold reads so
+        the real-time path is unaffected.” That names the mechanism, the cost model, and the latency mitigation.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART D ================= -->
+  <div class="part-band blue">
+    <div class="bar"></div>
+    <h2>Part D — Stream Processing &amp; Operations
+      <span class="sub">From raw streams to derived state, and how to keep the cluster healthy</span>
+    </h2>
+  </div>
+
+  <!-- Q12 -->
+  <article class="q blue" id="q12">
+    <div class="q-head">
+      <div class="q-num">12</div>
+      <h3>What is Kafka Streams? How does stream processing differ from batch processing in a messaging context?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Kafka Streams is a client library for building stream-processing applications on Kafka: read from input
+        topics, transform, aggregate, join, and write to output topics, with state stored in RocksDB and backed by
+        compacted changelog topics. Stream processing handles unbounded, continuously arriving data with low latency;
+        batch processing handles bounded, historically complete data with high throughput. Kafka can do both — the
+        log is the same, the processing model differs.</p>
+      </div>
+
+      <h4>Kafka Streams fundamentals</h4>
+      <p>Kafka Streams is not a cluster — it is a library embedded in your application. You start a Streams
+      application, it joins a consumer group, and it processes partitions of the input topics. The parallelism is the
+      partition count: one task per partition, and the application can be scaled by running more instances (up to the
+      partition count). The state is local (RocksDB on disk) and backed by a compacted changelog topic, so a
+      restarted instance rebuilds its state by replaying the changelog.</p>
+
+      <h4>The processing model</h4>
+      <ul>
+        <li><strong>Stream:</strong> an unbounded sequence of records (a topic).</li>
+        <li><strong>Table:</strong> a changelog — the latest value per key (a compacted topic).</li>
+        <li><strong>GlobalKTable:</strong> a table replicated to every instance for joins.</li>
+        <li><strong>Operations:</strong> map, filter, flatMap, groupByKey, aggregate, count, reduce, join, window,
+        suppress.</li>
+        <li><strong>Windows:</strong> tumbling, hopping, sliding, session — for time-based aggregation.</li>
+        <li><strong>State stores:</strong> RocksDB-backed, changelog-backed, queryable from outside the app (interactive
+        queries).</li>
+      </ul>
+
+      <h4>Exactly-once in Kafka Streams</h4>
+      <p>Kafka Streams can process exactly-once: the input offsets, the output records, and the state store updates
+      are committed in one Kafka transaction. A failure mid-processing aborts the transaction, the input offsets are
+      not advanced, and the processing restarts from the last committed offset. The state store is consistent with
+      the output because both are part of the same transaction. This is the same transactional API described in
+      Question 8, wrapped in a library so the application does not manage it.</p>
+
+      <h4>Stream processing vs batch processing</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Aspect</th><th>Stream processing</th><th>Batch processing</th></tr></thead>
+          <tbody>
+            <tr><td>Input</td><td>Unbounded, continuous</td><td>Bounded, complete</td></tr>
+            <tr><td>Latency</td><td>Milliseconds to seconds</td><td>Minutes to hours</td></tr>
+            <tr><td>Throughput</td><td>Moderate (per-record overhead)</td><td>High (optimized for bulk)</td></tr>
+            <tr><td>State</td><td>Incremental, local</td><td>Recomputed from scratch</td></tr>
+            <tr><td>Failure handling</td><td>At-least-once or exactly-once</td><td>Rerun the batch</td></tr>
+            <tr><td>Processing time</td><td>Event time + watermarks</td><td>Processing time</td></tr>
+            <tr><td>Tools</td><td>Kafka Streams, Flink, ksqlDB</td><td>Spark, MapReduce, Hive</td></tr>
+            <tr><td>Use case</td><td>Real-time dashboards, alerts, CDC</td><td>Daily reports, ETL, model training</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Event time vs processing time</h4>
+      <p>Stream processing distinguishes event time (when the event happened, from the message timestamp) from
+      processing time (when the processor saw it). The difference matters because events arrive late or out of order.
+      Kafka Streams uses watermarks to track event-time progress: a window is closed when the watermark passes its
+      end, and late events within a grace period are still accepted. Without this, a windowed aggregation would be
+      wrong for any event that arrived after its window closed.</p>
+      <p>Batch processing usually does not have this problem: the batch is complete, and every event is present with
+      its event timestamp. The batch can process in any order because the data is bounded and the aggregation is
+      recomputed from scratch.</p>
+
+      <h4>Why use stream processing</h4>
+      <ul>
+        <li><strong>Low latency:</strong> a real-time dashboard or alert needs results in seconds, not after the
+        nightly batch.</li>
+        <li><strong>Continuous computation:</strong> fraud detection, anomaly detection, and monitoring must react to
+        events as they happen.</li>
+        <li><strong>Incremental state:</strong> an aggregation can be maintained incrementally, without reprocessing
+        the full history each time.</li>
+        <li><strong>Downstream freshness:</strong> a search index or cache can be updated in near-real-time via CDC
+        and stream processing, instead of waiting for a batch refresh.</li>
+      </ul>
+
+      <h4>When batch is the right choice</h4>
+      <ul>
+        <li><strong>Full-history recomputation:</strong> training a model, rebuilding a warehouse table, or running a
+        complex analytical query that needs all the data.</li>
+        <li><strong>High-throughput bulk processing:</strong> processing terabytes of logs or backups where latency
+        does not matter.</li>
+        <li><strong>Complex transformations:</strong> joins across many datasets, heavy ML pipelines, or anything that
+        is easier to express as a full-data computation than as an incremental one.</li>
+      </ul>
+
+      <h4>The combination</h4>
+      <p>Most data platforms use both: stream processing for the real-time layer (dashboards, alerts, CDC to search)
+      and batch processing for the analytical layer (daily reports, model training, warehouse rebuilds). Kafka is the
+      bridge: the same topics feed both a stream processor (for real-time views) and a sink to the warehouse (for
+      batch views). The two are not competing — they serve different latency and completeness requirements.</p>
+
+      <h4>Kafka Streams vs Flink vs Spark Structured Streaming</h4>
+      <p>Kafka Streams is a library, embedded in your app, tightly coupled to Kafka, simple to operate (no cluster).
+      Flink is a cluster-based engine with richer event-time semantics, exactly-once across more systems, and SQL
+      support (Flink SQL). Spark Structured Streaming is a microbatch engine on Spark, with broader connectors and
+      integration with the Spark ecosystem. The choice is Kafka Streams for simple Kafka-native pipelines, Flink for
+      complex event processing with strong event-time semantics, Spark for pipelines that already use Spark.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Stream processing gives low latency and incremental state at the cost of complexity (event time, watermarks,
+        late data, exactly-once). Batch is simpler to reason about and cheaper per record, at the cost of latency. The
+        right choice is driven by the freshness requirement and the complexity budget, not by which is more modern.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q13 -->
+  <article class="q blue" id="q13">
+    <div class="q-head">
+      <div class="q-num">13</div>
+      <h3>How do you monitor a Kafka cluster? What metrics indicate a problem (consumer lag, ISR shrink, under-replicated partitions)?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Monitor four layers: producer (throughput, latency, error rate), broker (under-replicated partitions, ISR
+        shrink rate, disk usage, request queue), consumer (lag, fetch latency, rebalance rate), and cluster
+        (controller health, metadata propagation). The single most important metric is under-replicated partitions; a
+        sustained non-zero value means a durability risk.</p>
+      </div>
+
+      <h4>The broker metrics</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Metric</th><th>What it means</th><th>Alert threshold</th></tr></thead>
+          <tbody>
+            <tr><td><code>UnderReplicatedPartitions</code></td><td>Partitions whose ISR is smaller than the replication factor</td><td>&gt; 0 sustained</td></tr>
+            <tr><td><code>OfflinePartitionsCount</code></td><td>Partitions with no leader — unavailable</td><td>&gt; 0</td></tr>
+            <tr><td><code>IsrShrinksPerSec</code> / <code>IsrExpandsPerSec</code></td><td>Replica flapping</td><td>High rate paired</td></tr>
+            <tr><td><code>ActiveControllerCount</code></td><td>Must be exactly 1 across the cluster</td><td>≠ 1</td></tr>
+            <tr><td><code>RequestHandlerAvgIdlePercent</code></td><td>Broker CPU/thread saturation</td><td>&lt; 30%</td></tr>
+            <tr><td><code>NetworkProcessorAvgIdlePercent</code></td><td>Network thread saturation</td><td>&lt; 30%</td></tr>
+            <tr><td><code>LogFlushLatency</code></td><td>Disk write latency</td><td>Rising trend</td></tr>
+            <tr><td><code>DiskUsagePercent</code></td><td>Broker disk fullness</td><td>&gt; 75%</td></tr>
+            <tr><td><code>BytesInPerSec</code> / <code>BytesOutPerSec</code></td><td>Throughput</td><td>Trend, not absolute</td></tr>
+            <tr><td><code>TotalProduceRequestsPerSec</code></td><td>Load</td><td>Capacity-relative</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Under-replicated partitions</h4>
+      <p>This is the canary. A partition is under-replicated when its ISR is smaller than its replication factor — a
+      follower is behind or down. If it stays at zero, the cluster is healthy. If it is non-zero and not recovering,
+      a broker is down or a network link is saturated. If it is non-zero and recovering, a replica is catching up
+      (normal after a broker restart). The metric should be alerted on as a sustained value, not a transient one.</p>
+
+      <h4>Offline partitions</h4>
+      <p>A partition with no leader is unavailable — producers and consumers cannot use it. This is the most severe
+      broker metric; it means a partition has lost all ISR members and cannot elect a leader (or unclean election is
+      disabled). Any non-zero value is a page. The causes: all ISR replicas are down, the controller cannot reach them,
+      or the cluster is in a state where leadership cannot be established.</p>
+
+      <h4>Active controller count</h4>
+      <p>The cluster must have exactly one active controller. Zero means no controller (metadata changes fail, leader
+      elections stall); more than one means a split-brain in the controller election (a serious bug or a network
+      partition). Both are pages.</p>
+
+      <h4>Consumer lag</h4>
+      <p>Lag is the difference between the producer's offset and the consumer's committed offset, per partition,
+      summed or maxed across the group. It is the primary consumer metric. A growing lag means the consumer is not
+      keeping up; a stable lag means steady state; a lag that exceeds the retention window means the consumer will
+      lose data. The signal should be a trend (lag growing for N minutes) plus an absolute threshold (lag approaching
+      the retention limit).</p>
+      <p>Lag should be monitored per consumer group, per topic, and per partition. A group that looks healthy in
+      aggregate may have one partition with enormous lag (a hot partition or a stuck consumer). The max lag per
+      partition is often more useful than the sum.</p>
+
+      <h4>Rebalance rate</h4>
+      <p>A high rebalance rate means the consumer group is unstable — consumers joining, leaving, or being kicked
+      out. The causes: consumers taking too long to process a batch (exceeding <code>max.poll.interval.ms</code>),
+      network issues, or a deployment that restarts consumers. A rebalance storm can stop consumption entirely, so a
+      high rate is a page. The mitigation: static group membership, cooperative sticky protocol, smaller batches,
+      and a longer poll interval.</p>
+
+      <h4>Producer metrics</h4>
+      <ul>
+        <li><strong>Record send rate and error rate:</strong> the basic throughput and failure signals.</li>
+        <li><strong>Request latency:</strong> the p99 of the produce request. A rising p99 means the brokers are
+        saturated or the ISR is slow.</li>
+        <li><strong>Record retry rate:</strong> high retries indicate broker or network issues; combined with
+        idempotence, they are safe, but a rising rate is a symptom.</li>
+        <li><strong>Batch size and compression ratio:</strong> tuning signals — small batches or poor compression
+        indicate misconfiguration.</li>
+      </ul>
+
+      <h4>Cluster metadata and controller</h4>
+      <p>The controller's health is critical for metadata operations (topic creation, leader election, partition
+      reassignment). A slow controller delays every metadata change, which manifests as slow leader elections and
+      slow client metadata refreshes. The metrics: controller request queue size, controller event queue time, and
+      metadata propagation lag across brokers.</p>
+
+      <h4>End-to-end monitoring</h4>
+      <p>The cluster metrics are necessary but not sufficient. A healthy cluster can serve a broken pipeline if the
+      producer stopped producing or the consumer is silently failing. The end-to-end signals: the producer's
+      throughput (should match the business event rate), the consumer's processing latency, the end-to-end latency
+      (produce timestamp to consume timestamp), and the dead-letter queue depth. These are application-level, not
+      broker-level, and they catch what the broker metrics miss.</p>
+
+      <h4>The dashboards and alerts</h4>
+      <p>A standard Kafka dashboard has four panels: cluster health (under-replicated, offline, controller), broker
+      resources (CPU, network, disk, request queues), consumer groups (lag, rebalance rate, throughput), and
+      producer (throughput, error rate, latency). Alerts are on the pages (offline partitions, controller count,
+      sustained under-replicated) and on the trends (lag growing, rebalance rate rising, disk approaching threshold).
+      Per-partition alerts catch hotspots that aggregate metrics hide.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Monitoring only aggregate consumer lag. A group with one partition lagging by millions of messages looks
+        healthy in the sum if the other partitions are at zero. The max lag per partition is the metric that catches
+        the problem, and it should be alerted on separately.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q14 -->
+  <article class="q blue" id="q14">
+    <div class="q-head">
+      <div class="q-num">14</div>
+      <h3>Compare Kafka, Pulsar, and Kinesis. When would you choose each?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Kafka is the de facto standard: mature, high-throughput, huge ecosystem, self-managed or managed.
+        Pulsar separates compute and storage (brokers and bookies), supports multi-tenancy natively, and offers
+        tiered storage by default. Kinesis is AWS-managed, simple to operate, but with AWS-specific constraints
+        (shard limits, retention, throughput). Choose Kafka for control and ecosystem, Pulsar for multi-tenancy and
+        disaggregated storage, Kinesis for AWS-native simplicity.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Dimension</th><th>Kafka</th><th>Pulsar</th><th>Kinesis</th></tr></thead>
+          <tbody>
+            <tr><td>Architecture</td><td>Brokers store and serve; controller for metadata</td><td>Brokers serve, BookKeeper stores (disaggregated)</td><td>Fully managed; shards are the unit</td></tr>
+            <tr><td>Storage scaling</td><td>Add brokers → add disk</td><td>Add bookies → add storage independently</td><td>Shard limits per stream; no user-visible storage</td></tr>
+            <tr><td>Multi-tenancy</td><td>Basic (topics, ACLs)</td><td>Native (tenants, namespaces, quotas)</td><td>Per-account, per-stream</td></tr>
+            <tr><td>Geo-replication</td><td>MirrorMaker / Cluster Linking</td><td>Built-in (async geo-replication)</td><td>Cross-region via Kinesis Data Streams replication</td></tr>
+            <tr><td>Tiered storage</td><td>Native (3.6+), or external</td><td>Built-in, default</td><td>Not user-configurable; retention up to 365 days</td></tr>
+            <tr><td>Exactly-once</td><td>Transactions, idempotent producer</td><td>Transactions, idempotent producer</td><td>Not supported (at-least-once)</td></tr>
+            <tr><td>Ordering</td><td>Per-partition</td><td>Per-partition</td><td>Per-shard</td></tr>
+            <tr><td>Ecosystem</td><td>Huge (Connect, Streams, ksqlDB, Confluent)</td><td>Growing (Pulsar Functions, Pulsar IO)</td><td>AWS-native (Lambda, Firehose, Analytics)</td></tr>
+            <tr><td>Operational model</td><td>Self-managed or Confluent Cloud/MSK</td><td>Self-managed or StreamNative/Datastax</td><td>Fully managed (no operations)</td></tr>
+            <tr><td>Best for</td><td>General-purpose event streaming; largest ecosystem</td><td>Multi-tenant platforms; large-scale storage separation</td><td>AWS-native pipelines; minimal operations</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Kafka</h4>
+      <p>Kafka is the default for most event-streaming use cases. Its strengths: the largest ecosystem (Connect,
+      Streams, ksqlDB, Schema Registry, a huge connector library), the most mature operational tooling, the most
+      third-party integrations, and a proven track record at scale. Its architecture — brokers store and serve,
+      controller manages metadata — is simple to understand and has been refined over a decade.</p>
+      <p>The weaknesses: storage and compute are coupled (adding storage means adding brokers), multi-tenancy is
+      basic, and the operational burden is significant for self-managed deployments. Confluent Cloud and MSK address
+      the operational burden; KRaft and tiered storage address the scaling limits. For most teams, Kafka is the
+      right answer because the ecosystem and tooling reduce the total cost of ownership even when a competitor is
+      technically better on a specific axis.</p>
+
+      <h4>Pulsar</h4>
+      <p>Pulsar's distinguishing feature is the separation of compute and storage: brokers handle publishing and
+      consuming, while BookKeeper bookies store the messages. This means storage scales independently of compute —
+      adding storage means adding bookies, not adding brokers — and it enables native multi-tenancy, geo-replication,
+      and tiered storage. Pulsar was designed for the multi-tenant, geo-distributed platform use case, and it does
+      that better than Kafka.</p>
+      <p>The weaknesses: the ecosystem is smaller than Kafka's, the operational complexity is higher (brokers,
+      bookies, ZooKeeper — though the newer versions reduce this), and the community is smaller. For a team that
+      needs multi-tenancy, geo-replication, and disaggregated storage as first-class features, Pulsar is a strong
+      choice; for a team that needs the broadest ecosystem and the most battle-tested operations, Kafka is safer.</p>
+
+      <h4>Kinesis</h4>
+      <p>Kinesis is AWS-managed, which means no brokers, no partitions, no ZooKeeper — just a stream and a shard
+      count. It integrates natively with Lambda, Firehose, Analytics, and the rest of AWS. For a team already on AWS
+      with a simple streaming need, Kinesis is often the fastest path: create a stream, configure a Lambda, done.</p>
+      <p>The weaknesses: shards are the unit of capacity and cost, and resharding is manual (split or merge shards).
+      There is no exactly-once (at-least-once only), no transactions, and the retention is limited (up to 365 days,
+      with the extended retention add-on). The lock-in is real — migrating off Kinesis means re-architecting the
+      producers and consumers. For AWS-native pipelines with modest scale and no need for exactly-once, Kinesis is
+      fine; for anything that needs scale, transactions, or portability, Kafka is the better choice.</p>
+
+      <h4>The decision framework</h4>
+      <ol>
+        <li><strong>Are you AWS-native with a simple need?</strong> Kinesis (lowest operational burden).</li>
+        <li><strong>Do you need multi-tenancy, geo-replication, or disaggregated storage as first-class?</strong>
+        Pulsar.</li>
+        <li><strong>Do you need the broadest ecosystem, the most integrations, or exactly-once?</strong> Kafka.</li>
+        <li><strong>Do you have a dedicated platform team?</strong> Self-managed Kafka or Pulsar; otherwise managed
+        Kafka.</li>
+        <li><strong>Is the workload latency-sensitive with small messages?</strong> Kinesis (managed) or a managed
+        Kafka; Pulsar is competitive.</li>
+      </ol>
+
+      <h4>The managed-cloud reality</h4>
+      <p>In practice, the choice is often between managed services: Confluent Cloud (Kafka), MSK (Kafka), StreamNative
+      (Pulsar), and Kinesis. The managed service removes the operational burden, which is often the dominant factor.
+      For a team without a streaming platform group, a managed Kafka or Kinesis is the pragmatic choice; Pulsar's
+      benefits are largest when the team is large enough to operate it or when the multi-tenancy requirement is
+      real.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Kafka's ecosystem and maturity make it the safe default; Pulsar's architecture is technically superior for
+        multi-tenancy and disaggregated storage, but the ecosystem and operational familiarity are smaller;
+        Kinesis's zero-operations model is compelling for AWS-native teams, at the cost of lock-in, scale limits, and
+        no exactly-once. The right choice depends on the team's constraints as much as the technology's
+        features.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: “Kafka is the default because of the ecosystem and exactly-once. Pulsar if multi-tenancy or
+        disaggregated storage is a first-class requirement. Kinesis if we're AWS-native and the operational burden
+        matters more than the feature set.” That names each platform's differentiator and the decision criterion.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- NEXT PART -->
+  <section class="next-part">
+    <h3>Coming in Section 4 — Push Notification Systems</h3>
+    <p>Section 4 turns to multi-channel delivery: the fan-out from a business event to push, email, SMS, and in-app
+    channels; user preferences and opt-outs; priority queues for transactional vs promotional notifications;
+    retry policies and provider outages; per-user rate caps; and the design of a notification system for 100 million
+    daily active users.</p>
+    <ul class="next-list">
+      <li>Designing a multi-channel notification system</li>
+      <li>Preferences, opt-outs, and consent</li>
+      <li>Priority queues and latency tiers</li>
+      <li>Retry policy and provider outage handling</li>
+      <li>Per-user rate caps and deduplication</li>
+      <li>Fan-out for 50 million recipients</li>
+      <li>Scheduled and future delivery</li>
+      <li>APNs, FCM, email, and SMS integrations</li>
+    </ul>
+  </section>
+
+</div>
+</body>
+</html>
