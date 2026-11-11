@@ -1,0 +1,1666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Messaging Systems — Section 9: Operational Concerns &amp; Failure Modes</title>
+<style>
+  :root{
+    --ink:#0f172a;
+    --ink-soft:#334155;
+    --muted:#64748b;
+    --line:#dde5ec;
+    --bg:#f5f8fb;
+    --card:#ffffff;
+    --navy:#1e3a5f;
+    --navy-soft:#e0eaf5;
+    --navy-deep:#0f1f33;
+    --steel:#475569;
+    --teal:#0d9488;
+    --amber:#b45309;
+    --rose:#e11d48;
+    --blue:#2563eb;
+    --shadow:0 1px 2px rgba(15,31,51,.06), 0 8px 24px -8px rgba(15,31,51,.14);
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 8% -10%, #e0eaf5 0%, transparent 60%),
+      radial-gradient(1000px 500px at 100% 0%, #c7d9ec 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:"Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    line-height:1.72;
+    font-size:16.5px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px 90px;}
+
+  header.hero{
+    background:linear-gradient(135deg,#0f1f33 0%, #1e3a5f 45%, #2d4a75 100%);
+    color:#f0f5fb;
+    padding:64px 22px 56px;
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::after{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      radial-gradient(600px 300px at 85% 15%, rgba(56,189,248,.35), transparent 70%),
+      radial-gradient(520px 280px at 12% 92%, rgba(59,130,246,.38), transparent 70%);
+    pointer-events:none;
+  }
+  .hero-inner{max-width:1080px;margin:0 auto;position:relative;z-index:2;}
+  .eyebrow{
+    display:inline-block;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;
+    font-weight:700;padding:7px 15px;border-radius:999px;
+    background:rgba(147,197,253,.18);border:1px solid rgba(147,197,253,.45);
+    color:#93c5fd;margin-bottom:20px;
+  }
+  header.hero h1{
+    font-size:clamp(1.9rem, 4.4vw, 3rem);line-height:1.15;margin:0 0 16px;
+    font-weight:800;letter-spacing:-.02em;
+  }
+  header.hero h1 span{
+    background:linear-gradient(90deg,#93c5fd,#bfdbfe);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  header.hero p.lede{font-size:1.06rem;color:#bfdbfe;max-width:790px;margin:0 0 26px;}
+  .meta-chips{display:flex;flex-wrap:wrap;gap:10px;}
+  .chip{
+    font-size:.78rem;font-weight:600;padding:7px 14px;border-radius:999px;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#e0eaf5;
+  }
+
+  .roadmap{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:26px 28px;margin-top:-34px;position:relative;z-index:5;
+  }
+  .roadmap h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 16px;font-weight:700;
+  }
+  .roadmap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;}
+  .roadmap-item{
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:.86rem;
+    background:#fafcfe;opacity:.7;
+  }
+  .roadmap-item.done{
+    border-color:#93c5fd;background:linear-gradient(180deg,#eff6ff,#ffffff);opacity:1;
+  }
+  .roadmap-item.current{
+    border-color:#60a5fa;background:linear-gradient(180deg,#e0eaf5,#ffffff);opacity:1;
+    box-shadow:0 0 0 3px rgba(30,58,95,.14);
+  }
+  .roadmap-item .tag{
+    display:inline-block;font-size:.64rem;font-weight:800;letter-spacing:.08em;
+    padding:2px 8px;border-radius:999px;margin-bottom:6px;
+  }
+  .tag-done{background:var(--navy-soft);color:var(--navy-deep);}
+  .tag-now{background:#bfdbfe;color:#1e3a5f;}
+  .tag-next{background:#e2e8f0;color:#475569;}
+  .roadmap-item strong{display:block;color:var(--ink);font-size:.89rem;}
+
+  nav.toc{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:22px 26px;margin:26px 0 44px;
+  }
+  nav.toc h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 14px;font-weight:700;
+  }
+  nav.toc ol{
+    margin:0;padding-left:0;list-style:none;counter-reset:toc;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:8px 26px;
+  }
+  nav.toc li{
+    counter-increment:toc;font-size:.92rem;padding:6px 0 6px 34px;
+    position:relative;border-bottom:1px dashed #eaf1f8;
+  }
+  nav.toc li::before{
+    content:counter(toc);position:absolute;left:0;top:7px;width:22px;height:22px;
+    border-radius:7px;background:var(--navy-soft);color:var(--navy);
+    font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center;
+  }
+  nav.toc a{color:var(--ink-soft);text-decoration:none;font-weight:500;}
+  nav.toc a:hover{color:var(--navy);}
+
+  .part-band{display:flex;align-items:center;gap:16px;margin:56px 0 26px;}
+  .part-band .bar{
+    width:5px;height:44px;border-radius:99px;
+    background:linear-gradient(180deg,var(--navy),#3b82f6);
+  }
+  .part-band.teal .bar{background:linear-gradient(180deg,var(--teal),#2dd4bf);}
+  .part-band.blue .bar{background:linear-gradient(180deg,var(--blue),#60a5fa);}
+  .part-band h2{margin:0;font-size:1.5rem;letter-spacing:-.01em;font-weight:800;}
+  .part-band .sub{
+    display:block;font-size:.82rem;font-weight:600;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.12em;margin-top:2px;
+  }
+
+  article.q{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:0 0 26px;margin-bottom:28px;overflow:hidden;
+    scroll-margin-top:24px;
+  }
+  .q-head{
+    display:flex;gap:16px;align-items:flex-start;padding:22px 28px 18px;
+    border-bottom:1px solid #eaf1f8;background:linear-gradient(180deg,#fafcfe,#ffffff);
+  }
+  .q-num{
+    flex:none;width:42px;height:42px;border-radius:12px;display:flex;
+    align-items:center;justify-content:center;font-weight:800;font-size:.92rem;color:#fff;
+    background:linear-gradient(135deg,#1e3a5f,#3b82f6);
+    box-shadow:0 6px 14px -6px rgba(30,58,95,.7);
+  }
+  .teal .q-num{background:linear-gradient(135deg,#0d9488,#14b8a6);box-shadow:0 6px 14px -6px rgba(13,148,136,.7);}
+  .blue .q-num{background:linear-gradient(135deg,#2563eb,#3b82f6);box-shadow:0 6px 14px -6px rgba(37,99,235,.7);}
+  .q-head h3{margin:0;font-size:1.13rem;font-weight:700;line-height:1.4;letter-spacing:-.01em;}
+  .q-body{padding:22px 28px 0;}
+  .q-body p{margin:0 0 15px;color:var(--ink-soft);}
+  .q-body p:last-child{margin-bottom:0;}
+  .q-body h4{margin:24px 0 10px;font-size:.95rem;font-weight:800;color:var(--ink);}
+  .q-body h4::before{content:"▹";color:var(--navy);margin-right:8px;font-size:.85rem;}
+  .teal .q-body h4::before{color:var(--teal);}
+  .blue .q-body h4::before{color:var(--blue);}
+  .q-body ul,.q-body ol{margin:0 0 16px;padding-left:22px;color:var(--ink-soft);}
+  .q-body li{margin-bottom:8px;}
+  .q-body li::marker{color:var(--navy);}
+  .teal .q-body li::marker{color:var(--teal);}
+  .blue .q-body li::marker{color:var(--blue);}
+  strong{color:var(--ink);font-weight:700;}
+  code{
+    background:#f0f5fb;border:1px solid #dde5ec;border-radius:6px;padding:1px 6px;
+    font-size:.87em;font-family:"SFMono-Regular",Consolas,monospace;color:#1e3a5f;
+  }
+
+  .callout{border-radius:12px;padding:14px 18px;margin:18px 0 4px;font-size:.93rem;border-left:4px solid;}
+  .callout .label{
+    display:block;font-size:.68rem;font-weight:800;letter-spacing:.13em;
+    text-transform:uppercase;margin-bottom:5px;
+  }
+  .callout p{margin:0 0 8px;font-size:.93rem;}
+  .callout p:last-child{margin-bottom:0;}
+  .answer{background:linear-gradient(180deg,#eff6ff,#ffffff);border-color:var(--navy);}
+  .answer .label{color:var(--navy-deep);}
+  .tip{background:linear-gradient(180deg,#f0fdfa,#ffffff);border-color:var(--teal);}
+  .tip .label{color:#0f766e;}
+  .tradeoff{background:linear-gradient(180deg,#fffbeb,#ffffff);border-color:var(--amber);}
+  .tradeoff .label{color:#b45309;}
+  .pitfall{background:linear-gradient(180deg,#fff1f2,#ffffff);border-color:var(--rose);}
+  .pitfall .label{color:#be123c;}
+
+  .table-scroll{overflow-x:auto;margin:18px 0;border-radius:12px;border:1px solid var(--line);}
+  table{width:100%;border-collapse:collapse;font-size:.87rem;background:#fff;}
+  thead th{
+    background:#f7fafd;text-align:left;padding:11px 14px;font-weight:800;
+    font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+    border-bottom:2px solid var(--line);white-space:nowrap;
+  }
+  tbody td{padding:11px 14px;border-bottom:1px solid #f0f5fb;color:var(--ink-soft);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:nth-child(even){background:#fbfdff;}
+  tbody td:first-child{font-weight:700;color:var(--ink);}
+
+  .next-part{
+    background:linear-gradient(135deg,#0f1f33,#2d4a75);color:#e0eaf5;
+    border-radius:var(--radius);padding:32px 34px;margin-top:50px;box-shadow:var(--shadow);
+  }
+  .next-part h3{margin:0 0 12px;font-size:1.2rem;color:#fff;font-weight:800;}
+  .next-part p{margin:0 0 16px;color:#bfdbfe;font-size:.95rem;}
+  .next-list{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:10px;list-style:none;padding:0;margin:0;
+  }
+  .next-list li{
+    background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
+    border-radius:10px;padding:10px 14px;font-size:.86rem;color:#e0eaf5;
+  }
+
+  @media (max-width:640px){
+    .q-head{padding:18px 18px 15px;}
+    .q-body{padding:18px 18px 0;}
+    header.hero{padding:44px 18px 46px;}
+    .roadmap{padding:20px;}
+    nav.toc{padding:18px;}
+    nav.toc ol{grid-template-columns:1fr;}
+  }
+  @media print{
+    body{background:#fff;}
+    article.q, nav.toc, .roadmap{box-shadow:none;page-break-inside:avoid;}
+    header.hero{background:#0f1f33 !important;-webkit-print-color-adjust:exact;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Messaging Series · Section 9 of 10</span>
+    <h1>Messaging Systems for System Design<br><span>Operational Concerns &amp; Failure Modes</span></h1>
+    <p class="lede">
+      What separates a working design from a running system. The metrics that reveal a problem before it becomes an
+      outage, end-to-end tracing across a message pipeline, poison messages and head-of-line blocking, broker outages
+      and the degradation strategy, multi-tenant isolation, chaos engineering for messaging, correctness testing,
+      runbooks for the common incidents, capacity planning, and data lifecycle management.
+    </p>
+    <div class="meta-chips">
+      <span class="chip">10 Questions</span>
+      <span class="chip">500+ words each</span>
+      <span class="chip">Incident-focused</span>
+      <span class="chip">Runbook-ready</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ROADMAP -->
+  <section class="roadmap">
+    <h2>Messaging Answer-Series Roadmap</h2>
+    <div class="roadmap-grid">
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Sections 1–4 Complete</span>
+        <strong>Chat, Queues, Pub/Sub, Push</strong>
+        Foundations of messaging
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 5 — Complete</span>
+        <strong>Real-Time Protocols &amp; Connection Management</strong>
+        WebSocket, gateway fleets, draining, backpressure
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 6 — Complete</span>
+        <strong>Delivery Guarantees, Ordering &amp; Idempotency</strong>
+        At-least-once, exactly-once effects, ordering, dedup
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 7 — Complete</span>
+        <strong>Fan-Out &amp; Group Messaging</strong>
+        Write vs read fan-out, hot groups, broadcast
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 8 — Complete</span>
+        <strong>Event-Driven Architecture</strong>
+        Events vs commands, event sourcing, CQRS, outbox
+      </div>
+      <div class="roadmap-item current">
+        <span class="tag tag-now">Section 9 — You are here</span>
+        <strong>Operational Concerns &amp; Failure Modes</strong>
+        Metrics, tracing, poison pills, outages, multi-tenancy, chaos
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Section 10</span>
+        <strong>Classic System Design Problems</strong>
+        8 end-to-end messaging design prompts solved
+      </div>
+    </div>
+  </section>
+
+  <!-- TOC -->
+  <nav class="toc">
+    <h2>Questions Answered in This Section</h2>
+    <ol>
+      <li><a href="#q1">Metrics that reveal a messaging problem before it becomes an outage</a></li>
+      <li><a href="#q2">End-to-end tracing through a distributed message pipeline</a></li>
+      <li><a href="#q3">Poison messages and head-of-line blocking</a></li>
+      <li><a href="#q4">Broker outage: degradation, recovery, and post-incident</a></li>
+      <li><a href="#q5">Multi-tenant isolation and noisy-neighbour prevention</a></li>
+      <li><a href="#q6">Chaos engineering for messaging pipelines</a></li>
+      <li><a href="#q7">Testing a messaging system for correctness</a></li>
+      <li><a href="#q8">Runbooks for the common incidents</a></li>
+      <li><a href="#q9">Capacity planning for a messaging backbone</a></li>
+      <li><a href="#q10">Data lifecycle: retention, archival, and deletion</a></li>
+    </ol>
+  </nav>
+
+  <!-- ================= PART A ================= -->
+  <div class="part-band">
+    <div class="bar"></div>
+    <h2>Part A — Visibility
+      <span class="sub">Metrics and tracing, before anything breaks</span>
+    </h2>
+  </div>
+
+  <!-- Q1 -->
+  <article class="q" id="q1">
+    <div class="q-head">
+      <div class="q-num">1</div>
+      <h3>What metrics do you monitor for a messaging system? How do you detect consumer lag, broker saturation, and rebalance storms?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Monitor four layers: broker health (under-replicated partitions, disk, network, request queues), consumer
+        health (lag, rebalance rate, poll latency, commit rate), producer health (throughput, error rate, retry
+        rate, batch size), and end-to-end (message latency, DLQ depth). The single most important metric is
+        <strong>consumer lag</strong>; the single most alarming is <strong>under-replicated partitions</strong>.</p>
+      </div>
+
+      <h4>The four layers</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Layer</th><th>Critical metrics</th><th>What they reveal</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Broker health</td>
+              <td>Under-replicated partitions, offline partitions, active controller count, disk usage, ISR shrink/expand rate, request queue depth, network throughput</td>
+              <td>Durability risk, capacity risk, cluster instability</td>
+            </tr>
+            <tr>
+              <td>Consumer health</td>
+              <td>Consumer lag per partition, rebalance rate, poll latency, commit rate, max poll interval overruns</td>
+              <td>Processing capacity, group stability, slow consumers</td>
+            </tr>
+            <tr>
+              <td>Producer health</td>
+              <td>Throughput, error rate, retry rate, batch size, request latency p99, buffer exhaustion</td>
+              <td>Upstream issues, backpressure, configuration problems</td>
+            </tr>
+            <tr>
+              <td>End-to-end</td>
+              <td>Produce-to-consume latency p50/p99, DLQ depth, duplicate rate, schema validation failures</td>
+              <td>User-facing impact, correctness, contract violations</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Consumer lag — the primary signal</h4>
+      <p>Lag is the difference between the producer's latest offset and the consumer's committed offset, per
+      partition. It is the clearest indicator of whether consumers are keeping up. Three patterns matter:</p>
+      <ul>
+        <li><strong>Stable lag:</strong> the consumer processes at the same rate as the producer. Healthy.</li>
+        <li><strong>Growing lag:</strong> the consumer is falling behind. Either the consumer is slow, the producer
+        spiked, or a partition is stuck. Investigate immediately.</li>
+        <li><strong>Lag approaching retention:</strong> the consumer is about to lose messages (the log will drop
+        them). This is a data-loss risk and must be a page.</li>
+      </ul>
+      <p>Lag should be monitored per consumer group, per topic, and per partition. The per-partition max is often
+      more useful than the sum — a group with a healthy average may have one partition with massive lag, indicating
+      a hot partition or a stuck consumer on that partition. Alert on the max, not the mean.</p>
+
+      <h4>Under-replicated partitions</h4>
+      <p>A partition whose ISR is smaller than its replication factor. This means a replica is behind or down. A
+      transient value is normal (after a broker restart); a sustained non-zero value is a durability risk. If the
+      ISR shrinks to 1 and the leader fails, the partition is unavailable (or data is lost if unclean leader election
+      is enabled). Alert on any sustained non-zero value, and page on it growing or persisting beyond the expected
+      recovery window.</p>
+
+      <h4>Rebalance storms</h4>
+      <p>A rebalance occurs when a consumer joins or leaves a group. A rebalance storm is when rebalances cascade:
+      a slow consumer misses its heartbeat, is declared dead, triggers a rebalance, the rebalance redistributes
+      its partitions, the new consumers take longer to catch up, miss their heartbeats, and the cycle repeats.
+      The group makes no progress and lag grows.</p>
+      <p>The detection metrics:</p>
+      <ul>
+        <li><strong>Rebalance rate:</strong> rebalances per minute per group. A stable group has zero; a storm has
+        several per minute.</li>
+        <li><strong>Partition assignment churn:</strong> how often partitions move between consumers.</li>
+        <li><strong>Consumer poll interval overruns:</strong> consumers that exceed <code>max.poll.interval.ms</code>
+        are the usual cause; monitor the p99 poll interval.</li>
+        <li><strong>Group state transitions:</strong> how often the group moves between PreparingRebalance,
+        CompletingRebalance, and Stable.</li>
+      </ul>
+      <p>The fix is per the cause: increase <code>max.poll.interval.ms</code> for slow batches, reduce
+      <code>max.poll.records</code>, use cooperative sticky rebalancing to reduce the blast radius, and static group
+      membership to avoid rebalances on restart.</p>
+
+      <h4>Broker saturation metrics</h4>
+      <p>A broker is saturated when any of these is high:</p>
+      <ul>
+        <li><strong>Request handler idle:</strong> the fraction of time the request handler threads are idle. Below
+        30% means the broker is CPU-bound.</li>
+        <li><strong>Network processor idle:</strong> below 30% means the network threads are the bottleneck.</li>
+        <li><strong>Log flush latency:</strong> rising latency means the disk is the bottleneck.</li>
+        <li><strong>Request queue depth:</strong> growing queue means the broker is falling behind.</li>
+        <li><strong>Disk usage:</strong> above 75% is a risk; above 90% is a page (the broker may stop accepting
+        writes).</li>
+      </ul>
+
+      <h4>Producer metrics</h4>
+      <p>The producer is often overlooked. Its metrics reveal upstream issues: a rising error rate means the broker
+      is rejecting writes (quota, auth, ISR); a rising retry rate means the broker is slow or flaky; a rising batch
+      size means the producer is accumulating messages (which is fine if intended, problematic if it is a symptom
+      of backpressure). The producer's buffer exhaustion metric (how often the internal buffer fills) is a leading
+      indicator of publish latency problems.</p>
+
+      <h4>End-to-end latency</h4>
+      <p>The single best user-facing metric is produce-to-consume latency: the timestamp of the message in the
+      consumer minus the timestamp when the producer sent it. It captures the broker's delivery latency, the
+      consumer's queue wait, and the consumer's processing time. A rising p99 means the user-visible delay is
+      growing, even if the individual metrics look healthy.</p>
+
+      <h4>DLQ depth and age</h4>
+      <p>The DLQ depth is a correctness metric: a growing DLQ means messages are failing and accumulating for
+      review. The DLQ age (oldest message) is even more important: a DLQ with 100,000 messages that are all 3
+      minutes old is a transient spike; a DLQ with 100 messages that are 3 weeks old is a silent failure (no one
+      is processing the DLQ). Alert on both depth and age.</p>
+
+      <h4>The dashboard</h4>
+      <p>A standard messaging dashboard has four panels: broker health (under-replicated, offline, controller),
+      consumer health (lag per group per partition, rebalance rate), producer health (throughput, error rate,
+      retry rate), and end-to-end (latency, DLQ depth/age). Each panel is split by topic and by consumer group, so
+      a problem with one topic or one group is visible rather than averaged away.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Monitoring the average consumer lag. A group with one stuck partition and nine healthy partitions has a
+        low average lag but a severe problem. The per-partition max is the metric that catches it, and it must be
+        alerted on separately from the aggregate.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "I'll monitor four layers: broker health, consumer health, producer health, and end-to-end. The
+        primary signal is consumer lag — per partition, not averaged — and the primary alarm is under-replicated
+        partitions. Rebalance rate and DLQ age catch the subtler failures." That names the layers and the two
+        metrics that matter most.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q2 -->
+  <article class="q" id="q2">
+    <div class="q-head">
+      <div class="q-num">2</div>
+      <h3>How do you trace a message end-to-end through a distributed pipeline? What is the role of correlation IDs and distributed tracing?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Every message carries a trace context — a trace ID and span information — that flows through every
+        producer, broker, and consumer. Each hop creates a span, and the spans are collected into a trace. The
+        correlation ID (a business-level identifier) is separate from the trace ID: the trace is for the technical
+        path, the correlation is for the business workflow. Both are needed.</p>
+      </div>
+
+      <h4>Why tracing is hard for messaging</h4>
+      <p>In a synchronous request, the trace is straightforward: the request carries the trace context, and each
+      service creates a span. In messaging, the producer publishes and returns; the consumer picks up later, possibly
+      on a different host, after a delay. The trace context must travel in the message itself, and the consumer
+      must extract it and continue the trace. If the context is not in the message, the consumer starts a new trace
+      and the link is lost.</p>
+
+      <h4>The trace context in messages</h4>
+      <p>The standard (W3C Trace Context) is a <code>traceparent</code> header with the trace ID, span ID, and
+      sampling flags. For Kafka, this goes in the message headers (not the value); for SQS/RabbitMQ, in the message
+      attributes. The producer injects it; the consumer extracts it and creates a new span as a child of the
+      producer's span.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Component</th><th>Span</th><th>Attributes</th></tr></thead>
+          <tbody>
+            <tr><td>Producer</td><td><code>send</code></td><td>topic, partition, key, message size</td></tr>
+            <tr><td>Broker</td><td><code>store</code>, <code>replicate</code></td><td>offset, replica count, latency</td></tr>
+            <tr><td>Consumer</td><td><code>process</code></td><td>group, partition, offset, processing time</td></tr>
+            <tr><td>Consumer downstream</td><td><code>call</code></td><td>service, endpoint, latency</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The correlation ID</h4>
+      <p>The trace ID identifies the technical path; the correlation ID identifies the business workflow. A user's
+      order might involve ten messages across five topics, each in its own trace (if they are separate operations)
+      or in one trace (if they are causally chained). The correlation ID — usually the order ID, or a
+      business-generated request ID — links them across traces and across systems. It is what the support team
+      searches for when a user reports a problem.</p>
+      <p>The correlation ID is propagated as a message attribute, a header, or a field in the payload. It is set at
+      the entry point (the user's request) and carried through every message that stems from it. When a customer
+      complains about order 12345, the support team searches the logs for the correlation ID and sees the full
+      workflow, even if it spans multiple traces.</p>
+
+      <h4>The trace's shape for a message pipeline</h4>
+      <ol>
+        <li><strong>User request</strong> — the API creates a trace; the trace ID is the root.</li>
+        <li><strong>Producer span</strong> — the service that publishes the message creates a child span.</li>
+        <li><strong>Broker span</strong> — the broker's store and replicate operations are children of the producer.</li>
+        <li><strong>Consumer span</strong> — the consumer's processing is a child of the producer's span (not of the
+        broker's, because the consumer's work is caused by the message).</li>
+        <li><strong>Downstream calls</strong> — the consumer's calls to other services are children of the consumer's
+        span.</li>
+        <li><strong>Fan-out</strong> — if the message triggers multiple consumers, each gets its own child span of
+        the producer's span; the trace shows the fan-out as parallel branches.</li>
+      </ol>
+
+      <h4>Sampling</h4>
+      <p>At high volume, tracing every message is impossible. The two strategies:</p>
+      <ul>
+        <li><strong>Head-based sampling:</strong> a fraction (1–10%) of traces are sampled at the root, and all
+        spans in those traces are recorded. Simple, but slow or error traces may not be sampled.</li>
+        <li><strong>Tail-based sampling:</strong> all spans are collected, and the sampling decision is made at the
+        end (keep all slow or error traces, sample the successful ones). Catches the interesting traces, at the cost
+        of a collector that buffers spans.</li>
+      </ul>
+      <p>For messaging, head-based sampling with a higher rate (10%) plus tail-based for errors is the pragmatic
+      combination. The trace context includes the sampling flag, so the decision is made once and propagated.</p>
+
+      <h4>What the trace reveals</h4>
+      <ul>
+        <li><strong>Where time is spent:</strong> producer publish latency, broker store latency, consumer
+        processing latency, downstream call latency. The slowest span is the bottleneck.</li>
+        <li><strong>Whether the message reached the consumer:</strong> if the producer span exists but no consumer span,
+        either the consumer is slow/down or the message was lost.</li>
+        <li><strong>The fan-out pattern:</strong> how many consumers processed the message, and which took the
+        longest.</li>
+        <li><strong>The end-to-end latency:</strong> the difference between the producer's start and the last
+        consumer's end.</li>
+      </ul>
+
+      <h4>What tracing does not replace</h4>
+      <p>Tracing shows the technical path; it does not show the business state. A trace of a payment might show that
+      every hop succeeded in 200 ms, while the ledger entry is wrong because the consumer applied the delta twice.
+      Correctness requires the dedup table's audit (Section 6), the outbox's records (Section 8), and the event
+      log's content — not just the trace's timing. Tracing is for "why is it slow" and "where did it fail"; the
+      business audit is for "what actually happened".</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Trace context flows in the message headers — traceparent for the technical trace, correlation ID for
+        the business workflow. The producer injects, the broker stores, the consumer extracts and continues. The trace
+        shows the latency and the path; the correlation ID links the business workflow across multiple traces." That
+        names the mechanism, the two identifiers, and their distinct roles.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART B ================= -->
+  <div class="part-band teal">
+    <div class="bar"></div>
+    <h2>Part B — Failure Modes
+      <span class="sub">Poison pills, outages, and multi-tenancy</span>
+    </h2>
+  </div>
+
+  <!-- Q3 -->
+  <article class="q teal" id="q3">
+    <div class="q-head">
+      <div class="q-num">3</div>
+      <h3>What is a poison message? How does it block a partition, and how do you prevent it from stopping the whole pipeline?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A poison message is a message that the consumer cannot process — a malformed payload, a missing field, an
+        unsupported version, a business rule that always fails. If the consumer retries it indefinitely, it blocks
+        the partition (head-of-line blocking) and no subsequent message is processed. The fix is a bounded retry
+        count followed by a dead-letter queue (DLQ), so the poison message is removed from the pipeline and the
+        others can proceed.</p>
+      </div>
+
+      <h4>How the block happens</h4>
+      <p>In an ordered queue or a Kafka partition, messages are processed in order. The consumer reads message 42,
+      fails, retries, fails again, retries again. It does not commit the offset, so it does not advance to message
+      43. The partition is stuck on 42. Every retry consumes resources (CPU, database connections) and produces
+      nothing. The lag grows, and the partition serves no useful work.</p>
+      <p>If the consumer is a Kafka consumer in a group, this affects only the partition with the poison message; the
+      other partitions continue. But if the topic has one partition (or the poison message is the only partition),
+      the whole topic stops. And even in a multi-partition topic, a poison message per partition eventually stops
+      everything.</p>
+
+      <h4>The bounded retry + DLQ pattern</h4>
+      <ol>
+        <li>The consumer attempts to process the message. On failure, it retries with backoff (in-memory, up to N
+        attempts).</li>
+        <li>If the retries fail, the consumer publishes the message to a DLQ (or a retry queue with a delay) and
+        commits the offset for the original message. The partition advances.</li>
+        <li>The DLQ is a separate topic/queue with its own retention and monitoring. It holds the messages that
+        could not be processed for review.</li>
+        <li>A separate process (or a human) inspects the DLQ, fixes the underlying issue (schema, code, business
+        rule), and re-drives the messages (or discards them if they are genuinely invalid).</li>
+      </ol>
+      <p>The key property is that the consumer commits the offset after moving the message to the DLQ, so the partition
+      is unblocked. The message is not lost — it is in the DLQ — but it no longer blocks the pipeline.</p>
+
+      <h4>The retry policy matters</h4>
+      <p>A poison message is not a transient failure. Retrying it 100 times is useless and harmful. The retry policy
+      must distinguish:</p>
+      <ul>
+        <li><strong>Transient errors</strong> (network blip, database timeout): retry with backoff, likely to
+        succeed.</li>
+        <li><strong>Permanent errors</strong> (malformed payload, invalid enum, unsupported version): no retry, go
+        directly to DLQ.</li>
+        <li><strong>Business rule errors</strong> (order references a deleted user): no retry, DLQ for business
+        review.</li>
+      </ul>
+      <p>The consumer must classify the error, not blindly retry. A malformed message retried five times wastes
+      five times the resources and delays the DLQ by the retry duration. The correct behaviour is to detect the
+      permanent error (schema validation, deserialization failure) and skip the retries entirely.</p>
+
+      <h4>Dead-letter queue inspection</h4>
+      <p>The DLQ is only useful if someone inspects it. The operational design must include:</p>
+      <ul>
+        <li><strong>Alerting:</strong> DLQ depth and age are monitored; a growing or aging DLQ is a page.</li>
+        <li><strong>Inspection tooling:</strong> a way to view messages, see the error, and categorize them.</li>
+        <li><strong>Re-drive tooling:</strong> a way to move messages back to the main queue after a fix, with
+        idempotency (the consumer dedups by message ID).</li>
+        <li><strong>Discard policy:</strong> a way to permanently delete messages that are genuinely invalid, with
+        an audit record.</li>
+      </ul>
+
+      <h4>The DLQ's own poison problem</h4>
+      <p>A poison message in the DLQ that also fails its DLQ processing (if the DLQ has a consumer) blocks the DLQ
+      the same way. The fix is the same: bounded retries and a second-level DLQ (a "parking lot" for messages that
+      cannot be processed even by the DLQ's handler). Most systems do not need this — the DLQ is a store, not a
+      processing queue — but if the DLQ has automated redrive, it must handle its own poison messages.</p>
+
+      <h4>Prevention</h4>
+      <p>The best poison message is the one that never happens:</p>
+      <ul>
+        <li><strong>Schema validation at produce time:</strong> the producer validates against the schema registry
+        before publishing; malformed messages never reach the topic.</li>
+        <li><strong>Schema validation at consume time:</strong> the consumer validates the message against the schema
+        and rejects (to DLQ) rather than crashing.</li>
+        <li><strong>Backward-compatible schemas:</strong> the schema registry enforces compatibility, so a schema
+        change does not produce messages the consumer cannot read.</li>
+        <li><strong>Forward-compatible consumers:</strong> the consumer ignores unknown fields and handles missing
+        optional fields with defaults, so a schema addition does not break it.</li>
+        <li><strong>Test data in staging:</strong> the producer's test suite publishes to a staging topic, and the
+        consumer's test suite consumes it, catching schema mismatches before production.</li>
+      </ul>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>The retry count and the DLQ threshold are a trade-off: too few retries and transient failures become DLQ
+        messages (noise); too many and the partition is blocked for the retry duration. The right policy is short
+        in-memory retries for transient errors, immediate DLQ for permanent errors, and a backoff retry queue for
+        errors that are likely to resolve with time (dependency down for maintenance).</p>
+      </div>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>A DLQ without a consumer or an alert. The poison message is moved aside, the pipeline continues, but
+        nobody knows. Weeks later, someone notices that 50,000 messages have accumulated and the downstream data
+        is incomplete. The DLQ must have an owner, an alert, and a runbook from day one.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q4 -->
+  <article class="q teal" id="q4">
+    <div class="q-head">
+      <div class="q-num">4</div>
+      <h3>What happens when the message broker itself becomes unavailable? How does the system degrade, and how does it recover?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Producers buffer locally or fail fast (depending on configuration); consumers stop consuming and their
+        lag grows; the system must degrade gracefully rather than fail completely. The recovery is: broker restarts
+        or fails over, producers reconnect and flush their buffers, consumers resume from their last committed
+        offsets, and the lag is drained. The design must ensure no data is lost during the outage and no thundering
+        herd on recovery.</p>
+      </div>
+
+      <h4>The outage scenarios</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Scenario</th><th>Duration</th><th>Impact</th></tr></thead>
+          <tbody>
+            <tr><td>Single broker crash</td><td>Seconds</td><td>Partitions on that broker are unavailable briefly; leader election recovers</td></tr>
+            <tr><td>Broker restart (deploy)</td><td>Seconds to minutes</td><td>Rolling restart; partitions migrate as brokers restart</td></tr>
+            <tr><td>Cluster-wide outage (power, network)</td><td>Minutes to hours</td><td>All publishing and consuming stops; the system is offline</td></tr>
+            <tr><td>Metadata/controller outage</td><td>Minutes</td><td>Topic creation, leader election, config changes fail; existing partitions continue</td></tr>
+            <tr><td>Disk full</td><td>Minutes to hours</td><td>Broker stops accepting writes; producers fail; consumers continue from existing log</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Producer behaviour during the outage</h4>
+      <p>Producers can be configured to:</p>
+      <ul>
+        <li><strong>Buffer in memory:</strong> the producer's internal buffer holds messages until the broker is
+        reachable. The buffer is bounded; when full, the producer blocks (or drops, depending on
+        <code>block.on.buffer.full</code>). For short outages (seconds), buffering works. For long outages
+        (minutes), the buffer fills and the producer blocks.</li>
+        <li><strong>Fail fast:</strong> the producer returns an error immediately; the upstream must decide whether
+        to retry or drop. For non-critical messages (analytics, logs), dropping is acceptable. For critical messages
+        (orders, payments), the upstream must buffer durably (e.g., in the outbox) and retry.</li>
+        <li><strong>Write to a local durable queue:</strong> the producer writes to a local store (the outbox table)
+        and a relay publishes when the broker is reachable. This is the most robust — the message survives the
+        producer restart and the broker outage.</li>
+      </ul>
+
+      <h4>Consumer behaviour during the outage</h4>
+      <p>Consumers cannot fetch from the broker, so they stop consuming. The lag metric grows (the producer's offset
+      is ahead, but the consumer cannot advance). The consumer's health check should fail, so the load balancer
+      stops routing traffic to it (if it serves HTTP as well). The consumer must not repeatedly retry against a
+      dead broker; the client library handles reconnection with backoff.</p>
+
+      <h4>The cascade risk</h4>
+      <p>The broker outage is dangerous because it can cascade:</p>
+      <ul>
+        <li><strong>Upstream backpressure:</strong> the producers' buffers fill, the producers block, the upstream
+        services slow down or fail. A broker outage becomes an API outage.</li>
+        <li><strong>Downstream starvation:</strong> the consumers have nothing to consume, so the downstream
+        services that depend on them (read models, notifications) stop updating.</li>
+        <li><strong>Lag accumulation:</strong> the messages that were published before the outage accumulate as lag;
+        when the broker recovers, the consumers must process the backlog, which can take hours and overload the
+        consumers and their downstream dependencies.</li>
+      </ul>
+
+      <h4>The degradation strategy</h4>
+      <ul>
+        <li><strong>Buffer critical messages durably.</strong> The outbox (Section 8) holds messages that the
+        producer could not publish. When the broker recovers, the relay publishes them. No data is lost.</li>
+        <li><strong>Drop non-critical messages.</strong> Analytics, logs, and telemetry are dropped if they cannot be
+        published; the business continues.</li>
+        <li><strong>Degrade the user-facing features.</strong> If the broker is down, the features that depend on
+        it (real-time notifications, read models) are degraded. The core transaction (placing an order) may still
+        work if it does not depend on the broker synchronously.</li>
+        <li><strong>Rate-limit the recovery.</strong> When the broker recovers, the producers and consumers reconnect
+        with jitter and the consumers process the backlog at a controlled rate. Without rate-limiting, the backlog
+        flood can overwhelm the consumers and their downstream dependencies.</li>
+      </ul>
+
+      <h4>The recovery sequence</h4>
+      <ol>
+        <li><strong>Broker recovers.</strong> The controller stabilizes, the ISR catches up, the leaders are
+        elected.</li>
+        <li><strong>Producers reconnect.</strong> The client library reconnects with backoff, and the buffered
+        messages are flushed. Jitter prevents all producers from reconnecting at once.</li>
+        <li><strong>Consumers reconnect.</strong> The client library reconnects, rejoins the group, and resumes from
+        the last committed offset. The lag is now the full backlog.</li>
+        <li><strong>Backlog processing.</strong> The consumers process the backlog. If the backlog is large (hours
+        of messages), the consumers may need to be scaled up, or the downstream dependencies may need to be
+        rate-limited to prevent overload.</li>
+        <li><strong>Steady state.</strong> The lag returns to normal, the backlog is drained, and the system is
+        healthy.</li>
+      </ol>
+
+      <h4>What breaks during recovery</h4>
+      <ul>
+        <li><strong>Reconnect storm:</strong> thousands of producers and consumers reconnect simultaneously. Jitter
+        and connection rate limits are essential.</li>
+        <li><strong>Backlog flood:</strong> the consumers process hours of messages in minutes, overloading their
+        databases and downstream services. Rate-limited consumption (a max messages per second) prevents this.</li>
+        <li><strong>Duplicate processing:</strong> the consumers re-process messages that were processed but not
+        committed before the outage. Idempotency (Section 6) makes this harmless.</li>
+        <li><strong>Partition imbalance:</strong> the recovery may concentrate load on the partitions that were
+        offline longest. The lag per partition reveals this, and the consumer scaling must be per-partition.</li>
+      </ul>
+
+      <h4>The broker's own high availability</h4>
+      <p>The broker is the single point of failure for the whole messaging system, and its availability is the
+      foundation. The design must include:</p>
+      <ul>
+        <li><strong>Multi-AZ replication:</strong> brokers in at least three availability zones, so a zone failure
+        does not lose data.</li>
+        <li><strong>Replication factor 3:</strong> each partition has three copies, so a broker failure is tolerated.</li>
+        <li><strong>Automatic failover:</strong> the controller promotes a new leader within seconds.</li>
+        <li><strong>Regular chaos tests:</strong> kill a broker, fail a zone, and verify the cluster recovers
+        (Question 6).</li>
+        <li><strong>Backup and restore:</strong> for cluster-wide disasters, the broker's data must be backed up
+        (or the messages must be recoverable from the outbox).</li>
+      </ul>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Buffering critical messages durably (outbox) gives no data loss at the cost of latency and complexity.
+        Failing fast gives low latency and simplicity but loses messages during an outage. The right choice depends
+        on the message's importance: critical messages get the outbox, non-critical messages fail fast and are
+        dropped.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q5 -->
+  <article class="q teal" id="q5">
+    <div class="q-head">
+      <div class="q-num">5</div>
+      <h3>How do you design a multi-tenant messaging system? How do you isolate tenants' throughput, storage, and failures so one noisy tenant does not affect the others?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>The isolation options are: shared everything (one topic per tenant, shared cluster), shared cluster with
+        quotas (one cluster, per-tenant quotas and rate limits), or dedicated infrastructure (a cluster per tenant
+        or per tier). The choice depends on the tenant count, the isolation requirement, and the operational budget.
+        The key is to enforce isolation at every layer: topic naming, partition assignment, rate limits, quotas,
+        and failure domains.</p>
+      </div>
+
+      <h4>The three isolation models</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Model</th><th>Isolation</th><th>Operational cost</th><th>Use case</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Shared cluster, shared topic</td>
+              <td>Weak — a tenant's messages are mixed with others</td>
+              <td>Lowest</td>
+              <td>Multi-tenant SaaS where tenants are small</td>
+            </tr>
+            <tr>
+              <td>Shared cluster, per-tenant topic</td>
+              <td>Moderate — each tenant has its own topic(s)</td>
+              <td>Moderate</td>
+              <td>Most multi-tenant systems</td>
+            </tr>
+            <tr>
+              <td>Shared cluster, per-tenant quotas</td>
+              <td>Strong — rate limits and quotas per tenant</td>
+              <td>Higher</td>
+              <td>Systems with a few large tenants and many small ones</td>
+            </tr>
+            <tr>
+              <td>Dedicated cluster per tenant</td>
+              <td>Strongest — total isolation</td>
+              <td>Highest</td>
+              <td>Enterprise tenants with regulatory or compliance requirements</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Shared cluster, per-tenant topic</h4>
+      <p>Each tenant gets its own topic (or set of topics): <code>tenant_123.orders</code>,
+      <code>tenant_456.orders</code>. The tenant's messages are on their own partitions, with their own consumers.
+      A tenant with high volume grows its topic's partitions, and the cluster's partition capacity is shared but the
+      messages are not. The isolation is moderate: a tenant's consumer cannot see another tenant's messages (topic
+      ACLs), but the cluster's resources are shared, so a high-volume tenant can consume partitions and broker CPU.</p>
+      <p>The per-tenant topic is the pragmatic default because it provides logical isolation at moderate cost. The
+      naming convention (tenant prefix) makes the isolation visible and enforces it via ACLs.</p>
+
+      <h4>Quotas</h4>
+      <p>Kafka's quotas (client quotas and user quotas) limit a tenant's produce and consume rate and their
+      bandwidth. The quota is enforced at the broker: a tenant that exceeds its quota is throttled (the broker
+      delays its requests). The quotas prevent one tenant from saturating the cluster's network or CPU.</p>
+      <p>The quota design:</p>
+      <ul>
+        <li><strong>Per-tenant quota:</strong> each tenant has a produce/consume rate limit based on their
+        subscription tier.</li>
+        <li><strong>Burst allowance:</strong> a tenant can burst above the quota for a short period, then is
+        throttled. This handles legitimate spikes without giving a tenant unlimited capacity.</li>
+        <li><strong>Per-client quota:</strong> within a tenant, each producer/consumer has a quota, so one client
+        cannot monopolize the tenant's allowance.</li>
+        <li><strong>Monitoring:</strong> the throttle rate per tenant is a metric; a tenant that is constantly
+        throttled needs more quota (or is being abusive).</li>
+      </ul>
+
+      <h4>Partition assignment</h4>
+      <p>A shared cluster's partitions are assigned to brokers. If one tenant's topics dominate the partition count,
+      they dominate the broker's resources. The mitigation is to limit the partitions per tenant (a quota on topic
+      and partition creation) and to spread partitions across brokers evenly. Some managed Kafka services offer
+      "isolation groups" or "broker racks" that assign different tenants to different broker sets, which is a
+      middle ground between shared and dedicated.</p>
+
+      <h4>Consumer group isolation</h4>
+      <p>A tenant's consumers are in their own consumer group (with a tenant prefix), so they never compete with
+      another tenant's consumers for partitions. The group coordinator still manages all groups, but the partitions
+      are disjoint (each tenant's topics are separate), so there is no contention on the partition level.</p>
+
+      <h4>Storage isolation</h4>
+      <p>Each tenant's messages are stored in their topics. The retention policy is per-tenant: a tenant with strict
+      compliance can have longer retention, a tenant with cost sensitivity can have shorter. The storage cost is
+      attributable per tenant, which is needed for billing.</p>
+
+      <h4>Failure isolation</h4>
+      <p>A tenant's failure — a misbehaving producer publishing garbage, a consumer that crashes repeatedly, a tenant
+      that hits a poison message — must not affect other tenants. The isolation mechanisms:</p>
+      <ul>
+        <li><strong>Topic-level:</strong> a broken consumer affects only its own consumer group and its own topic; the
+        other tenants' topics are unaffected.</li>
+        <li><strong>Rate limits:</strong> a tenant that floods the cluster is throttled by its quota, protecting the
+        other tenants.</li>
+        <li><strong>DLQ per tenant:</strong> the poison messages go to the tenant's DLQ, not a shared one.</li>
+        <li><strong>Alerting per tenant:</strong> the health metrics are split by tenant, so a failing tenant is
+        visible without affecting the others.</li>
+      </ul>
+
+      <h4>The noisy-neighbour problem</h4>
+      <p>Even with per-tenant topics and quotas, a tenant can affect others through shared resources:</p>
+      <ul>
+        <li><strong>Broker CPU:</strong> a high-volume tenant's requests consume the broker's CPU, slowing the
+        others. Quotas help, but a tenant below the quota can still consume a significant share. The isolation
+        groups or dedicated brokers address this.</li>
+        <li><strong>Network bandwidth:</strong> a tenant with large messages consumes the cluster's network. Quotas
+        and message size limits help.</li>
+        <li><strong>Disk I/O:</strong> a tenant with high write volume consumes the disk's IOPS. The broker's disk
+        is shared, and a tenant that fills it affects all. Retention per tenant and disk quotas (where available)
+        address this.</li>
+        <li><strong>Controller metadata:</strong> a tenant that creates many topics/partitions slows the controller,
+        which affects all metadata operations. Topic and partition quotas address this.</li>
+      </ul>
+
+      <h4>Dedicated clusters</h4>
+      <p>For enterprise tenants with strict isolation (compliance, security, performance), a dedicated cluster is the
+      only real isolation. The cost is high (the cluster is provisioned for one tenant), but the isolation is total:
+      the tenant's messages are on their own brokers, their failures do not affect anyone, and their performance is
+      guaranteed by their own capacity.</p>
+      <p>The standard progression: start with a shared cluster and per-tenant topics, add quotas as tenants grow,
+      move the largest tenants to isolation groups or dedicated clusters. The design should support all three from
+      day one, so the migration is possible without rearchitecting.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Sharing a topic across tenants with a <code>tenant_id</code> field in the message. It works until one
+        tenant's messages dominate the partition, one tenant's consumer blocks the shared consumer group, or one
+        tenant's retention requirement conflicts with another's. The per-tenant topic is the right default, even
+        though it uses more topics.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Per-tenant topics with ACLs, per-tenant quotas on produce and consume, and isolation groups or
+        dedicated clusters for the largest tenants. The progression is shared cluster → quotas → dedicated, chosen
+        by the tenant's size and compliance needs." That names the model, the enforcement, and the escalation path.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART C ================= -->
+  <div class="part-band blue">
+    <div class="bar"></div>
+    <h2>Part C — Verification &amp; Operations
+      <span class="sub">Testing, runbooks, capacity, and lifecycle</span>
+    </h2>
+  </div>
+
+  <!-- Q6 -->
+  <article class="q blue" id="q6">
+    <div class="q-head">
+      <div class="q-num">6</div>
+      <h3>How do you test a messaging system for correctness under failure? What is chaos engineering's role?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Test at three levels: unit tests for the consumer's idempotency, integration tests for the pipeline's
+        end-to-end behavior, and chaos experiments for the system's behavior under failure. Chaos engineering
+        continuously injects failures (broker kill, consumer crash, network partition, clock skew) in staging and
+        verifies that the system recovers and no data is lost or duplicated.</p>
+      </div>
+
+      <h4>Level 1 — Unit tests for idempotency</h4>
+      <p>The consumer's idempotency is the foundation of correctness. It must be tested directly:</p>
+      <ul>
+        <li><strong>Same message twice:</strong> process the same message twice and assert the state is identical to
+        processing it once.</li>
+        <li><strong>Duplicate dedup key:</strong> insert the same dedup key twice and assert the second insert fails
+        (or is skipped) and the business change is not applied twice.</li>
+        <li><strong>Retry after partial failure:</strong> simulate a crash between the business write and the
+        offset commit; on retry, assert the message is skipped and the offset is committed.</li>
+        <li><strong>Concurrent duplicates:</strong> process the same message from two threads/instances and assert
+        the dedup table's atomic insert prevents both from applying the effect.</li>
+      </ul>
+
+      <h4>Level 2 — Integration tests</h4>
+      <p>The pipeline is tested end-to-end with a real broker (or an in-memory broker that mimics the
+      semantics):</p>
+      <ul>
+        <li><strong>Happy path:</strong> a message is produced, consumed, and the business state is correct.</li>
+        <li><strong>Consumer crash:</strong> the consumer crashes after processing but before committing; on restart,
+        it re-processes and the effect is applied once.</li>
+        <li><strong>Rebalance:</strong> a second consumer joins; the partitions are reassigned and the messages are
+        processed exactly once.</li>
+        <li><strong>Poison message:</strong> a malformed message is produced; the consumer sends it to the DLQ and
+        continues with the next message.</li>
+        <li><strong>Broker restart:</strong> the broker is restarted mid-processing; the consumer resumes from the
+        last committed offset and the effect is correct.</li>
+      </ul>
+
+      <h4>Level 3 — Chaos engineering</h4>
+      <p>Chaos engineering is the systematic injection of failures in a controlled environment, with the goal of
+      finding weaknesses before they cause outages. For messaging, the experiments are:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Experiment</th><th>Injects</th><th>Verifies</th></tr></thead>
+          <tbody>
+            <tr><td>Broker kill</td><td>Kill one broker</td><td>Leader election completes; producers and consumers reconnect; no data loss</td></tr>
+            <tr><td>Broker pause</td><td>Pause a broker (SIGSTOP)</td><td>Slow broker is detected; ISR shrinks; the leader fails over</td></tr>
+            <tr><td>Consumer kill</td><td>Kill a consumer mid-batch</td><td>Rebalance; no lost messages; duplicates are deduplicated</td></tr>
+            <tr><td>Network partition</td><td>Partition a broker from the cluster</td><td>Split-brain prevention; ISR behavior; client retries</td></tr>
+            <tr><td>Consumer pause</td><td>Pause a consumer (slow batch)</td><td>Rebalance timeout; partition reassignment; lag recovery</td></tr>
+            <tr><td>Clock skew</td><td>Shift a broker's clock</td><td>Timestamps and ordering remain correct (or the failure is detected)</td></tr>
+            <tr><td>Disk full</td><td>Fill a broker's disk</td><td>Broker stops accepting writes; producers fail over; no corruption</td></tr>
+            <tr><td>Provider outage</td><td>Kill the downstream dependency</td><td>Consumer retries, DLQ, backpressure; recovery on restore</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The chaos engineering process</h4>
+      <ol>
+        <li><strong>Define the steady state:</strong> the normal lag, latency, and throughput. This is the baseline
+        against which experiments are judged.</li>
+        <li><strong>Form a hypothesis:</strong> "If I kill one broker, the cluster recovers within 60 seconds with
+        no data loss."</li>
+        <li><strong>Inject the failure:</strong> in staging first, then in production with a small blast radius
+        (one broker, one tenant, one topic).</li>
+        <li><strong>Observe:</strong> does the steady state return within the hypothesis? Does the alert fire? Does
+        the runbook work?</li>
+        <li><strong>Fix or document:</strong> if the experiment revealed a weakness, fix it (or document the
+        degraded behavior). If not, run a harsher experiment.</li>
+        <li><strong>Automate:</strong> run the experiments continuously (daily or weekly) to catch regressions.</li>
+      </ol>
+
+      <h4>What chaos engineering reveals</h4>
+      <ul>
+        <li><strong>Undetected failures:</strong> a broker that is slow but not dead may not trigger the health check,
+        and the cluster silently degrades.</li>
+        <li><strong>Broken runbooks:</strong> the documented recovery steps may not work with the current tooling.</li>
+        <li><strong>Alert gaps:</strong> the failure that the experiment injected may not have triggered any alert,
+        meaning a real incident would be invisible.</li>
+        <li><strong>Duplicate amplification:</strong> a consumer restart may cause a burst of duplicates that the
+        dedup table was not designed to handle at that rate.</li>
+        <li><strong>Cascade paths:</strong> the broker failure may reveal that the upstream service is not properly
+        buffered and the API also fails.</li>
+      </ul>
+
+      <h4>The correctness invariants</h4>
+      <p>The experiments must verify the invariants, not just the recovery time:</p>
+      <ul>
+        <li><strong>No lost messages:</strong> every message that the producer acknowledged is eventually processed.
+        Verify by counting produced vs consumed, or by a checksum of the message set.</li>
+        <li><strong>No duplicate effects:</strong> each message's effect is applied once. Verify by a canary
+        message with an idempotency key that the consumer records, or by a state check (e.g., the account balance
+        matches the sum of the successful charges).</li>
+        <li><strong>Ordering preserved:</strong> for per-key ordered topics, the events for a key are applied in
+        order. Verify by a per-key sequence check.</li>
+      </ul>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Running chaos experiments only in staging. Staging does not have the production traffic, the data
+        distribution, or the failure timing. The most valuable experiments are in production with a small blast
+        radius (one broker, one consumer group), where the real behaviour is observed.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q7 -->
+  <article class="q blue" id="q7">
+    <div class="q-head">
+      <div class="q-num">7</div>
+      <h3>How do you test a messaging pipeline for correctness? What is the difference between testing the transport and testing the consumer?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Test the transport (broker, serialization, delivery semantics) separately from the consumer (business
+        logic, idempotency, ordering). The transport is tested with integration tests against a real broker; the
+        consumer is tested with unit tests for the logic and property-based tests for idempotency and ordering.
+        Together, they verify that the pipeline is correct end-to-end.</p>
+      </div>
+
+      <h4>Testing the transport</h4>
+      <p>The transport is the broker and its client libraries. Its correctness is mostly the broker's job (tested by
+      the broker's maintainers), but the integration must be verified:</p>
+      <ul>
+        <li><strong>Serialization round-trip:</strong> produce a message, consume it, assert the payload is
+        identical. Test with schema evolution (old schema, new schema, missing optional field).</li>
+        <li><strong>Delivery guarantee:</strong> produce with <code>acks=all</code>, kill a broker, verify the message
+        survives and is consumed. Produce with idempotence enabled, retry the producer, verify no duplicate.</li>
+        <li><strong>Offset management:</strong> produce 100 messages, consume 50, commit, restart the consumer,
+        verify it resumes at 51 and re-processes nothing before 51 (or re-processes with dedup).</li>
+        <li><strong>Rebalance:</strong> start with 2 consumers and 4 partitions, kill one consumer, verify the
+        remaining consumer takes all 4 partitions and processes the messages in order (per partition).</li>
+        <li><strong>Retention:</strong> produce a message, advance the retention window, verify it is gone (and the
+        consumer fails with OffsetOutOfRange if it tries to read it).</li>
+      </ul>
+
+      <h4>Testing the consumer logic</h4>
+      <p>The consumer's business logic is tested in isolation:</p>
+      <ul>
+        <li><strong>Unit tests:</strong> the message → effect transformation. Given a message, assert the database
+        state, the output message, or the API call.</li>
+        <li><strong>Idempotency tests:</strong> the same message processed twice produces the same effect. Given a
+        message and a dedup table with the key already present, assert the business change is not applied.</li>
+        <li><strong>Ordering tests:</strong> given a sequence of messages with the same key, assert the effects are
+        applied in order. Given a sequence with a gap, assert the consumer buffers or fails correctly.</li>
+        <li><strong>Error handling:</strong> given a malformed message, assert the consumer sends it to the DLQ and
+        continues. Given a transient error, assert the consumer retries with backoff.</li>
+        <li><strong>Concurrency:</strong> given two messages processed by two threads, assert the dedup table prevents
+        double application (or the transaction serializes them).</li>
+      </ul>
+
+      <h4>Property-based testing</h4>
+      <p>Property-based testing generates random inputs and asserts the invariants. For messaging, the properties
+      are:</p>
+      <ul>
+        <li><strong>Idempotency:</strong> processing a message N times is equivalent to processing it once, for any
+        message and any N.</li>
+        <li><strong>Commutativity:</strong> for messages that are commutative (state assignments), the order does not
+        matter. For messages that are not (increments), the order matters and the consumer must preserve it.</li>
+        <li><strong>No loss:</strong> every produced message is eventually consumed (given enough time and no
+        retention expiry).</li>
+        <li><strong>Convergence:</strong> after a series of messages and a series of failures, the state is the same
+        as if the messages were processed once, in order, with no failures.</li>
+      </ul>
+      <p>The property-based framework generates random messages, injects random failures (crash after processing,
+      crash before commit, rebalance), and asserts the final state matches the expected. This is the most rigorous
+      test and catches bugs that unit tests miss.</p>
+
+      <h4>The end-to-end test</h4>
+      <p>The full pipeline — producer, broker, consumer, downstream — is tested with a small dataset and a real
+      broker (Testcontainers or an embedded broker). The test asserts:</p>
+      <ul>
+        <li>The message is produced and consumed.</li>
+        <li>The business effect is correct.</li>
+        <li>After a broker restart, the effect is still correct (no duplicate, no loss).</li>
+        <li>After a consumer crash, the effect is still correct.</li>
+      </ul>
+      <p>The end-to-end test is the integration test that catches the interaction bugs between the components. It
+      is slower than the unit tests, so it runs in CI on every merge (or every few hours), not on every local
+      change.</p>
+
+      <h4>The canary message</h4>
+      <p>A canary message is a message with a known payload and a known expected effect, produced periodically (every
+      minute) in production. A monitor consumes it and asserts the effect is correct. If the canary fails, the
+      pipeline is broken and the alert fires before the users notice. The canary tests the pipeline's health without
+      waiting for real traffic to reveal the problem.</p>
+
+      <h4>What testing misses</h4>
+      <p>No test can cover every failure mode. The tests are the safety net; chaos engineering (Question 6) and
+      production monitoring (Question 1) are the live verification. The combination — unit tests for logic,
+      integration tests for the pipeline, chaos for the failure modes, monitoring for the production behavior — is
+      the only way to be confident.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "I test the transport separately from the consumer. The transport tests cover serialization,
+        delivery guarantees, offsets, and rebalances against a real broker. The consumer tests cover the business
+        logic, idempotency, and ordering, with property-based tests for the invariants. The end-to-end test covers
+        the interaction, and a canary message in production verifies the pipeline is alive." That names the layers
+        and the tools.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q8 -->
+  <article class="q blue" id="q8">
+    <div class="q-head">
+      <div class="q-num">8</div>
+      <h3>What are the most common messaging incidents, and what does the runbook look like for each?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>The most common incidents are: consumer lag growing, a poison message blocking a partition, a rebalance
+        storm, a broker failure, a disk full, and a DLQ overflowing. Each has a distinct symptom and a short,
+        well-rehearsed runbook. The runbook is what the on-call engineer follows at 3 AM, and it must be tested, not
+        just written.</p>
+      </div>
+
+      <h4>The incident catalog</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Incident</th><th>Symptom</th><th>First response</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Consumer lag growing</td>
+              <td>Lag metric rising for one or more partitions</td>
+              <td>Check consumer CPU, downstream latency, partition skew; scale consumers if possible</td>
+            </tr>
+            <tr>
+              <td>Poison message</td>
+              <td>One partition's lag grows while others are normal; repeated errors in consumer logs</td>
+              <td>Identify the offset, inspect the message, move to DLQ (or skip), unblock the partition</td>
+            </tr>
+            <tr>
+              <td>Rebalance storm</td>
+              <td>Frequent rebalances; lag grows; group never stable</td>
+              <td>Check poll interval overruns, increase max.poll.interval, reduce batch size, enable static
+              membership</td>
+            </tr>
+            <tr>
+              <td>Broker down</td>
+              <td>Under-replicated partitions spike; leader elections; producer errors</td>
+              <td>Verify failover completed; check client reconnection; watch for cascade</td>
+            </tr>
+            <tr>
+              <td>Disk full</td>
+              <td>Broker rejects writes; producers fail; disk usage at 100%</td>
+              <td>Reduce retention, clean up old segments, add disk, or expand the cluster</td>
+            </tr>
+            <tr>
+              <td>DLQ overflowing</td>
+              <td>DLQ depth and age growing</td>
+              <td>Inspect messages, categorize errors, fix the root cause, redrive or discard</td>
+            </tr>
+            <tr>
+              <td>Schema incompatibility</td>
+              <td>Schema registry rejects a producer; messages not published</td>
+              <td>Identify the incompatible change, roll back or fix the schema, republish</td>
+            </tr>
+            <tr>
+              <td>Consumer offset lost</td>
+              <td>Consumer resets to earliest or latest; massive reprocessing or gap</td>
+              <td>Identify the cause (retention expiry, offset topic loss), restore from a known offset, notify
+              downstream</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Runbook: consumer lag growing</h4>
+      <ol>
+        <li><strong>Confirm the lag is growing, not transient.</strong> Look at the trend over 5–10 minutes. A
+        transient spike during a traffic burst is normal.</li>
+        <li><strong>Identify the scope.</strong> One partition, one topic, one consumer group, or all? Per-partition
+        lag reveals hotspots.</li>
+        <li><strong>Check consumer health.</strong> CPU, memory, GC pauses, network. A saturated consumer needs
+        scaling (if partitions allow) or optimization.</li>
+        <li><strong>Check downstream latency.</strong> The consumer may be waiting on a slow database or API. That
+        is the actual bottleneck, and adding consumers makes it worse.</li>
+        <li><strong>Check for poison messages.</strong> If one partition's lag is growing and the consumer logs show
+        repeated errors at a specific offset, it is a poison message (next runbook).</li>
+        <li><strong>Check for rebalance storms.</strong> If the group is unstable, that is the cause (next
+        runbook).</li>
+        <li><strong>Scale if possible.</strong> Add consumers up to the partition count. If the downstream is the
+        bottleneck, do not scale — rate-limit or fix the downstream.</li>
+        <li><strong>If the lag approaches retention,</strong> the consumer will lose data. This is a page; the
+        mitigation is to increase retention temporarily (if the cluster has disk) or accept the loss and reset the
+        consumer.</li>
+      </ol>
+
+      <h4>Runbook: poison message</h4>
+      <ol>
+        <li><strong>Identify the offset.</strong> The consumer logs show the offset that is failing repeatedly.
+        The partition and the message content are in the log.</li>
+        <li><strong>Inspect the message.</strong> What is wrong with it? Malformed JSON, missing field, invalid
+        enum, business rule? The error message usually says.</li>
+        <li><strong>Decide: skip or fix.</strong> If the message is genuinely invalid (garbage data), skip it: move
+        it to the DLQ (or use a tool to advance the offset past it). If the message is valid but the consumer has
+        a bug, fix the consumer and redeploy.</li>
+        <li><strong>Unblock the partition.</strong> The message must be moved to the DLQ (or the offset advanced)
+        so the partition can continue. Use the DLQ tool or the broker's offset tool.</li>
+        <li><strong>Verify the partition advances.</strong> The lag should start decreasing.</li>
+        <li><strong>Post-incident:</strong> add validation at produce time or consumer time to prevent this class
+        of message from reaching the pipeline.</li>
+      </ol>
+
+      <h4>Runbook: rebalance storm</h4>
+      <ol>
+        <li><strong>Confirm the storm.</strong> Rebalance rate is high (several per minute), the group is never
+        Stable, and lag is growing.</li>
+        <li><strong>Check poll interval overruns.</strong> The consumer logs show "consumer poll timeout" or
+        "member kicked out of group". The batch is taking longer than <code>max.poll.interval.ms</code>.</li>
+        <li><strong>Reduce the batch size.</strong> Set <code>max.poll.records</code> lower (e.g., from 500 to 100)
+        so each batch processes faster.</li>
+        <li><strong>Increase the poll interval.</strong> Set <code>max.poll.interval.ms</code> higher (e.g., from
+        5 min to 10 min) if the processing is legitimately slow.</li>
+        <li><strong>Enable static membership.</strong> Set <code>group.instance.id</code> so a restarting consumer
+        rejoins without a rebalance.</li>
+        <li><strong>Use cooperative sticky rebalancing.</strong> Set
+        <code>partition.assignment.strategy=CooperativeStickyAssignor</code> so rebalances are incremental.</li>
+        <li><strong>Rolling restart the consumer group</strong> after the config change, one instance at a time.</li>
+      </ol>
+
+      <h4>Runbook: broker down</h4>
+      <ol>
+        <li><strong>Confirm the failover.</strong> The controller should elect a new leader within seconds. The
+        <code>ActiveControllerCount</code> must be exactly 1; the under-replicated partitions should be recovering.</li>
+        <li><strong>Check client reconnection.</strong> Producers and consumers should reconnect to the new leader
+        automatically. If they are not, check the client logs and DNS.</li>
+        <li><strong>Watch for cascade.</strong> If the producers' buffers fill and the upstream services slow down,
+        the broker outage is becoming an API outage. The mitigation is to shed load or buffer durably.</li>
+        <li><strong>Restart the failed broker.</strong> The broker should rejoin and catch up its replicas. Monitor
+        the ISR recovery.</li>
+        <li><strong>Do not force an unclean leader election.</strong> If the failed broker held the only in-sync
+        replica, the partition is unavailable — but promoting an out-of-sync replica loses data. Wait for the broker
+        to return (or accept the data loss explicitly).</li>
+      </ol>
+
+      <h4>Runbook: disk full</h4>
+      <ol>
+        <li><strong>Identify the broker.</strong> The disk usage metric shows which broker is full.</li>
+        <li><strong>Reduce retention temporarily.</strong> Lower <code>retention.ms</code> or
+        <code>retention.bytes</code> on the largest topics, so the broker can delete old segments.</li>
+        <li><strong>Delete old segments manually</strong> if the retention change does not free space quickly enough.
+        Use the broker's log management tools; do not delete files directly (it corrupts the broker's state).</li>
+        <li><strong>Move partitions.</strong> If the disk cannot be freed, reassign some partitions to other brokers
+        (Kafka's partition reassignment tool).</li>
+        <li><strong>Add disk or brokers.</strong> The long-term fix is more capacity. Track the growth rate and
+        plan for it.</li>
+      </ol>
+
+      <h4>Runbook: DLQ overflowing</h4>
+      <ol>
+        <li><strong>Inspect the messages.</strong> Group by error type: malformed (garbage), missing field (schema
+        mismatch), business rule (invalid reference).</li>
+        <li><strong>Fix the root cause.</strong> If it is a schema mismatch, fix the producer. If it is a business
+        rule, fix the data. If it is a consumer bug, fix the code.</li>
+        <li><strong>Redrive the fixable messages.</strong> After the fix, move the affected messages from the DLQ
+        back to the main topic, with idempotency (the consumer dedups).</li>
+        <li><strong>Discard the unfixable messages.</strong> Some messages are genuinely invalid (garbage from a
+        buggy producer). Delete them with an audit record.</li>
+        <li><strong>Monitor the DLQ age</strong> after the fix, to confirm it is draining.</li>
+      </ol>
+
+      <h4>The runbook's properties</h4>
+      <ul>
+        <li><strong>Tested:</strong> the runbook is exercised in game days (Question 6); the first time the on-call
+        engineer runs it should not be during a real incident.</li>
+        <li><strong>Specific:</strong> the commands, the tools, and the dashboards are named; not "investigate the
+        issue".</li>
+        <li><strong>Bounded:</strong> the response time is bounded (e.g., "if the lag is not recovering in 15
+        minutes, escalate").</li>
+        <li><strong>Rollback-aware:</strong> each step has a rollback if it makes things worse.</li>
+        <li><strong>Updated:</strong> the runbook is updated after every incident with what actually happened.</li>
+      </ul>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>A runbook that says "escalate to the Kafka team". If there is no Kafka team (or they are asleep), the
+        incident stalls. The runbook must have steps the on-call engineer can execute without a specialist, or an
+        explicit escalation with the specialist's on-call rotation.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q9 -->
+  <article class="q blue" id="q9">
+    <div class="q-head">
+      <div class="q-num">9</div>
+      <h3>How do you plan capacity for a messaging backbone? What metrics drive the sizing, and how do you forecast growth?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Capacity is driven by four metrics: throughput (MB/s), partition count, connection count, and retention
+        (storage). Each has a per-broker limit, and the cluster is sized for the peak, not the average. The forecast
+        is based on traffic growth (expected increase per quarter), and the plan includes headroom (N+1 for
+        failure, 2× for burst).</p>
+      </div>
+
+      <h4>The four capacity dimensions</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Dimension</th><th>What it measures</th><th>Per-broker limit</th></tr></thead>
+          <tbody>
+            <tr><td>Throughput</td><td>Bytes/s in and out</td><td>Network (1–25 Gbps), disk (100–500 MB/s)</td></tr>
+            <tr><td>Partition count</td><td>Number of partitions per broker</td><td>2,000–10,000 (depends on version, KRaft raises it)</td></tr>
+            <tr><td>Connection count</td><td>Producers + consumers + admin clients</td><td>10,000–50,000 per broker</td></tr>
+            <tr><td>Retention</td><td>Bytes stored on disk</td><td>Broker disk size (TB per broker)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Throughput sizing</h4>
+      <p>The throughput is the peak produce rate plus the peak consume rate (they are separate directions on the
+      network). For a topic at 100 MB/s produce with 3 consumers, the produce traffic is 100 MB/s per broker's share,
+      and the consume traffic is 300 MB/s. The broker's network interface must handle both, plus the replication
+      traffic (3× the produce rate for replication factor 3).</p>
+      <p>The per-broker throughput budget:</p>
+      <ul>
+        <li><strong>Network:</strong> 1 Gbps ≈ 125 MB/s, 10 Gbps ≈ 1.25 GB/s. The cluster needs enough brokers to
+        keep the network utilization below 70%.</li>
+        <li><strong>Disk:</strong> sequential write throughput of an SSD is 500 MB/s–3 GB/s; the replication
+        multiplies this. A broker with 3× replication and 100 MB/s produce writes 300 MB/s to disk.</li>
+        <li><strong>CPU:</strong> serialization, compression, and TLS consume CPU. The request handler idle metric
+        reveals the headroom.</li>
+      </ul>
+
+      <h4>Partition sizing</h4>
+      <p>Each partition is a unit of replication, a file handle, and a controller metadata entry. The per-broker
+      limit is 2,000–10,000 partitions (KRaft raises it to hundreds of thousands). The cluster's total partition
+      count is the sum across topics. A cluster with 500 topics × 20 partitions = 10,000 partitions, which needs at
+      least 2–5 brokers (at 2,000–5,000 per broker).</p>
+      <p>The partition count also affects rebalance time and leader election time. A broker with 10,000 partition
+      leaders that fails triggers 10,000 leader elections, which can take minutes. The capacity plan should keep
+      the per-broker partition count moderate, not at the maximum.</p>
+
+      <h4>Connection sizing</h4>
+      <p>Each producer and consumer holds at least one connection per broker. A client with 100 producers and 1,000
+      consumers generates 1,100 connections, spread across brokers. The broker's connection limit is usually
+      10,000–50,000, but the file descriptor limit (ulimit) must be raised to match.</p>
+
+      <h4>Retention sizing</h4>
+      <p>Storage = throughput × retention × replication factor. A topic at 100 MB/s with 7 days retention and 3×
+      replication is 100 MB/s × 604,800 s × 3 ≈ 181 TB. The cluster's disk must be at least 1.5× this (for
+      headroom and compaction).</p>
+      <p>The retention is often the largest capacity item. Reducing retention from 30 days to 7 days cuts storage
+      by 77%. Tiered storage (Section 3, Question 11) moves old data to object storage, making the hot tier's
+      retention a small fraction of the total.</p>
+
+      <h4>Peak vs average</h4>
+      <p>The cluster is sized for the peak, not the average. A system with 20 MB/s average and 100 MB/s peak needs
+      the capacity for 100 MB/s. The peak-to-average ratio depends on the workload: user-facing chat is 3–5×, batch
+      processing is 10–100×, event-driven systems with scheduled campaigns can be 100×+.</p>
+      <p>The peak is measured, not assumed. The historical peak (the max over the last 30 days) plus a growth
+      factor (the expected increase) is the sizing input. The capacity plan should be reviewed quarterly and
+      updated with the actual growth.</p>
+
+      <h4>Headroom</h4>
+      <p>The cluster must have headroom for:</p>
+      <ul>
+        <li><strong>Failure (N+1):</strong> losing one broker must not saturate the rest. With N brokers at 60%
+        utilization, losing one pushes the rest to 60% × N/(N-1) = 67% (for N=10), which is acceptable. At 80%
+        utilization, losing one pushes to 89%, which is not.</li>
+        <li><strong>Burst:</strong> a traffic spike (a campaign, a breaking news event) must be absorbed without
+        degradation. The headroom is the burst ratio (peak/expected) plus a margin.</li>
+        <li><strong>Recovery:</strong> a broker restart triggers replica catch-up, which consumes network and disk.
+        The headroom must cover the catch-up traffic.</li>
+      </ul>
+      <p>The standard is 30–40% headroom at steady state. That is expensive (you are paying for 30–40% idle
+      capacity), but it is the cost of resilience.</p>
+
+      <h4>Forecasting growth</h4>
+      <p>The forecast is based on:</p>
+      <ul>
+        <li><strong>Historical growth:</strong> the throughput and storage growth per quarter over the last year.
+        A 20% quarterly growth compounds to 2× in a year.</li>
+        <li><strong>Business forecast:</strong> the product team's planned features and the expected user growth.
+        A new feature that doubles the event rate is a known capacity hit.</li>
+        <li><strong>Seasonal peaks:</strong> Black Friday, end of quarter, product launches. The capacity plan must
+        account for the known peaks.</li>
+      </ul>
+      <p>The capacity plan is a spreadsheet (or a dashboard) with the current utilization, the growth rate, the
+      projected utilization at 3, 6, and 12 months, and the scaling action (add brokers, reduce retention, tiered
+      storage) for each threshold. The thresholds: 70% utilization triggers planning, 80% triggers action, 90%
+      triggers an emergency.</p>
+
+      <h4>The scaling action</h4>
+      <p>When the cluster approaches capacity, the actions are:</p>
+      <ul>
+        <li><strong>Add brokers:</strong> increases throughput and partition capacity. The rebalance moves partitions
+        to the new brokers, which is an online operation but takes hours.</li>
+        <li><strong>Reduce retention:</strong> frees disk immediately. The trade-off is less history for
+        replay.</li>
+        <li><strong>Enable tiered storage:</strong> moves old data to object storage, making the hot tier's retention
+        small. The trade-off is cold-read latency.</li>
+        <li><strong>Reduce replication factor:</strong> from 3 to 2 frees 33% of the disk but reduces durability.
+        Not recommended for critical topics.</li>
+        <li><strong>Archive to a data lake:</strong> copy old topics to S3/Parquet and delete from Kafka. The
+        trade-off is that replay requires the lake, not Kafka.</li>
+      </ul>
+
+      <h4>Cost</h4>
+      <p>The capacity is a cost. The broker fleet is the largest line item (compute + storage + network). The plan
+      must balance:</p>
+      <ul>
+        <li><strong>Retention:</strong> more retention costs more disk; less retention costs more replay
+        capability.</li>
+        <li><strong>Replication:</strong> 3× replication costs 3× storage; 2× costs 2× but loses the ability to
+        survive 2 broker failures.</li>
+        <li><strong>Headroom:</strong> 40% headroom costs 40% more; 10% headroom costs less but risks saturation.</li>
+        <li><strong>Tiered storage:</strong> object storage is 5–10× cheaper than broker disk; the trade-off is
+        cold-read latency.</li>
+      </ul>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Sizing for the average and assuming autoscaling will handle the peak. Kafka does not autoscale — adding
+        brokers is a manual (or scheduled) operation that takes hours. The peak must be provisioned in advance, and
+        the autoscaling (if any) is for consumers, not brokers.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q10 -->
+  <article class="q blue" id="q10">
+    <div class="q-head">
+      <div class="q-num">10</div>
+      <h3>How do you manage the data lifecycle in a messaging system — retention, archival, and deletion?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>The lifecycle has three phases: hot (on the broker, fast, retained for days to weeks), warm (in object
+        storage, slower, retained for months), and cold (archived, cheapest, retained for years). Each phase has a
+        different storage medium, access latency, and cost. The retention policy per topic determines when data moves
+        between phases, and the deletion policy determines when it is permanently removed (for compliance and cost).</p>
+      </div>
+
+      <h4>The three tiers</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Tier</th><th>Storage</th><th>Access</th><th>Retention</th><th>Cost</th></tr></thead>
+          <tbody>
+            <tr><td>Hot</td><td>Broker disk (SSD)</td><td>Milliseconds</td><td>0–30 days</td><td>Highest</td></tr>
+            <tr><td>Warm</td><td>Object storage (S3 Standard)</td><td>Seconds</td><td>30 days – 1 year</td><td>Low</td></tr>
+            <tr><td>Cold</td><td>Glacier / archive</td><td>Minutes to hours</td><td>1–10 years</td><td>Lowest</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Hot retention</h4>
+      <p>The hot retention is the messages on the broker's disk, served by the consumer in real time. It is sized
+      for the consumer's catch-up window (how long a consumer can lag before losing messages) plus a margin. A
+      consumer that might be down for a weekend needs at least 3 days of hot retention; a consumer that is expected
+      to be up always needs less.</p>
+      <p>The hot retention is set per topic (<code>retention.ms</code> and <code>retention.bytes</code>). The
+      trade-off is storage cost vs catch-up capability. For most topics, 7–14 days is the sweet spot.</p>
+
+      <h4>Warm retention</h4>
+      <p>When the hot retention expires, the data is either deleted (if no warm tier) or moved to object storage
+      (tiered storage, Section 3, Question 11). The warm tier serves older messages to slow consumers, new consumer
+      bootstraps, and replay for bug fixes. The access is slower (seconds instead of milliseconds) but the cost is
+      a fraction of the broker disk.</p>
+      <p>Kafka's native tiered storage (KIP-405) implements the warm tier: the broker uploads closed segments to S3
+      and removes them from local disk, keeping the hot window on the broker. The consumer reads from S3 transparently
+      when it requests an old offset.</p>
+
+      <h4>Cold archival</h4>
+      <p>For compliance, audit, and long-term analytics, the messages are copied to a cold archive (S3 Glacier, an
+      HDFS data lake, or a warehouse). The archive is not part of the Kafka cluster; it is a separate store with
+      its own query interface (Athena, Spark, BigQuery). The archival is done by a consumer that reads the topic and
+      writes to the archive, or by Kafka Connect S3 sink.</p>
+      <p>The cold archive is for "we might need it someday" — audit, legal, ML training. It is not for operational
+      reads; the latency is minutes to hours, which is fine for a quarterly audit and useless for a chat app.</p>
+
+      <h4>Deletion</h4>
+      <p>The deletion policy is the last phase. Data must eventually be deleted:</p>
+      <ul>
+        <li><strong>Cost:</strong> keeping everything forever is expensive, even in cold storage.</li>
+        <li><strong>Compliance:</strong> GDPR's right to erasure requires deleting personal data on request;
+        retention policies must have a maximum period.</li>
+        <li><strong>Data hygiene:</strong> old data that is no longer needed is a liability (security, confusion).</li>
+      </ul>
+      <p>The deletion mechanisms:</p>
+      <ul>
+        <li><strong>Log retention:</strong> the broker deletes segments older than the retention window. This is the
+        hot tier's deletion.</li>
+        <li><strong>Log compaction:</strong> the broker keeps only the latest value per key. This is a different
+        policy (for changelogs, not event streams).</li>
+        <li><strong>Tiered storage expiration:</strong> the object storage lifecycle policy deletes objects after
+        the warm retention window.</li>
+        <li><strong>Archive lifecycle:</strong> the cold storage's lifecycle policy moves data to Glacier or deletes
+        it after the compliance period.</li>
+        <li><strong>Right to erasure:</strong> a request to delete a user's data requires finding all messages
+        containing that user's data and deleting them (or writing tombstones). This is hard in an append-only log,
+        and the design must account for it (encrypt per-user with a key, delete the key).</li>
+      </ul>
+
+      <h4>The GDPR problem</h4>
+      <p>An append-only log with a user's data cannot be modified in place. The "right to be forgotten" requires
+      deleting the data, which means either:</p>
+      <ul>
+        <li><strong>Tombstones:</strong> write a deletion marker for the user's messages; the consumer applies the
+        deletion. The original message is still in the log until retention expires, which may violate the
+        regulation.</li>
+        <li><strong>Crypto-shredding:</strong> encrypt each user's data with a per-user key; delete the key to make
+        the data unreadable. The ciphertext remains in the log, but it is undecipherable, which satisfies the
+        regulation in most interpretations.</li>
+        <li><strong>Rebuild without the user's data:</strong> replay the log into a new topic, skipping the user's
+        messages. This is expensive and complex.</li>
+      </ul>
+      <p>Crypto-shredding is the pragmatic solution for messaging systems with strict privacy requirements. The
+      per-user key is stored in a KMS, and deleting it is a single operation. The log's messages for that user are
+      unreadable, which satisfies the erasure requirement without modifying the log.</p>
+
+      <h4>The retention policy per topic</h4>
+      <p>The retention is per topic, not global. The policy is set by the topic's owner and reviewed periodically:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Topic type</th><th>Hot</th><th>Warm</th><th>Cold</th></tr></thead>
+          <tbody>
+            <tr><td>Real-time events (orders)</td><td>14 days</td><td>1 year</td><td>7 years (compliance)</td></tr>
+            <tr><td>User activity (analytics)</td><td>7 days</td><td>90 days</td><td>2 years</td></tr>
+            <tr><td>Logs / telemetry</td><td>3 days</td><td>30 days</td><td>None</td></tr>
+            <tr><td>Changelogs (compacted)</td><td>Infinite (compacted)</td><td>—</td><td>—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The policy is a business decision, not a technical one. The technical design implements it (the retention
+      configuration, the tiering, the archival pipeline, the deletion mechanism). The business owns the "how long"
+      and the compliance owns the "must delete".</p>
+
+      <h4>The lifecycle pipeline</h4>
+      <ol>
+        <li><strong>Produce</strong> to the topic (hot tier).</li>
+        <li><strong>Hot retention</strong> (7–14 days): the broker serves the consumer; old segments are closed.</li>
+        <li><strong>Tiering</strong> (if enabled): closed segments are uploaded to object storage and removed from
+        the broker. The consumer can still read them (slower).</li>
+        <li><strong>Warm retention</strong> (object storage lifecycle): objects are retained for the configured
+        period, then transitioned to cold or deleted.</li>
+        <li><strong>Archival</strong> (for compliance): a separate pipeline copies the topic to the archive (S3
+        Glacier, data lake) with the required retention.</li>
+        <li><strong>Deletion:</strong> the object storage lifecycle deletes the warm objects; the archive lifecycle
+        deletes the cold objects; the crypto-shredding deletes the per-user keys (for erasure).</li>
+      </ol>
+
+      <h4>Monitoring the lifecycle</h4>
+      <p>The lifecycle is invisible until it fails. The metrics:</p>
+      <ul>
+        <li><strong>Tiering lag:</strong> how far behind the tiering is (the oldest segment not yet uploaded).</li>
+        <li><strong>Object storage cost:</strong> the total bytes in S3, growing as expected.</li>
+        <li><strong>Deletion success:</strong> the objects deleted per lifecycle run; a failure means the lifecycle
+        policy is broken.</li>
+        <li><strong>Retention compliance:</strong> the oldest message in each topic matches the retention policy; a
+        longer retention is a compliance violation.</li>
+      </ul>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Assuming that Kafka's retention deletes the data. It deletes the hot data, but the warm tier (if
+        configured) and the archive (if a separate pipeline) have their own retention. The lifecycle is a chain,
+        and each link must have an explicit deletion policy. An archive that is never deleted is an infinite cost.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Three tiers: hot on the broker for 7–14 days, warm in object storage for months to a year, cold in
+        archive for compliance. The retention is per topic, set by the business. Deletion is by log retention, tiered
+        storage lifecycle, and archive lifecycle — and crypto-shredding for GDPR erasure." That names the tiers, the
+        policies, and the special case.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- NEXT PART -->
+  <section class="next-part">
+    <h3>Coming in Section 10 — Classic System Design Problems</h3>
+    <p>The final section solves eight end-to-end design prompts using every concept from the previous nine: a
+    distributed message queue from scratch, a Kafka-like pub/sub system, a notification service, a chat application,
+    a real-time collaboration platform, an event-driven order pipeline, a reliable webhook delivery system, and a
+    distributed job scheduler. Each is a full design, from requirements to failure modes.</p>
+    <ul class="next-list">
+      <li>Design a distributed message queue</li>
+      <li>Design a pub/sub system like Kafka</li>
+      <li>Design a notification system</li>
+      <li>Design a chat application</li>
+      <li>Design real-time collaboration</li>
+      <li>Design an event-driven order pipeline</li>
+      <li>Design a reliable webhook system</li>
+      <li>Design a distributed job scheduler</li>
+    </ul>
+  </section>
+
+</div>
+</body>
+</html>
