@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Load Balancing &amp; System Design — Batch 3: Advanced Architecture</title>
+<style>
+  :root{
+    --bg:#f6f7fb; --card:#ffffff; --text:#1a1f2e; --muted:#5a6478;
+    --border:#e4e8f2; --code-bg:#0f172a; --code-text:#cfe3ff;
+    --shadow:0 2px 8px rgba(20,30,60,.06), 0 12px 32px rgba(20,30,60,.05);
+    --shadow-hover:0 6px 18px rgba(20,30,60,.10), 0 20px 48px rgba(20,30,60,.08);
+  }
+  .part-violet  { --p:#7c3aed; --p2:#a78bfa; --pbg:#f3ecff; }
+  .part-amber   { --p:#d97706; --p2:#fbbf24; --pbg:#fff4e0; }
+  .part-emerald { --p:#059669; --p2:#34d399; --pbg:#e6faf3; }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.75; font-size:16px; -webkit-font-smoothing:antialiased;
+  }
+  header{
+    position:relative; overflow:hidden;
+    background:linear-gradient(120deg,#5b21b6 0%,#7c3aed 35%,#d97706 75%,#059669 100%);
+    padding:64px 24px 56px; color:#fff;
+  }
+  header::after{
+    content:""; position:absolute; inset:0;
+    background:radial-gradient(circle at 20% 20%,rgba(255,255,255,.22),transparent 45%),
+               radial-gradient(circle at 85% 80%,rgba(255,255,255,.15),transparent 40%);
+    pointer-events:none;
+  }
+  header .wrap{max-width:1080px;margin:0 auto;position:relative;z-index:1}
+  .badge{
+    display:inline-block;background:rgba(255,255,255,.2);color:#fff;font-weight:700;
+    font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;
+    padding:6px 14px;border-radius:999px;margin-bottom:20px;
+    border:1px solid rgba(255,255,255,.35);backdrop-filter:blur(6px);
+  }
+  header h1{margin:0 0 14px;font-size:2.4rem;letter-spacing:-1px;line-height:1.15;font-weight:800;text-shadow:0 2px 20px rgba(0,0,0,.15)}
+  header p{margin:0;color:rgba(255,255,255,.9);font-size:1.05rem;max-width:720px}
+  header .stats{display:flex;gap:24px;margin-top:26px;flex-wrap:wrap}
+  header .stat{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);padding:10px 18px;border-radius:12px;backdrop-filter:blur(6px)}
+  header .stat b{display:block;font-size:1.3rem;font-weight:800}
+  header .stat span{font-size:.75rem;text-transform:uppercase;letter-spacing:.1em;opacity:.85}
+
+  main{max-width:1080px;margin:0 auto;padding:40px 24px 140px}
+  nav.toc{background:var(--card);border-radius:20px;padding:28px 32px;margin:-36px 0 52px;position:relative;z-index:2;box-shadow:var(--shadow);border:1px solid var(--border)}
+  nav.toc h2{margin:0 0 18px;font-size:.8rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+  nav.toc ol{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(2,1fr);gap:10px 36px}
+  nav.toc li{display:flex;align-items:flex-start;gap:12px;padding:9px 0;border-bottom:1px dashed var(--border)}
+  nav.toc li a{color:var(--text);text-decoration:none;font-weight:500;font-size:.96rem}
+  nav.toc li a:hover{color:var(--p,#7c3aed)}
+  .dot{width:12px;height:12px;border-radius:4px;flex:0 0 auto;margin-top:7px;background:var(--p,#7c3aed)}
+  @media(max-width:720px){nav.toc ol{grid-template-columns:1fr} header h1{font-size:1.8rem}}
+
+  .part{margin:64px 0 32px;scroll-margin-top:24px}
+  .part h2{margin:0;font-size:1.65rem;letter-spacing:-.4px;font-weight:800;display:flex;align-items:center;gap:14px}
+  .part h2 .pill{font-size:.7rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;background:var(--pbg);color:var(--p);padding:6px 12px;border-radius:999px;border:1px solid color-mix(in srgb, var(--p) 25%, transparent)}
+  .part h2::after{content:"";flex:1;height:3px;border-radius:3px;background:linear-gradient(90deg,var(--p),var(--p2),transparent)}
+
+  section.qa{background:var(--card);border-radius:18px;padding:32px 34px 12px;margin-bottom:30px;border:1px solid var(--border);border-left:6px solid var(--p);box-shadow:var(--shadow);scroll-margin-top:24px;transition:transform .18s ease, box-shadow .18s ease}
+  section.qa:hover{transform:translateY(-3px);box-shadow:var(--shadow-hover)}
+  section.qa > h3{font-size:1.24rem;line-height:1.4;margin:0 0 8px;color:var(--text);font-weight:700;letter-spacing:-.2px}
+  .qnum{display:inline-block;font-size:.7rem;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--p);background:var(--pbg);padding:5px 11px;border-radius:8px;margin-bottom:12px}
+
+  .answer h4{font-size:.82rem;letter-spacing:.1em;text-transform:uppercase;color:var(--p);margin:28px 0 10px;font-weight:800;display:flex;align-items:center;gap:8px}
+  .answer h4::before{content:"";width:6px;height:6px;border-radius:2px;background:var(--p)}
+  .answer p{margin:0 0 16px}
+  .answer ul,.answer ol{margin:0 0 18px;padding-left:24px}
+  .answer li{margin-bottom:8px}
+  .answer li::marker{color:var(--p2)}
+
+  code{background:var(--pbg);color:var(--p);border-radius:5px;padding:2px 7px;font-size:.88em;font-weight:600;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  pre{background:var(--code-bg);border-radius:14px;padding:20px 22px;overflow-x:auto;margin:0 0 20px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+  pre code{background:none;color:var(--code-text);padding:0;font-size:.85rem;line-height:1.65;font-weight:400}
+
+  table{width:100%;border-collapse:separate;border-spacing:0;margin:0 0 22px;font-size:.92rem;border-radius:12px;overflow:hidden;box-shadow:0 0 0 1px var(--border)}
+  th,td{padding:12px 16px;text-align:left;vertical-align:top;border-bottom:1px solid var(--border)}
+  th{background:linear-gradient(135deg,var(--p),var(--p2));color:#fff;font-weight:700;font-size:.85rem;letter-spacing:.02em}
+  tr:last-child td{border-bottom:none}
+  tbody tr:nth-child(even){background:var(--pbg)}
+  tbody tr:hover{background:color-mix(in srgb, var(--pbg) 60%, #fff)}
+
+  .callout{border-radius:12px;padding:16px 20px;margin:0 0 20px;background:var(--pbg);border-left:4px solid var(--p);color:var(--text);font-size:.95rem}
+  .callout strong{color:var(--p)}
+  .callout.danger{background:#fff1f1;border-left-color:#ef4444}
+  .callout.danger strong{color:#dc2626}
+
+  footer{max-width:1080px;margin:0 auto;padding:36px 24px 90px;color:var(--muted);font-size:.9rem;border-top:1px solid var(--border)}
+  footer strong{color:var(--text)}
+  @media(max-width:600px){header{padding:44px 18px 40px} header h1{font-size:1.6rem} main{padding:24px 16px 90px} section.qa{padding:24px 20px 6px} nav.toc{padding:20px} table{font-size:.84rem} th,td{padding:9px 11px}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <span class="badge">Batch 3 — Advanced Architecture</span>
+    <h1>Classic Designs, Architectural Patterns &amp; Operability</h1>
+    <p>Fills the remaining gaps: search and file storage, the microservices split, Event Sourcing/CQRS, and a new section on observability, security, and cost.</p>
+    <div class="stats">
+      <div class="stat"><b>8</b><span>Questions</span></div>
+      <div class="stat"><b>2</b><span>New Designs</span></div>
+      <div class="stat"><b>3</b><span>New Parts</span></div>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <nav class="toc">
+    <h2>Batch 3 Contents</h2>
+    <ol>
+      <li><span class="dot" style="--p:#7c3aed"></span><a href="#cd9">CD-09 — Design a Search Engine</a></li>
+      <li><span class="dot" style="--p:#7c3aed"></span><a href="#cd10">CD-10 — Design a File Storage System</a></li>
+      <li><span class="dot" style="--p:#d97706"></span><a href="#ad4">AD-04 — When to split a monolith into microservices</a></li>
+      <li><span class="dot" style="--p:#d97706"></span><a href="#ad5">AD-05 — Event Sourcing &amp; CQRS</a></li>
+      <li><span class="dot" style="--p:#059669"></span><a href="#ad6">AD-06 — Observability: metrics, logs, traces</a></li>
+      <li><span class="dot" style="--p:#059669"></span><a href="#ad7">AD-07 — Security &amp; compliance in system design</a></li>
+      <li><span class="dot" style="--p:#059669"></span><a href="#ad8">AD-08 — Maintainability &amp; cost trade-offs</a></li>
+      <li><span class="dot" style="--p:#059669"></span><a href="#ad9">AD-09 — NFRs as first-class design drivers</a></li>
+    </ol>
+  </nav>
+
+  <!-- ================= PART A: CLASSIC DESIGNS ================= -->
+  <div class="part part-violet" id="part-a">
+    <h2><span class="pill">Part A</span> Missing Classic Designs</h2>
+  </div>
+
+  <!-- CD-09 -->
+  <section class="qa part-violet" id="cd9">
+    <span class="qnum">CD-09</span>
+    <h3>Design a Search Engine (Google-scale web search)</h3>
+    <div class="answer">
+
+      <h4>Requirements</h4>
+      <p><strong>Functional:</strong> given a text query, return a ranked list of relevant documents (web pages) in milliseconds. Support pagination, spelling correction, and basic operators (quotes, site:, -word).</p>
+      <p><strong>Non-functional:</strong> low query latency (p99 ≈ 200–500 ms), high read throughput (billions of queries/day), freshness (recent pages indexed within hours/days), high availability, and scale (hundreds of billions of documents).</p>
+
+      <h4>The two halves of the system</h4>
+      <p>A search engine is two loosely coupled systems joined by an index:</p>
+      <ol>
+        <li><strong>Offline (indexing) pipeline:</strong> crawl → parse → analyze → build inverted index → rank signals. This is batch/streaming, high-throughput, latency-tolerant. It can take hours to days per document.</li>
+        <li><strong>Online (query) pipeline:</strong> parse query → retrieve candidate documents → rank → return top-k. This is synchronous, low-latency, and must scale with query volume.</li>
+      </ol>
+      <p>The offline pipeline is essentially CD-04 (Web Crawler) feeding a document store and an indexer. The online pipeline is the interesting part.</p>
+
+      <h4>The inverted index</h4>
+      <p>The core data structure. Instead of "document → words", store "word → list of documents". For each term, a <strong>posting list</strong> contains document IDs and, depending on the index, term frequency, positions, and field information. This makes "find all documents containing 'distributed systems'" an O(1) lookup followed by a scan of a sorted posting list, rather than a scan of every document.</p>
+      <p><strong>Query processing:</strong> tokenize the query (split, lowercase, remove stopwords, stem/lemmatize), look up each term's posting list, and combine them (AND for all terms, OR/union for optional terms). For phrase queries, use positional indexes to check word adjacency. For ranking, use term frequencies and document statistics.</p>
+
+      <h4>Index sharding and replication</h4>
+      <p>A single index cannot hold 100B documents. Shard it:</p>
+      <ul>
+        <li><strong>Document sharding (the standard):</strong> partition documents across shards by <code>hash(doc_id)</code>. Each shard holds a complete inverted index for its subset. A query is sent to <strong>all shards</strong> (scatter-gather); each returns its local top-k; a aggregator merges and re-ranks to produce the global top-k. This is how Elasticsearch and Solr work. Simple, balanced, and supports arbitrary queries — at the cost of fan-out and tail latency (see LB-14).</li>
+        <li><strong>Term sharding:</strong> partition by term. Each shard owns a subset of the vocabulary. Queries are routed to only the shards that own the query terms. More efficient for rare terms, but load is skewed (common terms like "the" concentrate on one shard) and phrase queries across terms become cross-shard joins. Rarely used in production.</li>
+        <li><strong>Replication:</strong> each shard is replicated (leader + followers) for availability and read throughput. Followers serve queries; the leader handles index updates.</li>
+      </ul>
+
+      <h4>Index structure and updates</h4>
+      <p>Building an index in place is expensive (random writes to a huge structure). Production engines use <strong>immutable segments</strong> (Lucene's model): new documents are indexed into a small in-memory segment, flushed to disk as an immutable segment, and background <strong>merges</strong> combine small segments into larger ones. Deletes are tombstones applied at merge time. This is an LSM-tree-like design: writes are sequential and cheap, reads consult multiple segments (mitigated by caching and merging), and updates are handled by writing a new version of the document and marking the old one deleted.</p>
+
+      <h4>Ranking</h4>
+      <p>Retrieval gives you candidates; ranking decides the order. Modern search uses a <strong>multi-stage ranking pipeline</strong>:</p>
+      <ol>
+        <li><strong>Candidate generation:</strong> retrieve a few thousand documents via the inverted index (cheap, recall-oriented).</li>
+        <li><strong>Lightweight scoring:</strong> BM25 or TF-IDF over the candidates, plus static signals (PageRank, domain authority, freshness). Cheap enough to score thousands.</li>
+        <li><strong>Heavy ranking:</strong> a machine-learned model (learning-to-rank) scores the top few hundred using features: query-document relevance, click history, user location, language, and page quality. This is the expensive stage and runs only on a small set.</li>
+        <li><strong>Re-ranking / business rules:</strong> diversity, deduplication, safety filters, and any sponsored results.</li>
+      </ol>
+      <p>BM25 is the classic lexical scorer: it rewards term frequency but saturates (a document mentioning a term 100 times is not 100× more relevant) and normalizes by document length. Learning-to-rank models (LambdaMART, neural rankers) learn the weights from click data and human judgments.</p>
+
+      <h4>Caching</h4>
+      <ul>
+        <li><strong>Query cache:</strong> the full result list for a popular query (head queries). Very high hit rate for the long-tail distribution of queries.</li>
+        <li><strong>Posting list cache:</strong> hot terms' posting lists kept in memory.</li>
+        <li><strong>Result snippets:</strong> the generated snippet for a (query, doc) pair.</li>
+      </ul>
+
+      <h4>Latency budget</h4>
+      <p>For a p99 of 300 ms: query parsing 1 ms, shard fan-out and retrieval 50–100 ms (parallel across shards), light scoring 20 ms, heavy ranking 100 ms, snippet generation 30 ms, network and serialization 20 ms. The budget is dominated by fan-out tail latency and the heavy ranker — which is why the ranker is capped to a small candidate set and why hedged requests are used.</p>
+
+      <h4>Trade-offs to name in the interview</h4>
+      <ul>
+        <li><strong>Freshness vs. index cost:</strong> re-indexing every page continuously is prohibitively expensive. Prioritize by change rate and importance.</li>
+        <li><strong>Recall vs. latency:</strong> retrieving more candidates improves recall but costs latency. Cap the candidate set and accept some recall loss.</li>
+        <li><strong>Scatter-gather tail:</strong> a query hitting 100 shards waits for the slowest. Use hedged requests, shard-level timeouts, and partial results.</li>
+        <li><strong>Index size vs. features:</strong> positional indexes enable phrase queries but double the index size. Store positions only where needed.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- CD-10 -->
+  <section class="qa part-violet" id="cd10">
+    <span class="qnum">CD-10</span>
+    <h3>Design a File Storage / Sync System (Google Drive, Dropbox)</h3>
+    <div class="answer">
+
+      <h4>Requirements</h4>
+      <p><strong>Functional:</strong> upload, download, organize files in folders, share with other users, sync across devices, version history, offline access, conflict resolution.</p>
+      <p><strong>Non-functional:</strong> durability (never lose a byte), availability, low sync latency (seconds), scale (exabytes of storage, hundreds of millions of users), efficient bandwidth (do not re-upload a 1 GB file for a one-character edit).</p>
+
+      <h4>Core split: metadata vs. content</h4>
+      <p>The single most important design decision is separating the two:</p>
+      <ul>
+        <li><strong>Metadata store:</strong> a relational database (or a strongly consistent distributed store) for the file tree, ownership, permissions, versions, and sync state. This is small, transactional, and needs strong consistency — a renamed folder must be atomic.</li>
+        <li><strong>Blob store:</strong> an object store (S3/GCS) or a custom distributed block store for the actual file bytes. This is huge, immutable, and can be eventually consistent.</li>
+      </ul>
+
+      <h4>Chunking and deduplication</h4>
+      <p>Files are split into <strong>blocks</strong> (e.g., 4 MB) and each block is stored separately. This enables:</p>
+      <ul>
+        <li><strong>Deduplication:</strong> identical blocks are stored once, keyed by content hash (SHA-256). Two users uploading the same file share storage. Across an organization, this can cut storage by 30–60%.</li>
+        <li><strong>Delta sync:</strong> editing one block uploads only that block, not the whole file. A 1 GB video with a one-byte edit uploads 4 MB, not 1 GB.</li>
+        <li><strong>Parallel upload/download:</strong> blocks transfer concurrently, saturating the client's bandwidth.</li>
+        <li><strong>Resumability:</strong> a dropped connection resumes from the last completed block.</li>
+      </ul>
+      <p><strong>Fixed vs. content-defined chunking.</strong> Fixed-size blocks (every 4 MB) are simple but break dedup when content shifts — inserting one byte at the start shifts every block boundary, and every block hash changes. <strong>Content-defined chunking</strong> (Rabin fingerprint or a rolling hash) places boundaries based on content, so insertions only change the affected blocks. This is what rsync and backup systems use, and it dramatically improves dedup for edited files.</p>
+
+      <h4>The sync protocol</h4>
+      <p>Each client keeps a local database of file metadata and a <strong>sync cursor</strong> (a version number or change ID). The flow:</p>
+      <ol>
+        <li><strong>Change detection:</strong> the client watches the local filesystem for changes (inotify/FSEvents) and computes a delta (new/changed/deleted blocks).</li>
+        <li><strong>Push:</strong> upload new blocks (skipping ones the server already has, by hash), then send a metadata change (new version, new block list) to the server.</li>
+        <li><strong>Pull:</strong> the client asks the server "what changed since my cursor?" The server returns a <strong>change log</strong> — a list of metadata mutations (files created/renamed/deleted, new versions). The client applies them and fetches any missing blocks.</li>
+        <li><strong>Notifications:</strong> when another device changes something, the server pushes a notification (long-poll, WebSocket, or APNs/FCM) so the client pulls immediately rather than waiting for its polling interval. This is what makes sync feel instant.</li>
+      </ol>
+      <p>The change log is the heart of the system. It is an append-only, ordered sequence of mutations per user (or per shared folder), and it is what lets a client catch up from any point.</p>
+
+      <h4>Conflict resolution</h4>
+      <p>Two devices edit the same file offline. Both upload. The server must decide. Options:</p>
+      <ul>
+        <li><strong>Last-write-wins:</strong> the later timestamp wins; the earlier edit is lost. Simple, but silently destroys data. Acceptable only for low-value data.</li>
+        <li><strong>Conflict copies (Dropbox's approach):</strong> keep both — the second upload is saved as "file (conflicted copy)." No data loss, but the user must resolve manually.</li>
+        <li><strong>Version vectors / vector clocks:</strong> each file version carries a vector of (device, counter). The server can tell whether two versions are causally ordered (one is a descendant of the other → no conflict) or concurrent (true conflict). This is the correct general solution and is used by distributed sync systems.</li>
+        <li><strong>Operational transformation / CRDTs:</strong> for collaborative real-time editing (Google Docs), merge character-level operations instead of whole files. Much harder, but gives automatic merge without conflict copies.</li>
+      </ul>
+
+      <h4>Sharing and permissions</h4>
+      <p>A file or folder has an <strong>ACL</strong>: owner, list of (user/group, role). Roles are typically viewer/commenter/editor/owner. Shared folders create a graph of permissions that must be evaluated transitively — if I share a folder with you and you share a subfolder with a third person, that person can access the subfolder but not the parent. Cache permission decisions aggressively, but invalidate on change (a revoked share must take effect within seconds).</p>
+
+      <h4>Versioning and garbage collection</h4>
+      <p>Every metadata change creates a new version pointing at a block list. Old versions are retained for a window (e.g., 30 days) and then garbage-collected. Blocks are reference-counted: when no version references a block, it is deleted (or moved to cold storage). GC must be careful not to delete a block that a sync in progress still needs — use a grace period or a lease.</p>
+
+      <h4>Scale numbers and sharding</h4>
+      <p>For 500M users × 10 GB average = 5 EB of content. The metadata store is sharded by <code>user_id</code> (all of a user's tree is co-located) or by <code>file_id</code> for shared files. The blob store is sharded by content hash, which also gives natural dedup and even distribution. Hot files (a popular shared doc) are cached at the edge or in a CDN.</p>
+
+      <div class="callout"><strong>Interview line:</strong> "The hard part of file sync is not storage — object stores solve that. The hard part is the <em>change log and conflict model</em>: how does a client catch up from any point, and what happens when two clients edit the same file offline? Get the metadata and conflict semantics right, and the blob layer is commodity."</div>
+    </div>
+  </section>
+
+  <!-- ================= PART B: ARCHITECTURAL PATTERNS ================= -->
+  <div class="part part-amber" id="part-b">
+    <h2><span class="pill">Part B</span> Architectural Patterns</h2>
+  </div>
+
+  <!-- AD-04 -->
+  <section class="qa part-amber" id="ad4">
+    <span class="qnum">AD-04</span>
+    <h3>When would you split a monolith into microservices? What are the costs, and what are the anti-patterns?</h3>
+    <div class="answer">
+
+      <h4>The honest framing</h4>
+      <p>"Microservices" is not an architecture goal; it is a <strong>scaling strategy for organizations and deployment</strong>. A monolith is not a failure — it is the correct default until you have a concrete problem that decomposition solves. The interview answer should start with when <em>not</em> to split, because that is where most teams go wrong.</p>
+
+      <h4>When NOT to split</h4>
+      <ul>
+        <li><strong>Small team (&lt; ~20 engineers).</strong> Microservices trade code complexity for operational complexity. A small team cannot afford the ops burden (service discovery, observability, CI/CD per service, on-call rotation).</li>
+        <li><strong>Unclear domain boundaries.</strong> If you do not yet understand the domain, you will draw the wrong service boundaries and pay for it with distributed transactions and chatty interfaces. A monolith lets you refactor boundaries cheaply.</li>
+        <li><strong>Strong transactional requirements.</strong> If most operations span multiple entities and need ACID, a monolith with a single database is far simpler than sagas and eventual consistency.</li>
+        <li><strong>Low scale.</strong> A well-tuned monolith on a few large machines handles tens of thousands of requests per second. Decomposition buys you nothing if you are not near that ceiling.</li>
+        <li><strong>Early-stage product.</strong> Before product-market fit, iteration speed dominates. A monolith deploys faster, debugs easier, and lets you change the data model without cross-service migrations.</li>
+      </ul>
+
+      <h4>When to split</h4>
+      <ul>
+        <li><strong>Independent scaling needs.</strong> The search service needs 50× the CPU of the billing service. In a monolith you scale both; in microservices you scale search alone. This is the strongest technical driver.</li>
+        <li><strong>Independent deployment cadence.</strong> One team deploys daily, another quarterly. Coupling them in one deployable forces the slower cadence on everyone and makes releases risky.</li>
+        <li><strong>Team autonomy.</strong> Conway's Law is real: the architecture will mirror the communication structure. If you have multiple teams, giving each ownership of a service reduces coordination overhead.</li>
+        <li><strong>Fault isolation.</strong> A memory leak in the recommendation service should not take down checkout. Process isolation bounds the blast radius.</li>
+        <li><strong>Polyglot needs.</strong> A ML service in Python, a latency-critical service in Go, a legacy service in Java. Separate processes let each use the right tool.</li>
+        <li><strong>Regulatory / security boundaries.</strong> A service handling PII may need a stricter network and access boundary than the rest of the system.</li>
+      </ul>
+
+      <h4>The costs — name them explicitly</h4>
+      <ul>
+        <li><strong>Distributed transactions.</strong> No more <code>BEGIN...COMMIT</code> across services. You get the <strong>saga pattern</strong>: a sequence of local transactions with compensating actions on failure. Sagas are eventually consistent, complex to debug, and require idempotency (AD-02).</li>
+        <li><strong>Network calls replace function calls.</strong> A local call is nanoseconds; a network call is milliseconds and can fail. Every boundary adds latency and a new failure mode.</li>
+        <li><strong>Data consistency.</strong> Each service owns its database, so joins become API calls or denormalized projections. Read models must be built and kept fresh.</li>
+        <li><strong>Operational complexity.</strong> Dozens of deployables, each with its own config, secrets, scaling policy, dashboards, and alerts. This is why a service mesh and a strong platform team matter.</li>
+        <li><strong>Debugging.</strong> A single request crosses 10 services. Without distributed tracing (AD-06), you cannot answer "where did it go wrong?"</li>
+        <li><strong>Testing.</strong> Unit tests are easy; integration tests require standing up many services. Contract testing (Pact) becomes essential.</li>
+      </ul>
+
+      <h4>How to split — the process</h4>
+      <ol>
+        <li><strong>Domain-Driven Design (DDD).</strong> Identify <strong>bounded contexts</strong>: areas of the business with their own ubiquitous language and model. "Order" in the sales context and "Order" in the fulfillment context may be different things. Each bounded context is a candidate service boundary.</li>
+        <li><strong>Event storming.</strong> A workshop technique: gather domain experts, map events (things that happen), commands (things that trigger them), and aggregates (consistency boundaries). It surfaces the real seams.</li>
+        <li><strong>Strangler fig pattern.</strong> Do not rewrite. Put a proxy in front of the monolith, route one capability at a time to a new service, and let the monolith shrink. This is the lowest-risk migration path and is the industry standard.</li>
+        <li><strong>Start with the highest-pain boundary.</strong> Extract the service that most needs independent scaling or deployment first. Prove the pattern, then repeat.</li>
+        <li><strong>Database per service.</strong> The moment two services share a database, you have a distributed monolith. Each service must own its schema; cross-service data goes through APIs or events.</li>
+      </ol>
+
+      <h4>Anti-patterns to call out</h4>
+      <ul>
+        <li><strong>Distributed monolith.</strong> Services that must be deployed together, share a database, or make synchronous call chains for every request. You get all the complexity of microservices and none of the independence. The classic smell: "we can't deploy service A without deploying B and C."</li>
+        <li><strong>Nano-services.</strong> Splitting so finely that a single user request requires 20 network calls. Boundaries should follow business capabilities, not code classes.</li>
+        <li><strong>Shared database.</strong> Two services writing to the same tables is the fastest way to couple them forever.</li>
+        <li><strong>Chatty interfaces.</strong> A service that requires 50 calls to render one page. Batch or aggregate at the edge (BFF pattern).</li>
+        <li><strong>Resume-driven decomposition.</strong> Splitting because microservices are trendy, not because you have a scaling or organizational problem.</li>
+      </ul>
+
+      <div class="callout"><strong>Interview line:</strong> "Microservices are an org-scaling strategy. Split when you have a concrete driver — independent scaling, independent deploy cadence, or team autonomy — and when you can afford the operational cost. Otherwise a modular monolith is the better engineering decision, and it keeps the option to split later."</div>
+    </div>
+  </section>
+
+  <!-- AD-05 -->
+  <section class="qa part-amber" id="ad5">
+    <span class="qnum">AD-05</span>
+    <h3>Explain Event Sourcing and CQRS. When would you use them, and what are the pitfalls?</h3>
+    <div class="answer">
+
+      <h4>Event Sourcing</h4>
+      <p>In a traditional system, you store the <em>current state</em>: a row with <code>balance = 100</code>. In event sourcing, you store the <em>sequence of events that produced the state</em>: <code>AccountOpened</code>, <code>Deposited(50)</code>, <code>Deposited(50)</code>, <code>Withdrew(0)</code>. Current state is derived by replaying the events. The event log is the system of record; state is a projection.</p>
+
+      <h4>Benefits</h4>
+      <ul>
+        <li><strong>Complete audit trail.</strong> Every change is recorded with who, what, when, and why. This is invaluable in finance, healthcare, and any regulated domain — you get audit for free, not as an afterthought.</li>
+        <li><strong>Temporal queries.</strong> "What was the balance on March 1?" is answered by replaying events up to that timestamp. No need for separate history tables.</li>
+        <li><strong>Event replay for new projections.</strong> Need a new read model (e.g., "total deposits by region")? Replay the event log into a new projection. No data migration, no backfill from a lossy schema.</li>
+        <li><strong>Decoupling.</strong> Other services subscribe to events rather than being called synchronously. New consumers can be added without touching the producer.</li>
+        <li><strong>Debugging.</strong> You can reproduce any bug by replaying the exact event sequence that caused it.</li>
+      </ul>
+
+      <h4>Challenges</h4>
+      <ul>
+        <li><strong>Event schema evolution.</strong> Events are immutable and stored forever. When the business changes, you need versioned events (<code>Deposited_v2</code>) or upcasters that transform old events on read. This is the hardest operational problem in event sourcing.</li>
+        <li><strong>Replay cost.</strong> Rebuilding state from 10 million events is slow. Mitigate with <strong>snapshots</strong>: periodically persist the current state, and replay only events after the snapshot.</li>
+        <li><strong>Eventual consistency.</strong> Read models lag the event log. A user who just wrote may not see their change immediately in a projection. This is a UX problem that must be designed for.</li>
+        <li><strong>Query complexity.</strong> You cannot query the event log efficiently for arbitrary questions ("all users with balance > 100"). You need projections — which is where CQRS comes in.</li>
+        <li><strong>Storage growth.</strong> The event log grows forever. Use tiered storage (hot for recent, cold for archive) and snapshots to bound replay cost.</li>
+      </ul>
+
+      <h4>CQRS (Command Query Responsibility Segregation)</h4>
+      <p>CQRS separates the <strong>write model</strong> (commands that change state) from the <strong>read model</strong> (queries that return data). In its simplest form it is just "separate the read and write paths." In its full form, the write side is an event-sourced aggregate and the read side is one or more projections built by consuming events.</p>
+      <pre><code>Command → Write Model (validates, emits events) → Event Log
+                                                      │
+                                        ┌─────────────┼─────────────┐
+                                        ▼             ▼             ▼
+                                   Projection A  Projection B  Projection C
+                                   (read DB)     (search index) (cache)
+                                        ▲             ▲             ▲
+                                     Queries       Queries       Queries
+  </code></pre>
+      <p><strong>Benefits:</strong> read and write models can be optimized independently (a normalized write model, a denormalized read model tailored to each query); reads can scale horizontally with replicas; complex queries do not slow down writes. <strong>Cost:</strong> the read model is eventually consistent with the write model, and you now operate two models plus the projection pipeline.</p>
+
+      <h4>When to use them</h4>
+      <ul>
+        <li><strong>Audit-critical domains:</strong> banking, insurance, healthcare, supply chain. The event log is a business requirement, not a technical choice.</li>
+        <li><strong>Complex domains with rich behavior:</strong> where state transitions are the core of the business logic (order lifecycle, claim processing).</li>
+        <li><strong>Multiple read shapes:</strong> when the same data must be queried in very different ways (by user, by region, full-text, analytics) and a single schema cannot serve all efficiently.</li>
+        <li><strong>Event-driven integrations:</strong> when other services genuinely need to react to changes, and an event log is the natural integration contract.</li>
+      </ul>
+
+      <h4>When NOT to use them</h4>
+      <ul>
+        <li><strong>Simple CRUD.</strong> A settings page or a to-do list does not need an event log. The overhead is pure cost.</li>
+        <li><strong>Small scale.</strong> The operational complexity (event store, projections, snapshots, schema versioning) is not justified.</li>
+        <li><strong>Strong immediate consistency required everywhere.</strong> If every read must see the latest write instantly, eventual consistency will fight you.</li>
+        <li><strong>Teams unfamiliar with the pattern.</strong> Event sourcing is easy to get wrong (events as CRUD, missing domain events, no upcasting strategy). It requires discipline.</li>
+      </ul>
+
+      <div class="callout"><strong>Interview line:</strong> "Event sourcing is the right answer when the <em>history</em> is the business value, not just the current state. CQRS is the right answer when reads and writes have fundamentally different shapes and scaling needs. They pair naturally — events feed projections — but each can be used alone, and neither should be applied to simple CRUD."</div>
+    </div>
+  </section>
+
+  <!-- ================= PART C: OPERABILITY & SECURITY ================= -->
+  <div class="part part-emerald" id="part-c">
+    <h2><span class="pill">Part C</span> Operability, Security &amp; Cost</h2>
+  </div>
+
+  <!-- AD-06 -->
+  <section class="qa part-emerald" id="ad6">
+    <span class="qnum">AD-06</span>
+    <h3>How do you design for observability? Explain metrics, logs, and distributed tracing, plus SLOs and alerting.</h3>
+    <div class="answer">
+
+      <h4>Observability vs. monitoring</h4>
+      <p><strong>Monitoring</strong> answers known questions: "is CPU above 80%?" <strong>Observability</strong> lets you ask <em>new</em> questions about a system you did not anticipate: "why are only users in Germany seeing slow checkouts on Android since the 3pm deploy?" A monitored system tells you it is broken; an observable system tells you why. The three pillars are metrics, logs, and traces.</p>
+
+      <h4>Metrics</h4>
+      <p>Numeric time series, cheap to store and query, ideal for dashboards and alerts.</p>
+      <ul>
+        <li><strong>Counter:</strong> monotonically increasing (requests, errors). Rate over time is what matters.</li>
+        <li><strong>Gauge:</strong> a value that goes up and down (queue depth, in-flight requests, temperature).</li>
+        <li><strong>Histogram:</strong> distribution of values (latency buckets). Enables percentile queries (p50, p95, p99) — the only latency metric that matters for user experience. Averages hide tails (see LB-14).</li>
+      </ul>
+      <p><strong>The two frameworks to name:</strong> <strong>RED</strong> for request-driven services — <em>Rate</em> (requests/sec), <em>Errors</em> (failed requests/sec), <em>Duration</em> (latency distribution). <strong>USE</strong> for resources — <em>Utilization</em> (% busy), <em>Saturation</em> (queue depth), <em>Errors</em>. RED for services, USE for hosts and infrastructure. Prometheus is the standard collector; Grafana is the standard dashboard.</p>
+
+      <h4>Logs</h4>
+      <p>Discrete events with context. The difference between useful and useless logs is <strong>structure</strong>: emit JSON with consistent fields (<code>timestamp</code>, <code>level</code>, <code>service</code>, <code>trace_id</code>, <code>user_id</code>, <code>message</code>, plus event-specific fields). Unstructured text logs cannot be queried at scale.</p>
+      <ul>
+        <li><strong>Correlation IDs:</strong> every request carries a <code>trace_id</code> (and a <code>request_id</code>) that appears in every log line and every downstream call. This is what lets you reconstruct a request across services.</li>
+        <li><strong>Sampling:</strong> at high volume, log everything is too expensive. Sample INFO/DEBUG heavily (1–10%) but keep WARN/ERROR at 100%. Sample by trace ID so a sampled request has all its logs, not a random subset.</li>
+        <li><strong>Retention:</strong> hot storage (searchable) for days, cold storage (cheap, compressed) for months. Most debugging happens in the last 24 hours.</li>
+      </ul>
+      <p>ELK (Elasticsearch/Logstash/Kibana), Loki, and cloud-native log services are the common stacks.</p>
+
+      <h4>Distributed tracing</h4>
+      <p>A trace is the full journey of one request across services. It is composed of <strong>spans</strong>: each span is one unit of work (an HTTP call, a database query, a function) with a start time, duration, parent span, and attributes. The trace is a tree of spans, and the root span is the user request.</p>
+      <ul>
+        <li><strong>Context propagation:</strong> the trace ID and parent span ID travel in headers (W3C Trace Context, B3) through every service and every async boundary (message queues carry them too).</li>
+        <li><strong>Instrumentation:</strong> <strong>OpenTelemetry</strong> (OTel) is the vendor-neutral standard for generating and exporting traces, metrics, and logs. Instrument once, export anywhere (Jaeger, Tempo, Datadog, Honeycomb).</li>
+        <li><strong>Sampling:</strong> tracing every request is expensive. <strong>Head-based sampling</strong> decides at the start (e.g., 1% of requests); <strong>tail-based sampling</strong> decides after the trace completes, which lets you keep 100% of slow or errored traces — far more useful. Tail sampling requires buffering traces until completion.</li>
+        <li><strong>What it answers:</strong> "which service added the 800 ms?" "did the database call retry?" "is the latency in our code or the network?" This is impossible with metrics and logs alone.</li>
+      </ul>
+
+      <h4>SLOs, SLIs, and error budgets</h4>
+      <p>Observability exists to answer "is the system healthy?" The rigorous way to define that:</p>
+      <ul>
+        <li><strong>SLI (Service Level Indicator):</strong> a measured quantity. "Fraction of requests with latency &lt; 300 ms" or "fraction of requests returning non-5xx."</li>
+        <li><strong>SLO (Service Level Objective):</strong> the target for that SLI. "99.9% of requests succeed over a 30-day window."</li>
+        <li><strong>Error budget:</strong> the allowed failure — 0.1% of 30 days is about 43 minutes. When the budget is exhausted, you freeze feature releases and focus on reliability. This is the mechanism that balances velocity and stability.</li>
+      </ul>
+
+      <h4>Alerting</h4>
+      <ul>
+        <li><strong>Alert on symptoms, not causes.</strong> "High error rate" is a symptom users feel; "CPU at 90%" is a cause that may not affect users. Cause-based alerts produce fatigue. Symptom-based alerts (SLO burn rate) are actionable.</li>
+        <li><strong>Multi-window burn-rate alerts.</strong> Alert when the error budget is burning much faster than allowed — a fast burn (5% of budget in 1 hour) pages immediately; a slow burn (10% in 6 hours) opens a ticket.</li>
+        <li><strong>Every alert must have a runbook</strong> with a first diagnostic step. An alert without an action is noise.</li>
+        <li><strong>Dashboards per service and per route</strong>: RED metrics, dependency health, saturation, and recent deploys overlaid on the graphs.</li>
+      </ul>
+
+      <div class="callout"><strong>Interview line:</strong> "Observability is a design property, not a tool you bolt on. If a request crosses 10 services and you cannot answer 'where did the 800 ms go?' from traces, metrics, and logs, the system is not observable — regardless of how many dashboards you have."</div>
+    </div>
+  </section>
+
+  <!-- AD-07 -->
+  <section class="qa part-emerald" id="ad7">
+    <span class="qnum">AD-07</span>
+    <h3>How do you design for security and compliance? Cover authentication, authorization, encryption, and regulatory requirements.</h3>
+    <div class="answer">
+
+      <h4>The framing</h4>
+      <p>Security is not a feature you add at the end; it is a set of properties that must be designed in. In a system design interview, the goal is not to recite every OWASP item, but to show that you think about <strong>who can do what, how data is protected, and what happens when something is compromised</strong>. Compliance (GDPR, HIPAA, PCI-DSS, SOC2) turns these into hard requirements with legal consequences.</p>
+
+      <h4>Authentication (who are you?)</h4>
+      <ul>
+        <li><strong>OAuth 2.0 / OIDC:</strong> the standard for delegated authorization. The user authenticates with an identity provider (IdP); the client receives an access token and an ID token (JWT). The token carries claims (user ID, scopes, expiry) and is validated by the resource server without calling the IdP on every request.</li>
+        <li><strong>JWT vs. opaque tokens:</strong> a JWT is self-contained and stateless (fast validation, no DB lookup) but cannot be revoked before expiry. An opaque token requires introspection at the auth server (revocable, but a per-request lookup). Use short-lived JWTs (minutes) plus refresh tokens, and maintain a revocation list for emergencies.</li>
+        <li><strong>Session cookies:</strong> for browser apps, an HttpOnly, Secure, SameSite cookie is safer than storing tokens in localStorage (which is vulnerable to XSS).</li>
+        <li><strong>mTLS:</strong> for service-to-service authentication, mutual TLS with short-lived certificates (SPIFFE/SPIRE) proves both sides' identity. This is the zero-trust model — never trust the network, authenticate every call.</li>
+        <li><strong>MFA:</strong> for privileged accounts and sensitive operations. Never rely on passwords alone for admin access.</li>
+      </ul>
+
+      <h4>Authorization (what can you do?)</h4>
+      <ul>
+        <li><strong>RBAC (Role-Based Access Control):</strong> users → roles → permissions. Simple, auditable, and sufficient for most systems. The problem is role explosion in complex domains.</li>
+        <li><strong>ABAC (Attribute-Based Access Control):</strong> policies evaluate attributes (user department, resource owner, time, location). More expressive, more complex to reason about.</li>
+        <li><strong>Policy-as-code:</strong> <strong>Open Policy Agent (OPA)</strong> externalizes authorization decisions into a declarative policy (Rego) that services query. This centralizes policy, makes it testable, and avoids scattering authorization logic across services. Critical for multi-tenant systems.</li>
+        <li><strong>Principle of least privilege:</strong> every service, user, and token gets the minimum permissions needed. A reporting service should not have write access to the primary database.</li>
+        <li><strong>Tenant isolation:</strong> in multi-tenant systems, every query must be scoped by <code>tenant_id</code>, and this must be enforced at the data layer, not just the API. A missing <code>WHERE tenant_id = ?</code> is a cross-tenant data breach.</li>
+      </ul>
+
+      <h4>Encryption</h4>
+      <ul>
+        <li><strong>In transit:</strong> TLS 1.2+ everywhere, including internal service-to-service calls. No plaintext HTTP inside the VPC — zero trust assumes the network is hostile.</li>
+        <li><strong>At rest:</strong> AES-256 for databases, object storage, and backups. Cloud providers offer transparent encryption; enable it by default.</li>
+        <li><strong>Key management:</strong> use a KMS (AWS KMS, GCP KMS, Vault). Never hard-code keys. Use <strong>envelope encryption</strong>: a data key encrypts the data, and a master key (in KMS) encrypts the data key. This limits the blast radius of a key compromise and makes rotation feasible.</li>
+        <li><strong>Field-level encryption:</strong> for the most sensitive fields (SSN, credit card), encrypt at the application layer so the database never sees plaintext. This complicates queries (you cannot index encrypted fields directly) — use tokenization or a searchable-encryption scheme if needed.</li>
+        <li><strong>Secrets management:</strong> Vault, AWS Secrets Manager, or Kubernetes Secrets (with encryption at rest). Secrets in environment variables or config files are a common breach vector. Rotate regularly and audit access.</li>
+      </ul>
+
+      <h4>Application security</h4>
+      <ul>
+        <li><strong>Input validation</strong> at every boundary. Never trust client input; validate type, length, and format server-side.</li>
+        <li><strong>OWASP Top 10:</strong> injection (parameterized queries, never string concatenation), broken access control (enforce authorization on every endpoint, not just the UI), XSS (output encoding, CSP), SSRF (validate outbound URLs), insecure deserialization.</li>
+        <li><strong>Rate limiting and WAF</strong> at the edge to blunt brute-force, scraping, and common exploits (see CD-02).</li>
+        <li><strong>Dependency scanning:</strong> SBOM, automated vulnerability scanning in CI, and prompt patching. Most breaches exploit known vulnerabilities.</li>
+      </ul>
+
+      <h4>Compliance</h4>
+      <ul>
+        <li><strong>GDPR (EU):</strong> data minimization, purpose limitation, right to access, <strong>right to erasure</strong> (you must be able to delete all of a user's data across all stores — this is an architectural requirement, not a legal afterthought), data residency (EU data stays in the EU), and breach notification within 72 hours.</li>
+        <li><strong>HIPAA (US healthcare):</strong> PHI must be encrypted, access logged, and only accessible to authorized personnel. BAAs with vendors.</li>
+        <li><strong>PCI-DSS (payments):</strong> never store raw card numbers; use a tokenization provider (Stripe, Adyen). Network segmentation, audit logs, and quarterly scans.</li>
+        <li><strong>SOC 2:</strong> audited controls for security, availability, and confidentiality. Mostly about process (access reviews, change management, incident response) backed by evidence.</li>
+      </ul>
+      <p>The architectural implication of compliance: <strong>data classification</strong>. Tag every field as public / internal / confidential / restricted, and apply different storage, access, retention, and encryption policies per class. This is what makes "delete all of a user's data" and "keep EU data in the EU" tractable.</p>
+
+      <h4>Audit and detection</h4>
+      <ul>
+        <li><strong>Audit logs:</strong> append-only, tamper-evident records of who did what and when. Separate from application logs; retained for years; access-controlled.</li>
+        <li><strong>Anomaly detection:</strong> alert on unusual access patterns (a user downloading 10,000 records at 3am), privilege escalation, and failed-auth spikes.</li>
+        <li><strong>Incident response:</strong> a documented plan, a rotation, and post-mortems. Security incidents will happen; the question is how fast you detect and contain them.</li>
+      </ul>
+
+      <div class="callout"><strong>Interview line:</strong> "Security in system design is three questions: how do we prove identity, how do we enforce least privilege, and how do we protect data at rest and in transit. Compliance adds constraints — data residency, right to erasure, audit retention — that must shape the data model and storage choices from day one, because retrofitting them is a multi-quarter project."</div>
+    </div>
+  </section>
+
+  <!-- AD-08 -->
+  <section class="qa part-emerald" id="ad8">
+    <span class="qnum">AD-08</span>
+    <h3>How do you balance maintainability and cost in system design? What are the trade-offs of scale vs. cost?</h3>
+    <div class="answer">
+
+      <h4>Why this matters in interviews</h4>
+      <p>Junior candidates optimize for "it works." Senior candidates optimize for "it works, it is operable, and it does not bankrupt us." Cost and maintainability are not afterthoughts — they are design constraints. A system that is 20% faster but costs 5× more and requires a dedicated team to operate is usually the wrong design.</p>
+
+      <h4>The cost drivers</h4>
+      <ul>
+        <li><strong>Compute:</strong> VMs, containers, serverless invocations. The dominant cost for most services. Over-provisioning for peak is the most common waste.</li>
+        <li><strong>Storage:</strong> hot (SSD, databases) vs. cold (object storage, archives). Hot storage can be 10–100× the cost per GB of cold.</li>
+        <li><strong>Egress:</strong> data leaving the cloud or region. This is the silent killer — a video or CDN-heavy system can spend more on egress than compute. Cross-AZ traffic is often billed too.</li>
+        <li><strong>Managed services:</strong> a managed database costs more per unit than self-hosted, but saves engineering time and operational risk. The trade-off is unit cost vs. total cost of ownership.</li>
+        <li><strong>Idle capacity:</strong> the biggest waste. A cluster sized for Black Friday idles 90% of the year.</li>
+        <li><strong>Operational labor:</strong> the salary cost of the team that runs the system. Often the largest cost for a complex architecture, and the one most often ignored in design reviews.</li>
+      </ul>
+
+      <h4>Cost optimization techniques</h4>
+      <ul>
+        <li><strong>Autoscaling:</strong> match capacity to demand. Scale on the right signal (queue depth, concurrency, CPU) and set sane min/max bounds to avoid flapping.</li>
+        <li><strong>Spot / preemptible instances:</strong> 60–90% cheaper for fault-tolerant batch work. Not suitable for stateful services unless you handle interruption gracefully.</li>
+        <li><strong>Tiered storage:</strong> hot data in SSD/Redis, warm in standard object storage, cold in archival (Glacier, Coldline). Move data automatically by age or access pattern.</li>
+        <li><strong>Compression and deduplication:</strong> compress logs and backups, dedupe file storage (CD-10). A 3× compression ratio is a 3× storage cost reduction.</li>
+        <li><strong>Caching:</strong> a cache hit is orders of magnitude cheaper than a database query. But caches cost money too — right-size them.</li>
+        <li><strong>Right-sizing:</strong> most services are over-provisioned. Use utilization data to shrink instance sizes. A 2-core instance at 15% CPU is a 4-core instance you didn't need.</li>
+        <li><strong>Reserved capacity / committed use:</strong> 30–60% discount for a 1–3 year commitment on steady-state baseline load. Combine with autoscaling for the variable portion.</li>
+        <li><strong>Batch vs. real-time:</strong> real-time serving is expensive (always-on capacity, low latency). Batch processing can run on cheap spot instances on a schedule. Use real-time only where the user experience requires it.</li>
+      </ul>
+
+      <h4>Maintainability</h4>
+      <p>Maintainability is the cost of changing the system. It is not measurable in dollars directly, but it shows up as engineering velocity, incident frequency, and onboarding time.</p>
+      <ul>
+        <li><strong>Modularity:</strong> clear boundaries between components, explicit interfaces, and no hidden coupling. A modular monolith is often more maintainable than a poorly-bounded microservice architecture.</li>
+        <li><strong>Ownership:</strong> every service has a team that owns it, with an on-call rotation and a runbook. Unowned services rot.</li>
+        <li><strong>Infrastructure as Code:</strong> Terraform/Pulumi for all infrastructure. No manual console changes. This makes environments reproducible and changes reviewable.</li>
+        <li><strong>Testing:</strong> unit, integration, contract, and load tests. A system without tests is a system that cannot be safely changed.</li>
+        <li><strong>Documentation:</strong> architecture decision records (ADRs) for why decisions were made, not just what. Runbooks for operations. API documentation generated from the code.</li>
+        <li><strong>Observability:</strong> (AD-06) — you cannot maintain what you cannot see.</li>
+        <li><strong>Boring technology:</strong> prefer proven, well-understood tools over novel ones. The cost of a new technology is not the license; it is the learning curve, the operational unknowns, and the hiring pool. "Choose boring technology" is a real engineering principle.</li>
+      </ul>
+
+      <h4>Trade-offs to name explicitly</h4>
+      <table>
+        <tr><th>Decision</th><th>Buys you</th><th>Costs you</th></tr>
+        <tr><td>Managed database</td><td>No ops, backups, patching</td><td>Higher unit cost, vendor lock-in</td></tr>
+        <tr><td>Microservices</td><td>Independent scaling, team autonomy</td><td>Operational complexity, network latency, distributed debugging</td></tr>
+        <tr><td>Multi-region active-active</td><td>Low latency globally, region failover</td><td>2–3× infrastructure, data consistency complexity</td></tr>
+        <tr><td>Real-time everything</td><td>Best UX</td><td>Always-on capacity, 5–10× the cost of batch</td></tr>
+        <tr><td>Aggressive caching</td><td>Low latency, reduced DB load</td><td>Stale data risk, cache infrastructure cost</td></tr>
+        <tr><td>Over-provisioning for peak</td><td>Headroom, no scaling delays</td><td>Idle capacity, 2–5× the steady-state cost</td></tr>
+        <tr><td>Custom-built components</td><td>Exact fit, no vendor dependency</td><td>Build and maintain cost, opportunity cost</td></tr>
+      </table>
+
+      <h4>FinOps in practice</h4>
+      <ul>
+        <li><strong>Tag every resource</strong> by team, service, and environment. Untagged spend is unmanageable.</li>
+        <li><strong>Budgets and alerts:</strong> per-team monthly budgets with anomaly detection. A sudden 3× spike in a service's spend is usually a bug (a runaway loop, a misconfigured autoscaler).</li>
+        <li><strong>Unit economics:</strong> track cost per request, per user, per transaction — not just total spend. This is what tells you whether scaling is economically viable.</li>
+        <li><strong>Regular review:</strong> a monthly cost review with the engineering teams, not just finance. Engineers make the cost decisions; they need to see the bill.</li>
+      </ul>
+
+      <div class="callout"><strong>Interview line:</strong> "The cheapest system is not the one with the lowest cloud bill — it is the one with the lowest total cost of ownership: infrastructure plus engineering time plus incident cost. A managed service that costs 2× more per unit but eliminates a dedicated ops team is usually the cheaper choice. Conversely, a microservice architecture that shaves 10% off latency but triples operational complexity is usually the more expensive one."</div>
+    </div>
+  </section>
+
+  <!-- AD-09 -->
+  <section class="qa part-emerald" id="ad9">
+    <span class="qnum">AD-09</span>
+    <h3>How do you treat Non-Functional Requirements (NFRs) as first-class design drivers? Discuss latency vs. durability, consistency vs. availability, and peak vs. average load.</h3>
+    <div class="answer">
+
+      <h4>NFRs are the design</h4>
+      <p>Functional requirements tell you <em>what</em> the system does; non-functional requirements tell you <em>how well</em> it must do it. In system design interviews, the NFRs are what differentiate designs. Two systems can have identical features and completely different architectures because one needs 10 ms p99 and the other can tolerate 2 seconds. The senior move is to elicit NFRs early and let them drive the architecture, rather than designing first and hoping the NFRs are met.</p>
+
+      <h4>The NFR checklist</h4>
+      <ul>
+        <li><strong>Latency:</strong> p50, p95, p99 targets. Not "fast" — a number, per operation.</li>
+        <li><strong>Throughput:</strong> requests/sec, writes/sec, events/sec at peak.</li>
+        <li><strong>Availability:</strong> the "nines" — 99.9% (8.7 hours/year downtime) vs. 99.99% (52 minutes) vs. 99.999% (5 minutes). Each nine costs exponentially more.</li>
+        <li><strong>Durability:</strong> can we lose data? For how long? RPO (recovery point objective) and RTO (recovery time objective).</li>
+        <li><strong>Consistency:</strong> strong, eventual, or session-level. Where does each apply?</li>
+        <li><strong>Scalability:</strong> current load, 10× load, growth rate.</li>
+        <li><strong>Security and compliance:</strong> data classification, residency, audit.</li>
+        <li><strong>Cost:</strong> budget per request, per user, or total.</li>
+        <li><strong>Operability:</strong> who runs it, how it is deployed, how it is debugged.</li>
+      </ul>
+
+      <h4>Latency vs. durability</h4>
+      <p>A write can be acknowledged at different points:</p>
+      <ul>
+        <li><strong>After writing to memory only:</strong> lowest latency (~microseconds), but a crash loses the write. Unacceptable for payments; acceptable for analytics events.</li>
+        <li><strong>After writing to a local disk (fsync):</strong> ~milliseconds, survives a process crash but not a disk failure.</li>
+        <li><strong>After replicating to one other node:</strong> ~a few milliseconds, survives a node failure.</li>
+        <li><strong>After replicating to a quorum:</strong> ~tens of milliseconds, survives a minority failure. Strong durability, higher latency.</li>
+        <li><strong>After replicating to all replicas:</strong> highest latency, highest durability, lowest availability (one slow replica blocks the write).</li>
+      </ul>
+      <p>The design question is: <strong>what is the cost of losing this write?</strong> For a payment, replicate to a quorum and fsync. For a "like" count, acknowledge after memory and reconcile later. The answer is per-operation, not per-system. A single system can have different durability levels for different data classes.</p>
+
+      <h4>Consistency vs. availability</h4>
+      <p>This is CAP/PACELC (SD-04) applied as a design driver. The senior framing is: <strong>consistency is not a global choice — it is a per-operation choice</strong>.</p>
+      <ul>
+        <li><strong>Strong consistency required:</strong> account balance, inventory count, unique username. These operations must be linearizable. They pay with higher latency (quorum) and lower availability during partitions.</li>
+        <li><strong>Eventual consistency acceptable:</strong> social feed, view count, search index, recommendations. These can be stale for seconds and still be useful. They get low latency and high availability.</li>
+        <li><strong>Session consistency:</strong> read-your-writes for a user's own data, even if other users see stale data. This is often the pragmatic middle ground — it avoids the worst UX anomaly (a user not seeing their own change) without full strong consistency.</li>
+      </ul>
+      <p>The mistake is to demand strong consistency everywhere ("just in case"). It makes the system slow, expensive, and fragile for no user-visible benefit on the 80% of operations that do not need it.</p>
+
+      <h4>Peak vs. average load</h4>
+      <p>Systems are sized for peak, but billed for average — this is the fundamental tension. A shopping site may average 1,000 req/s but peak at 50,000 on Black Friday. Three strategies:</p>
+      <ul>
+        <li><strong>Provision for peak:</strong> always-on capacity for the worst case. Simple, reliable, and 10–50× the cost of average. Only justified when the peak is unpredictable and the cost of failure is extreme.</li>
+        <li><strong>Autoscale on demand:</strong> add capacity when load rises. Cheaper, but scaling is not instant (a new instance takes seconds to minutes to warm up), and sudden spikes can outrun it. Pair with a small always-on baseline.</li>
+        <li><strong>Shed load gracefully:</strong> when capacity is exceeded, degrade rather than collapse — queue, rate-limit, or serve a simpler response. This is backpressure (AD-01). A system that sheds load predictably is better than one that scales perfectly but fails catastrophically at the edge of capacity.</li>
+      </ul>
+      <p>The design question is: <strong>what is the cost of being unavailable at peak, versus the cost of idle capacity?</strong> For a ticketing site during a concert sale, provision for peak. For an internal analytics dashboard, autoscale and accept slower responses at peak.</p>
+
+      <h4>Eliciting NFRs in an interview</h4>
+      <p>The first five minutes of a system design interview should be requirements clarification. Ask:</p>
+      <ul>
+        <li>"What is the expected scale — daily active users, requests per second, data volume?"</li>
+        <li>"What is the latency target for the critical path? Is 200 ms acceptable, or does it need to be under 50 ms?"</li>
+        <li>"Can we lose data? What is the acceptable window?"</li>
+        <li>"Is strong consistency required, or is eventual consistency acceptable for some features?"</li>
+        <li>"What is the availability target? 99.9% or 99.99%?"</li>
+        <li>"Are there compliance or data residency constraints?"</li>
+        <li>"What is the budget or cost sensitivity?"</li>
+      </ul>
+      <p>The answers shape the architecture: a 99.99% target rules out single-AZ deployments; a 50 ms p99 rules out synchronous cross-region calls; a "can lose 5 minutes of data" requirement allows async replication and lower cost.</p>
+
+      <div class="callout"><strong>Interview line:</strong> "NFRs are not a checklist at the end — they are the inputs to the design. The same feature set can require a single Postgres instance or a multi-region active-active cluster depending on the latency, availability, and consistency targets. Elicit them first, then let them drive every architectural decision, and state the trade-off explicitly at each step."</div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <p><strong>End of Batch 3.</strong> This batch adds two classic designs (Search Engine, File Storage), the microservices-split and Event Sourcing/CQRS questions, and a new Part C covering observability, security/compliance, cost/maintainability, and NFRs as design drivers. The guide is now near-complete for senior system design interviews.</p>
+  <p><strong>Remaining gaps if you want a Batch 4:</strong> ML pipelines and feature engineering depth, semantic search / vector databases, the AI agent layer for support (from my earlier list), Low-Level Design (parking lot, elevator, etc.), and the remaining fresher-level questions (URL shortener simplified, chat simplified). Say "next" if you want those, or "merge" if you want a single combined file with all batches.</p>
+</footer>
+
+</body>
+</html>
