@@ -1,0 +1,1470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Messaging Systems — Section 6: Delivery Guarantees, Ordering &amp; Idempotency</title>
+<style>
+  :root{
+    --ink:#0f172a;
+    --ink-soft:#334155;
+    --muted:#64748b;
+    --line:#e2ddf0;
+    --bg:#f7f4fd;
+    --card:#ffffff;
+    --violet:#5b21b6;
+    --violet-soft:#ede9fe;
+    --violet-deep:#2e1065;
+    --purple:#6d28d9;
+    --teal:#0d9488;
+    --amber:#b45309;
+    --rose:#e11d48;
+    --blue:#2563eb;
+    --shadow:0 1px 2px rgba(46,16,101,.06), 0 8px 24px -8px rgba(46,16,101,.14);
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 8% -10%, #ede9fe 0%, transparent 60%),
+      radial-gradient(1000px 500px at 100% 0%, #ddd6fe 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:"Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    line-height:1.72;
+    font-size:16.5px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px 90px;}
+
+  header.hero{
+    background:linear-gradient(135deg,#1e1b4b 0%, #2e1065 45%, #4c1d95 100%);
+    color:#f5f3ff;
+    padding:64px 22px 56px;
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::after{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      radial-gradient(600px 300px at 85% 15%, rgba(139,92,246,.42), transparent 70%),
+      radial-gradient(520px 280px at 12% 92%, rgba(109,40,217,.45), transparent 70%);
+    pointer-events:none;
+  }
+  .hero-inner{max-width:1080px;margin:0 auto;position:relative;z-index:2;}
+  .eyebrow{
+    display:inline-block;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;
+    font-weight:700;padding:7px 15px;border-radius:999px;
+    background:rgba(196,181,253,.16);border:1px solid rgba(196,181,253,.45);
+    color:#c4b5fd;margin-bottom:20px;
+  }
+  header.hero h1{
+    font-size:clamp(1.9rem, 4.4vw, 3rem);line-height:1.15;margin:0 0 16px;
+    font-weight:800;letter-spacing:-.02em;
+  }
+  header.hero h1 span{
+    background:linear-gradient(90deg,#c4b5fd,#ddd6fe);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  header.hero p.lede{font-size:1.06rem;color:#ddd6fe;max-width:790px;margin:0 0 26px;}
+  .meta-chips{display:flex;flex-wrap:wrap;gap:10px;}
+  .chip{
+    font-size:.78rem;font-weight:600;padding:7px 14px;border-radius:999px;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#ede9fe;
+  }
+
+  .roadmap{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:26px 28px;margin-top:-34px;position:relative;z-index:5;
+  }
+  .roadmap h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 16px;font-weight:700;
+  }
+  .roadmap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;}
+  .roadmap-item{
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:.86rem;
+    background:#fdfcff;opacity:.7;
+  }
+  .roadmap-item.done{
+    border-color:#c4b5fd;background:linear-gradient(180deg,#f5f3ff,#ffffff);opacity:1;
+  }
+  .roadmap-item.current{
+    border-color:#a78bfa;background:linear-gradient(180deg,#ede9fe,#ffffff);opacity:1;
+    box-shadow:0 0 0 3px rgba(91,33,182,.14);
+  }
+  .roadmap-item .tag{
+    display:inline-block;font-size:.64rem;font-weight:800;letter-spacing:.08em;
+    padding:2px 8px;border-radius:999px;margin-bottom:6px;
+  }
+  .tag-done{background:var(--violet-soft);color:var(--violet-deep);}
+  .tag-now{background:#ddd6fe;color:#4c1d95;}
+  .tag-next{background:#e2e8f0;color:#475569;}
+  .roadmap-item strong{display:block;color:var(--ink);font-size:.89rem;}
+
+  nav.toc{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:22px 26px;margin:26px 0 44px;
+  }
+  nav.toc h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 14px;font-weight:700;
+  }
+  nav.toc ol{
+    margin:0;padding-left:0;list-style:none;counter-reset:toc;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:8px 26px;
+  }
+  nav.toc li{
+    counter-increment:toc;font-size:.92rem;padding:6px 0 6px 34px;
+    position:relative;border-bottom:1px dashed #f0ecfb;
+  }
+  nav.toc li::before{
+    content:counter(toc);position:absolute;left:0;top:7px;width:22px;height:22px;
+    border-radius:7px;background:var(--violet-soft);color:var(--violet);
+    font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center;
+  }
+  nav.toc a{color:var(--ink-soft);text-decoration:none;font-weight:500;}
+  nav.toc a:hover{color:var(--violet);}
+
+  .part-band{display:flex;align-items:center;gap:16px;margin:56px 0 26px;}
+  .part-band .bar{
+    width:5px;height:44px;border-radius:99px;
+    background:linear-gradient(180deg,var(--violet),#a78bfa);
+  }
+  .part-band.teal .bar{background:linear-gradient(180deg,var(--teal),#2dd4bf);}
+  .part-band.blue .bar{background:linear-gradient(180deg,var(--blue),#60a5fa);}
+  .part-band h2{margin:0;font-size:1.5rem;letter-spacing:-.01em;font-weight:800;}
+  .part-band .sub{
+    display:block;font-size:.82rem;font-weight:600;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.12em;margin-top:2px;
+  }
+
+  article.q{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:0 0 26px;margin-bottom:28px;overflow:hidden;
+    scroll-margin-top:24px;
+  }
+  .q-head{
+    display:flex;gap:16px;align-items:flex-start;padding:22px 28px 18px;
+    border-bottom:1px solid #f0ecfb;background:linear-gradient(180deg,#fbfaff,#ffffff);
+  }
+  .q-num{
+    flex:none;width:42px;height:42px;border-radius:12px;display:flex;
+    align-items:center;justify-content:center;font-weight:800;font-size:.92rem;color:#fff;
+    background:linear-gradient(135deg,#5b21b6,#7c3aed);
+    box-shadow:0 6px 14px -6px rgba(91,33,182,.7);
+  }
+  .teal .q-num{background:linear-gradient(135deg,#0d9488,#14b8a6);box-shadow:0 6px 14px -6px rgba(13,148,136,.7);}
+  .blue .q-num{background:linear-gradient(135deg,#2563eb,#3b82f6);box-shadow:0 6px 14px -6px rgba(37,99,235,.7);}
+  .q-head h3{margin:0;font-size:1.13rem;font-weight:700;line-height:1.4;letter-spacing:-.01em;}
+  .q-body{padding:22px 28px 0;}
+  .q-body p{margin:0 0 15px;color:var(--ink-soft);}
+  .q-body p:last-child{margin-bottom:0;}
+  .q-body h4{margin:24px 0 10px;font-size:.95rem;font-weight:800;color:var(--ink);}
+  .q-body h4::before{content:"▹";color:var(--violet);margin-right:8px;font-size:.85rem;}
+  .teal .q-body h4::before{color:var(--teal);}
+  .blue .q-body h4::before{color:var(--blue);}
+  .q-body ul,.q-body ol{margin:0 0 16px;padding-left:22px;color:var(--ink-soft);}
+  .q-body li{margin-bottom:8px;}
+  .q-body li::marker{color:var(--violet);}
+  .teal .q-body li::marker{color:var(--teal);}
+  .blue .q-body li::marker{color:var(--blue);}
+  strong{color:var(--ink);font-weight:700;}
+  code{
+    background:#f6f4fd;border:1px solid #e2ddf0;border-radius:6px;padding:1px 6px;
+    font-size:.87em;font-family:"SFMono-Regular",Consolas,monospace;color:#5b21b6;
+  }
+
+  .callout{border-radius:12px;padding:14px 18px;margin:18px 0 4px;font-size:.93rem;border-left:4px solid;}
+  .callout .label{
+    display:block;font-size:.68rem;font-weight:800;letter-spacing:.13em;
+    text-transform:uppercase;margin-bottom:5px;
+  }
+  .callout p{margin:0 0 8px;font-size:.93rem;}
+  .callout p:last-child{margin-bottom:0;}
+  .answer{background:linear-gradient(180deg,#f5f3ff,#ffffff);border-color:var(--violet);}
+  .answer .label{color:var(--violet-deep);}
+  .tip{background:linear-gradient(180deg,#f0fdfa,#ffffff);border-color:var(--teal);}
+  .tip .label{color:#0f766e;}
+  .tradeoff{background:linear-gradient(180deg,#fffbeb,#ffffff);border-color:var(--amber);}
+  .tradeoff .label{color:#b45309;}
+  .pitfall{background:linear-gradient(180deg,#fff1f2,#ffffff);border-color:var(--rose);}
+  .pitfall .label{color:#be123c;}
+
+  .table-scroll{overflow-x:auto;margin:18px 0;border-radius:12px;border:1px solid var(--line);}
+  table{width:100%;border-collapse:collapse;font-size:.87rem;background:#fff;}
+  thead th{
+    background:#faf9fe;text-align:left;padding:11px 14px;font-weight:800;
+    font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+    border-bottom:2px solid var(--line);white-space:nowrap;
+  }
+  tbody td{padding:11px 14px;border-bottom:1px solid #f6f4fd;color:var(--ink-soft);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:nth-child(even){background:#fdfcff;}
+  tbody td:first-child{font-weight:700;color:var(--ink);}
+
+  .next-part{
+    background:linear-gradient(135deg,#1e1b4b,#4c1d95);color:#ede9fe;
+    border-radius:var(--radius);padding:32px 34px;margin-top:50px;box-shadow:var(--shadow);
+  }
+  .next-part h3{margin:0 0 12px;font-size:1.2rem;color:#fff;font-weight:800;}
+  .next-part p{margin:0 0 16px;color:#ddd6fe;font-size:.95rem;}
+  .next-list{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:10px;list-style:none;padding:0;margin:0;
+  }
+  .next-list li{
+    background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
+    border-radius:10px;padding:10px 14px;font-size:.86rem;color:#ede9fe;
+  }
+
+  @media (max-width:640px){
+    .q-head{padding:18px 18px 15px;}
+    .q-body{padding:18px 18px 0;}
+    header.hero{padding:44px 18px 46px;}
+    .roadmap{padding:20px;}
+    nav.toc{padding:18px;}
+    nav.toc ol{grid-template-columns:1fr;}
+  }
+  @media print{
+    body{background:#fff;}
+    article.q, nav.toc, .roadmap{box-shadow:none;page-break-inside:avoid;}
+    header.hero{background:#1e1b4b !important;-webkit-print-color-adjust:exact;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Messaging Series · Section 6 of 10</span>
+    <h1>Messaging Systems for System Design<br><span>Delivery Guarantees, Ordering &amp; Idempotency</span></h1>
+    <p class="lede">
+      The correctness section. At-most-once, at-least-once, and exactly-once from first principles — why the last
+      one is impossible for delivery but achievable for effects. How to diagnose duplicate processing across three
+      different root causes. The design of idempotency keys and dedup tables. Why ordering breaks and how to
+      preserve it per-key without killing throughput. Global vs local ordering. And a capstone payment pipeline
+      that pulls every piece together.
+    </p>
+    <div class="meta-chips">
+      <span class="chip">10 Questions</span>
+      <span class="chip">500+ words each</span>
+      <span class="chip">Diagnosis + design</span>
+      <span class="chip">Concrete scenarios</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ROADMAP -->
+  <section class="roadmap">
+    <h2>Messaging Answer-Series Roadmap</h2>
+    <div class="roadmap-grid">
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 1 — Complete</span>
+        <strong>Chat Applications &amp; Real-Time Messaging</strong>
+        Protocols, ordering, presence, sync, E2E
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 2 — Complete</span>
+        <strong>Message Queues &amp; Distributed Brokers</strong>
+        Acks, offsets, DLQs, consumer groups, backpressure
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 3 — Complete</span>
+        <strong>Publish/Subscribe &amp; Event Streaming</strong>
+        Kafka internals, ISR, exactly-once, tiered storage
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 4 — Complete</span>
+        <strong>Push Notification Systems</strong>
+        Multi-channel, preferences, priority, retries, rate caps
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 5 — Complete</span>
+        <strong>Real-Time Protocols &amp; Connection Management</strong>
+        WebSocket, SSE, gateway fleets, draining, backpressure, TLS
+      </div>
+      <div class="roadmap-item current">
+        <span class="tag tag-now">Section 6 — You are here</span>
+        <strong>Delivery Guarantees, Ordering &amp; Idempotency</strong>
+        At-least-once, exactly-once, dedup, per-key ordering, global ordering
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Section 7</span>
+        <strong>Fan-Out &amp; Group Messaging</strong>
+        Write vs read fan-out, hot groups, broadcast channels
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Section 8</span>
+        <strong>Event-Driven Architecture</strong>
+        Events vs commands, event sourcing, CQRS, outbox
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Section 9</span>
+        <strong>Operational Concerns &amp; Failure Modes</strong>
+        Monitoring, tracing, poison pills, multi-tenancy
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Section 10</span>
+        <strong>Classic System Design Problems</strong>
+        8 end-to-end messaging design prompts solved
+      </div>
+    </div>
+  </section>
+
+  <!-- TOC -->
+  <nav class="toc">
+    <h2>Questions Answered in This Section</h2>
+    <ol>
+      <li><a href="#q1">At-most-once, at-least-once, and exactly-once: which is achievable, at what cost?</a></li>
+      <li><a href="#q2">Diagnosing duplicate order processing: three root causes, three fixes</a></li>
+      <li><a href="#q3">What is idempotency in messaging, and how do you design an idempotent consumer?</a></li>
+      <li><a href="#q4">Why does message ordering break in distributed queues?</a></li>
+      <li><a href="#q5">Guaranteeing per-key ordering in Kafka and the cost in throughput</a></li>
+      <li><a href="#q6">Ordering within a customer order while parallelizing unrelated orders</a></li>
+      <li><a href="#q7">Global ordering vs local (per-partition) ordering</a></li>
+      <li><a href="#q8">Exactly-once effects without exactly-once delivery</a></li>
+      <li><a href="#q9">Designing the dedup table: schema, TTL, failure modes</a></li>
+      <li><a href="#q10">Capstone: designing a payment pipeline with exactly-once effects</a></li>
+    </ol>
+  </nav>
+
+  <!-- ================= PART A ================= -->
+  <div class="part-band">
+    <div class="bar"></div>
+    <h2>Part A — The Semantics
+      <span class="sub">What the three guarantees actually mean, and why one is impossible</span>
+    </h2>
+  </div>
+
+  <!-- Q1 -->
+  <article class="q" id="q1">
+    <div class="q-head">
+      <div class="q-num">1</div>
+      <h3>Explain at-most-once, at-least-once, and exactly-once delivery. Which is achievable in practice, and at what cost?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>At-most-once means a message may be lost but never duplicated. At-least-once means it is never lost but
+        may be duplicated. Exactly-once means it is neither lost nor duplicated — and it is <strong>impossible</strong>
+        for end-to-end delivery in an asynchronous distributed system with failures. What is achievable is
+        exactly-once <em>effects</em>: at-least-once delivery plus idempotent processing, which produces the same
+        result as if each message were processed once.</p>
+      </div>
+
+      <h4>The three semantics precisely</h4>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>Semantic</th><th>Loss</th><th>Duplicates</th><th>When it happens</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>At-most-once</td>
+              <td>Possible</td>
+              <td>Never</td>
+              <td>Producer sends without ack, or consumer acks before processing</td>
+            </tr>
+            <tr>
+              <td>At-least-once</td>
+              <td>Never (if retries exhausted)</td>
+              <td>Possible</td>
+              <td>Producer retries, or consumer acks after processing and crashes before ack</td>
+            </tr>
+            <tr>
+              <td>Exactly-once (delivery)</td>
+              <td>Never</td>
+              <td>Never</td>
+              <td>Impossible in the general case</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Why exactly-once delivery is impossible</h4>
+      <p>The argument is the Two Generals Problem in another form. A producer sends a message and waits for an
+      acknowledgement. If the ack is lost, the producer does not know whether the message was received. It can retry
+      — which risks a duplicate if the first copy was received — or not retry — which risks a loss if it was not.
+      The consumer faces the mirror problem: it processes a message and sends an ack; if the ack is lost, the
+      broker does not know whether to redeliver. Every protocol adds another ack to confirm the previous ack, and the
+      ambiguity never resolves. There is always a window in which the sender does not know the receiver's state,
+      and any choice in that window is either a possible loss or a possible duplicate.</p>
+      <p>This is not a limitation of a particular broker. It is a theorem about asynchronous communication with
+      unreliable channels. Kafka's transactional producer achieves something that <em>looks</em> like exactly-once
+      within Kafka, but it does so by making the consumer's state (the offset) part of the same transaction as the
+      output, which is a form of exactly-once <em>effects</em>, not delivery. The message itself could still be
+      delivered twice if a consumer outside the transaction read it.</p>
+
+      <h4>At-most-once: the cheapest and most dangerous</h4>
+      <p>At-most-once gives up durability for speed and simplicity. The producer fires and forgets
+      (<code>acks=0</code>); the consumer acks before processing. The message may be lost at any of a dozen points:
+      network drop, broker crash, consumer crash after ack. This is acceptable only for data whose loss does not
+      matter — metrics, logs, telemetry, presence heartbeats. It is never acceptable for business events.</p>
+
+      <h4>At-least-once: the practical default</h4>
+      <p>At-least-once gives up exactly-once for durability. The producer waits for an ack and retries on failure;
+      the consumer processes and then acks, so a crash before the ack causes a redelivery. The message is never lost
+      (as long as retries are allowed and retention has not expired), but it may be delivered twice. Every Kafka,
+      RabbitMQ, SQS, and Pulsar default is at-least-once. The cost is that the consumer must handle duplicates —
+      which means it must be idempotent (Question 3).</p>
+
+      <h4>Exactly-once effects: the achievable goal</h4>
+      <p>The achievable target is not that the message is delivered once, but that the <em>effect</em> of processing
+      it happens once. The recipe is: at-least-once delivery + idempotent processing = exactly-once effects.
+      Idempotent processing means that applying the same message twice produces the same state as applying it once.
+      Three ways to achieve it:</p>
+      <ul>
+        <li><strong>Natural idempotency:</strong> the operation is inherently repeatable. Setting a status to
+        "shipped" is idempotent; incrementing a counter is not.</li>
+        <li><strong>Idempotency key:</strong> the message carries a unique ID; the consumer stores processed IDs in a
+        dedup table and skips duplicates. This is the general-purpose technique (Question 9).</li>
+        <li><strong>Transactional consume-process-produce:</strong> the consumer's output and its offset commit are
+        in one transaction, so a redelivery does not duplicate the output. This is Kafka's transactional API
+        (Volume 3, Question 8), and it gives exactly-once effects within Kafka.</li>
+      </ul>
+
+      <h4>The cost ladder</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Guarantee</th><th>Cost</th><th>Use case</th></tr></thead>
+          <tbody>
+            <tr><td>At-most-once</td><td>Lowest — no retries, no dedup</td><td>Metrics, logs, presence</td></tr>
+            <tr><td>At-least-once</td><td>Moderate — retries, idempotent consumer, dedup table</td><td>Most business events</td></tr>
+            <tr><td>Exactly-once effects (Kafka-internal)</td><td>Higher — transactions, coordinator, read-committed</td><td>Payments, ledger, inventory</td></tr>
+            <tr><td>Exactly-once effects (external systems)</td><td>Highest — outbox, idempotent writes, 2PC or saga</td><td>Cross-system financial workflows</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>What the interviewer is listening for</h4>
+      <p>When you say "exactly-once", the interviewer will ask "how?". The strong answer is: "Exactly-once delivery is
+      impossible, but exactly-once effects are achievable with at-least-once plus idempotent consumers. For
+      Kafka-internal pipelines I'd use the transactional API; for external writes I'd use an outbox or an idempotency
+      key." That demonstrates you know the difference between the impossible guarantee and the achievable effect,
+      which is the actual distinction that matters.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Exactly-once delivery is impossible in an asynchronous system. What we can achieve is exactly-once
+        effects: at-least-once plus idempotent processing, or the Kafka transactional API for Kafka-to-Kafka." That
+        one sentence resolves the entire question.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q2 -->
+  <article class="q" id="q2">
+    <div class="q-head">
+      <div class="q-num">2</div>
+      <h3>A consumer team reports duplicate order processing. How do you diagnose whether the issue is at-least-once delivery, a retry, or a rebalance? What is the fix?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Duplicates come from three sources: the producer retried a send whose ack was lost, the consumer processed a
+        message but crashed before committing the offset, or a rebalance moved a partition and the new consumer
+        reprocessed an uncommitted batch. Diagnose by looking at the message ID, the offset commits, and the rebalance
+        history — each source leaves a distinct signature. The fix is always idempotent processing; the specific
+        source determines which log lines to look at and which configuration to change.</p>
+      </div>
+
+      <h4>The three sources, distinguished</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Source</th><th>Signature</th><th>Root cause</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Producer retry</td>
+              <td>Two messages with the same <code>order_id</code> and same <code>client_seq</code>, different <code>kafka_offset</code>, written within seconds</td>
+              <td>Producer sent, ack lost, producer retried, broker appended both (idempotence disabled)</td>
+            </tr>
+            <tr>
+              <td>Consumer crash before commit</td>
+              <td>One message, processed twice, with the second processing happening after a consumer restart</td>
+              <td>Consumer processed, wrote the result, crashed before committing the offset; redelivery on restart</td>
+            </tr>
+            <tr>
+              <td>Rebalance</td>
+              <td>One message, processed twice, with the second processing happening on a different consumer instance</td>
+              <td>Partition moved; new consumer resumed from last committed offset, reprocessing the in-flight batch</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Step 1 — Identify the duplicate pair</h4>
+      <p>The first thing is to find the two rows that represent the same logical order. Look at the business table:
+      two rows with the same <code>order_id</code> and the same content, different primary keys or timestamps. From
+      those rows, extract the message metadata: the <code>message_id</code> (producer-generated), the
+      <code>kafka_offset</code>, the <code>kafka_partition</code>, and the <code>consumer_instance</code> that wrote
+      each row. This metadata should be in the row (every consumer should write the message ID alongside the
+      business data — this is the single most important operational practice for diagnosing duplicates).</p>
+
+      <h4>Step 2 — Compare the offsets</h4>
+      <p>If the two rows have <strong>different Kafka offsets</strong>, the duplicate came from the producer: the same
+      logical message was written to Kafka twice, at two different offsets, and each was consumed. This happens when
+      the producer's idempotence is disabled and a send is retried after a lost ack. The fix is to enable idempotence
+      on the producer (<code>enable.idempotence=true</code>), which deduplicates by producer ID and sequence number.
+      If the producer is not Kafka (e.g., SQS), the fix is a dedup key on the send side.</p>
+      <p>If the two rows have the <strong>same offset</strong>, the duplicate came from the consumer: the same Kafka
+      record was processed twice. This narrows it to the consumer-crash or rebalance case.</p>
+
+      <h4>Step 3 — Compare the consumer instances and timing</h4>
+      <p>If the two rows have the same offset and were written by <strong>the same consumer instance</strong>, with
+      the second write after a restart of that instance, it is the crash-before-commit case. The consumer processed
+      the message, wrote the business row, then crashed before the offset commit. On restart, it resumed from the
+      last committed offset and reprocessed. The log will show a consumer startup event between the two writes.</p>
+      <p>If the two rows have the same offset and were written by <strong>different consumer instances</strong>, it is
+      the rebalance case. The partition moved from consumer A to consumer B; A had processed the message but not
+      committed the offset; B resumed from the last committed offset and reprocessed. The log will show a
+      "partitions revoked" event for A and a "partitions assigned" event for B, between the two writes.</p>
+
+      <h4>Step 4 — The fix, regardless of source</h4>
+      <p>The three sources share a common root: the consumer is not idempotent. The specific fix for each source
+      reduces the <em>frequency</em> of duplicates (producer idempotence, faster commits, cooperative rebalancing),
+      but the <em>correctness</em> fix is always idempotent processing. The consumer must be designed so that
+      processing the same message twice produces the same result. The three patterns:</p>
+      <ul>
+        <li><strong>Idempotency key:</strong> a dedup table keyed by <code>message_id</code>, checked and written in
+        the same transaction as the business change. The second processing sees the key and skips.</li>
+        <li><strong>Upsert:</strong> the business write is an upsert keyed by <code>order_id</code>, so the second
+        processing overwrites the first with identical data. This works if the message contains the full state, not a
+        delta.</li>
+        <li><strong>Natural idempotency:</strong> the operation is repeatable — "set status to shipped" is idempotent,
+        "increment shipped_count" is not.</li>
+      </ul>
+
+      <h4>Step 5 — Reduce the frequency</h4>
+      <p>After making the consumer idempotent, reduce the number of duplicates:</p>
+      <ul>
+        <li><strong>Producer idempotence:</strong> <code>enable.idempotence=true</code> eliminates the
+        producer-retry duplicate entirely.</li>
+        <li><strong>Faster offset commits:</strong> commit after every batch, not every N minutes. The smaller the
+        window between processing and commit, the fewer messages are reprocessed on crash.</li>
+        <li><strong>Cooperative sticky rebalancing:</strong> the incremental protocol (Volume 3, Question 12) moves
+        only the partitions that need to move, so fewer in-flight batches are lost during a rebalance.</li>
+        <li><strong>Static group membership:</strong> a restarting consumer rejoins with the same identity and keeps
+        its partitions, avoiding a rebalance entirely (if it restarts within the session timeout).</li>
+        <li><strong>Longer <code>max.poll.interval.ms</code>:</strong> a slow batch does not trigger a spurious
+        rebalance, which reduces the rebalance-induced duplicates.</li>
+      </ul>
+
+      <h4>The diagnostic checklist</h4>
+      <ol>
+        <li>Find the duplicate business rows.</li>
+        <li>Extract <code>message_id</code>, <code>offset</code>, <code>partition</code>, <code>consumer_instance</code>
+        from both.</li>
+        <li>If offsets differ → producer retry → enable idempotence.</li>
+        <li>If offsets same and consumer differs → rebalance → check rebalance log, enable cooperative sticky and
+        static membership.</li>
+        <li>If offsets same and consumer same → crash-before-commit → check consumer restart log, commit more
+        frequently.</li>
+        <li>In all cases → the consumer must be idempotent, or the fix is incomplete.</li>
+      </ol>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Not writing the message ID and offset into the business row. Without them, the duplicate rows cannot be
+        traced to a source, and the diagnosis becomes guesswork. Every consumer should write
+        <code>source_message_id</code> and <code>source_offset</code> alongside the business data — it is the
+        single most valuable observability field.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q3 -->
+  <article class="q" id="q3">
+    <div class="q-head">
+      <div class="q-num">3</div>
+      <h3>What is idempotency in messaging? How do you design an idempotent consumer? What role does an idempotency key play?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Idempotency means that processing the same message twice produces the same state as processing it once. The
+        idempotency key is a unique identifier attached to the message (or derived from its content) that lets the
+        consumer detect and skip duplicates. The three implementations are: natural idempotency (the operation is
+        repeatable), upsert (the write overwrites with the same value), and a dedup table (a record of processed keys
+        checked and written atomically with the business change).</p>
+      </div>
+
+      <h4>Why idempotency is the central discipline</h4>
+      <p>Every at-least-once system will deliver duplicates. The producer's retry duplicates the send; the consumer's
+      crash before commit duplicates the processing; the rebalance duplicates the in-flight batch. These are not bugs
+      to be fixed — they are the semantics of the system. The only way to build a correct consumer on top of an
+      at-least-once transport is to make the consumer idempotent. This is not optional; it is the contract.</p>
+
+      <h4>The idempotency key</h4>
+      <p>The idempotency key is a value that uniquely identifies the logical operation, independent of how many times
+      the message is delivered. It must be:</p>
+      <ul>
+        <li><strong>Unique per operation:</strong> two different orders have different keys; the same order has the
+        same key across retries.</li>
+        <li><strong>Deterministic:</strong> the producer generates it once and includes it in every retry of the same
+        message. If the key is generated inside the consumer, it will be different on each delivery and dedup
+        fails.</li>
+        <li><strong>Scoped:</strong> the key's namespace is clear — <code>order:123:created</code> is unique to this
+        consumer, even if the same order produces other events.</li>
+        <li><strong>Stored with the effect:</strong> the key must be written in the same transaction as the business
+        change, or there is a window where the effect happens but the key is not recorded (and a redelivery
+        duplicates it).</li>
+      </ul>
+      <p>Where the key comes from depends on the source:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Source</th><th>Key</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>Kafka message</td><td><code>topic:partition:offset</code> or producer-generated <code>message_id</code></td><td>Offset is stable; producer ID is stable across retries if idempotence is enabled</td></tr>
+            <tr><td>HTTP request</td><td>Client-supplied <code>Idempotency-Key</code> header</td><td>The client generates it once and reuses it on retry</td></tr>
+            <tr><td>CDC event</td><td><code>table:primary_key:lsn</code></td><td>The log sequence number is unique per change</td></tr>
+            <tr><td>Business event</td><td><code>event_type:aggregate_id:version</code></td><td>The aggregate version increments per change</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Implementation 1 — Natural idempotency</h4>
+      <p>The simplest and most robust: the operation is inherently repeatable. Setting a status to "shipped" is
+      idempotent — doing it twice leaves the status as "shipped". Upserting a row by primary key is idempotent —
+      doing it twice leaves the same row. Deleting by key is idempotent — the second delete is a no-op. Whenever the
+      business operation can be expressed as a state assignment or an upsert, it is naturally idempotent and needs
+      no dedup table.</p>
+      <p>The catch: not every operation is naturally idempotent. "Increment balance by 10" is not — doing it twice
+      gives 20. "Send email" is not — the user gets two emails. "Charge card" is not — the customer is charged
+      twice. These require the other two patterns.</p>
+
+      <h4>Implementation 2 — Upsert</h4>
+      <p>If the message carries the <em>full state</em> of the entity, the write can be an upsert keyed by the
+      entity ID. Processing the same message twice overwrites with the same state. This is common in CDC and event
+      sourcing, where each event carries the complete new state of the row. It is not sufficient if the event carries
+      a delta (e.g., "increment by 10"), because the second application doubles the delta.</p>
+
+      <h4>Implementation 3 — Dedup table</h4>
+      <p>The general-purpose solution for non-idempotent operations. A table keyed by the idempotency key, with a
+      record of when it was processed and (optionally) the result. The consumer, in one transaction:</p>
+      <ol>
+        <li>Inserts the key into the dedup table. If it already exists, the transaction aborts and the message is
+        skipped (it was already processed).</li>
+        <li>Applies the business change.</li>
+        <li>Commits the transaction.</li>
+        <li>Commits the Kafka offset.</li>
+      </ol>
+      <p>The atomicity of steps 1 and 2 is what makes it correct: either both the key and the effect are committed,
+      or neither is. If the transaction fails, the key is not recorded, and the redelivery retries from scratch. If
+      it succeeds, the key is recorded, and the redelivery sees it and skips.</p>
+      <p>The dedup table is covered in detail in Question 9. The key design decisions are: what columns, what TTL,
+      how to handle the dedup table being unavailable, and how to bound its growth.</p>
+
+      <h4>The transactional outbox connection</h4>
+      <p>The dedup table solves the <em>consumer</em> side. The <em>producer</em> side has a related problem: writing
+      to the database and publishing to the queue are not atomic, so one can succeed and the other fail. The
+      transactional outbox solves it: the business change and the message are written to the outbox table in the same
+      database transaction, and a separate relay publishes from the outbox. The relay is idempotent (it reads by
+      outbox ID), and the consumer's idempotency key (derived from the outbox ID) makes the end-to-end pipeline
+      exactly-once in effect.</p>
+
+      <h4>What idempotency does not solve</h4>
+      <p>Idempotency makes duplicates harmless, but it does not make them free. Each duplicate still consumes CPU,
+      database I/O, and a dedup table lookup. At high duplicate rates, the cost is real. The design should also
+      reduce the <em>frequency</em> of duplicates — producer idempotence, faster commits, cooperative rebalancing —
+      so the idempotency mechanism is a safety net, not the primary strategy.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Every at-least-once consumer must be idempotent. The idempotency key is generated by the producer,
+        carried in the message, and written to a dedup table in the same transaction as the business change. The
+        three implementations are natural idempotency, upsert, and the dedup table, and the choice depends on whether
+        the operation is a state assignment or a delta." That names the mechanism, the key, and the three patterns in
+        one answer.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART B ================= -->
+  <div class="part-band teal">
+    <div class="bar"></div>
+    <h2>Part B — Ordering
+      <span class="sub">Why it breaks, how to preserve it, and what it costs</span>
+    </h2>
+  </div>
+
+  <!-- Q4 -->
+  <article class="q teal" id="q4">
+    <div class="q-head">
+      <div class="q-num">4</div>
+      <h3>Why does message ordering break in distributed queues? What are the root causes (partitions, parallel consumers, retries)?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Ordering breaks because the transport optimizes for throughput, not sequence. Four root causes:
+        <strong>partitioning</strong> scatters one logical stream across shards that are read in parallel;
+        <strong>parallel consumers</strong> process different partitions at different speeds;
+        <strong>retries</strong> re-deliver a failed message after later ones have succeeded; and
+        <strong>asynchronous fan-out</strong> introduces per-recipient queues that drain at different rates. The
+        fix is to confine ordering to the partition and to make the partition key match the ordering requirement.</p>
+      </div>
+
+      <h4>Root cause 1 — Partitioning</h4>
+      <p>A topic is split into partitions, and each partition is an independent log. The producer assigns each message
+      to a partition by key hash or round-robin. If two messages that should be ordered (e.g., "order created" and
+      "order shipped" for the same order) are assigned to different partitions, no consumer can see them in order —
+      the ordering is lost at write time. The fix is to key by the entity whose order matters: both messages use the
+      same <code>order_id</code>, hash to the same partition, and are ordered within it.</p>
+
+      <h4>Root cause 2 — Parallel consumers</h4>
+      <p>Even within a partition, the consumer group may have multiple consumers. Each consumer processes its
+      assigned partitions independently, and there is no ordering across partitions. If the order spans two
+      partitions (because the key was wrong), the parallel consumers process them in arbitrary order. Even within
+      one partition, if the consumer processes messages concurrently (thread pool), the effect order can differ from
+      the read order. The fix is one consumer per partition and single-threaded processing within a partition, which
+      caps throughput per partition.</p>
+
+      <h4>Root cause 3 — Retries</h4>
+      <p>A message fails to process. The consumer retries it. Meanwhile, the consumer moves on to later messages in
+      the same partition. If the retry succeeds eventually, its effect may be applied after the effect of a later
+      message — violating order. This is especially common with retries that use a delay (backoff), because the
+      delayed message is effectively re-queued behind the ones that come after it. The fix is either to block the
+      partition on the failed message (head-of-line blocking, no retry delay) or to accept that the order is
+      best-effort during failure windows.</p>
+
+      <h4>Root cause 4 — Asynchronous fan-out</h4>
+      <p>Even if the input is ordered, the fan-out to multiple consumers or services may not be. A message is
+      enqueued to multiple downstream queues; each queue has its own consumers, and they drain at different speeds.
+      The downstream services see the messages in different orders. The fix is to route causally related messages to
+      the same downstream partition (by key) so they stay ordered through the fan-out, or to accept that the fan-out
+      is unordered and make the downstream services order-tolerant.</p>
+
+      <h4>The throughput-ordering trade-off</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Ordering scope</th><th>Mechanism</th><th>Throughput</th></tr></thead>
+          <tbody>
+            <tr><td>No ordering</td><td>Round-robin, many consumers</td><td>Maximum</td></tr>
+            <tr><td>Per-key ordering</td><td>Hash by key, one consumer per partition, single-threaded</td><td>Scales with the number of keys</td></tr>
+            <tr><td>Global ordering</td><td>Single partition, single consumer</td><td>Bounded by one consumer's throughput</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The choice is fundamental. Most systems choose per-key ordering because it matches the domain: orders are
+      independent of each other, but events within an order must be ordered. The partition key is the entity ID, and
+      the throughput scales with the number of entities — which is effectively unbounded for a real system.</p>
+
+      <h4>What breaks at each level</h4>
+      <ul>
+        <li><strong>Per-key ordering broken:</strong> the key is wrong (timestamp instead of entity ID) or the
+        consumer processes concurrently within a partition. The symptom is events for one entity out of order.</li>
+        <li><strong>Global ordering broken:</strong> multiple partitions are used, or multiple consumers. The symptom
+        is a global sequence that is not monotonic.</li>
+        <li><strong>Cross-topic ordering broken:</strong> two topics feed the same downstream, and the consumer merges
+        them without a sequence number. The fix is a single topic with a combined key, or a merge with a
+        sequence.</li>
+      </ul>
+
+      <h4>The ordering guarantee is only as strong as the weakest link</h4>
+      <p>A Kafka topic with per-key ordering is useless if the producer reads from a database without an order or the
+      consumer writes to a database in parallel. The ordering must be preserved end-to-end: the producer generates
+      the events in order, the partition key keeps them on one partition, the consumer processes them serially, and
+      the downstream write applies them in the same order. Each step can break the chain, and the end-to-end
+      guarantee is the conjunction of all of them.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Assuming that because Kafka preserves order within a partition, the system is ordered. The producer's
+        key choice, the consumer's threading, the retry policy, and the downstream write all have to cooperate. A
+        single parallel step breaks the guarantee, and the failure is invisible until an out-of-order event causes a
+        user-visible bug.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q5 -->
+  <article class="q teal" id="q5">
+    <div class="q-head">
+      <div class="q-num">5</div>
+      <h3>How do you guarantee per-key ordering in Kafka? What are the costs of strict per-key ordering in throughput and latency?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Set the partition key to the entity ID, so all messages for that entity hash to the same partition; use a
+        consumer group with one consumer per partition; process serially within a partition; and disable the producer's
+        concurrent in-flight batches to the same partition (or enable idempotence, which preserves order). The cost
+        is throughput per partition — bounded by one consumer's processing rate — and latency, because a slow or
+        failed message blocks the partition (head-of-line blocking).</p>
+      </div>
+
+      <h4>The four settings that preserve order</h4>
+      <ol>
+        <li><strong>Partition key = entity ID.</strong> The producer hashes the key to pick a partition. All messages
+        for the same key go to the same partition, and within a partition, the broker preserves order.</li>
+        <li><strong>Producer ordering:</strong> set <code>max.in.flight.requests.per.connection=1</code> (which
+        serializes sends to the broker) <em>or</em> enable <code>enable.idempotence=true</code> (which allows up to
+        5 in-flight requests but re-orders them by sequence number on the broker, preserving the producer's send
+        order). Idempotence is the modern default: it preserves order without sacrificing the pipelining benefit.</li>
+        <li><strong>One consumer per partition.</strong> A consumer group can have at most one consumer per partition;
+        the group coordinator enforces this. Do not split a partition across consumers.</li>
+        <li><strong>Serial processing within a partition.</strong> The consumer reads a batch and processes it in
+        order, one message at a time. Do not hand the batch to a thread pool that may complete out of order. If
+        concurrent processing is needed, partition further (more keys), not within the partition.</li>
+      </ol>
+
+      <h4>What per-key ordering does not guarantee</h4>
+      <ul>
+        <li><strong>Order across keys.</strong> Messages for user A and user B have no order relative to each other,
+        even if they are causally related. If a message for A triggers a message for B, the cross-key order is not
+        guaranteed.</li>
+        <li><strong>Order across partitions.</strong> A topic with 100 partitions has 100 independent order streams.
+        The "global" order is whatever the consumer chooses when it reads multiple partitions.</li>
+        <li><strong>Order across topics.</strong> Two topics with the same key are two independent logs; the
+        consumer that merges them must impose order itself.</li>
+        <li><strong>Order across retries.</strong> If the consumer retries a failed message while moving on, the
+        retry applies after later messages. Strict ordering requires blocking the partition on the failed message
+        until it succeeds or is dead-lettered.</li>
+      </ul>
+
+      <h4>The cost — throughput</h4>
+      <p>Per-partition throughput is bounded by the single consumer's processing rate. A consumer that processes 1,000
+      messages/s per partition caps that partition's throughput at 1,000/s. The total topic throughput is the sum
+      across partitions, so the design scales by adding partitions (more keys), not by adding consumers to the same
+      partition. A topic with 10 partitions and 1,000/s per consumer has 10,000/s total; to double it, you need 20
+      partitions.</p>
+      <p>The cost is real for high-cardinality keys. If there are only 10 keys, the topic has at most 10 partitions'
+      worth of parallelism — 10,000/s total if each partition does 1,000/s. Adding more consumers does not help
+      because there are no more partitions to assign. The only way to scale further is to change the key to a
+      finer-grained one, which breaks the per-entity order.</p>
+
+      <h4>The cost — latency and head-of-line blocking</h4>
+      <p>A slow message blocks the partition. If message 42 takes 30 seconds to process, messages 43–100 in the same
+      partition wait. The consumer cannot skip 42 (that breaks order) and cannot process 43 concurrently (that also
+      breaks order). The only options are to wait, to dead-letter 42 (losing it), or to increase the timeout and
+      accept the latency. This head-of-line blocking is the fundamental cost of strict ordering.</p>
+      <p>For a payment pipeline, this is acceptable: a payment that fails must be resolved before the next one for
+      the same account, because the balance must be correct. For a chat pipeline, it is annoying: a slow image
+      upload blocks the message behind it. The design must match the ordering requirement to the blocking
+      tolerance.</p>
+
+      <h4>When to relax the ordering</h4>
+      <ul>
+        <li><strong>Idempotent, commutative operations:</strong> if the operations produce the same result in any
+        order (e.g., setting a status, adding to a set), ordering does not matter and the partition can be
+        processed concurrently.</li>
+        <li><strong>Independent keys:</strong> if the consumer's operation for user A does not depend on user B,
+        the cross-key order is irrelevant, and per-key ordering is sufficient.</li>
+        <li><strong>Time-window ordering:</strong> if the requirement is "order within a 5-second window", the consumer
+        can buffer and reorder by timestamp within the window, allowing parallel processing outside it.</li>
+      </ul>
+
+      <h4>The partition count and ordering interaction</h4>
+      <p>More partitions means more parallelism but also more independent order streams. If the ordering requirement
+      is per-entity, more partitions is fine — each entity is still on one partition. If the requirement is global,
+      partitions must be 1 (single partition), which caps throughput at one consumer's rate. This is the trade-off:
+      per-key ordering scales, global ordering does not.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Strict per-key ordering gives correctness at the cost of throughput (one consumer per partition) and
+        latency (head-of-line blocking). Relaxing the ordering (concurrent processing, no blocking) gives throughput
+        at the cost of correctness. The right answer is per-key ordering with idempotent consumers — the consumer
+        tolerates duplicates and the partition key matches the entity, which gives correctness with throughput
+        bounded by the number of entities, which is effectively unbounded.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Partition by the entity ID, one consumer per partition, serial processing, idempotent producer. The
+        throughput is bounded by one consumer per partition, so I'll size partitions for the expected consumer
+        parallelism, and accept head-of-line blocking because the entity's order matters." That covers the
+        mechanism, the cost, and the design decision.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q6 -->
+  <article class="q teal" id="q6">
+    <div class="q-head">
+      <div class="q-num">6</div>
+      <h3>How would you guarantee order for messages that belong to the same customer order while allowing unrelated orders to process in parallel?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Partition by <code>order_id</code>. All events for one order hash to the same partition and are ordered
+        within it; different orders hash to different partitions and are processed in parallel. The throughput scales
+        with the number of concurrent orders, not the number of events. The order aggregate is the unit of
+        ordering, and the partition key is the aggregate ID.</p>
+      </div>
+
+      <h4>The key choice</h4>
+      <p>The fundamental decision is which key to use. Three candidates:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Key</th><th>Ordering scope</th><th>Parallelism</th><th>Use case</th></tr></thead>
+          <tbody>
+            <tr><td><code>order_id</code></td><td>All events for one order, in order</td><td>One partition per order</td><td>Order lifecycle: created, paid, shipped, delivered</td></tr>
+            <tr><td><code>customer_id</code></td><td>All events for one customer's orders, in order</td><td>One partition per customer</td><td>Cross-order consistency (e.g., loyalty points)</td></tr>
+            <tr><td><code>global</code> (single partition)</td><td>All events, globally ordered</td><td>None</td><td>Ledger, audit</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The default is <code>order_id</code> because the order is the aggregate: its events are causally related, and
+      different orders are independent. The customer_id key is used when the events span orders and must be ordered
+      relative to each other (e.g., a customer's loyalty points balance must reflect all orders in sequence). The
+      global key is used only when the business requires a single total order across all events, which is rare and
+      expensive.</p>
+
+      <h4>How the pipeline preserves order</h4>
+      <ol>
+        <li><strong>Producer:</strong> every event for order 123 is produced with key <code>order_id=123</code>. The
+        producer's partitioner hashes the key and always assigns the same partition.</li>
+        <li><strong>Broker:</strong> the partition is an ordered log. The messages are appended in the order the
+        producer sent them, with monotonic offsets.</li>
+        <li><strong>Consumer:</strong> one consumer in the group is assigned the partition. It reads messages in
+        offset order and processes them serially.</li>
+        <li><strong>Consumer's downstream:</strong> the consumer writes to the order's state store (or emits a
+        downstream event) in the same order. If the downstream is another topic, the same key preserves order; if it
+        is a database, the write is in the same transaction as the offset commit (or idempotent to handle retry).</li>
+      </ol>
+      <p>The partition is the unit of parallelism: 100 orders on 10 partitions means 10 orders per partition,
+      processed in parallel. Adding orders adds parallelism (up to the partition count); adding partitions adds
+      more. The throughput is bounded by the consumer's per-partition rate times the partition count, which is
+      effectively unbounded for a real workload.</p>
+
+      <h4>What breaks the ordering</h4>
+      <ul>
+        <li><strong>Different keys for the same order.</strong> If "order created" uses <code>order_id</code> and
+        "order shipped" uses <code>shipment_id</code>, they hash to different partitions and the consumer sees them
+        in arbitrary order. Every event for an order must use the same key.</li>
+        <li><strong>Multiple producers without coordination.</strong> If two services produce events for the same
+        order, and they use different partitioners or different key formats, the partition assignment diverges. The
+        fix is a single producing service, or a shared key-derivation function.</li>
+        <li><strong>Consumer concurrency within a partition.</strong> If the consumer hands the batch to a thread
+        pool, the processing order is not the read order. The consumer must process serially, or the partition must
+        be split into more partitions with finer keys.</li>
+        <li><strong>Retries with delay.</strong> If a failed message is retried after a backoff, the retry applies
+        after later messages. The fix is to block the partition on the failed message or to reorder by sequence
+        number at the consumer.</li>
+      </ul>
+
+      <h4>The out-of-order tolerance</h4>
+      <p>Some order events do not require strict order. "Order shipped" and "order delivered" are causally
+      dependent and must be ordered. "Order note added" and "order shipped" are independent and can be in any order.
+      The design can distinguish them: causally dependent events use a key that ensures order; independent events use
+      a separate topic (or a separate partition) with no order requirement. This reduces the ordering cost for the
+      events that do not need it.</p>
+
+      <h4>What to do when the order is violated</h4>
+      <p>Despite the best design, an out-of-order event can arrive — a producer bug, a consumer retry, a
+      misconfigured key. The consumer should be order-tolerant where possible: if a "shipped" event arrives before a
+      "created" event, the consumer should buffer the "shipped" until the "created" arrives, rather than failing or
+      applying it out of order. This is the same buffer-and-fetch pattern as the chat client (Section 1, Question 12).
+      The buffer is per aggregate, bounded, and flushed when the missing event arrives (or on a timeout).</p>
+
+      <h4>The schema and versioning interaction</h4>
+      <p>If the order events are versioned (order v1, then v2, then v3), the consumer must apply them in version
+      order. The version number is the ordering key, and the partition key ensures they are on the same partition.
+      A consumer that receives v3 before v2 (due to a bug or a retry) must buffer v3 until v2 arrives, or reject
+      v3 and wait. This is a stricter form of the buffering pattern and is common in event-sourced systems.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Keying by <code>order_id</code> gives per-order ordering at the cost of per-order parallelism. A very
+        large order with thousands of events is processed serially, which may be slow. Keying by
+        <code>(order_id, line_item_id)</code> gives more parallelism but loses order between line items of the same
+        order. The right key depends on which ordering matters to the business, and the answer is usually
+        <code>order_id</code> because the order's total and status must be consistent.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q7 -->
+  <article class="q teal" id="q7">
+    <div class="q-head">
+      <div class="q-num">7</div>
+      <h3>What is the difference between global ordering and local (per-partition) ordering? When is global ordering required, and what does it cost?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Local ordering means each partition is ordered internally, but there is no order across partitions.
+        Global ordering means every message in the topic has a single, total order. Global ordering requires a single
+        partition (or a single logical sequencer), which eliminates parallelism and caps throughput at one
+        consumer's rate. It is required only when the business must reason about a single total order — typically the
+        financial ledger or the audit log.</p>
+      </div>
+
+      <h4>Local ordering</h4>
+      <p>Each partition is an ordered log. A consumer reading one partition sees the messages in the order the
+      producer wrote them. A consumer reading multiple partitions sees them in per-partition order but with arbitrary
+      interleaving. The "local order" is the offset within the partition; there is no offset across partitions.</p>
+      <p>Local ordering is sufficient for almost every business use case. An order's events are ordered within its
+      partition; the order's state is consistent. A user's events are ordered within their partition; the user's
+      session is consistent. The events for different orders or different users have no meaningful relationship, so
+      their cross-partition order does not matter.</p>
+
+      <h4>Global ordering</h4>
+      <p>Every message has a position in a single total order. If message A was produced before message B, every
+      consumer sees A before B, regardless of which consumer or which partition. This is a stronger guarantee than
+      local ordering, and it is achieved by:</p>
+      <ul>
+        <li><strong>Single partition:</strong> the topic has one partition, and all messages are written to it. The
+        offset is the global sequence number. Throughput is capped at one partition's write and read rate.</li>
+        <li><strong>Single sequencer:</strong> a component (a database, a log, a coordination service) assigns a
+        monotonic sequence number to every message before it is partitioned. The consumer reorders by sequence
+        number. Throughput is capped at the sequencer's rate, which is often the bottleneck.</li>
+        <li><strong>Lamport clock or hybrid logical clock:</strong> each message carries a timestamp-plus-counter
+        that provides a total order (with tiebreakers). The consumer reorders by the clock. Throughput is not capped,
+        but the clock's granularity and the tiebreaker policy determine the ordering strictness.</li>
+      </ul>
+
+      <h4>When global ordering is genuinely required</h4>
+      <ul>
+        <li><strong>Financial ledger:</strong> every debit and credit must be applied in a single total order to
+        compute the balance correctly. Out-of-order application produces a different (wrong) balance.</li>
+        <li><strong>Audit log:</strong> the record of who did what and when must be a single sequence, even if the
+        actions came from different services.</li>
+        <li><strong>Distributed lock or leader election:</strong> the acquisition and release of the lock are
+        ordered; a global sequence prevents two leaders.</li>
+        <li><strong>Event sourcing with a strict invariant:</strong> the aggregate's events must be in a defined
+        order, and if the aggregate spans services, that order must be global.</li>
+      </ul>
+      <p>Most systems that think they need global ordering actually need per-entity ordering. A "global" ledger can
+      be sharded by account, and each account's ledger is locally ordered — which is sufficient, because the
+      balance is per account. The sharded ledger has per-account ordering and no global ordering, and it is correct.
+      Global ordering is needed only when the invariant genuinely spans entities.</p>
+
+      <h4>The cost</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Approach</th><th>Throughput ceiling</th><th>Latency</th><th>Failure mode</th></tr></thead>
+          <tbody>
+            <tr><td>Single partition</td><td>One consumer's rate</td><td>Low (no coordination)</td><td>Partition is a single point of bottleneck</td></tr>
+            <tr><td>Single sequencer</td><td>Sequencer's rate</td><td>Higher (extra hop)</td><td>Sequencer is a SPOF; must be replicated</td></tr>
+            <tr><td>Lamport / HLC</td><td>Unbounded</td><td>Low</td><td>Ordering is approximate; ties need a tiebreaker</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The single partition is the simplest global order, and its cost is the most severe: no parallelism. At
+      1,000 messages/s per consumer, a single partition is 1,000/s — fine for a small ledger, unusable for a
+      high-volume event stream. The single sequencer scales better (the sequencer can be a replicated service) but
+      adds latency and complexity. The Lamport clock is the most scalable but provides only a partial order (with
+      tiebreakers), which is usually sufficient for audit but not for financial invariants.</p>
+
+      <h4>The outbox pattern for global order</h4>
+      <p>A common technique for getting global order without a single partition: write the events to a database
+      table with an auto-increment ID (or a sequence), and read them in ID order. The database sequence is the
+      global order, and the consumer reads the table in sequence. The throughput is the database's write rate,
+      which is high (a single table can handle tens of thousands of inserts/s), and the ordering is exact. The cost
+      is that the database is now on the hot path, and the events are not "streamed" in the Kafka sense — they are
+      polled. For many systems, this is the right trade-off: the database is already there, and the global order is
+      exactly what an auto-increment ID provides.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Choosing global ordering "to be safe" when per-entity ordering would suffice. Global ordering caps
+        throughput at one partition, which is a hard scaling limit that is difficult to remove later. The
+        per-entity ordering is almost always sufficient, and the rare cases that need global ordering should be
+        designed explicitly, not defaulted into.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART C ================= -->
+  <div class="part-band blue">
+    <div class="bar"></div>
+    <h2>Part C — Effects, Dedup &amp; Capstone
+      <span class="sub">Making duplicates harmless, and putting it all together</span>
+    </h2>
+  </div>
+
+  <!-- Q8 -->
+  <article class="q blue" id="q8">
+    <div class="q-head">
+      <div class="q-num">8</div>
+      <h3>How do you achieve exactly-once effects without exactly-once delivery? What patterns make duplicates harmless?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Combine at-least-once delivery with idempotent processing. The delivery may be duplicated, but the effect
+        is applied once. The three patterns are: an idempotency key with a dedup table, an upsert keyed by the entity,
+        and the transactional outbox for cross-system workflows. The Kafka transactional API adds a fourth for
+        Kafka-to-Kafka pipelines. The goal is not to prevent duplicates but to make them harmless.</p>
+      </div>
+
+      <h4>The equivalence</h4>
+      <p>The equation is: <strong>at-least-once delivery + idempotent processing = exactly-once effects</strong>. The
+      delivery is not exactly-once — the message may be processed twice — but the effect is, because the second
+      processing produces the same state as the first. This is what "exactly-once" means in practice: the user sees
+      one order, one charge, one email, even though the message was delivered twice.</p>
+
+      <h4>Pattern 1 — Idempotency key with dedup table</h4>
+      <p>The general-purpose solution. The message carries a unique key; the consumer checks the dedup table, and if
+      the key is present, skips. If not, it processes and records the key in the same transaction as the business
+      change. The atomicity of the check-and-record with the effect is what makes it correct. This is covered in
+      detail in Question 9.</p>
+
+      <h4>Pattern 2 — Upsert</h4>
+      <p>If the message carries the full state of the entity, the consumer writes it with an upsert keyed by the
+      entity ID. The second processing overwrites with the same state, and the result is identical. This is common
+      for CDC events (each event is the full row state) and for state-sync events (each event is the full entity
+      document). It does not work for delta events (increment by 10), because the second application doubles the
+      delta.</p>
+
+      <h4>Pattern 3 — Transactional outbox</h4>
+      <p>For the producer side: the business change and the message are written to the outbox table in the same
+      database transaction. A relay reads the outbox and publishes to the queue, deduplicating by outbox ID. The
+      consumer receives the message and processes it idempotently. This gives exactly-once effects across the
+      database-queue boundary, which is the hardest boundary in a distributed system.</p>
+      <p>The outbox has three advantages: it does not require distributed transactions (the database transaction is
+      local), it is compatible with any queue (the relay can publish to Kafka, RabbitMQ, SQS), and it is durable
+      (the outbox is a database table, backed up like any other). The cost is the relay component and the slight
+      latency between the business commit and the publish.</p>
+
+      <h4>Pattern 4 — Kafka transactional API</h4>
+      <p>For Kafka-to-Kafka pipelines: the consumer's input offsets, its output messages, and its state-store
+      updates are committed in one transaction. A failure aborts the transaction, the offsets are not advanced, and
+      the processing restarts from the last committed offset. The output is not visible to read-committed consumers
+      until the transaction commits. This is exactly-once effects within Kafka, at the cost of transaction overhead
+      and read-committed latency (Volume 3, Question 8).</p>
+
+      <h4>Pattern 5 — Natural idempotency</h4>
+      <p>The simplest and most robust: the operation is inherently repeatable. Setting a status is idempotent; adding
+      to a set is idempotent; upserting a row is idempotent. The consumer does not need a dedup table or a
+      transaction — the operation itself is safe to repeat. Whenever the business operation can be expressed as a
+      state assignment rather than a delta, it is naturally idempotent, and the design should prefer this.</p>
+
+      <h4>Choosing the pattern</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Operation type</th><th>Pattern</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr><td>State assignment</td><td>Natural idempotency</td><td>Set order status to "shipped"</td></tr>
+            <tr><td>Full-state event</td><td>Upsert</td><td>CDC row update</td></tr>
+            <tr><td>Delta operation</td><td>Dedup table</td><td>Increment balance by 10</td></tr>
+            <tr><td>External system call</td><td>Idempotency key + dedup</td><td>Charge card</td></tr>
+            <tr><td>DB write + queue publish</td><td>Transactional outbox</td><td>Order created event</td></tr>
+            <tr><td>Kafka-to-Kafka pipeline</td><td>Kafka transactions</td><td>Stream processing</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>What "harmless" means</h4>
+      <p>The goal is not to make the system exactly-once — that is impossible — but to make the duplicates harmless.
+      A duplicate that is skipped by the dedup table costs a lookup and a no-op. A duplicate that is upserted
+      costs an idempotent write. A duplicate that is caught by a transaction costs an aborted transaction. In all
+      cases, the user-visible state is correct: one order, one charge, one email. The system is not exactly-once;
+      it is exactly-once in effect, which is what matters.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Exactly-once delivery is impossible, but exactly-once effects are achievable. I'll use natural
+        idempotency where the operation allows it, a dedup table for delta operations, and an outbox for
+        database-queue boundaries. The user sees one effect, even if the message was delivered twice." That names the
+        equivalence and the patterns.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q9 -->
+  <article class="q blue" id="q9">
+    <div class="q-head">
+      <div class="q-num">9</div>
+      <h3>Design the dedup table: what columns, what TTL, how do you handle failure, and how do you bound its growth?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>The dedup table is keyed by the idempotency key, with a timestamp and optionally the result. The
+        consumer inserts the key and applies the business change in the same transaction; if the insert conflicts,
+        the message is skipped. The TTL must exceed the maximum redelivery window (usually 7–30 days). The table is
+        sharded by key, cleaned up by time-based partition drops, and degraded gracefully when unavailable — fail
+        open for loss-tolerant operations, fail closed for money.</p>
+      </div>
+
+      <h4>The schema</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Column</th><th>Type</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>idempotency_key</code></td><td>VARCHAR / UUID</td><td>Primary key; the unique operation ID</td></tr>
+            <tr><td><code>processed_at</code></td><td>TIMESTAMP</td><td>When the key was recorded; used for TTL and audit</td></tr>
+            <tr><td><code>result</code></td><td>JSON / TEXT (optional)</td><td>The stored result, for returning the same response on retry</td></tr>
+            <tr><td><code>consumer_id</code></td><td>VARCHAR (optional)</td><td>Which consumer processed it; for debugging</td></tr>
+            <tr><td><code>expires_at</code></td><td>TIMESTAMP (optional)</td><td>Explicit expiry, for partition management</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The primary key is the idempotency key. The <code>result</code> column is needed when the consumer must
+      return the same response on retry (e.g., an HTTP API that returns the same body for the same idempotency key).
+      The <code>expires_at</code> column is needed when the table is partitioned by time and partitions are dropped
+      rather than rows deleted.</p>
+
+      <h4>The transactional insert</h4>
+      <p>The core operation is:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Step</th><th>SQL</th><th>If conflict</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td><code>INSERT INTO dedup (key, processed_at) VALUES (?, now())</code></td><td>Unique violation → skip the message, commit offset</td></tr>
+            <tr><td>2</td><td>Apply the business change (INSERT/UPDATE)</td><td>Same transaction; if it fails, roll back the dedup insert</td></tr>
+            <tr><td>3</td><td><code>COMMIT</code></td><td>Both the key and the effect are durable</td></tr>
+            <tr><td>4</td><td>Commit the Kafka offset</td><td>After the transaction; a crash between 3 and 4 causes redelivery, which is skipped by the key</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The critical property is that steps 1 and 2 are in one transaction. If they were separate, a crash between
+      them would leave the key recorded but the effect not applied — a message that is skipped forever. The
+      transaction guarantees both or neither.</p>
+
+      <h4>The TTL</h4>
+      <p>The key must be retained for longer than the maximum time a message could be redelivered. That window is
+      determined by:</p>
+      <ul>
+        <li><strong>Kafka retention:</strong> a message can be re-read from the log as long as the log retains it.
+        If retention is 7 days, the key must be retained at least 7 days.</li>
+        <li><strong>Consumer outage:</strong> a consumer that is down for days will catch up from its committed
+        offset. The keys for the messages it reprocesses must still be present.</li>
+        <li><strong>Retry policy:</strong> the maximum retry window (hours, days) must be less than the TTL.</li>
+      </ul>
+      <p>The standard TTL is 7–30 days. Shorter TTLs risk a redelivery that is not deduplicated (the key expired);
+      longer TTLs increase storage. The TTL should be set from the retention policy plus a margin.</p>
+
+      <h4>Bounding growth</h4>
+      <p>At 100k messages/s and a 30-day TTL, the table has 260 billion rows — far too large for a single table. The
+      solutions:</p>
+      <ul>
+        <li><strong>Partition by time:</strong> a partition per day (or per hour). The TTL is enforced by dropping
+        old partitions, which is O(1) instead of a DELETE. This is the standard approach.</li>
+        <li><strong>Shard by key:</strong> hash the key to a shard. The table is distributed, and each shard is
+        partitioned by time. This scales horizontally.</li>
+        <li><strong>Short TTL:</strong> if the redelivery window is short (e.g., 1 day), the TTL can be 2 days, and
+        the table is 10× smaller.</li>
+        <li><strong>Bloom filter:</strong> for very high-volume, loss-tolerant operations, a Bloom filter of recent
+        keys can be used instead of a full table. It is probabilistic (false positives skip a real message), so it is
+        only suitable where a rare skip is acceptable.</li>
+      </ul>
+
+      <h4>Failure modes</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Failure</th><th>Behaviour</th><th>Mitigation</th></tr></thead>
+          <tbody>
+            <tr><td>Dedup table unavailable</td><td>Consumer cannot check or insert</td><td>Fail closed (block) for money; fail open (process anyway) for loss-tolerant; local cache of recent keys</td></tr>
+            <tr><td>TTL too short</td><td>Redelivery after expiry is not deduplicated</td><td>TTL > retention + max outage</td></tr>
+            <tr><td>Transaction too large</td><td>Slow inserts, lock contention</td><td>Partition by time; batch the offset commit</td></tr>
+            <tr><td>Key collision</td><td>Two different operations share a key → second is skipped</td><td>Use a unique, well-scoped key (UUID or aggregate+version)</td></tr>
+            <tr><td>Duplicate key inserted concurrently</td><td>One transaction wins, the other fails</td><td>The losing transaction retries and sees the key → skip</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The fail-open vs fail-closed choice</h4>
+      <p>If the dedup table is unavailable, the consumer cannot check or insert. The choice:</p>
+      <ul>
+        <li><strong>Fail closed:</strong> the consumer blocks, does not process, and the message is redelivered later.
+        This is safe for money (no duplicate charge) but stops the pipeline during the outage.</li>
+        <li><strong>Fail open:</strong> the consumer processes anyway, accepting possible duplicates. This keeps the
+        pipeline running but risks duplicate effects.</li>
+      </ul>
+      <p>The choice is per-operation. Money and inventory fail closed; analytics and notifications fail open. The
+      design should make the choice explicit, not a default.</p>
+
+      <h4>The audit trail</h4>
+      <p>The dedup table is also the audit trail: it records what was processed and when. For compliance, it is
+      often retained longer than the TTL (the processing record is separate from the dedup record). The design may
+      have two tables: a dedup table with a short TTL and a processed-events table with a long retention. The first
+      is for correctness; the second is for audit.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Checking the dedup table in a separate transaction from the business change. A crash between the check and
+        the change leaves the key recorded but the effect not applied — the message is skipped forever. The check and
+        the effect must be in one transaction.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q10 -->
+  <article class="q blue" id="q10">
+    <div class="q-head">
+      <div class="q-num">10</div>
+      <h3>Capstone: design a payment processing pipeline that guarantees exactly-once effects end to end.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>The pipeline is: payment service writes the intent to its DB and an outbox row in one transaction; a relay
+        publishes the outbox row to Kafka keyed by <code>payment_id</code>; the payment processor consumes the event,
+        calls the payment provider with an idempotency key, and writes the result plus a dedup row in one transaction;
+        the ledger consumes the result and applies the entry with an idempotency key. Every step is idempotent, every
+        external call has an idempotency key, and the ordering is per payment, not global.</p>
+      </div>
+
+      <h4>The requirements</h4>
+      <ul>
+        <li><strong>No double charge:</strong> the provider must be charged exactly once per payment, even if the
+        pipeline retries.</li>
+        <li><strong>No lost payment:</strong> a payment that the user initiated must eventually be charged or
+        explicitly failed.</li>
+        <li><strong>Consistent ledger:</strong> the ledger must reflect every successful charge exactly once, and no
+        failed charge.</li>
+        <li><strong>Auditable:</strong> every step must be recorded for compliance.</li>
+        <li><strong>Ordered per payment:</strong> the charge, the confirmation, and the refund (if any) must be
+        ordered relative to each other.</li>
+      </ul>
+
+      <h4>The pipeline</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Step</th><th>Component</th><th>Action</th><th>Idempotency</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td>Payment API</td>
+              <td>Writes <code>payment_intent</code> + <code>outbox_event</code> in one DB transaction</td>
+              <td>Client-supplied <code>Idempotency-Key</code>; unique constraint on <code>(user_id, idem_key)</code></td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td>Outbox relay</td>
+              <td>Reads uncommitted outbox rows, publishes to Kafka, marks them published</td>
+              <td>Outbox row ID is the Kafka message key; relay dedups by ID</td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td>Kafka topic</td>
+              <td>Partitioned by <code>payment_id</code>; per-payment order preserved</td>
+              <td>Producer idempotence enabled</td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td>Payment processor</td>
+              <td>Consumes <code>payment_intent</code>, calls provider with <code>idempotency_key = payment_id</code>, writes <code>charge_result</code> + dedup row in one transaction</td>
+              <td>Provider idempotency key + dedup table + offset commit after transaction</td>
+            </tr>
+            <tr>
+              <td>5</td>
+              <td>Ledger consumer</td>
+              <td>Consumes <code>charge_result</code>, writes ledger entry, dedups by <code>payment_id</code></td>
+              <td>Dedup table + natural idempotency (ledger entry keyed by payment_id)</td>
+            </tr>
+            <tr>
+              <td>6</td>
+              <td>Notification</td>
+              <td>Consumes <code>charge_result</code>, sends receipt</td>
+              <td>Idempotency key; at-most-once acceptable for receipt (retry once, then drop)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Why the outbox is essential here</h4>
+      <p>The payment API must write the intent and publish the event. If it writes the intent and then publishes,
+      a crash between them loses the event — the payment is created but never charged. If it publishes and then
+      writes, a crash loses the intent — the payment is charged but not recorded. The outbox solves both: the
+      intent and the event are one transaction, so either both are written or neither. The relay publishes from the
+      outbox, and if it crashes, it retries on restart; the outbox row is still there. The relay is idempotent
+      (publishing the same row twice is harmless, because the consumer dedups).</p>
+
+      <h4>Why the provider call has an idempotency key</h4>
+      <p>The provider's API may time out — the charge was successful but the response was lost. The processor
+      cannot know whether to retry (risking a double charge) or not (risking a lost charge). The provider's
+      idempotency key solves it: the processor sends the same key on retry, and the provider returns the original
+      result rather than charging twice. This is the only way to make an external, non-transactional call safe to
+      retry.</p>
+      <p>The key is <code>payment_id</code> (or a deterministic derivation), not a random UUID generated per
+      attempt. A random UUID per attempt defeats the purpose — each attempt looks like a new charge to the provider.
+      The key must be stable across retries.</p>
+
+      <h4>Why ordering is per payment, not global</h4>
+      <p>Payments are independent of each other. Payment A's charge and payment B's charge have no causal
+      relationship, so their global order is irrelevant. Within a payment, the events (intent, charge, confirmation,
+      refund) must be ordered, and the <code>payment_id</code> partition key ensures that. A global order across all
+      payments would require a single partition and cap throughput at one consumer's rate — unacceptable for a
+      high-volume payment system.</p>
+
+      <h4>The failure modes and their handling</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Failure</th><th>Handling</th></tr></thead>
+          <tbody>
+            <tr><td>Payment API crashes before commit</td><td>No intent, no event; the client retries with the same <code>Idempotency-Key</code></td></tr>
+            <tr><td>Payment API crashes after commit, before relay</td><td>Outbox row is durable; relay picks it up on restart</td></tr>
+            <tr><td>Relay crashes after publish, before marking published</td><td>Relay retries; publishes duplicate; consumer dedups by message ID</td></tr>
+            <tr><td>Processor crashes before provider call</td><td>Offset not committed; redelivery; no charge yet</td></tr>
+            <tr><td>Processor crashes after provider call, before DB write</td><td>Provider charged; redelivery; provider idempotency key returns the original result; DB write succeeds</td></tr>
+            <tr><td>Processor crashes after DB write, before offset commit</td><td>Redelivery; dedup table sees the key; skip; offset committed</td></tr>
+            <tr><td>Provider times out</td><td>Processor retries with the same idempotency key; provider returns the original result</td></tr>
+            <tr><td>Ledger consumer crashes</td><td>Redelivery; dedup by <code>payment_id</code>; ledger entry applied once</td></tr>
+            <tr><td>Dedup table unavailable</td><td>Processor fails closed (blocks) for money; ledger fails closed; pipeline pauses but does not double-charge</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The guarantees, stated precisely</h4>
+      <ul>
+        <li><strong>No double charge:</strong> the provider's idempotency key guarantees it, regardless of how many
+        times the processor retries.</li>
+        <li><strong>No lost payment:</strong> the outbox guarantees the event is published; the processor retries
+        until the provider responds; the DLQ catches the ones that exhaust retries.</li>
+        <li><strong>Exactly-once ledger:</strong> the ledger consumer's dedup table guarantees each charge is applied
+        once, even if the message is delivered twice.</li>
+        <li><strong>Per-payment order:</strong> the partition key guarantees the events for one payment are in
+        order.</li>
+        <li><strong>Audit:</strong> the outbox, the dedup table, the ledger, and the provider's records together
+        provide a complete audit trail.</li>
+      </ul>
+
+      <h4>What would break it</h4>
+      <ul>
+        <li><strong>Non-deterministic idempotency key:</strong> a random key per retry makes the provider charge
+        twice. The key must be stable across retries.</li>
+        <li><strong>Dedup check outside the business transaction:</strong> a crash between them leaves the key
+        recorded but the effect missing.</li>
+        <li><strong>Global ordering requirement:</strong> if the business requires a single total order across all
+        payments, the pipeline is capped at one partition. This is almost never needed for payments (per-payment
+        order is sufficient).</li>
+        <li><strong>Relay not idempotent:</strong> a relay that publishes the same outbox row twice without the
+        consumer dedup would duplicate the charge. The relay is idempotent by design, and the consumer dedups as a
+        backstop.</li>
+        <li><strong>Provider without idempotency keys:</strong> some providers do not support them. The fallback is
+        to query the provider for the payment's status before retrying, which is slower and not always reliable.
+        Providers with idempotency keys are strongly preferred.</li>
+      </ul>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "The outbox makes the DB-queue boundary exactly-once in effect; the provider's idempotency key makes
+        the external call safe to retry; the dedup table makes the consumer's effect idempotent; and the partition
+        key gives per-payment order without a global bottleneck. Each step is idempotent, and the failures are
+        handled by redelivery plus dedup." That names every mechanism and maps it to its boundary.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- NEXT PART -->
+  <section class="next-part">
+    <h3>Coming in Section 7 — Fan-Out &amp; Group Messaging</h3>
+    <p>Section 7 covers one-to-many delivery at scale: fan-out on write vs fan-out on read, the group-size threshold
+    where the strategy must change, hot groups and the celebrity problem in messaging, broadcast channels, and
+    the storage and delivery design for groups ranging from 3 members to 100,000.</p>
+    <ul class="next-list">
+      <li>Fan-out on write vs fan-out on read</li>
+      <li>The group-size threshold and why it exists</li>
+      <li>10,000-member channels without overwhelming a server</li>
+      <li>Hot groups and the celebrity problem in chat</li>
+      <li>Group message storage and history pagination</li>
+      <li>Late joiners and history access control</li>
+      <li>Broadcast channels (100k+ members)</li>
+      <li>Fan-out for feeds vs fan-out for chat</li>
+    </ul>
+  </section>
+
+</div>
+</body>
+</html>
