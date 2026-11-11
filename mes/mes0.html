@@ -1,0 +1,1261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Messaging Systems — Section 10: Classic System Design Problems</title>
+<style>
+  :root{
+    --ink:#0f172a;
+    --ink-soft:#334155;
+    --muted:#64748b;
+    --line:#e6d9dc;
+    --bg:#fbf6f7;
+    --card:#ffffff;
+    --wine:#881337;
+    --wine-soft:#ffe4e6;
+    --wine-deep:#4c0519;
+    --gold:#a16207;
+    --teal:#0d9488;
+    --amber:#b45309;
+    --rose:#e11d48;
+    --blue:#2563eb;
+    --shadow:0 1px 2px rgba(76,5,25,.06), 0 8px 24px -8px rgba(76,5,25,.14);
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 8% -10%, #ffe4e6 0%, transparent 60%),
+      radial-gradient(1000px 500px at 100% 0%, #fecdd3 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:"Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    line-height:1.72;
+    font-size:16.5px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px 90px;}
+
+  header.hero{
+    background:linear-gradient(135deg,#4c0519 0%, #881337 45%, #9f1239 100%);
+    color:#fff1f2;
+    padding:64px 22px 56px;
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::after{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      radial-gradient(600px 300px at 85% 15%, rgba(251,191,36,.35), transparent 70%),
+      radial-gradient(520px 280px at 12% 92%, rgba(225,29,72,.42), transparent 70%);
+    pointer-events:none;
+  }
+  .hero-inner{max-width:1080px;margin:0 auto;position:relative;z-index:2;}
+  .eyebrow{
+    display:inline-block;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;
+    font-weight:700;padding:7px 15px;border-radius:999px;
+    background:rgba(253,224,71,.18);border:1px solid rgba(253,224,71,.5);
+    color:#fde047;margin-bottom:20px;
+  }
+  header.hero h1{
+    font-size:clamp(1.9rem, 4.4vw, 3rem);line-height:1.15;margin:0 0 16px;
+    font-weight:800;letter-spacing:-.02em;
+  }
+  header.hero h1 span{
+    background:linear-gradient(90deg,#fde047,#fecdd3);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  header.hero p.lede{font-size:1.06rem;color:#fecdd3;max-width:790px;margin:0 0 26px;}
+  .meta-chips{display:flex;flex-wrap:wrap;gap:10px;}
+  .chip{
+    font-size:.78rem;font-weight:600;padding:7px 14px;border-radius:999px;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#ffe4e6;
+  }
+
+  .roadmap{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:26px 28px;margin-top:-34px;position:relative;z-index:5;
+  }
+  .roadmap h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 16px;font-weight:700;
+  }
+  .roadmap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;}
+  .roadmap-item{
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:.86rem;
+    background:#fffafb;opacity:.7;
+  }
+  .roadmap-item.done{
+    border-color:#fda4af;background:linear-gradient(180deg,#fff1f2,#ffffff);opacity:1;
+  }
+  .roadmap-item.current{
+    border-color:#f43f5e;background:linear-gradient(180deg,#ffe4e6,#ffffff);opacity:1;
+    box-shadow:0 0 0 3px rgba(136,19,55,.14);
+  }
+  .roadmap-item .tag{
+    display:inline-block;font-size:.64rem;font-weight:800;letter-spacing:.08em;
+    padding:2px 8px;border-radius:999px;margin-bottom:6px;
+  }
+  .tag-done{background:var(--wine-soft);color:var(--wine-deep);}
+  .tag-now{background:#fecdd3;color:#881337;}
+  .tag-next{background:#e2e8f0;color:#475569;}
+  .roadmap-item strong{display:block;color:var(--ink);font-size:.89rem;}
+
+  nav.toc{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:22px 26px;margin:26px 0 44px;
+  }
+  nav.toc h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 14px;font-weight:700;
+  }
+  nav.toc ol{
+    margin:0;padding-left:0;list-style:none;counter-reset:toc;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:8px 26px;
+  }
+  nav.toc li{
+    counter-increment:toc;font-size:.92rem;padding:6px 0 6px 34px;
+    position:relative;border-bottom:1px dashed #fbe9ec;
+  }
+  nav.toc li::before{
+    content:counter(toc);position:absolute;left:0;top:7px;width:22px;height:22px;
+    border-radius:7px;background:var(--wine-soft);color:var(--wine);
+    font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center;
+  }
+  nav.toc a{color:var(--ink-soft);text-decoration:none;font-weight:500;}
+  nav.toc a:hover{color:var(--wine);}
+
+  .part-band{display:flex;align-items:center;gap:16px;margin:56px 0 26px;}
+  .part-band .bar{
+    width:5px;height:44px;border-radius:99px;
+    background:linear-gradient(180deg,var(--wine),#f43f5e);
+  }
+  .part-band.gold .bar{background:linear-gradient(180deg,var(--gold),#eab308);}
+  .part-band.teal .bar{background:linear-gradient(180deg,var(--teal),#2dd4bf);}
+  .part-band.blue .bar{background:linear-gradient(180deg,var(--blue),#60a5fa);}
+  .part-band h2{margin:0;font-size:1.5rem;letter-spacing:-.01em;font-weight:800;}
+  .part-band .sub{
+    display:block;font-size:.82rem;font-weight:600;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.12em;margin-top:2px;
+  }
+
+  article.q{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:0 0 26px;margin-bottom:28px;overflow:hidden;
+    scroll-margin-top:24px;
+  }
+  .q-head{
+    display:flex;gap:16px;align-items:flex-start;padding:22px 28px 18px;
+    border-bottom:1px solid #fbe9ec;background:linear-gradient(180deg,#fffafb,#ffffff);
+  }
+  .q-num{
+    flex:none;width:42px;height:42px;border-radius:12px;display:flex;
+    align-items:center;justify-content:center;font-weight:800;font-size:.92rem;color:#fff;
+    background:linear-gradient(135deg,#881337,#f43f5e);
+    box-shadow:0 6px 14px -6px rgba(136,19,55,.7);
+  }
+  .gold .q-num{background:linear-gradient(135deg,#a16207,#eab308);box-shadow:0 6px 14px -6px rgba(161,98,7,.7);}
+  .teal .q-num{background:linear-gradient(135deg,#0d9488,#14b8a6);box-shadow:0 6px 14px -6px rgba(13,148,136,.7);}
+  .blue .q-num{background:linear-gradient(135deg,#2563eb,#3b82f6);box-shadow:0 6px 14px -6px rgba(37,99,235,.7);}
+  .q-head h3{margin:0;font-size:1.13rem;font-weight:700;line-height:1.4;letter-spacing:-.01em;}
+  .q-body{padding:22px 28px 0;}
+  .q-body p{margin:0 0 15px;color:var(--ink-soft);}
+  .q-body p:last-child{margin-bottom:0;}
+  .q-body h4{margin:24px 0 10px;font-size:.95rem;font-weight:800;color:var(--ink);}
+  .q-body h4::before{content:"▹";color:var(--wine);margin-right:8px;font-size:.85rem;}
+  .gold .q-body h4::before{color:var(--gold);}
+  .teal .q-body h4::before{color:var(--teal);}
+  .blue .q-body h4::before{color:var(--blue);}
+  .q-body ul,.q-body ol{margin:0 0 16px;padding-left:22px;color:var(--ink-soft);}
+  .q-body li{margin-bottom:8px;}
+  .q-body li::marker{color:var(--wine);}
+  .gold .q-body li::marker{color:var(--gold);}
+  .teal .q-body li::marker{color:var(--teal);}
+  .blue .q-body li::marker{color:var(--blue);}
+  strong{color:var(--ink);font-weight:700;}
+  code{
+    background:#fdf2f3;border:1px solid #e6d9dc;border-radius:6px;padding:1px 6px;
+    font-size:.87em;font-family:"SFMono-Regular",Consolas,monospace;color:#9f1239;
+  }
+
+  .callout{border-radius:12px;padding:14px 18px;margin:18px 0 4px;font-size:.93rem;border-left:4px solid;}
+  .callout .label{
+    display:block;font-size:.68rem;font-weight:800;letter-spacing:.13em;
+    text-transform:uppercase;margin-bottom:5px;
+  }
+  .callout p{margin:0 0 8px;font-size:.93rem;}
+  .callout p:last-child{margin-bottom:0;}
+  .answer{background:linear-gradient(180deg,#fff1f2,#ffffff);border-color:var(--wine);}
+  .answer .label{color:var(--wine-deep);}
+  .tip{background:linear-gradient(180deg,#f0fdfa,#ffffff);border-color:var(--teal);}
+  .tip .label{color:#0f766e;}
+  .tradeoff{background:linear-gradient(180deg,#fffbeb,#ffffff);border-color:var(--amber);}
+  .tradeoff .label{color:#b45309;}
+  .pitfall{background:linear-gradient(180deg,#fff1f2,#ffffff);border-color:var(--rose);}
+  .pitfall .label{color:#be123c;}
+
+  .table-scroll{overflow-x:auto;margin:18px 0;border-radius:12px;border:1px solid var(--line);}
+  table{width:100%;border-collapse:collapse;font-size:.87rem;background:#fff;}
+  thead th{
+    background:#fdf7f8;text-align:left;padding:11px 14px;font-weight:800;
+    font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+    border-bottom:2px solid var(--line);white-space:nowrap;
+  }
+  tbody td{padding:11px 14px;border-bottom:1px solid #fef2f3;color:var(--ink-soft);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:nth-child(even){background:#fffcfc;}
+  tbody td:first-child{font-weight:700;color:var(--ink);}
+
+  .next-part{
+    background:linear-gradient(135deg,#4c0519,#9f1239);color:#ffe4e6;
+    border-radius:var(--radius);padding:32px 34px;margin-top:50px;box-shadow:var(--shadow);
+  }
+  .next-part h3{margin:0 0 12px;font-size:1.2rem;color:#fff;font-weight:800;}
+  .next-part p{margin:0 0 16px;color:#fecdd3;font-size:.95rem;}
+  .next-list{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:10px;list-style:none;padding:0;margin:0;
+  }
+  .next-list li{
+    background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
+    border-radius:10px;padding:10px 14px;font-size:.86rem;color:#ffe4e6;
+  }
+
+  @media (max-width:640px){
+    .q-head{padding:18px 18px 15px;}
+    .q-body{padding:18px 18px 0;}
+    header.hero{padding:44px 18px 46px;}
+    .roadmap{padding:20px;}
+    nav.toc{padding:18px;}
+    nav.toc ol{grid-template-columns:1fr;}
+  }
+  @media print{
+    body{background:#fff;}
+    article.q, nav.toc, .roadmap{box-shadow:none;page-break-inside:avoid;}
+    header.hero{background:#4c0519 !important;-webkit-print-color-adjust:exact;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Messaging Series · Section 10 of 10</span>
+    <h1>Messaging Systems for System Design<br><span>Classic System Design Problems</span></h1>
+    <p class="lede">
+      The synthesis. Eight end-to-end designs that use every concept from the previous nine sections — the
+      partitioned log, the outbox, the dedup table, the fan-out threshold, the WebSocket gateway, the saga, the
+      broker fleet, the DLQ, the backpressure policy, the chaos experiment. Each is a full design: requirements,
+      API, data model, architecture, flows, failure modes, and trade-offs.
+    </p>
+    <div class="meta-chips">
+      <span class="chip">8 Capstones</span>
+      <span class="chip">End-to-end designs</span>
+      <span class="chip">Requirements → failure modes</span>
+      <span class="chip">Series finale</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ROADMAP -->
+  <section class="roadmap">
+    <h2>Messaging Answer-Series Roadmap</h2>
+    <div class="roadmap-grid">
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 1 — Complete</span>
+        <strong>Chat Applications &amp; Real-Time Messaging</strong>
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 2 — Complete</span>
+        <strong>Message Queues &amp; Distributed Brokers</strong>
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 3 — Complete</span>
+        <strong>Publish/Subscribe &amp; Event Streaming</strong>
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 4 — Complete</span>
+        <strong>Push Notification Systems</strong>
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 5 — Complete</span>
+        <strong>Real-Time Protocols &amp; Connection Management</strong>
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 6 — Complete</span>
+        <strong>Delivery Guarantees, Ordering &amp; Idempotency</strong>
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 7 — Complete</span>
+        <strong>Fan-Out &amp; Group Messaging</strong>
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 8 — Complete</span>
+        <strong>Event-Driven Architecture</strong>
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 9 — Complete</span>
+        <strong>Operational Concerns &amp; Failure Modes</strong>
+      </div>
+      <div class="roadmap-item current">
+        <span class="tag tag-now">Section 10 — You are here</span>
+        <strong>Classic System Design Problems</strong>
+        8 end-to-end capstones
+      </div>
+    </div>
+  </section>
+
+  <!-- TOC -->
+  <nav class="toc">
+    <h2>Designs in This Section</h2>
+    <ol>
+      <li><a href="#q1">Design a distributed message queue from scratch</a></li>
+      <li><a href="#q2">Design a pub/sub system like Kafka</a></li>
+      <li><a href="#q3">Design a notification system for 100M users</a></li>
+      <li><a href="#q4">Design a chat application like WhatsApp</a></li>
+      <li><a href="#q5">Design a real-time collaboration platform</a></li>
+      <li><a href="#q6">Design an event-driven order pipeline</a></li>
+      <li><a href="#q7">Design a reliable webhook delivery system</a></li>
+      <li><a href="#q8">Design a distributed job scheduler</a></li>
+    </ol>
+  </nav>
+
+  <!-- ================= PART A ================= -->
+  <div class="part-band">
+    <div class="bar"></div>
+    <h2>Part A — The Broker Layer
+      <span class="sub">Building the messaging substrate itself</span>
+    </h2>
+  </div>
+
+  <!-- Q1 -->
+  <article class="q" id="q1">
+    <div class="q-head">
+      <div class="q-num">1</div>
+      <h3>Design a distributed message queue from scratch. Walk through the API, data model, replication, and consumer coordination.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A partitioned, replicated append-only log with producer, broker, and consumer components. Topics split
+        into partitions; each partition has one leader and N-1 followers; producers append; consumers read by offset
+        and commit; a coordinator assigns partitions to consumers and stores offsets. The API is five operations:
+        <code>create_topic</code>, <code>produce</code>, <code>consume</code>, <code>commit</code>,
+        <code>join_group</code>.</p>
+      </div>
+
+      <h4>Requirements</h4>
+      <ul>
+        <li><strong>Functional:</strong> publish messages to topics; consume in order per partition; multiple
+        independent consumer groups; replay from any offset; retention configurable per topic.</li>
+        <li><strong>Non-functional:</strong> 1M messages/s at 1 KB (1 GB/s); p99 produce latency &lt; 10 ms;
+        no loss once acknowledged; 99.99% availability; retain 7 days hot, 1 year warm.</li>
+      </ul>
+
+      <h4>API</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Operation</th><th>Signature</th><th>Returns</th></tr></thead>
+          <tbody>
+            <tr><td>Create topic</td><td><code>create_topic(name, partitions, replication, retention)</code></td><td>topic metadata</td></tr>
+            <tr><td>Produce</td><td><code>produce(topic, key, value, acks)</code></td><td>(partition, offset)</td></tr>
+            <tr><td>Consume</td><td><code>consume(topic, partition, from_offset, max_records)</code></td><td>[records]</td></tr>
+            <tr><td>Commit</td><td><code>commit(group, topic, partition, offset)</code></td><td>ack</td></tr>
+            <tr><td>Join group</td><td><code>join_group(group, topics)</code></td><td>assigned partitions</td></tr>
+            <tr><td>Seek</td><td><code>seek(topic, partition, offset)</code></td><td>ack</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Data model</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Entity</th><th>Key</th><th>Contents</th></tr></thead>
+          <tbody>
+            <tr><td>Topic</td><td>name</td><td>partition count, replication factor, retention, config</td></tr>
+            <tr><td>Partition log</td><td>(topic, partition, offset)</td><td>message key, value, headers, timestamp</td></tr>
+            <tr><td>Segment</td><td>(topic, partition, base_offset)</td><td>log file, offset index, time index</td></tr>
+            <tr><td>Consumer group</td><td>group_id</td><td>members, assignments, generation</td></tr>
+            <tr><td>Committed offset</td><td>(group, topic, partition)</td><td>offset, metadata</td></tr>
+            <tr><td>Cluster metadata</td><td>internal topic</td><td>brokers, leaders, ISR, config</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Architecture</h4>
+      <ul>
+        <li><strong>Producers</strong> — batch messages, partition by key hash, send to the leader, handle retries
+        with idempotence.</li>
+        <li><strong>Brokers</strong> — store partitions as segmented logs on disk; serve produces and consumes;
+        replicate to followers.</li>
+        <li><strong>Controller</strong> — elected broker that manages metadata, leader election, partition
+        assignment (Raft-based in the modern design).</li>
+        <li><strong>Coordinators</strong> — one broker per group that manages membership, rebalances, and offset
+        commits.</li>
+        <li><strong>Consumers</strong> — pull batches, process, commit offsets; one consumer per partition in the
+        group.</li>
+        <li><strong>Registry / metadata store</strong> — the internal topic that holds cluster state and group
+        offsets.</li>
+      </ul>
+
+      <h4>Write path</h4>
+      <ol>
+        <li>Producer selects the partition by hashing the key; fetches metadata for the leader.</li>
+        <li>Batch is compressed and sent to the leader.</li>
+        <li>Leader appends to its active segment (sequential write, page cache).</li>
+        <li>Followers fetch from the leader and append to their own logs.</li>
+        <li>Leader updates the high-water mark when all ISR members have acked.</li>
+        <li>Producer receives the offset; the ack depends on <code>acks</code> (1 or all).</li>
+      </ol>
+
+      <h4>Read path</h4>
+      <ol>
+        <li>Consumer fetches from the assigned partition's leader by offset.</li>
+        <li>Leader reads from the page cache (recent) or disk (with index lookup).</li>
+        <li>Consumer processes the batch, then commits the next offset to the coordinator.</li>
+        <li>On restart or rebalance, the consumer resumes from the committed offset.</li>
+      </ol>
+
+      <h4>Replication and failover</h4>
+      <p>Each partition has a leader and followers. Followers are in the ISR if they are caught up to the leader's
+      high-water mark. <code>acks=all</code> waits for the ISR; <code>min.insync.replicas</code> prevents a write
+      when the ISR shrinks below 2. On leader failure, the controller promotes an ISR follower within seconds; the
+      producer retries, and the idempotent producer deduplicates by sequence number.</p>
+
+      <h4>Consumer coordination</h4>
+      <p>Groups join via the coordinator, which assigns partitions to consumers (range, round-robin, sticky,
+      cooperative-sticky). Committed offsets are stored in a compacted internal topic, surviving broker
+      failures. Rebalances pause consumption (eager) or move partitions incrementally (cooperative). Static
+      membership (<code>group.instance.id</code>) avoids rebalances on restart.</p>
+
+      <h4>The scale arithmetic</h4>
+      <p>1M messages/s × 1 KB = 1 GB/s produce; with replication factor 3, 3 GB/s of disk writes across the fleet.
+      A broker with 500 MB/s of disk throughput handles ~170 MB/s of unique produce, so 6 brokers minimum for
+      throughput, and 20–100 partitions (at 10k–50k msg/s per partition). Disk for 7 days at 1 GB/s with 3×
+      replication = 1.8 PB, which needs tiered storage to be economical.</p>
+
+      <h4>Failure modes</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Failure</th><th>Handling</th></tr></thead>
+          <tbody>
+            <tr><td>Producer crash mid-batch</td><td>Retry with idempotence → no duplicate</td></tr>
+            <tr><td>Leader crash mid-write</td><td>New leader from ISR; unacked batch retried</td></tr>
+            <tr><td>Follower lag</td><td>ISR shrink; <code>min.insync.replicas</code> blocks writes if ISR &lt; 2</td></tr>
+            <tr><td>Consumer crash before commit</td><td>Offset not advanced; redelivery; consumer idempotency</td></tr>
+            <tr><td>Consumer crash after commit before processing</td><td>Only with auto-commit; manual commit after processing avoids it</td></tr>
+            <tr><td>Rebalance during processing</td><td>Cooperative sticky reduces the blast radius; commit in the revoke callback</td></tr>
+            <tr><td>Controller failure</td><td>Raft election of a new controller in seconds; no data plane impact</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>The partitioned-log design gives high throughput and replay at the cost of per-partition ordering (not
+        global), storage (retention), and operational complexity (replication, rebalancing). A destructive queue is
+        simpler but loses replay and multiple consumer groups. The log is the right abstraction when the workloads
+        need fan-out and replay; the queue is right when they do not.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "It's a partitioned replicated log. Topics split into partitions; each is a segmented log with a
+        leader and followers; producers batch and append; consumers pull by offset and commit to the coordinator;
+        the controller handles metadata and leader election. The API is five operations." That names the
+        abstraction and the components in thirty seconds.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q2 -->
+  <article class="q" id="q2">
+    <div class="q-head">
+      <div class="q-num">2</div>
+      <h3>Design a pub/sub system like Kafka. Focus on topics, partitions, consumer groups, and delivery guarantees.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A pub/sub system where each topic is partitioned, each partition is a replicated ordered log, and each
+        consumer group independently reads all partitions with per-partition ordering. Delivery is at-least-once by
+        default, exactly-once within Kafka via the transactional API, and at-most-once with acks=0. The system's
+        power is that a single event serves many independent consumers without duplication in storage.</p>
+      </div>
+
+      <h4>Requirements</h4>
+      <ul>
+        <li><strong>Functional:</strong> topics with configurable partitions; independent consumer groups; replay by
+        offset; retention (time/size); log compaction; producer idempotence and transactions.</li>
+        <li><strong>Non-functional:</strong> 1M+ messages/s; p99 produce &lt; 10 ms; strong durability with
+        <code>acks=all</code>; 99.99% availability; multi-region replication.</li>
+      </ul>
+
+      <h4>Topics and partitions</h4>
+      <p>A topic is created with a partition count and replication factor. Partitions are the unit of parallelism
+      and ordering. Messages are assigned to partitions by key hash or round-robin. The key choice decides what is
+      ordered: the same key → the same partition → the same order. The partition count is chosen for the maximum
+      expected consumer parallelism (since a consumer group cannot have more active consumers than partitions).</p>
+
+      <h4>Consumer groups</h4>
+      <p>A group is a set of consumers that jointly read a topic. Each partition is assigned to exactly one consumer
+      in the group. Multiple groups read the same topic independently, each at its own offset — this is how one
+      event serves billing, inventory, and analytics without duplication in the log. The coordinator manages group
+      membership and assignments; the offsets are stored in a compacted internal topic.</p>
+
+      <h4>Replication and ISR</h4>
+      <p>Each partition has a leader and N-1 followers. The ISR is the set of followers caught up to the leader's
+      high-water mark. <code>acks=all</code> with <code>min.insync.replicas=2</code> gives no-loss once
+      acknowledged; unclean leader election is disabled so a lagging replica is never promoted. The controller
+      elects a new leader from the ISR within seconds when the old one fails.</p>
+
+      <h4>Delivery guarantees</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Guarantee</th><th>How</th><th>Cost</th></tr></thead>
+          <tbody>
+            <tr><td>At-most-once</td><td><code>acks=0</code>, no retries</td><td>Loss</td></tr>
+            <tr><td>At-least-once</td><td><code>acks=all</code>, retries, consumer commit after processing</td><td>Duplicates</td></tr>
+            <tr><td>Exactly-once effects (Kafka-internal)</td><td>Idempotent producer + transactions + read-committed</td><td>Latency, coordinator overhead</td></tr>
+            <tr><td>Exactly-once effects (external)</td><td>Outbox + idempotent consumer + dedup table</td><td>Complexity</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The transactional API</h4>
+      <p>An idempotent producer assigns a sequence number per partition; the broker dedups retries. A transactional
+      producer with a <code>transactional.id</code> writes to multiple partitions atomically and commits the
+      consumer's offsets in the same transaction. Read-committed consumers see only committed writes. This gives
+      exactly-once effects within Kafka, at the cost of transaction coordinator overhead and read-committed
+      latency.</p>
+
+      <h4>Retention and compaction</h4>
+      <p>Retention is time-based (<code>retention.ms</code>) or size-based (<code>retention.bytes</code>). Compaction
+      (<code>cleanup.policy=compact</code>) keeps the latest value per key — the mechanism behind changelogs, event
+      sourcing, and CDC. Tiered storage moves old segments to object storage, making long retention affordable.</p>
+
+      <h4>Failure modes</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Failure</th><th>Behaviour</th></tr></thead>
+          <tbody>
+            <tr><td>Leader crash</td><td>ISR follower promoted; producer retries with idempotence</td></tr>
+            <tr><td>ISR shrink to 1</td><td>Writes rejected if <code>min.insync.replicas=2</code>; partition unavailable until a replica returns</td></tr>
+            <tr><td>Consumer crash</td><td>Rebalance; new consumer resumes from committed offset; duplicates handled by idempotency</td></tr>
+            <tr><td>Consumer lag exceeds retention</td><td>Messages deleted; consumer's offset out of range; the consumer must reset</td></tr>
+            <tr><td>Controller failure</td><td>Raft election; brief metadata unavailability</td></tr>
+            <tr><td>Schema mismatch</td><td>Schema registry rejects incompatible schema; producer retries or fails</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Kafka's power comes from the log abstraction: everything is a partition, everything is an offset, and
+        multiple groups read independently. The cost is that per-partition ordering is the only ordering, the
+        partition count is a one-way decision, and the operational complexity is real. The alternatives (Pulsar,
+        Kinesis) make different trade-offs, but Kafka's ecosystem is the reason it remains the default.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART B ================= -->
+  <div class="part-band gold">
+    <div class="bar"></div>
+    <h2>Part B — User-Facing Systems
+      <span class="sub">Notifications, chat, and collaboration</span>
+    </h2>
+  </div>
+
+  <!-- Q3 -->
+  <article class="q gold" id="q3">
+    <div class="q-head">
+      <div class="q-num">3</div>
+      <h3>Design a notification system for 100 million daily active users across push, email, SMS, and in-app channels.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A fan-out pipeline with a policy layer: business events enter a queue, an orchestrator resolves the
+        audience, checks preferences and rate caps, renders the template, and dispatches per channel through
+        dedicated adapters. Each channel has its own queue and provider connection. Priority tiers isolate
+        transactional from promotional, and the DLP/push provider is the bottleneck at 100M scale.</p>
+      </div>
+
+      <h4>Requirements and arithmetic</h4>
+      <ul>
+        <li><strong>Scale:</strong> 100M DAU × 10 notifications/day = 1B/day ≈ 11,600/s average.</li>
+        <li><strong>Bursts:</strong> 50M campaign in 30 min ≈ 28,000/s; breaking-news to 20M in 5 min ≈
+        67,000/s.</li>
+        <li><strong>Latency:</strong> OTP and fraud alerts &lt; 1 s to provider; transactional &lt; 5 s;
+        promotional minutes to hours.</li>
+        <li><strong>Guarantees:</strong> critical messages escalate if not acknowledged; promotional are
+        best-effort.</li>
+      </ul>
+
+      <h4>Architecture</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Component</th><th>Role</th></tr></thead>
+          <tbody>
+            <tr><td>Event ingestion</td><td>Services publish notification events to a queue (or a synchronous API for OTPs)</td></tr>
+            <tr><td>Orchestrator</td><td>Resolves audience, checks preferences and rate limits, selects channels, renders templates</td></tr>
+            <tr><td>Preference service</td><td>Per-user, per-channel, per-category opt-ins (Redis-cached); consent audit log</td></tr>
+            <tr><td>Rate limiter</td><td>Per-user, per-category token buckets (Redis); promotional only</td></tr>
+            <tr><td>Template service</td><td>Versioned templates per type/channel/locale; deterministic render</td></tr>
+            <tr><td>Channel adapters</td><td>APNs, FCM, SES, Twilio, in-app inbox; separate queues and connections</td></tr>
+            <tr><td>Delivery tracker</td><td>Sent/delivered/opened/failed per notification per channel; token invalidation</td></tr>
+            <tr><td>Scheduler</td><td>Future-dated sends; quiet-hours defers; timezone-aware</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Priority isolation</h4>
+      <p>Critical (OTP, fraud) and transactional (order, booking) have dedicated queues, workers, and provider
+      connections, with reserved capacity. Promotional has its own queue with hard rate caps. A shared queue with a
+      priority field still has head-of-line blocking because the workers and dependencies are shared.</p>
+
+      <h4>The notification flow</h4>
+      <ol>
+        <li>Business event → queue (or synchronous API for OTPs).</li>
+        <li>Audience resolution: single user, segment, or all-users; chunks of 10k for segments.</li>
+        <li>For each recipient: preference check, rate-limit check, quiet-hours check, channel selection.</li>
+        <li>Render template; validate against schema; fail loudly if invalid.</li>
+        <li>Enqueue to the channel's queue; the channel adapter sends to the provider with retries.</li>
+        <li>Record the delivery receipt; invalidate tokens on 410/UNREGISTERED.</li>
+        <li>Escalation for critical: if not acknowledged within 30 s, SMS; then email; then voice.</li>
+      </ol>
+
+      <h4>The provider bottleneck at 100M</h4>
+      <p>APNs supports a few thousand requests/s per connection; FCM has per-project quotas; SES has sending
+      reputation limits. The 100M-scale design needs multiple provider accounts/connections and topic-based push
+      (one publish to a provider topic reaches all subscribed devices) for broadcast. The recovery from a provider
+      outage is a controlled ramp, not a full queue drain.</p>
+
+      <h4>Failure modes</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Failure</th><th>Handling</th></tr></thead>
+          <tbody>
+            <tr><td>Provider outage</td><td>Circuit breaker; queue locally; escalate critical to other channels; ramp on recovery</td></tr>
+            <tr><td>Invalid token</td><td>Remove immediately; do not retry</td></tr>
+            <tr><td>Preference service down</td><td>Cache last-known preferences; degrade to the defaults; fail safe on opt-outs</td></tr>
+            <tr><td>Rate limiter down</td><td>Fail open for transactional; fail closed for promotional</td></tr>
+            <tr><td>Duplicate send (retry)</td><td>Idempotency key on the notification; consumer dedups</td></tr>
+            <tr><td>Campaign fan-out overwhelms workers</td><td>Chunked fan-out; rate-limited; the queue buffers; progress dashboard</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Separate queues and reserved capacity give strong isolation but cost infrastructure and reduce promotional
+        throughput. A single queue with priorities is simpler but does not isolate. For a system where OTP latency
+        is a business requirement, the isolation is worth the cost.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q4 -->
+  <article class="q gold" id="q4">
+    <div class="q-head">
+      <div class="q-num">4</div>
+      <h3>Design a chat application like WhatsApp. Cover WebSocket, message storage, presence, and offline delivery.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Three planes: connection (WebSocket gateways + registry), storage (sharded message log keyed by
+        <code>(conversation_id, seq)</code>), and delivery (fan-out workers route to the recipient's gateway or
+        push). Presence is a heartbeat-plus-TTL store. Offline delivery is just a cursor read from the log on
+        reconnect. Group chat uses write fan-out for small groups, read fan-out for large channels.</p>
+      </div>
+
+      <h4>Requirements</h4>
+      <ul>
+        <li><strong>Functional:</strong> 1-on-1 and group chat; message history; read receipts; presence; typing
+        indicators; media; multi-device sync; E2E encryption for direct messages.</li>
+        <li><strong>Non-functional:</strong> 50M concurrent connections; 100k messages/s; sub-second delivery; no
+        loss; eventual consistency across devices.</li>
+      </ul>
+
+      <h4>Architecture</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Component</th><th>Role</th></tr></thead>
+          <tbody>
+            <tr><td>WebSocket gateways</td><td>Hold client sockets; register in the registry; forward sends; deliver pushes</td></tr>
+            <tr><td>Connection registry</td><td>Sharded Redis or dedicated service: user → (gateway, connection), TTL-refreshed</td></tr>
+            <tr><td>Chat service</td><td>Assigns seq, validates membership, writes to log, updates per-user conversation index</td></tr>
+            <tr><td>Message log</td><td>Wide-column store (Cassandra): <code>(conversation_id, seq)</code> keyed; media in S3</td></tr>
+            <tr><td>Fan-out workers</td><td>Look up recipient gateways; RPC to gateway; push fallback for offline</td></tr>
+            <tr><td>Presence service</td><td>Heartbeat store with TTL; subscriptions for contacts</td></tr>
+            <tr><td>Push service</td><td>APNs/FCM for offline; topic-based for large channels</td></tr>
+            <tr><td>Read-state store</td><td>Per-user, per-conversation <code>last_read_seq</code>; monotonic upsert</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Data model</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Store</th><th>Key</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td>Messages</td><td><code>(conversation_id, seq)</code></td><td>Body, sender, media refs, timestamps, client_uuid</td></tr>
+            <tr><td>Conversations</td><td><code>conversation_id</code></td><td>Members, created_at, last_message_at</td></tr>
+            <tr><td>User conversations</td><td><code>(user_id, conversation_id)</code></td><td>Last message preview, unread count, last_read_seq</td></tr>
+            <tr><td>Dedup</td><td><code>(sender_id, client_uuid)</code></td><td>Idempotency for retried sends</td></tr>
+            <tr><td>Devices</td><td><code>(user_id, device_id)</code></td><td>Push tokens, last_seen</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The message flow</h4>
+      <ol>
+        <li>Sender's client → WebSocket gateway → chat service.</li>
+        <li>Chat service checks membership, checks dedup, assigns <code>seq</code> (atomic per conversation).</li>
+        <li>Writes message; updates sender's user_conversations index; acks sender with seq.</li>
+        <li>Fan-out worker: look up each recipient in the registry.</li>
+        <li>Online: RPC to the gateway, which writes the frame to the socket.</li>
+        <li>Offline: push notification; client fetches from the log on reconnect.</li>
+      </ol>
+
+      <h4>Ordering and deduplication</h4>
+      <p>Per-conversation <code>seq</code> assigned by the chat service (single-writer per conversation via
+      consistent hashing, or storage-layer atomic counter). The client buffers out-of-order messages and displays
+      from the contiguous prefix. Duplicates are dropped by <code>seq</code>; retried sends are deduplicated by
+      <code>client_uuid</code>.</p>
+
+      <h4>Offline and multi-device</h4>
+      <p>Each device has its own <code>last_seen_seq</code> per conversation. On reconnect, the client sends its
+      cursors and fetches the deltas, paginated and rate-limited. Read state (<code>last_read_seq</code>) is
+      per-user and synced across devices via the same WebSocket. Sent messages from one device fan out to the
+      user's other devices as normal messages.</p>
+
+      <h4>Group chat</h4>
+      <p>Write fan-out for groups ≤ 1,000 (one row per member's inbox or per conversation). Read fan-out for larger
+      groups: the message is stored once, and members fetch from the log. The threshold is where per-message write
+      cost exceeds per-read fetch cost.</p>
+
+      <h4>Presence</h4>
+      <p>Heartbeat every 20–30 s, TTL 60–90 s. Multi-device uses a connection count. Flapping is handled by
+      hysteresis (two missed heartbeats before offline). For large groups, presence is aggregated ("N online") or
+      scoped to visible members. "Last seen" is often a better fit than live presence on mobile.</p>
+
+      <h4>E2E encryption</h4>
+      <p>Signal protocol: identity keypair, signed prekey, one-time prekeys; X3DH handshake; Double Ratchet for
+      forward secrecy. Group messages use sender keys distributed pairwise, or MLS for large groups. The server is
+      a public-key directory and ciphertext router; it never sees plaintext. This breaks server-side search,
+      moderation, and backup — the design must scope E2E to direct messages and leave channels unencrypted if
+      search is required.</p>
+
+      <h4>Failure modes</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Failure</th><th>Handling</th></tr></thead>
+          <tbody>
+            <tr><td>Gateway crash</td><td>Clients reconnect with jitter; registry TTL cleans up; messages recovered from log</td></tr>
+            <tr><td>WebSocket half-open</td><td>Heartbeat timeout detects it; client reconnects; fetch missed</td></tr>
+            <tr><td>Duplicate send</td><td>Dedup by <code>client_uuid</code>; client drops by <code>seq</code></td></tr>
+            <tr><td>Registry outage</td><td>Cache recent lookups; fall back to push; fetch on reconnect</td></tr>
+            <tr><td>Storage shard failure</td><td>Replication factor 3; automatic failover; client retries</td></tr>
+            <tr><td>Reconnect storm</td><td>Jittered backoff; admission control; fleet headroom</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Three planes — connection, storage, delivery. The message log keyed by conversation is the source
+        of truth; WebSocket is the fast path; push is a hint; offline is a cursor read. Group chat uses write
+        fan-out for small groups and read fan-out for large ones." That names the architecture and the fan-out
+        threshold in one answer.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q5 -->
+  <article class="q gold" id="q5">
+    <div class="q-head">
+      <div class="q-num">5</div>
+      <h3>Design a real-time collaboration platform (like Google Docs or Figma). How does messaging enable collaborative editing?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Collaboration is a message-passing problem: each client sends operations (edits) to a server, which orders
+        and broadcasts them to all participants. The correctness depends on a convergence strategy — OT (operational
+        transformation) with a central server or CRDTs (conflict-free replicated data types) with peer-to-peer or
+        server-relayed operations. The transport is a WebSocket, the persistence is an operation log or a CRDT
+        document, and presence/cursors ride on the same connection.</p>
+      </div>
+
+      <h4>Requirements</h4>
+      <ul>
+        <li><strong>Functional:</strong> multiple users edit the same document concurrently; all see a converging
+        state; presence (who is here); cursors (where everyone is); undo/redo per user; offline editing with
+        reconciliation.</li>
+        <li><strong>Non-functional:</strong> sub-100 ms round-trip edit visibility; no data loss; convergence within
+        seconds; 100 concurrent editors per document; millions of documents.</li>
+      </ul>
+
+      <h4>The convergence strategies</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Strategy</th><th>How</th><th>Trade-off</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>OT (Operational Transformation)</td>
+              <td>Central server orders operations; transforms concurrent ops against each other</td>
+              <td>Central authority (server required); transformation matrices are complex</td>
+            </tr>
+            <tr>
+              <td>CRDT (Conflict-free Replicated Data Types)</td>
+              <td>Operations are commutative; replicas converge without central ordering</td>
+              <td>Metadata overhead (tombstones, IDs); harder to enforce invariants</td>
+            </tr>
+            <tr>
+              <td>Lock-based</td>
+              <td>One user edits at a time (lock)</td>
+              <td>No real-time collaboration; only for coarse-grained</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Architecture (server-based OT or CRDT relay)</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Component</th><th>Role</th></tr></thead>
+          <tbody>
+            <tr><td>WebSocket gateways</td><td>Hold connections; forward client ops to the document service; broadcast server ops</td></tr>
+            <tr><td>Document service</td><td>One per document (or sharded by document_id); orders ops, applies them, broadcasts</td></tr>
+            <tr><td>Operation log</td><td>Durable append-only log of ops (per document); the source of truth</td></tr>
+            <tr><td>Document state</td><td>Materialized current state (from replaying the log, with snapshots)</td></tr>
+            <tr><td>Presence/cursor service</td><td>Ephemeral state for who is here and where the cursor is</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The edit flow</h4>
+      <ol>
+        <li>Client applies the edit locally (optimistic) and sends the operation to the server.</li>
+        <li>Server assigns a sequence number; transforms the op against any concurrent ops (OT) or applies it to
+        the CRDT state.</li>
+        <li>Server appends to the op log; broadcasts the transformed op to all other clients.</li>
+        <li>Clients apply the remote op to their local state; OT clients transform their pending ops against the
+        remote; CRDT clients merge.</li>
+        <li>Server acks the sender with the sequence number; the client reconciles.</li>
+      </ol>
+
+      <h4>Document routing</h4>
+      <p>Each document is assigned to a "document actor" — a single service instance that serializes operations for
+      that document. This is a single-writer per document, which makes ordering trivial and avoids the transformation
+      matrix complexity. The actor is stateless apart from the in-memory CRDT/OT state; on crash, it resumes from the
+      op log. Consistent hashing on <code>document_id</code> routes the client's WebSocket to the actor.</p>
+      <p>For very large documents or many concurrent editors, the actor becomes a bottleneck. The mitigation is
+      sub-document actors (per page, per block, per section), each with its own ordering and a merge layer at the
+      document level. The merge is the hard part; most systems accept the single-actor limit up to a few hundred
+      editors.</p>
+
+      <h4>Offline editing</h4>
+      <p>A client that loses connection continues editing locally, accumulating ops. On reconnect, it sends the ops
+      to the server, which transforms them (OT) or merges them (CRDT) against the ops the client missed. OT requires
+      the server to know the client's base version; CRDT handles it natively. The local state is reconciled when
+      the server's response arrives.</p>
+
+      <h4>Persistence and snapshots</h4>
+      <p>The op log is the source of truth; the materialized state is derived. Every N ops, a snapshot of the
+      current state is stored, so loading a document is "load the latest snapshot, replay the ops after it". The
+      snapshot is the cache; the log is the truth. This is event sourcing applied to documents.</p>
+
+      <h4>Presence and cursors</h4>
+      <p>Presence (who is editing) and cursors (where each user's selection is) are ephemeral — they do not need to
+      be persisted. They use the same WebSocket, with a higher message rate and lower durability. The document
+      actor broadcasts cursor updates to all participants; the client renders them as colored carets. On disconnect,
+      the presence is removed via heartbeat timeout.</p>
+
+      <h4>Permissions and history</h4>
+      <p>Every op carries the author's identity. The actor checks the author's permission (can edit this document,
+      this range) before applying. The op log is the history: version history is a replay from a snapshot,
+      undo/redo is per-user op reversal (or a client-side history that re-applies the inverse).</p>
+
+      <h4>Failure modes</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Failure</th><th>Handling</th></tr></thead>
+          <tbody>
+            <tr><td>Document actor crash</td><td>Resume from the op log; clients reconnect and replay their pending ops</td></tr>
+            <tr><td>Client offline</td><td>Local ops queue; merge on reconnect (OT/CRDT)</td></tr>
+            <tr><td>Concurrent edits</td><td>OT transformation / CRDT merge; convergence guaranteed</td></tr>
+            <tr><td>Stale snapshot</td><td>Replay from the snapshot + ops; the actor verifies the version</td></tr>
+            <tr><td>Slow client</td><td>Broadcast may queue; the client's per-connection buffer is bounded; a very slow client is disconnected</td></tr>
+            <tr><td>Op log corruption</td><td>Snapshot + replay from a known-good op; the log is replicated</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>OT gives exact transformation with low metadata, at the cost of a central ordering authority and
+        complex transformation code. CRDT gives peer-to-peer convergence with no central ordering, at the cost of
+        metadata (tombstones, IDs) and difficulty enforcing invariants. Most products choose OT for text (Google
+        Docs) and CRDTs for JSON/rich data (Figma uses a CRDT-like model).</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART C ================= -->
+  <div class="part-band teal">
+    <div class="bar"></div>
+    <h2>Part C — Workflows &amp; Automation
+      <span class="sub">Event pipelines, webhooks, and job scheduling</span>
+    </h2>
+  </div>
+
+  <!-- Q6 -->
+  <article class="q teal" id="q6">
+    <div class="q-head">
+      <div class="q-num">6</div>
+      <h3>Design an event-driven order processing pipeline. How do you guarantee exactly-once processing for payments?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>The order service writes the order and outbox in one transaction; a relay publishes to Kafka keyed by
+        <code>order_id</code>. Payment is synchronous (the user needs the result); inventory, shipping, and
+        notification are async consumers. Exactly-once effects come from the outbox (DB-queue), the provider's
+        idempotency key (external call), and consumer dedup tables (event processing). The saga compensates on
+        inventory failure.</p>
+      </div>
+
+      <h4>Requirements</h4>
+      <ul>
+        <li><strong>Functional:</strong> accept order; charge card; reserve stock; ship; notify; cancel and refund
+        if any step fails.</li>
+        <li><strong>Non-functional:</strong> no double charge; no lost order; consistent ledger; audit trail;
+        per-order ordering.</li>
+      </ul>
+
+      <h4>Pipeline</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Step</th><th>Component</th><th>Consistency</th><th>Mechanism</th></tr></thead>
+          <tbody>
+            <tr><td>1. Accept order</td><td>Order service + outbox</td><td>Local transaction</td><td>Insert order + outbox in one DB transaction</td></tr>
+            <tr><td>2. Charge card</td><td>Payment service (synchronous)</td><td>Provider idempotency</td><td>Idempotency key = order_id; retry safe</td></tr>
+            <tr><td>3. Publish OrderPlaced</td><td>Outbox relay</td><td>At-least-once</td><td>Relay reads outbox, publishes, marks published</td></tr>
+            <tr><td>4. Reserve stock</td><td>Inventory service</td><td>Idempotent consumer</td><td>Dedup by order_id; publish InventoryReserved/Failed</td></tr>
+            <tr><td>5. Create shipment</td><td>Shipping service</td><td>Idempotent consumer</td><td>Dedup by order_id</td></tr>
+            <tr><td>6. Notify</td><td>Notification service</td><td>At-most-once ok</td><td>Idempotency key; duplicate notifications acceptable but minimized</td></tr>
+            <tr><td>7. Update read model</td><td>Order view consumer</td><td>Eventual</td><td>Read model lags; rebuildable from log</td></tr>
+            <tr><td>8. Compensate on failure</td><td>Saga (choreography or orchestration)</td><td>Compensating actions</td><td>Cancel order, refund, notify</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Why payment is synchronous</h4>
+      <p>The user must know whether the charge succeeded before the order is confirmed. A declined card must be
+      visible immediately, not after a delayed event. The payment call is bounded by a timeout (e.g., 3 s); if the
+      provider does not respond, the order is not confirmed (or a "processing" state is shown, and the user is
+      notified when the result arrives).</p>
+
+      <h4>Exactly-once effects</h4>
+      <ul>
+        <li><strong>DB-queue:</strong> the outbox. The order and the event are in one transaction; the relay
+        publishes; the consumer dedups by event ID.</li>
+        <li><strong>External call:</strong> the provider's idempotency key. The payment service sends the same key
+        on retry; the provider returns the original result, not a second charge.</li>
+        <li><strong>Event processing:</strong> a dedup table keyed by <code>order_id</code> + event type. The
+        consumer inserts the key and applies the change in one transaction; a redelivery sees the key and skips.</li>
+      </ul>
+
+      <h4>The compensation flow</h4>
+      <p>If inventory fails after payment succeeded, the saga compensates: the order is cancelled, the payment is
+      refunded (with an idempotency key on the refund), and the user is notified. The compensation is choreographed
+      (each service reacts to the failure event) or orchestrated (a central coordinator drives the compensation
+      sequence). The choice depends on the flow's complexity; a linear flow is choreographed; a branching one is
+      orchestrated.</p>
+
+      <h4>Failure modes</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Failure</th><th>Handling</th></tr></thead>
+          <tbody>
+            <tr><td>Payment declined</td><td>API returns error; order not confirmed; user retries with another method</td></tr>
+            <tr><td>Payment timeout</td><td>Order in "processing"; client polls; the result is delivered by the
+            event stream when it arrives</td></tr>
+            <tr><td>Payment service crash after provider charge</td><td>Idempotency key on retry returns the original result; DB write completes</td></tr>
+            <tr><td>Inventory fails</td><td>Compensation: cancel order, refund, notify</td></tr>
+            <tr><td>Outbox relay crash</td><td>Outbox rows durable; resume on restart; duplicate publishes deduplicated</td></tr>
+            <tr><td>Kafka rebalance during processing</td><td>Cooperative sticky; commit in revoke callback; duplicates deduplicated</td></tr>
+            <tr><td>DLQ after retries</td><td>Business review; fix or discard; redrive idempotently</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Exactly-once effects require the outbox, idempotency keys, and dedup tables at every boundary. The
+        complexity is real, but the alternative — a double charge or a lost order — is unacceptable for payments.
+        For non-financial flows, at-least-once with idempotent consumers is sufficient and simpler.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q7 -->
+  <article class="q teal" id="q7">
+    <div class="q-head">
+      <div class="q-num">7</div>
+      <h3>Design a webhook delivery system. How do you make webhooks reliable, signed, and retry-safe?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A webhook is an HTTP callback: the producer sends a POST to the subscriber's URL when an event happens.
+        The design is a durable outbox per subscriber, an HMAC signature for authenticity, retries with exponential
+        backoff and a DLQ, per-subscriber rate limits, and idempotency (each delivery carries a unique event ID so
+        the subscriber can dedup). Reliability is achieved by treating the webhook as an at-least-once message, not
+        a fire-and-forget HTTP call.</p>
+      </div>
+
+      <h4>Requirements</h4>
+      <ul>
+        <li><strong>Functional:</strong> deliver events to subscriber URLs; signature for authenticity; retries on
+        failure; subscriber can pause/resume; delivery log and replay.</li>
+        <li><strong>Non-functional:</strong> at-least-once delivery; p99 delivery &lt; 5 s; no lost events; protect
+        against SSRF and malicious subscribers.</li>
+      </ul>
+
+      <h4>Architecture</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Component</th><th>Role</th></tr></thead>
+          <tbody>
+            <tr><td>Event source</td><td>Business service publishes events (via outbox) to a webhook topic</td></tr>
+            <tr><td>Subscription registry</td><td>Which subscribers are subscribed to which events; URL, secret, filters</td></tr>
+            <tr><td>Fan-out</td><td>For each event, resolve the subscribers; enqueue a delivery per subscriber</td></tr>
+            <tr><td>Delivery queue</td><td>Per-subscriber queue; rate-limited; ordered within a subscriber</td></tr>
+            <tr><td>Delivery worker</td><td>HTTP POST with signature; timeout; classify response; retry or DLQ</td></tr>
+            <tr><td>Signature service</td><td>HMAC-SHA256 of the payload with the subscriber's secret</td></tr>
+            <tr><td>DLQ</td><td>Per subscriber; failed after retries; replayable</td></tr>
+            <tr><td>Delivery log</td><td>Every attempt recorded: timestamp, status, latency, response</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The delivery flow</h4>
+      <ol>
+        <li>Business event → outbox → webhook topic.</li>
+        <li>Fan-out: look up subscriptions for the event type; enqueue one delivery per subscriber.</li>
+        <li>Delivery worker: build the payload; compute HMAC with the subscriber's secret; POST to the URL with
+        a timeout (e.g., 10 s).</li>
+        <li>2xx → success; log; done.</li>
+        <li>4xx (except 429) → permanent failure; DLQ; do not retry.</li>
+        <li>5xx, timeout, 429 → retry with backoff (1 s, 5 s, 30 s, 5 min, 30 min); max 8 attempts.</li>
+        <li>After exhaustion → DLQ; alert; subscriber sees the failure in the dashboard.</li>
+      </ol>
+
+      <h4>Signatures</h4>
+      <p>Each delivery includes an HMAC-SHA256 signature of the payload (or of <code>timestamp + payload</code>),
+      computed with the subscriber's secret. The subscriber verifies the signature before trusting the payload. The
+      timestamp prevents replay: the subscriber rejects deliveries older than 5 minutes. The secret is per
+      subscriber, rotated on a schedule; the subscriber has a grace period with both secrets to rotate.</p>
+
+      <h4>Idempotency</h4>
+      <p>Each delivery carries a unique <code>event_id</code>. The subscriber should dedup by it — the same event may
+      be delivered twice (retry after a lost ack, or a failed subscription that was later recovered). The
+      subscriber's handler is idempotent: processing the same event twice produces the same state. The delivery
+      system's at-least-once guarantee and the subscriber's idempotency together give exactly-once effects.</p>
+
+      <h4>Per-subscriber isolation</h4>
+      <p>A slow or broken subscriber must not affect the others. The delivery queue is per subscriber (or partitioned
+      by subscriber); the worker pool is shared but the per-subscriber rate limit prevents one from consuming the
+      whole pool. A subscriber that consistently fails is paused (after a threshold) and notified; the others
+      continue.</p>
+
+      <h4>Security</h4>
+      <ul>
+        <li><strong>SSRF prevention:</strong> the subscriber's URL is validated (no internal IPs, no metadata
+        endpoints, no file://). The delivery worker has no network access to internal services.</li>
+        <li><strong>Secret management:</strong> the subscriber's secret is stored encrypted; the signature service
+        decrypts it at delivery time.</li>
+        <li><strong>Rate limits:</strong> per subscriber, to prevent abuse and to protect the egress.</li>
+        <li><strong>Redirects disabled:</strong> the delivery worker does not follow redirects (a redirect to an
+        internal service is an SSRF vector).</li>
+      </ul>
+
+      <h4>Failure modes</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Failure</th><th>Handling</th></tr></thead>
+          <tbody>
+            <tr><td>Subscriber down</td><td>Retry with backoff; DLQ after exhaustion</td></tr>
+            <tr><td>Subscriber returns 4xx</td><td>Permanent failure; DLQ; notify; do not retry (except 429)</td></tr>
+            <tr><td>Subscriber slow</td><td>Timeout; retry; per-subscriber rate limit prevents slot exhaustion</td></tr>
+            <tr><td>Duplicate delivery</td><td>Event ID for subscriber dedup; at-least-once is the contract</td></tr>
+            <tr><td>Signature mismatch</td><td>Subscriber rejects; the delivery log shows it; secret rotation bug</td></tr>
+            <tr><td>SSRF attempt</td><td>URL validation; egress proxy; internal IP blocklist</td></tr>
+            <tr><td>Delivery system crash</td><td>Queue is durable; resume on restart; idempotent workers</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>At-least-once with idempotency is the practical contract for webhooks. Exactly-once delivery is impossible
+        (the subscriber's HTTP response may be lost), so the design pushes idempotency to the subscriber. The
+        alternative — at-most-once — is simpler but loses events when the subscriber is briefly down, which defeats
+        the purpose of a webhook.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q8 -->
+  <article class="q teal" id="q8">
+    <div class="q-head">
+      <div class="q-num">8</div>
+      <h3>Design a distributed job scheduler using a message queue. How do you handle priorities, delayed jobs, and worker failures?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A durable job store (the source of truth), a scheduler that promotes due jobs to a queue, worker pools
+        that consume from priority queues, and a result store that records success/failure. Priorities use separate
+        queues per tier; delayed jobs use a time-indexed store and a scheduler tick; worker failures use visibility
+        timeouts and a DLQ, with idempotent job handlers.</p>
+      </div>
+
+      <h4>Requirements</h4>
+      <ul>
+        <li><strong>Functional:</strong> submit a job with a payload; execute at a scheduled time; priority tiers;
+        retries on failure; cancel a job; view status.</li>
+        <li><strong>Non-functional:</strong> 1M jobs/s enqueued; p99 execution latency &lt; 1 s for high priority;
+        no lost jobs; at-least-once execution with idempotent handlers.</li>
+      </ul>
+
+      <h4>Architecture</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Component</th><th>Role</th></tr></thead>
+          <tbody>
+            <tr><td>Job API</td><td>Submit, cancel, get status; validates and stores the job</td></tr>
+            <tr><td>Job store</td><td>Durable DB (Postgres/Cassandra): job_id, payload, priority, run_at, status, attempts, result</td></tr>
+            <tr><td>Scheduler</td><td>Periodic tick (every second) promotes due jobs from the store to the queues</td></tr>
+            <tr><td>Priority queues</td><td>Separate queues per priority tier (high, default, low); workers pull</td></tr>
+            <tr><td>Worker pools</td><td>Consume from queues; execute the job; update the store; ack</td></tr>
+            <tr><td>DLQ</td><td>Failed after retries; alert; manual review</td></tr>
+            <tr><td>Result store</td><td>Job outputs and status; queryable by the client</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The submit flow</h4>
+      <ol>
+        <li>Client submits a job: payload, priority, run_at (now or future).</li>
+        <li>API validates; assigns job_id; writes to the job store with status <code>pending</code>.</li>
+        <li>If <code>run_at</code> is now, the API immediately promotes it to the priority queue (or the scheduler
+        picks it up within a second).</li>
+        <li>If <code>run_at</code> is future, the scheduler's tick promotes it when due.</li>
+      </ol>
+
+      <h4>The scheduler tick</h4>
+      <p>Every second, the scheduler queries the job store for jobs with <code>run_at &lt;= now</code> and
+      <code>status = pending</code>, in batches (e.g., 1,000). It updates them to <code>queued</code> and
+      publishes them to the appropriate priority queue. The query uses an index on
+      <code>(status, run_at)</code> and only touches the due range, so the tick is O(due jobs), not O(all jobs).</p>
+      <p>The scheduler runs in multiple instances with a leader election (or a distributed lock on the tick) to
+      avoid duplicate promotion. The claim is atomic: <code>UPDATE ... SET status = 'queued' WHERE ... RETURNING</code>
+      ensures each job is promoted once.</p>
+
+      <h4>Priorities</h4>
+      <p>Separate queues per priority tier: high (user-facing, latency-sensitive), default (batch), low (background
+      cleanup). Worker pools are dedicated per tier (or a shared pool with capacity reserved for high). A high-
+      priority job is never behind a low-priority one, because they are in different queues with different
+      workers.</p>
+
+      <h4>Worker failure and retries</h4>
+      <p>The worker consumes a job, executes it, updates the job store, and acks the queue message. If it crashes
+      before the ack, the message is redelivered (visibility timeout). The worker must be idempotent: check the job
+      store's status (or a dedup table keyed by <code>job_id</code>) before executing. The retry count is
+      incremented on each failure; after N retries (e.g., 3), the job goes to the DLQ with the error recorded.</p>
+
+      <h4>Delayed jobs at scale</h4>
+      <p>A separate table for future jobs, partitioned by <code>run_at</code> day. The scheduler's tick scans only
+      today's partition; a job scheduled for a future day is not scanned until that day. This keeps the tick bounded
+      even with millions of future jobs. For precision (sub-second), the scheduler ticks more frequently or uses a
+      time wheel in memory for the next few minutes, backed by the durable store.</p>
+
+      <h4>Job status and results</h4>
+      <p>The job store tracks status: <code>pending</code> → <code>queued</code> → <code>running</code> →
+      <code>succeeded</code> / <code>failed</code> / <code>cancelled</code>. The client polls a status endpoint (or
+      receives a webhook). The result (output) is stored in a result table keyed by <code>job_id</code>; large
+      outputs go to object storage with a reference in the result table.</p>
+
+      <h4>Failure modes</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Failure</th><th>Handling</th></tr></thead>
+          <tbody>
+            <tr><td>Worker crash mid-job</td><td>Visibility timeout; redelivery; idempotent handler checks status</td></tr>
+            <tr><td>Scheduler crash</td><td>Leader election promotes another; the tick resumes</td></tr>
+            <tr><td>Queue unavailable</td><td>Jobs stay in the store as pending; the scheduler retries the
+            promotion when the queue is back</td></tr>
+            <tr><td>Job fails repeatedly</td><td>Retries exhausted → DLQ; alert; operator reviews and redrives</td></tr>
+            <tr><td>Poison job (crashes worker)</td><td>Retries → DLQ; the job is inspected and either fixed or discarded</td></tr>
+            <tr><td>Clock skew on run_at</td><td>The scheduler uses its own clock; the job store's timestamps are
+            advisory; the tick is the authority</td></tr>
+            <tr><td>Cancel during execution</td><td>Best-effort: a cancellation flag is checked between steps; the
+            handler may complete anyway (contract must be specified)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>A DB-backed job store gives durability and queryability at the cost of a database on the critical path;
+        a queue-only design is faster but loses the query and status features. The hybrid — DB for durability and
+        status, queue for execution — is the standard, at the cost of two systems to keep consistent (the store and
+        the queue), which is why the promotion must be idempotent.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Durable job store as the source of truth, a scheduler tick that promotes due jobs to priority
+        queues, worker pools that consume and update the store, and a DLQ for the exhausted retries. Priorities are
+        separate queues; delayed jobs are a time-indexed table; worker failure is a visibility timeout plus
+        idempotent handlers." That names the components and the three key mechanisms.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- SERIES CLOSE -->
+  <section class="next-part">
+    <h3>The Series Is Complete</h3>
+    <p>Ten sections, over a hundred questions, and every mechanism from the partitioned log to the WebSocket gateway
+    to the dedup table to the chaos experiment. The through-line: messaging is the discipline of making one action
+    reach many places correctly, durably, and observably — and every design decision is a trade-off between
+    latency, consistency, availability, and operational cost. The senior skill is not knowing the patterns; it is
+    choosing consciously which trade-off each boundary deserves, and writing that choice down.</p>
+    <ul class="next-list">
+      <li>Section 1 — Chat &amp; Real-Time Messaging</li>
+      <li>Section 2 — Message Queues &amp; Brokers</li>
+      <li>Section 3 — Publish/Subscribe &amp; Streaming</li>
+      <li>Section 4 — Push Notification Systems</li>
+      <li>Section 5 — Real-Time Protocols</li>
+      <li>Section 6 — Delivery Guarantees &amp; Ordering</li>
+      <li>Section 7 — Fan-Out &amp; Group Messaging</li>
+      <li>Section 8 — Event-Driven Architecture</li>
+      <li>Section 9 — Operations &amp; Failure Modes</li>
+      <li>Section 10 — Classic Design Problems</li>
+    </ul>
+  </section>
+
+</div>
+</body>
+</html>
