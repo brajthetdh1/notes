@@ -1,0 +1,1530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Distributed Systems — Volume 3: Consistency, CAP &amp; PACELC</title>
+<style>
+  :root{
+    --ink:#0f172a;
+    --ink-soft:#334155;
+    --muted:#64748b;
+    --line:#e2e8f0;
+    --bg:#f5f5fc;
+    --card:#ffffff;
+    --violet:#7c3aed;
+    --violet-soft:#ede9fe;
+    --indigo:#4f46e5;
+    --indigo-soft:#e0e7ff;
+    --teal:#0d9488;
+    --amber:#d97706;
+    --rose:#e11d48;
+    --blue:#2563eb;
+    --shadow:0 1px 2px rgba(15,23,42,.06), 0 8px 24px -8px rgba(15,23,42,.12);
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 8% -10%, #ede9fe 0%, transparent 60%),
+      radial-gradient(1000px 500px at 100% 0%, #e0e7ff 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:"Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    line-height:1.72;
+    font-size:16.5px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px 90px;}
+
+  header.hero{
+    background:linear-gradient(135deg,#1e1b4b 0%, #312e81 45%, #4c1d95 100%);
+    color:#f8fafc;
+    padding:64px 22px 56px;
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::after{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      radial-gradient(600px 300px at 85% 15%, rgba(139,92,246,.42), transparent 70%),
+      radial-gradient(520px 280px at 12% 92%, rgba(99,102,241,.38), transparent 70%);
+    pointer-events:none;
+  }
+  .hero-inner{max-width:1080px;margin:0 auto;position:relative;z-index:2;}
+  .eyebrow{
+    display:inline-block;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;
+    font-weight:700;padding:7px 15px;border-radius:999px;
+    background:rgba(167,139,250,.18);border:1px solid rgba(167,139,250,.5);
+    color:#c4b5fd;margin-bottom:20px;
+  }
+  header.hero h1{
+    font-size:clamp(1.9rem, 4.4vw, 3rem);line-height:1.15;margin:0 0 16px;
+    font-weight:800;letter-spacing:-.02em;
+  }
+  header.hero h1 span{
+    background:linear-gradient(90deg,#c4b5fd,#a5b4fc);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  header.hero p.lede{font-size:1.06rem;color:#c7d2fe;max-width:780px;margin:0 0 26px;}
+  .meta-chips{display:flex;flex-wrap:wrap;gap:10px;}
+  .chip{
+    font-size:.78rem;font-weight:600;padding:7px 14px;border-radius:999px;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#e2e8f0;
+  }
+
+  .roadmap{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:26px 28px;margin-top:-34px;position:relative;z-index:5;
+  }
+  .roadmap h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 16px;font-weight:700;
+  }
+  .roadmap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;}
+  .roadmap-item{
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:.86rem;
+    background:#fbfcfe;opacity:.7;
+  }
+  .roadmap-item.done{
+    border-color:#c4b5fd;background:linear-gradient(180deg,#f5f3ff,#ffffff);opacity:1;
+  }
+  .roadmap-item.current{
+    border-color:#a78bfa;background:linear-gradient(180deg,#ede9fe,#ffffff);opacity:1;
+    box-shadow:0 0 0 3px rgba(124,58,237,.14);
+  }
+  .roadmap-item .tag{
+    display:inline-block;font-size:.64rem;font-weight:800;letter-spacing:.08em;
+    padding:2px 8px;border-radius:999px;margin-bottom:6px;
+  }
+  .tag-done{background:var(--indigo-soft);color:#3730a3;}
+  .tag-now{background:var(--violet-soft);color:#5b21b6;}
+  .tag-next{background:#e2e8f0;color:#475569;}
+  .roadmap-item strong{display:block;color:var(--ink);font-size:.89rem;}
+
+  nav.toc{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:22px 26px;margin:26px 0 44px;
+  }
+  nav.toc h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 14px;font-weight:700;
+  }
+  nav.toc ol{
+    margin:0;padding-left:0;list-style:none;counter-reset:toc;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:8px 26px;
+  }
+  nav.toc li{
+    counter-increment:toc;font-size:.93rem;padding:6px 0 6px 34px;
+    position:relative;border-bottom:1px dashed #eef2f7;
+  }
+  nav.toc li::before{
+    content:counter(toc);position:absolute;left:0;top:7px;width:22px;height:22px;
+    border-radius:7px;background:var(--violet-soft);color:var(--violet);
+    font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center;
+  }
+  nav.toc a{color:var(--ink-soft);text-decoration:none;font-weight:500;}
+  nav.toc a:hover{color:var(--violet);}
+
+  .part-band{display:flex;align-items:center;gap:16px;margin:56px 0 26px;}
+  .part-band .bar{
+    width:5px;height:44px;border-radius:99px;
+    background:linear-gradient(180deg,var(--violet),#a78bfa);
+  }
+  .part-band.indigo .bar{background:linear-gradient(180deg,var(--indigo),#818cf8);}
+  .part-band.teal .bar{background:linear-gradient(180deg,var(--teal),#2dd4bf);}
+  .part-band h2{margin:0;font-size:1.5rem;letter-spacing:-.01em;font-weight:800;}
+  .part-band .sub{
+    display:block;font-size:.82rem;font-weight:600;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.12em;margin-top:2px;
+  }
+
+  article.q{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:0 0 26px;margin-bottom:28px;overflow:hidden;
+    scroll-margin-top:24px;
+  }
+  .q-head{
+    display:flex;gap:16px;align-items:flex-start;padding:22px 28px 18px;
+    border-bottom:1px solid #eef2f7;background:linear-gradient(180deg,#faf8ff,#ffffff);
+  }
+  .q-num{
+    flex:none;width:42px;height:42px;border-radius:12px;display:flex;
+    align-items:center;justify-content:center;font-weight:800;font-size:.92rem;color:#fff;
+    background:linear-gradient(135deg,#7c3aed,#6366f1);
+    box-shadow:0 6px 14px -6px rgba(124,58,237,.7);
+  }
+  .indigo .q-num{background:linear-gradient(135deg,#4f46e5,#6366f1);box-shadow:0 6px 14px -6px rgba(79,70,229,.7);}
+  .teal .q-num{background:linear-gradient(135deg,#0d9488,#14b8a6);box-shadow:0 6px 14px -6px rgba(13,148,136,.7);}
+  .q-head h3{margin:0;font-size:1.14rem;font-weight:700;line-height:1.4;letter-spacing:-.01em;}
+  .q-body{padding:22px 28px 0;}
+  .q-body p{margin:0 0 15px;color:var(--ink-soft);}
+  .q-body p:last-child{margin-bottom:0;}
+  .q-body h4{margin:24px 0 10px;font-size:.95rem;font-weight:800;color:var(--ink);}
+  .q-body h4::before{content:"▹";color:var(--violet);margin-right:8px;font-size:.85rem;}
+  .indigo .q-body h4::before{color:var(--indigo);}
+  .teal .q-body h4::before{color:var(--teal);}
+  .q-body ul,.q-body ol{margin:0 0 16px;padding-left:22px;color:var(--ink-soft);}
+  .q-body li{margin-bottom:8px;}
+  .q-body li::marker{color:var(--violet);}
+  .indigo .q-body li::marker{color:var(--indigo);}
+  .teal .q-body li::marker{color:var(--teal);}
+  strong{color:var(--ink);font-weight:700;}
+  code{
+    background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;padding:1px 6px;
+    font-size:.87em;font-family:"SFMono-Regular",Consolas,monospace;color:#6d28d9;
+  }
+
+  .callout{border-radius:12px;padding:14px 18px;margin:18px 0 4px;font-size:.93rem;border-left:4px solid;}
+  .callout .label{
+    display:block;font-size:.68rem;font-weight:800;letter-spacing:.13em;
+    text-transform:uppercase;margin-bottom:5px;
+  }
+  .callout p{margin:0 0 8px;font-size:.93rem;}
+  .callout p:last-child{margin-bottom:0;}
+  .answer{background:linear-gradient(180deg,#f5f3ff,#ffffff);border-color:var(--violet);}
+  .answer .label{color:#5b21b6;}
+  .tip{background:linear-gradient(180deg,#eff6ff,#ffffff);border-color:var(--blue);}
+  .tip .label{color:#1d4ed8;}
+  .tradeoff{background:linear-gradient(180deg,#fffbeb,#ffffff);border-color:var(--amber);}
+  .tradeoff .label{color:#b45309;}
+  .pitfall{background:linear-gradient(180deg,#fff1f2,#ffffff);border-color:var(--rose);}
+  .pitfall .label{color:#be123c;}
+
+  .table-scroll{overflow-x:auto;margin:18px 0;border-radius:12px;border:1px solid var(--line);}
+  table{width:100%;border-collapse:collapse;font-size:.87rem;background:#fff;}
+  thead th{
+    background:#f8fafc;text-align:left;padding:11px 14px;font-weight:800;
+    font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+    border-bottom:2px solid var(--line);white-space:nowrap;
+  }
+  tbody td{padding:11px 14px;border-bottom:1px solid #f1f5f9;color:var(--ink-soft);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:nth-child(even){background:#fcfdff;}
+  tbody td:first-child{font-weight:700;color:var(--ink);}
+
+  .next-part{
+    background:linear-gradient(135deg,#1e1b4b,#4c1d95);color:#e2e8f0;
+    border-radius:var(--radius);padding:32px 34px;margin-top:50px;box-shadow:var(--shadow);
+  }
+  .next-part h3{margin:0 0 12px;font-size:1.2rem;color:#fff;font-weight:800;}
+  .next-part p{margin:0 0 16px;color:#c7d2fe;font-size:.95rem;}
+  .next-list{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:10px;list-style:none;padding:0;margin:0;
+  }
+  .next-list li{
+    background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
+    border-radius:10px;padding:10px 14px;font-size:.86rem;color:#e2e8f0;
+  }
+
+  @media (max-width:640px){
+    .q-head{padding:18px 18px 15px;}
+    .q-body{padding:18px 18px 0;}
+    header.hero{padding:44px 18px 46px;}
+    .roadmap{padding:20px;}
+    nav.toc{padding:18px;}
+    nav.toc ol{grid-template-columns:1fr;}
+  }
+  @media print{
+    body{background:#fff;}
+    article.q, nav.toc, .roadmap{box-shadow:none;page-break-inside:avoid;}
+    header.hero{background:#1e1b4b !important;-webkit-print-color-adjust:exact;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Volume 3 · Section 2</span>
+    <h1>Distributed Systems for System Design<br><span>Consistency, CAP &amp; PACELC</span></h1>
+    <p class="lede">
+      The theoretical frameworks that govern every distributed design decision — what CAP actually says, why PACELC
+      is the more useful model, the full spectrum from linearizability to causal consistency, and the practical
+      engineering — quorums, session guarantees, CRDTs — that makes each model achievable in production.
+    </p>
+    <div class="meta-chips">
+      <span class="chip">13 Questions</span>
+      <span class="chip">500+ words each</span>
+      <span class="chip">Theory + engineering</span>
+      <span class="chip">Database-specific examples</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ROADMAP -->
+  <section class="roadmap">
+    <h2>Answer-Series Roadmap</h2>
+    <div class="roadmap-grid">
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 1 — Complete</span>
+        <strong>Fundamentals &amp; Core Concepts</strong>
+        Definitions, fallacies, scaling, HA vs FT, statelessness
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 2 — Complete</span>
+        <strong>Infrastructure, Caching &amp; Communication</strong>
+        Caches, LBs, gateways, CDNs, queues, meshes, monolith vs microservices
+      </div>
+      <div class="roadmap-item current">
+        <span class="tag tag-now">Volume 3 — You are here</span>
+        <strong>Consistency, CAP &amp; PACELC</strong>
+        CAP, PACELC, linearizability, causal, sessions, quorums, CRDTs
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 4</span>
+        <strong>Replication</strong>
+        Leader/follower, multi-leader, CRDTs, read repair, split-brain
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 5</span>
+        <strong>Partitioning &amp; Sharding</strong>
+        Consistent hashing, hot keys, resharding
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 6</span>
+        <strong>Consensus &amp; Leader Election</strong>
+        Paxos, Raft, ZAB, fencing tokens
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 7</span>
+        <strong>Distributed Transactions</strong>
+        2PC, Saga, Outbox, idempotency
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 8</span>
+        <strong>Time, Ordering &amp; Clocks</strong>
+        Lamport, vector clocks, TrueTime, watermarks
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 9</span>
+        <strong>Fault Tolerance &amp; Failure Detection</strong>
+        Circuit breakers, backpressure, chaos engineering
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 10</span>
+        <strong>Communication &amp; Messaging</strong>
+        gRPC, Kafka, delivery semantics, event sourcing
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 11+</span>
+        <strong>Data Structures, Coordination, Scale</strong>
+        Bloom filters, ZooKeeper, Amdahl's Law
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 13+</span>
+        <strong>Multi-Region, Observability, Security</strong>
+        TrueTime, tracing, mTLS, zero trust
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 16</span>
+        <strong>Classic Design Problems</strong>
+        40+ system design prompts solved end-to-end
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 17</span>
+        <strong>Senior &amp; Staff Trade-off Questions</strong>
+        Choosing between every pair of options
+      </div>
+    </div>
+  </section>
+
+  <!-- TOC -->
+  <nav class="toc">
+    <h2>Questions Answered in This Volume</h2>
+    <ol>
+      <li><a href="#q1">State the CAP theorem and explain its three components</a></li>
+      <li><a href="#q2">What are the limitations of the CAP theorem in practice?</a></li>
+      <li><a href="#q3">Explain PACELC and how it extends CAP</a></li>
+      <li><a href="#q4">Strong consistency vs eventual consistency</a></li>
+      <li><a href="#q5">Linearizability vs serializability</a></li>
+      <li><a href="#q6">What is causal consistency, and when is it sufficient?</a></li>
+      <li><a href="#q7">Read-your-writes and monotonic read consistency</a></li>
+      <li><a href="#q8">What is session consistency?</a></li>
+      <li><a href="#q9">How do quorum reads and writes work? R + W &gt; N</a></li>
+      <li><a href="#q10">Consistency models of DynamoDB, Cassandra, and MongoDB</a></li>
+      <li><a href="#q11">How do you handle stale reads in a UI?</a></li>
+      <li><a href="#q12">How do CRDTs achieve strong eventual consistency?</a></li>
+      <li><a href="#q13">How does CAP apply to multi-region deployments?</a></li>
+    </ol>
+  </nav>
+
+  <!-- ================= PART A ================= -->
+  <div class="part-band">
+    <div class="bar"></div>
+    <h2>Part A — The Theoretical Frameworks
+      <span class="sub">CAP, PACELC, and what they actually claim</span>
+    </h2>
+  </div>
+
+  <!-- Q1 -->
+  <article class="q" id="q1">
+    <div class="q-head">
+      <div class="q-num">1</div>
+      <h3>State the CAP theorem and explain its three components.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>CAP states that a distributed data store cannot simultaneously guarantee <strong>Consistency</strong>,
+        <strong>Availability</strong>, and <strong>Partition tolerance</strong> — at most two of the three can be
+        satisfied during a network partition. Since partitions are inevitable in any real network, the practical
+        choice is always between consistency and availability <em>when a partition occurs</em>.</p>
+      </div>
+
+      <h4>What each letter actually means</h4>
+      <p>The formal definitions come from Gilbert and Lynch's 2002 proof of Brewer's conjecture, and they are
+      stricter than the colloquial versions:</p>
+      <ul>
+        <li><strong>Consistency (C)</strong> — here specifically <em>linearizability</em>. Every read sees the most
+        recently completed write, and all operations appear to occur in a single global order. If you write
+        <code>x = 1</code> and the write returns, every subsequent read — from any node — returns 1. This is a much
+        stronger guarantee than “the database doesn't return contradictory rows”.</li>
+        <li><strong>Availability (A)</strong> — every non-failing node must return a non-error response to every
+        request, in a bounded amount of time. Not “the system is up sometimes”; every healthy node must always
+        answer. This is what makes CAP so strong: a single node refusing a read violates A.</li>
+        <li><strong>Partition tolerance (P)</strong> — the system continues to operate despite arbitrary message loss
+        between nodes. A network partition means some nodes cannot communicate with others, and the system must
+        still function.</li>
+      </ul>
+
+      <h4>Why it reduces to CP vs AP</h4>
+      <p>CAP says “pick two of three”, but in practice you cannot choose to give up P. Networks partition — switches
+      fail, cables are cut, datacenters lose connectivity, packets are dropped. A system that does not tolerate
+      partitions is a system that is unavailable whenever the network misbehaves, which is unacceptable. So P is not
+      optional, and the real choice is: <strong>when a partition happens, does the system prioritise consistency or
+      availability?</strong></p>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Choice</th><th>Behaviour during partition</th><th>Example systems</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>CP</strong> — prioritise consistency</td>
+              <td>Minority partition refuses writes and possibly reads; system returns errors rather than stale data</td>
+              <td>ZooKeeper, etcd, HBase, Spanner, CockroachDB, MongoDB (with majority read/write concern)</td>
+            </tr>
+            <tr>
+              <td><strong>AP</strong> — prioritise availability</td>
+              <td>All partitions continue serving; writes diverge and must be reconciled later</td>
+              <td>Cassandra, DynamoDB, Riak, CouchDB, DNS</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The crucial nuance most candidates miss</h4>
+      <p>CAP only describes behaviour <em>during a partition</em>. When the network is healthy — which is 99.9% of
+      the time — you can have both C and A. This is why CAP alone is not a useful design tool: it tells you what
+      happens in the rare disaster, not what happens every millisecond of every day. That gap is exactly what
+      PACELC was invented to fill (Question 3).</p>
+      <p>A second nuance: CAP's “consistency” is linearizability, not the broader consistency of ACID transactions.
+      A system can be “CP” in the CAP sense and still have non-serializable transactions. These are different
+      guarantees that happen to share a letter.</p>
+
+      <h4>Concrete example</h4>
+      <p>Two replicas of a user balance, R1 and R2, connected by a network that partitions. A user withdraws $100
+      from R1 (balance 500 → 400) while another request reads from R2 (still 500). If R2 answers with 500, the system
+      has chosen availability (AP) and the read is stale — inconsistent with the completed write. If R2 refuses to
+      answer until it can confirm R1's state, the system has chosen consistency (CP) but is unavailable on R2.
+      There is no third option: R2 cannot both answer correctly and answer at all while disconnected.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: “Since partitions are unavoidable, this is really a CP-vs-AP question during the partition. For the
+        payment ledger I'll choose CP; for the product catalogue I'll choose AP with reconciliation.” That framing
+        immediately signals that you understand CAP is a partition-behaviour choice, not a three-way sacrifice.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q2 -->
+  <article class="q" id="q2">
+    <div class="q-head">
+      <div class="q-num">2</div>
+      <h3>What are the limitations of the CAP theorem in practice?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>CAP is a binary statement about a rare event. It ignores latency, treats availability as all-or-nothing,
+        doesn't distinguish between degrees of consistency, doesn't describe behaviour in the absence of partitions,
+        and says nothing about partial partitions. It is a useful starting vocabulary, not a useful design
+        framework — which is why PACELC exists.</p>
+      </div>
+
+      <h4>Limitation 1 — It only applies during a partition</h4>
+      <p>Partitions are rare. A well-run system might experience a handful of partitions per year. CAP tells you
+      nothing about the other 8,760 hours, which is when you are choosing not between consistency and availability
+      but between consistency and latency. That trade-off is the one you make on every request, every day, and CAP
+      is silent on it.</p>
+
+      <h4>Limitation 2 — Availability is defined too strictly</h4>
+      <p>CAP's definition of availability requires <em>every non-failing node</em> to respond in bounded time. Under
+      this definition, a system where 99 of 100 nodes respond is not available. In real operations, “available”
+      means “the service as a whole meets its SLO”, which allows degraded performance, a subset of nodes serving,
+      and partial functionality. A system can fail CAP's availability but pass its SLA.</p>
+
+      <h4>Limitation 3 — Consistency is a single, very strong point</h4>
+      <p>CAP's consistency is linearizability, the strongest possible single-object guarantee. But there is a
+      spectrum of consistency models — sequential, causal, read-your-writes, eventual — and most real systems
+      operate somewhere in between. A system that provides causal consistency is neither “C” nor “not C” in CAP's
+      binary taxonomy; it is something more useful that CAP cannot express.</p>
+
+      <h4>Limitation 4 — Partitions are not binary</h4>
+      <p>Real networks experience <strong>gray failures</strong>: partial partitions where some node pairs
+      communicate and others don't, asymmetric connectivity, high latency that looks like loss, and degraded
+      bandwidth that leads to timeouts. CAP treats a partition as a clean split into two groups, which almost never
+      happens. The practical result is unpredictable behaviour: some requests succeed, some fail, and it is not
+      obvious which side of the CAP choice the system has taken because it is straddling both.</p>
+
+      <h4>Limitation 5 — It ignores latency entirely</h4>
+      <p>This is the biggest limitation for real design. A strongly consistent system that takes 200 ms per write
+      is technically available and consistent — it passes CAP — but it is unusable for many workloads. A system
+      that relaxes consistency to gain 20 ms is making a trade-off CAP cannot describe. Every cross-region
+      replicated database confronts this daily.</p>
+
+      <h4>Limitation 6 — Systems are tunable, not classified</h4>
+      <p>Labelling DynamoDB as “AP” is misleading, because DynamoDB offers strongly consistent reads on demand.
+      Labelling MongoDB as “CP” is misleading, because its default write concern is 1 (leader only), which behaves
+      like AP during a partition. The correct statement is: <em>this operation on this system, under this
+      configuration, behaves this way</em>. CAP's classification scheme does not accommodate this granularity, and
+      interview answers that speak in slogans rather than per-operation guarantees are weaker for it.</p>
+
+      <h4>Limitation 7 — It doesn't address the recovery problem</h4>
+      <p>CAP says nothing about what happens <em>after</em> the partition heals. An AP system must reconcile
+      divergent writes; a CP system must re-elect leaders and repair replicas. These recovery semantics are often
+      harder than the partition behaviour itself, and CAP provides no vocabulary for them. The real design question
+      is “how do I converge after the partition?” and that requires understanding conflict resolution, anti-entropy,
+      and CRDTs — none of which appear in CAP.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">The Better Framework</span>
+        <p>Use CAP to establish the vocabulary and to name the partition behaviour. Then use PACELC (Question 3) for
+        the everyday trade-off, and the spectrum of consistency models (Questions 4–8) for the granularity you
+        actually need. Naming all three in an interview demonstrates depth, not just knowledge of the acronym.</p>
+      </div>
+
+      <div class="callout pitfall">
+        <span class="label">Common Misconception</span>
+        <p>“My system is CA.” No — no distributed system is CA, because P is not a choice, it is a property of the
+        network. Systems that ignore partitions do so by sacrificing availability when the partition inevitably
+        arrives. The CA corner is a single-node system, which is not distributed.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q3 -->
+  <article class="q" id="q3">
+    <div class="q-head">
+      <div class="q-num">3</div>
+      <h3>Explain PACELC and how it extends CAP.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>PACELC, proposed by Abadi in 2012, says: <strong>if there is a Partition, choose between Availability and
+        Consistency (the CAP choice); Else, when there is no partition, choose between Latency and Consistency.</strong>
+        This adds the dimension CAP ignores — the latency cost of consistency — and makes the framework useful for
+        the 99.9% of time when the network is healthy.</p>
+      </div>
+
+      <h4>The two-part decision</h4>
+      <p>The notation is <strong>PA/EL</strong> or <strong>PC/EC</strong> — the first pair describes partition
+      behaviour, the second describes normal-operation behaviour. That is where the practical value lies:
+      almost every real system is fully functional during normal operation, and the choice between serving a read in
+      5 ms (eventually consistent) and 200 ms (strongly consistent) is made thousands of times per second.</p>
+
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>Classification</th><th>Partition behaviour</th><th>Normal behaviour</th><th>Example systems</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>PC/EC</strong></td><td>Consistency</td><td>Consistency</td><td>Spanner, CockroachDB, VoltDB, traditional RDBMS (single-node)</td></tr>
+            <tr><td><strong>PA/EC</strong></td><td>Availability</td><td>Consistency</td><td>MongoDB (with majority reads/writes), some configs of DynamoDB</td></tr>
+            <tr><td><strong>PC/EL</strong></td><td>Consistency</td><td>Latency</td><td>Very rare — would mean consistency sacrificed for latency in normal operation but not in partitions, which is unusual</td></tr>
+            <tr><td><strong>PA/EL</strong></td><td>Availability</td><td>Latency</td><td>Cassandra, DynamoDB (default), Riak, most AP systems</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Why the “Else” clause is the important one</h4>
+      <p>Consider two database operations on a replicated dataset:</p>
+      <ul>
+        <li><strong>Strongly consistent read:</strong> the node must contact a quorum of replicas and take the latest
+        version. If the replicas are in three datacenters, that is 50–200 ms of cross-region round-trip latency.</li>
+        <li><strong>Eventually consistent read:</strong> the node serves from local state. Latency is a single-digit
+        millisecond disk read.</li>
+      </ul>
+      <p>Both are valid during a healthy network. The difference is 10× latency — a difference CAP cannot describe
+      but PACELC can. This is the trade-off that decides whether a user perceives a page load as fast or slow, and
+      it is present every moment of every day.</p>
+
+      <h4>Real system classifications, carefully</h4>
+      <p>Spanner is often called PC/EC — strongly consistent, with a latency cost of ~100 ms per commit due to
+      TrueTime and consensus across regions. DynamoDB is PA/EL by default, but strongly consistent reads are
+      available per request, making it tunable. Cassandra is PA/EL but every query can specify its consistency level
+      (ONE, QUORUM, ALL), making it tunable at the operation level. This means the classification is not a property
+      of the product but of the configuration and the specific operation.</p>
+
+      <h4>The latency dimension in one sentence</h4>
+      <p><strong>Consistency costs coordination, and coordination costs round trips, and round trips cost
+      latency.</strong> Every system that offers strong consistency pays this tax, and the tax grows with the
+      geographic distance between replicas. PACELC gives you the vocabulary to name that tax explicitly and to
+      decide whether the workload justifies paying it.</p>
+
+      <h4>How to use PACELC in a design interview</h4>
+      <p>For each data access, ask:</p>
+      <ol>
+        <li>Does this operation tolerate stale data during a partition? (If yes, PA. If no, PC.)</li>
+        <li>Does this operation tolerate the latency of strong consistency during normal operation? (If yes, EC. If
+        no, EL.)</li>
+      </ol>
+      <p>Then design the storage choice and replication strategy to match. A payment ledger answers PC/EC — strong
+      consistency, latency accepted. A social feed answers PA/EL — availability and speed over freshness. A
+      shopping cart answers PA/EC — available during partitions, but every user sees their own cart consistently.
+      Each answer is a design decision, not a label.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: “This is a PACELC decision. During a partition I'll choose availability, and during normal operation
+        I'll choose latency over strong consistency, so this is PA/EL and I'll use eventual consistency with read
+        repair.” That demonstrates both theoretical grounding and the practical taxonomy.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART B ================= -->
+  <div class="part-band indigo">
+    <div class="bar"></div>
+    <h2>Part B — The Spectrum of Consistency Models
+      <span class="sub">From linearizability down to eventual consistency</span>
+    </h2>
+  </div>
+
+  <!-- Q4 -->
+  <article class="q indigo" id="q4">
+    <div class="q-head">
+      <div class="q-num">4</div>
+      <h3>What is the difference between strong consistency and eventual consistency?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p><strong>Strong consistency</strong> guarantees that every read sees the most recent completed write —
+        the system behaves as if there were one copy of the data, updated atomically.
+        <strong>Eventual consistency</strong> guarantees only that, if no new writes occur, all replicas will
+        eventually converge to the same value. Between now and “eventually”, reads may return stale or out-of-order
+        data. Strong is expensive; eventual is cheap but shifts complexity to the application.</p>
+      </div>
+
+      <h4>What strong consistency costs</h4>
+      <p>To guarantee that every read sees the latest write, the system must coordinate across replicas before
+      acknowledging either the write or the read. That coordination takes at least one round trip, usually more,
+      and it must contact a majority of replicas — which means the write cannot proceed if a majority is
+      unreachable. Strong consistency therefore pays in two currencies:</p>
+      <ul>
+        <li><strong>Latency.</strong> The commit latency is bounded below by the round-trip time to the slowest
+        replica in the quorum. In one region this is single-digit milliseconds; across regions it is tens to
+        hundreds.</li>
+        <li><strong>Availability.</strong> A network partition that isolates the quorum from a subset of replicas
+        makes the system refuse writes (or refuse reads) on the minority side, because it cannot guarantee
+        freshness.</li>
+      </ul>
+      <p>Spanner charges ~100 ms for a cross-region strongly consistent write. PostgreSQL on one machine charges
+      microseconds, because the “quorum” is one process. The cost is proportional to the geographical spread of the
+      replicas.</p>
+
+      <h4>What eventual consistency costs</h4>
+      <p>Eventual consistency acknowledges the write at one replica and propagates asynchronously. The write
+      returns in microseconds, and the system is always available — but there is a window (replication lag) during
+      which different replicas hold different values. That window creates specific anomalies:</p>
+      <ul>
+        <li><strong>Stale reads.</strong> A user writes, then reads from a lagged replica, and does not see their
+        own write. Confusing and often unacceptable.</li>
+        <li><strong>Non-monotonic reads.</strong> A user reads value A, refreshes, and reads an older value B because
+        they hit a different, more lagged replica. Violates every intuition.</li>
+        <li><strong>Lost updates.</strong> Two replicas accept conflicting writes and one overwrites the other
+        depending on the conflict resolution policy.</li>
+        <li><strong>Phantom reads of deleted data.</strong> A row was deleted on the primary but the read replica has
+        not yet applied the delete, so it reappears.</li>
+      </ul>
+
+      <h4>The spectrum, not a binary</h4>
+      <p>Between strong and eventual sits a range of useful intermediate guarantees — sequential, causal,
+      read-your-writes, monotonic reads. Each is cheaper than linearizability and stronger than pure eventual
+      consistency, and each matches a specific user expectation. The question is never “strong or eventual” but
+      “which specific anomalies can this user-facing operation tolerate?”</p>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Model</th><th>Guarantee</th><th>Coordination cost</th><th>Use case</th></tr></thead>
+          <tbody>
+            <tr><td>Linearizable</td><td>Every read sees the latest write</td><td>Highest — quorum on every op</td><td>Bank balance, inventory, locks</td></tr>
+            <tr><td>Sequential</td><td>All ops in some total order consistent with program order</td><td>High</td><td>Distributed transactions</td></tr>
+            <tr><td>Causal</td><td>Happens-before respected; concurrent ops can be ordered arbitrarily</td><td>Low — tracking only</td><td>Social feeds, comments, messaging</td></tr>
+            <tr><td>Read-your-writes</td><td>A client sees its own writes on subsequent reads</td><td>Low — per-session</td><td>Profile updates, form submissions</td></tr>
+            <tr><td>Eventual</td><td>Convergence if writes stop</td><td>Minimal</td><td>Likes, view counts, recommendations</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The honest reason eventual is the default</h4>
+      <p>Most data is not read and written by the same user in a tight loop. A product view count, a “likes”
+      number, a recommendation list, a search index, an analytics aggregate — these are eventual by nature because
+      their truth does not matter at the millisecond level. Using strong consistency for them is paying for a
+      guarantee no one needs. The mistake in the other direction — using eventual consistency for a payment ledger
+      or an inventory deduction — is a bug waiting to become an incident.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>“Eventual consistency” is often used in design documents to mean “we didn't specify.” That is not
+        consistency, that is unspecified behaviour. Every eventual-consistency choice should name the convergence
+        window and the conflict resolution policy — “likes converge within 5 seconds via last-write-wins” is a design;
+        “eventual consistency” is a placeholder.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q5 -->
+  <article class="q indigo" id="q5">
+    <div class="q-head">
+      <div class="q-num">5</div>
+      <h3>What is linearizability, and how does it differ from serializability?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p><strong>Linearizability</strong> is a guarantee about <em>single objects</em>: each operation appears to
+        take effect instantaneously at some point between its invocation and its response, respecting real time.
+        <strong>Serializability</strong> is a guarantee about <em>transactions</em>: they appear to execute in some
+        serial order, but that order need not respect real time. They are orthogonal dimensions. The combination —
+        both at once — is called <strong>strict serializability</strong>.</p>
+      </div>
+
+      <h4>Linearizability in detail</h4>
+      <p>A linearizable register guarantees: if write W completes before read R begins, R must return the value
+      written by W (or a later write). More precisely, there exists a total order of all operations such that
+      (a) the order respects real time — if A completed before B started, A comes before B — and (b) every read
+      returns the value of the most recent write in that order. This is the “single, atomic register” abstraction
+      users intuitively expect.</p>
+      <p>The important subtlety: operations can overlap in time, and the “linearization point” can be anywhere within
+      their interval. If read R and write W overlap, R may return either the old or the new value — both are valid
+      linearizable executions. Only operations that are ordered in real time are forced to be ordered in the
+      linearization.</p>
+
+      <h4>Serializability in detail</h4>
+      <p>A serializable transaction system guarantees: the effect of executing a set of transactions concurrently is
+      equivalent to executing them one at a time in some serial order. This is what database isolation levels
+      (2PL, serializable snapshot isolation) provide. Crucially, the serial order need not match real time — a
+      transaction that started earlier could appear later in the serial order as long as no conflict requires
+      otherwise.</p>
+      <p>Serializability is about preserving invariants across multiple objects (bank account balances, inventory
+      quantities) despite concurrency. Linearizability is about the freshness of individual objects. They solve
+      different problems.</p>
+
+      <h4>Concrete example showing they differ</h4>
+      <p>Consider a database that is serializable but not linearizable. Transaction T1 reads x and y, computes
+      <code>z = x + y</code>, writes z. Transaction T2 reads x and y and writes z differently. Serializability
+      guarantees the outcome is some valid serial order of T1 and T2 — no interleaving produces an inconsistent sum.
+      But a client that wrote x, waited for the write to complete, then read z might see a value computed from an
+      older x. That is not linearizable, because the real-time order was not respected. The system could be
+      perfectly serializable while violating linearizability.</p>
+      <p>Conversely, a linearizable system on a single register is not serializable across two registers, because
+      there is no transaction concept at all — you cannot atomically read two registers.</p>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Property</th><th>Linearizability</th><th>Serializability</th></tr></thead>
+          <tbody>
+            <tr><td>Scope</td><td>Single object / operation</td><td>Multi-object transaction</td></tr>
+            <tr><td>Respects real time?</td><td>Yes — required</td><td>No — only program order</td></tr>
+            <tr><td>Concern</td><td>Freshness</td><td>Invariants</td></tr>
+            <tr><td>Violated by</td><td>Stale reads</td><td>Write skew, phantoms</td></tr>
+            <tr><td>Provided by</td><td>Spanner, ZooKeeper, etcd</td><td>Serializable isolation (PostgreSQL SSI, etc.)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Strict serializability — both at once</h4>
+      <p>Strict serializability combines them: transactions are serializable <em>and</em> the serial order respects
+      real time. This is the strongest and most intuitive guarantee, and it is what Spanner claims to provide.
+      CockroachDB provides serializable (without linearizability in all cases) and offers follower reads that are
+      linearizable but not serializable across transactions. The distinction matters when you are choosing a
+      database for a workload that requires both freshness and multi-object invariants.</p>
+
+      <h4>Why the confusion is common</h4>
+      <p>Both start with S or L, both are described as “strong”, and both appear in the same literature. But when
+      an interviewer asks “is your database strongly consistent?”, the right clarification is: “do you mean
+      linearizable reads, or serializable transactions?” A database can provide one without the other, and the
+      design consequences differ substantially.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: “I'll use a strongly consistent store — specifically linearizable reads — for the ledger, and I'll
+        make the transaction layer serializable so transfers don't violate the invariant.” That names both properties
+        and the mechanism, and demonstrates you know they are not the same thing.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q6 -->
+  <article class="q indigo" id="q6">
+    <div class="q-head">
+      <div class="q-num">6</div>
+      <h3>What is causal consistency, and when is it sufficient?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Causal consistency guarantees that operations that are <strong>causally related</strong> are seen by
+        everyone in the same order. If A caused B — A happened-before B — then no replica sees B without having
+        seen A. Operations that are <strong>concurrent</strong> (no causal relationship) can be seen in any order.
+        It is the strongest consistency model achievable in an always-available, partition-tolerant system.</p>
+      </div>
+
+      <h4>The middle ground</h4>
+      <p>Causal consistency sits between eventual and sequential consistency. It is stronger than eventual because it
+      prevents causally impossible histories — a reply appearing before the post it replies to. It is weaker than
+      sequential because concurrent operations can be reordered. It requires no coordination for concurrent
+      operations, which is why it can be provided in a partition-tolerant system.</p>
+
+      <h4>What “causally related” means</h4>
+      <p>Two operations are causally related if one could have influenced the other — through program order on the
+      same node, through a read-write dependency, or through transitivity. Concretely:</p>
+      <ul>
+        <li>User A posts a message (write W).</li>
+        <li>User A then replies to their own message (write W').</li>
+        <li>W happens-before W' because of program order.</li>
+        <li>Causal consistency guarantees every replica sees W before W'.</li>
+      </ul>
+      <p>Now suppose User B comments on A's message. B's comment is causally after W because B must have read W to
+      reply to it. So any replica showing B's comment must also show W. But two independent posts by A and B,
+      with no read-write relationship, are concurrent and can appear in either order — no user should be surprised
+      by either.</p>
+
+      <h4>Why it is often sufficient</h4>
+      <p>Almost every user-facing anomaly that people notice is a <strong>causality violation</strong>:
+      <ul>
+        <li>Seeing a reply before the post it replies to.</li>
+        <li>Seeing a comment on a deleted post.</li>
+        <li>Seeing a message thread in the wrong order.</li>
+        <li>Seeing a “followed” notification before seeing the follow action.</li>
+      </ul>
+      <p>These are the kinds of problems users actually complain about. The anomalies that distinguish sequential from
+      causal consistency — reordered concurrent operations with no causal relationship — are almost invisible to
+      users because there is no semantic expectation of order. A user does not care whether Alice's post or Bob's
+      post appears first if they are unrelated; they do care if a reply appears before its parent. Causal
+      consistency eliminates the anomalies that matter and costs far less than sequential.</p>
+
+      <h4>The theoretical significance</h4>
+      <p>Mahajan, Alvisi, and Dahlin (2011) proved that causal consistency (specifically causal+ — causal plus
+      convergence of concurrent writes) is the strongest consistency model that can be provided in a
+      partition-tolerant, always-available, one-way communication system. Weaker than causal, you get anomalies users
+      notice; stronger than causal, you need coordination, which sacrifices availability. This is the technical
+      justification for the industry's shift towards causally consistent systems (MongoDB causal sessions, Cosmos DB
+      consistency levels, some CRDT-based stores).</p>
+
+      <h4>How it is implemented</h4>
+      <p>Implementations typically track causal dependencies using version vectors or hybrid logical clocks. When a
+      node writes, it attaches the dependency metadata; when a replica receives a write, it blocks applying it until
+      all its causal dependencies have been applied. The overhead is metadata per write — a few dozen bytes — and
+      occasional buffering of writes awaiting their dependencies. The coordination cost is zero for concurrent
+      operations, which is why the model remains always-available.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Causal consistency is not free: the metadata overhead is real (version vectors grow with the number of
+        writers), and complex dependency graphs can slow propagation. But for social, messaging, and collaborative
+        applications — where the anomalies users notice are causal — it is the sweet spot between user-visible
+        correctness and availability.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: “For the comment feed I need at least causal consistency so replies never appear before their parents,
+        but concurrent comments can be in any order.” That demonstrates you can reason about user-perceived
+        correctness rather than reaching for linearizability by default.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q7 -->
+  <article class="q indigo" id="q7">
+    <div class="q-head">
+      <div class="q-num">7</div>
+      <h3>What is read-your-writes consistency, and how do you implement it?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Read-your-writes (RYW) guarantees that after a client performs a write, its subsequent reads — within the
+        same session — will see that write (or a later one). It is a per-session guarantee, not a global one:
+        other users may still see stale data, but the writer does not. It is the minimum consistency users expect,
+        and it is achievable without any global coordination.</p>
+      </div>
+
+      <h4>Why it is the intuitive baseline</h4>
+      <p>Imagine posting a photo, refreshing the feed, and not seeing it. The user assumes the post failed and
+      re-posts, creating duplicates. This is not a subtle correctness issue — it is a fundamental UX break. Users
+      expect: “I wrote it, therefore I see it.” Delivering that expectation requires read-your-writes consistency,
+      and nothing weaker will do.</p>
+      <p>RYW is weaker than linearizability because it only constrains the writer's own session. Alice writes to
+      her profile, and Bob might still see the old profile for a few seconds. That is usually acceptable; Bob has no
+      real-time expectation about Alice's data. But Alice seeing her own stale data is not acceptable.</p>
+
+      <h4>How to implement it</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Technique</th><th>Mechanism</th><th>Trade-off</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Sticky routing to the primary</td>
+              <td>After a write, route the user's reads to the leader for N seconds</td>
+              <td>Simple; requires session tracking; load concentrates on leader</td>
+            </tr>
+            <tr>
+              <td>Version tracking</td>
+              <td>Write returns a version/timestamp; client sends it on read; replica waits or rejects if behind</td>
+              <td>Client changes; replica may block on lag</td>
+            </tr>
+            <tr>
+              <td>Write-through session cache</td>
+              <td>Write updates a per-session cache; reads consult cache before replica</td>
+              <td>Extra cache layer; needs invalidation</td>
+            </tr>
+            <tr>
+              <td>Optimistic local echo</td>
+              <td>Client stores the write locally and merges with server data; reconciles when available</td>
+              <td>Eventually consistent UI; must handle conflicts</td>
+            </tr>
+            <tr>
+              <td>Synchronous replication for the writer</td>
+              <td>Write waits for at least one replica to be updated before acking</td>
+              <td>Higher write latency; still no guarantee about other replicas</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The version-token approach in detail</h4>
+      <p>The cleanest solution uses vector clocks or logical timestamps. On write, the primary returns a version
+      number V. On read, the client includes V in the request. The replica checks: if its own version is ≥ V, serve
+      the read; if not, either wait until it catches up (bounded by a timeout) or return a “not ready” signal that
+      the client can retry. This is how MongoDB causal sessions and Cosmos DB session consistency work under the
+      hood. It is precise, requires modest client changes, and degrades gracefully — a request that times out
+      waiting can simply fall back to the primary.</p>
+
+      <h4>The monotonic reads companion guarantee</h4>
+      <p>RYW is often paired with <strong>monotonic reads</strong>: once a client has seen a value, subsequent reads
+      never return an older one. Without monotonic reads, a client could write, read the fresh value, refresh, hit a
+      laggier replica, and see the old value again — a different but equally confusing anomaly. Together, RYW +
+      monotonic reads form the minimal “sane session” guarantee that most consumer applications need.</p>
+
+      <h4>When it is not enough</h4>
+      <p>RYW does not guarantee that a user sees another user's writes. If Alice posts a comment and Bob is watching
+      the thread, Bob may still see the pre-comment state. If the product needs Bob to see Alice's comment “in real
+      time”, the system needs either causal consistency (delivering comments in causal order) or a push channel
+      (WebSocket, SSE) — not a stronger database consistency model. The right abstraction depends on the product
+      requirement, not on a generic “stronger is better” instinct.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Implementing RYW by always routing the user to the primary. It works, but it defeats the entire purpose of
+        read replicas and concentrates load on the most fragile node. Always route to the primary only for a short
+        window after a write, or use version tracking to serve from replicas when they are caught up.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q8 -->
+  <article class="q indigo" id="q8">
+    <div class="q-head">
+      <div class="q-num">8</div>
+      <h3>What is session consistency, and what are the four session guarantees?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Session consistency is a family of guarantees scoped to a single client session. The four classic session
+        guarantees are <strong>read-your-writes</strong>, <strong>monotonic reads</strong>,
+        <strong>monotonic writes</strong>, and <strong>writes-follow-reads</strong>. They cost essentially nothing
+        to implement because they only require tracking per-session metadata — no global coordination — yet they
+        eliminate almost every anomaly a user perceives.</p>
+      </div>
+
+      <h4>The four guarantees</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Guarantee</th><th>Statement</th><th>What it prevents</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Read-your-writes</td>
+              <td>A client's reads see its own earlier writes</td>
+              <td>Posting a photo and not seeing it in the feed</td>
+            </tr>
+            <tr>
+              <td>Monotonic reads</td>
+              <td>A client never reads a value older than one it has already seen</td>
+              <td>Refreshing and seeing an older state — a count going down, a comment disappearing</td>
+            </tr>
+            <tr>
+              <td>Monotonic writes</td>
+              <td>A client's writes are applied in the order the client issued them</td>
+              <td>A rename followed by a delete applying in reverse order</td>
+            </tr>
+            <tr>
+              <td>Writes-follow-reads</td>
+              <td>A client's write is ordered after any read the client has already performed</td>
+              <td>A reply being applied to a version of the post that the replier had not seen</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The common abstraction: PRAM</h4>
+      <p>The combination of read-your-writes, monotonic reads, and monotonic writes is called <strong>PRAM</strong>
+      (Pipeline RAM) consistency. It creates the illusion that the client is interacting with a single, private copy
+      of the data — every session sees a monotonic, causally coherent view of its own operations. PRAM is
+      achievable without global coordination and matches the mental model of an individual user far better than any
+      global guarantee.</p>
+
+      <h4>Implementation — session tokens</h4>
+      <p>The standard mechanism is a session token. On every write, the server returns a token representing the
+      causal context — a version vector, a hybrid logical clock, or a simple version number. On every read, the client
+      sends the token. The server checks whether the replica has advanced to at least that point; if yes, serve the
+      read locally; if no, route to a replica that has caught up, or wait, or fall back to the primary. The token is
+      carried as a cookie, an HTTP header, or a field in the session store, and it is derived entirely from the
+      session's own history.</p>
+      <p>This is exactly how Cosmos DB session consistency works, and how MongoDB causal sessions are implemented.
+      The overhead is a few bytes per request and a small amount of state; the benefit is a user experience that
+      feels strongly consistent even on a fundamentally eventually consistent backend.</p>
+
+      <h4>Why session consistency is the right default for consumer apps</h4>
+      <p>Users do not care whether the global system is linearizable. They care that their own actions have visible
+      effects and that the screen does not contradict itself between refreshes. Session guarantees deliver both, at
+      essentially no coordination cost. A globally eventually consistent system with session consistency is
+      indistinguishable from a strongly consistent system from the point of view of any individual user — which is
+      the only point of view the user has.</p>
+
+      <h4>What session consistency does not solve</h4>
+      <p>It does not give users visibility into other users' recent writes. If Alice writes and Bob reads, Bob may
+      still see stale data. For multi-user real-time interactions — chat, collaborative editing, live auctions — the
+      system needs either causal consistency (so causally related operations are globally ordered) or an explicit
+      real-time delivery channel. Session consistency is a per-user illusion; the product may need a per-conversation
+      or per-document one.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Session guarantees are cheap, but they require end-to-end participation — the client must carry the token,
+        every server must respect it, and every replica must report its freshness. That is an architectural
+        commitment, not a database feature you can enable by accident. The payoff is that the system can use
+        aggressive replication, read replicas, and cross-region reads while still presenting a coherent experience
+        per user.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: “I'll implement read-your-writes and monotonic reads using a version-token carried in the session, so
+        the user's own view is always fresh while the system remains eventually consistent across users.” That
+        demonstrates a pragmatic understanding of which guarantee matters and how to deliver it cheaply.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART C ================= -->
+  <div class="part-band teal">
+    <div class="bar"></div>
+    <h2>Part C — Making It Work in Production
+      <span class="sub">Quorums, real databases, UI patterns, CRDTs, multi-region</span>
+    </h2>
+  </div>
+
+  <!-- Q9 -->
+  <article class="q teal" id="q9">
+    <div class="q-head">
+      <div class="q-num">9</div>
+      <h3>How do quorum reads and writes work? Explain R + W &gt; N.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>With <strong>N</strong> replicas, a write is acknowledged after <strong>W</strong> replicas confirm it, and
+        a read queries <strong>R</strong> replicas. If <strong>R + W &gt; N</strong>, every read quorum overlaps every
+        write quorum by at least one node, so at least one responding replica has the latest write. The read can
+        then return the freshest value seen among the R responses.</p>
+      </div>
+
+      <h4>The overlapping-quorum argument</h4>
+      <p>Suppose N = 3, W = 2, R = 2. Every write reaches at least 2 replicas, and every read queries 2 replicas.
+      Any two 2-element subsets of a 3-element set must overlap in at least one element. So every read is guaranteed
+      to contact at least one replica that received the most recent write. That replica returns the latest version,
+      and the read returns the maximum. This is the mathematical heart of quorum systems: overlapping majorities
+      guarantee visibility.</p>
+
+      <h4>Choosing R and W</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Configuration (N=3)</th><th>R + W</th><th>Behaviour</th><th>Use case</th></tr></thead>
+          <tbody>
+            <tr><td>W=3, R=1</td><td>4 &gt; 3</td><td>Fast reads; every write must reach all replicas (fragile)</td><td>Read-heavy; tolerate write unavailability on one node</td></tr>
+            <tr><td>W=2, R=2</td><td>4 &gt; 3</td><td>Balanced; one node can fail on either side</td><td>General purpose</td></tr>
+            <tr><td>W=1, R=3</td><td>4 &gt; 3</td><td>Fast writes; reads query all replicas (slow)</td><td>Write-heavy</td></tr>
+            <tr><td>W=1, R=1</td><td>2 &lt; 3</td><td>No overlap guarantee; reads may be stale</td><td>Eventual consistency</td></tr>
+            <tr><td>W=2, R=1</td><td>3 = 3</td><td>No guaranteed overlap (the sets can be disjoint)</td><td>Eventual consistency</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The choice is a trade-off between write latency/availability and read latency/freshness. A write with W=3
+      is blocked by any single replica failure; a read with R=3 is blocked by any single replica failure. W=2, R=2
+      tolerates one failure on either side while retaining the overlap guarantee.</p>
+
+      <h4>The crucial caveat: quorum ≠ linearizability</h4>
+      <p>R + W &gt; N gives you “read the freshest of the R responses”, but it does not give linearizability. Several
+      issues can break the guarantee in practice:</p>
+      <ul>
+        <li><strong>Non-atomic writes.</strong> If the write operation is not itself atomic across replicas — some
+        nodes get the new value, others the old — a read may see a partially applied write.</li>
+        <li><strong>Concurrent writes.</strong> Two writers at W=2 may both succeed on overlapping but different
+        subsets, leaving replicas with conflicting values. The read sees one or the other arbitrarily.</li>
+        <li><strong>Sloppy quorums.</strong> Dynamo-style systems allow a write to be acknowledged by “hinted” nodes
+        that are not the designated replicas, so the “quorum” may not overlap the read quorum in the intended way.</li>
+        <li><strong>Read repair races.</strong> If a read discovers divergent values and repairs in the background,
+        the repair itself may take time.</li>
+        <li><strong>Replica catch-up.</strong> A replica that was down during the write may rejoin with stale data,
+        and a read quorum including it might return stale data.</li>
+      </ul>
+      <p>These are not theoretical — Jepsen's analyses of Cassandra and DynamoDB have documented each. The honest
+      statement is: quorums give strong probabilistic freshness, not linearizability. Achieving linearizability
+      requires additional mechanisms — read repair with quorum confirmation, consensus-based commits, or a
+      single-leader design.</p>
+
+      <h4>Quorum and local vs global</h4>
+      <p>In multi-region deployments, quorum is usually scoped per region: LOCAL_QUORUM in Cassandra requires a
+      majority of replicas within the local region, which gives low latency while ensuring a single region's data
+      is fresh. A cross-region EACH_QUORUM provides a stronger global guarantee at significant latency cost.
+      Choosing between them is the PACELC decision in miniature: local quorum is EL, global quorum is EC.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Assuming R + W &gt; N implies strong consistency without checking whether the underlying engine provides
+        atomic multi-replica writes and read repair. Many systems advertise quorum consistency but deliver only
+        “read-repair eventually”, which allows stale reads during the window before repair. Read the documentation
+        of the specific engine and test it under failure.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q10 -->
+  <article class="q teal" id="q10">
+    <div class="q-head">
+      <div class="q-num">10</div>
+      <h3>Compare the consistency models of DynamoDB, Cassandra, and MongoDB.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>DynamoDB is <strong>eventually consistent by default, strongly consistent on request</strong>, with
+        transactions available. Cassandra is <strong>tunable per query</strong> via consistency levels (ONE,
+        QUORUM, ALL, LOCAL_QUORUM). MongoDB exposes separate <strong>read concern</strong> and <strong>write
+        concern</strong> settings plus <strong>causal sessions</strong>. All three are PA/EL by default but offer
+        paths to stronger guarantees — at latency and availability cost.</p>
+      </div>
+
+      <h4>DynamoDB</h4>
+      <p>By default, <code>GetItem</code> and <code>Query</code> are eventually consistent and cost 1 read capacity
+      unit. Setting <code>ConsistentRead=true</code> gives a strongly consistent read — always sees the latest
+      committed write — at the cost of 2 RCUs and higher latency (the read must contact a quorum of replicas rather
+      than the nearest one). DynamoDB uses a single-writer-per-partition model with synchronous replication to
+      three availability zones within a region, so strongly consistent reads are available and reasonably fast.</p>
+      <p>For multi-item atomicity, DynamoDB offers <code>TransactWriteItems</code> and <code>TransactGetItems</code>,
+      which provide ACID semantics across up to 100 items and cost 2× the normal capacity. Global Tables are
+      eventually consistent across regions with last-writer-wins conflict resolution; there is no strongly consistent
+      cross-region mode. This is a clean PA/EL design with EC available per-request within a region.</p>
+
+      <h4>Cassandra</h4>
+      <p>Cassandra exposes consistency as a per-query setting, which is both its strength and its complexity. The
+      levels:</p>
+      <ul>
+        <li><strong>ONE</strong> — read/write from a single replica. Fastest; no freshness guarantee.</li>
+        <li><strong>QUORUM</strong> — majority of replicas in the cluster. With R=QUORUM and W=QUORUM, gives quorum
+        freshness (with the caveats from Question 9).</li>
+        <li><strong>ALL</strong> — every replica must respond. Strongest, but any node failure blocks the operation.</li>
+        <li><strong>LOCAL_QUORUM</strong> — majority within the local datacenter. Low latency; single-DC
+        consistency but not global.</li>
+        <li><strong>EACH_QUORUM</strong> — quorum in every datacenter. Global consistency; higher latency.</li>
+        <li><strong>LOCAL_SERIAL</strong> — used with lightweight transactions (compare-and-set), which use Paxos.</li>
+      </ul>
+      <p>Cassandra's model is tunable per query, so the same cluster can serve both strongly and weakly consistent
+      workloads. The operational burden is that the developer must choose — and get it right — for every access
+      pattern. The engine does not enforce or even warn about the choice.</p>
+
+      <h4>MongoDB</h4>
+      <p>MongoDB separates two orthogonal settings and adds a session-level abstraction:</p>
+      <ul>
+        <li><strong>Write concern</strong> — how many nodes must acknowledge the write. <code>{w:1}</code> (default,
+        leader only) is fast but loses writes on failover; <code>{w:"majority"}</code> waits for a majority of
+        replicas and is durable; <code>{w:"majority", j:true}</code> additionally waits for the journal on a majority.</li>
+        <li><strong>Read concern</strong> — how fresh the read data must be. <code>"local"</code> (default) reads
+        whatever the node has; <code>"majority"</code> reads only data acknowledged by a majority of replicas;
+        <code>"linearizable"</code> waits for confirmation that the read is not stale.</li>
+        <li><strong>Causal sessions</strong> — the session-level guarantee from Question 8, implemented via a
+        server-side cluster time and client-side operation time.</li>
+      </ul>
+      <p>The combination gives fine-grained control. <code>{readConcern:"majority", writeConcern:"majority"}</code>
+      with a causal session provides a strongly consistent, causally coherent experience per session without full
+      linearizability. <code>{readConcern:"linearizable"}</code> on a single document provides linearizable reads at
+      significant latency cost.</p>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Feature</th><th>DynamoDB</th><th>Cassandra</th><th>MongoDB</th></tr></thead>
+          <tbody>
+            <tr><td>Default consistency</td><td>Eventual</td><td>ONE (configurable)</td><td>Local read, w:1</td></tr>
+            <tr><td>Strong read</td><td>Per-request flag</td><td>Consistency level</td><td>Read concern</td></tr>
+            <tr><td>Strong write</td><td>Implicit (multi-AZ)</td><td>Consistency level</td><td>Write concern</td></tr>
+            <tr><td>Cross-item transactions</td><td>TransactWriteItems</td><td>LWT (single partition)</td><td>Multi-document (4.0+)</td></tr>
+            <tr><td>Session consistency</td><td>Manual</td><td>Manual</td><td>Causal sessions</td></tr>
+            <tr><td>Multi-region consistency</td><td>Eventual (Global Tables)</td><td>LOCAL/EACH_QUORUM</td><td>Zone-based, eventual</td></tr>
+            <tr><td>PACELC classification</td><td>PA/EL, EC on request</td><td>PA/EL, tunable to PC/EC</td><td>PA/EC with majority</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>What this means in a design interview</h4>
+      <p>When you choose one of these systems, name the specific configuration and the guarantee it provides. Saying
+      “I'll use DynamoDB with <code>ConsistentRead=true</code> for the balance lookup and eventual reads for the
+      history list” is far stronger than “I'll use DynamoDB”. The database is a toolbox, not a label, and the
+      consistency decision must be made per operation.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: “For the ledger I'll use Cassandra with QUORUM reads and QUORUM writes to get quorum freshness, or
+        DynamoDB with <code>ConsistentRead=true</code>. For the activity feed I'll use ONE/LOCAL_QUORUM reads with
+        eventual consistency.” That demonstrates both theoretical and operational awareness.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q11 -->
+  <article class="q teal" id="q11">
+    <div class="q-head">
+      <div class="q-num">11</div>
+      <h3>How do you handle stale reads in a user-facing UI?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Stale reads are inevitable in any eventually consistent system, so the job is not to eliminate them but to
+        make them <strong>invisible or harmless</strong>. Techniques: optimistic local echo, read-your-writes routing,
+        version tokens, layered caches with short TTLs, and UI affordances that reset expectations. The right mix
+        depends on which reads matter to the user and how stale they can tolerate.</p>
+      </div>
+
+      <h4>Step 1 — Classify the reads</h4>
+      <p>Not every read in a UI has the same freshness requirement. Before choosing a technique, draw the screen and
+      mark each read:</p>
+      <ul>
+        <li><strong>The user's own write</strong> (post, comment, profile edit) — the user must see it immediately.
+        This is a read-your-writes requirement.</li>
+        <li><strong>A fresh read of the user's own data</strong> (unread count, inbox, notifications) — should be
+        current; users notice if it isn't.</li>
+        <li><strong>Other users' recent activity</strong> — can tolerate seconds of staleness; users do not expect
+        real-time.</li>
+        <li><strong>Aggregates and counters</strong> (likes, views, follower counts) — can tolerate minutes of
+        staleness; nobody measures.</li>
+        <li><strong>Historical and search data</strong> — can tolerate much longer; staleness of hours is fine.</li>
+      </ul>
+
+      <h4>Step 2 — Match techniques to categories</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Technique</th><th>Freshness provided</th><th>Best for</th></tr></thead>
+          <tbody>
+            <tr><td>Optimistic local echo</td><td>Instant for the writer</td><td>Posts, comments, likes — merges with server data on load</td></tr>
+            <tr><td>Read-your-writes routing</td><td>Fresh on next read</td><td>Form submissions, profile edits — session-scoped</td></tr>
+            <tr><td>Version token</td><td>Fresh, verified per request</td><td>Anything that must be both fast and correct — the precise mechanism</td></tr>
+            <tr><td>Short-TTL cache</td><td>Fresh within N seconds</td><td>Activity feeds, counts — bounded staleness is acceptable</td></tr>
+            <tr><td>Primary fallback for own data</td><td>Always fresh</td><td>Critical reads — expensive but simple</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Step 3 — The optimistic echo pattern</h4>
+      <p>The most common and most effective technique for user-generated content. The client writes the data to a
+      local store (Redux, IndexedDB, an in-memory model) and updates the UI immediately, without waiting for the
+      server. The server response then reconciles the local state. If the server rejects the write (rare), the local
+      echo is rolled back with a visible error. Users see their post instantly, even though the system is eventually
+      consistent. The complexity is modest — a reconciliation function — and the UX benefit is enormous.</p>
+
+      <h4>Step 4 — The consistency boundary</h4>
+      <p>A key insight from production systems: <strong>only the user's own actions require strong consistency;
+      everything else can be eventual.</strong> A social feed can show stale comments from other users; it cannot
+      show stale state of the current user's own comment. This distinction lets the system use cheap eventual
+      consistency almost everywhere while routing just the write-adjacent reads to a fresh source. The result is
+      a UI that feels strongly consistent at a fraction of the cost.</p>
+
+      <h4>Step 5 — Make staleness visible when it is unavoidable</h4>
+      <p>Some systems cannot avoid staleness and should not pretend otherwise. Showing “Updated 2 minutes ago” or a
+      refresh button sets accurate expectations. A “pending” indicator on a post that has been written but not yet
+      propagated is better than showing nothing. When the API is genuinely eventually consistent, the UI should
+      communicate it — but only when the staleness is unavoidable, not as an excuse for a slow system.</p>
+
+      <h4>The worst pattern</h4>
+      <p>Serving stale data silently while the UI pretends it is fresh. This creates the duplicate-posting,
+      double-clicking, missing-comment behaviour that motivates the whole problem. The user assumes the action
+      failed and retries, which under at-least-once semantics creates duplicates or double charges. Every
+      eventually consistent write endpoint should be idempotent, and every stale-read situation should be either
+      invisible (via echo) or explicitly indicated.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Relying on the browser's HTTP cache or a CDN to hide staleness without considering cache-key correctness.
+        A cached response with a per-user body served to another user is not a staleness problem — it is a data
+        leak. Any response that varies by identity must not be cached under a shared key.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q12 -->
+  <article class="q teal" id="q12">
+    <div class="q-head">
+      <div class="q-num">12</div>
+      <h3>How do CRDTs achieve strong eventual consistency?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A CRDT (Conflict-free Replicated Data Type) is a data structure whose replicas can be updated independently
+        and merged deterministically, without coordination, converging to the same state once all updates are
+        exchanged. It provides <strong>strong eventual consistency</strong> — all correct replicas that have seen the
+        same set of updates are identical — because the merge function is commutative, associative, and idempotent.</p>
+      </div>
+
+      <h4>The mathematical foundation</h4>
+      <p>A CRDT exploits properties of a <strong>join semilattice</strong>: a partially ordered set where every pair
+      of elements has a least upper bound (the “join” or “merge”). If the merge operation has these properties,
+      replica order does not matter:</p>
+      <ul>
+        <li><strong>Commutativity</strong> — merge(A, B) = merge(B, A). The order replicas communicate does not
+        affect the outcome.</li>
+        <li><strong>Associativity</strong> — merge(merge(A, B), C) = merge(A, merge(B, C)). Grouping of updates does
+        not matter.</li>
+        <li><strong>Idempotence</strong> — merge(A, A) = A. Receiving the same update twice has no effect, which
+        handles duplicate delivery from at-least-once networks.</li>
+      </ul>
+      <p>These three properties guarantee convergence regardless of message order, duplication, or delay. That is
+      the whole trick: no coordination because the operation is well-defined as an unordered join.</p>
+
+      <h4>Common CRDT types</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Type</th><th>Semantics</th><th>Implementation</th></tr></thead>
+          <tbody>
+            <tr><td>G-Counter (grow-only counter)</td><td>Only increments</td><td>Per-replica counter vector; value = sum of all entries</td></tr>
+            <tr><td>PN-Counter</td><td>Increments and decrements</td><td>Two G-Counters, one for + and one for −</td></tr>
+            <tr><td>G-Set</td><td>Grow-only set</td><td>Union of additions</td></tr>
+            <tr><td>2P-Set</td><td>Add then remove, but no re-add</td><td>Two G-Sets — added and removed</td></tr>
+            <tr><td>OR-Set (observed-remove set)</td><td>Add and remove freely</td><td>Each add is tagged; removes tag only the adds they observed</td></tr>
+            <tr><td>LWW-Register</td><td>Last-writer-wins register</td><td>Value plus timestamp; higher timestamp wins</td></tr>
+            <tr><td>MV-Register</td><td>Multi-value register, keeps conflicts</td><td>Version vector; retains concurrent values for user resolution</td></tr>
+            <tr><td>RGA / Yjs sequence</td><td>Ordered sequences (text)</td><td>Unique IDs per character; merge by ID order</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Concrete example — the OR-Set</h4>
+      <p>An OR-Set allows additions and removals without coordination. Each add tags the element with a unique ID.
+      A remove operation removes only the tags the removing replica has actually observed — not later concurrent
+      adds. So if Alice adds X and Bob concurrently removes X, the result is defined: Bob's remove did not observe
+      Alice's add, so the add survives, and the final state contains X. This is the “add wins” semantics that users
+      intuitively expect (you do not lose data because of a concurrent delete).</p>
+
+      <h4>What CRDTs cost</h4>
+      <ul>
+        <li><strong>Metadata size.</strong> CRDTs carry per-replica metadata. An OR-Set with 1M elements and 10
+        replicas may carry tens of MB of metadata. The space overhead is proportional to the number of replicas
+        and operations.</li>
+        <li><strong>Garbage collection of tombstones.</strong> Removals must be recorded (so later merges know the
+        element was removed), and these tombstones accumulate. Collecting them requires causal stability — knowing
+        that all replicas have seen the removal — which reintroduces coordination.</li>
+        <li><strong>Limited invariants.</strong> CRDTs handle simple algebraic properties well (counters, sets,
+        sequences) but cannot express arbitrary invariants like “balance ≥ 0” or “at most one appointment per slot.”
+        Those require coordination.</li>
+        <li><strong>Read overhead.</strong> Computing the current value often requires folding all operations,
+        which costs CPU on every read unless materialised.</li>
+      </ul>
+
+      <h4>Where they are used</h4>
+      <p>Collaborative editing (Yjs, Automerge, ShareDB) uses sequence CRDTs to merge concurrent text edits without
+      operational transformation's transformation table explosion. Offline-first mobile applications use them to
+      merge changes from disconnected clients. Distributed counters (views, likes) use G-Counters to avoid hot-row
+      contention. Shopping carts use OR-Sets so concurrent add/remove does not lose items. The pattern is the same:
+      the data has an obvious commutative semantics and the operations can proceed without coordination.</p>
+
+      <h4>When CRDTs are the wrong tool</h4>
+      <p>When the invariant is not algebraic. A bank balance cannot be a CRDT (debit on one replica, debit on
+      another, both valid, result negative balance — the invariant must be checked globally). An inventory count
+      cannot be a CRDT for the same reason. A seat booking cannot be a CRDT (two replicas both accept the booking).
+      These require linearizable operations or explicit consensus. The mistake is thinking CRDTs make consistency
+      free; they make a specific class of consistency free, and the rest still needs coordination.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>CRDTs eliminate coordination at the cost of metadata and limited expressiveness. They are excellent for
+        counters, sets, sequences, and collaborative editing; they are useless for financial invariants. Choose them
+        when the merge semantics are genuinely commutative and the overhead is acceptable; otherwise use consensus.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q13 -->
+  <article class="q teal" id="q13">
+    <div class="q-head">
+      <div class="q-num">13</div>
+      <h3>How does the CAP theorem apply to multi-region deployments?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Multi-region deployments make the CAP trade-off continuous rather than rare, because the wide-area network
+        between regions is significantly less reliable than a datacenter LAN. Every write and read must choose
+        between a fast, local, potentially stale answer and a slow, cross-region, guaranteed-fresh answer. This is
+        PACELC's “Else” branch in operation, all the time, at scale.</p>
+      </div>
+
+      <h4>Why multi-region is different</h4>
+      <p>Within a datacenter, network partitions are rare and latency is microseconds. Across regions, partitions
+      happen regularly — BGP issues, undersea cable damage, regional cloud outages — and round-trip latency is
+      50–300 ms. The probability of a partition per unit time is much higher, and the cost of strong consistency
+      (measured in latency) is much larger. Both dimensions of the CAP/PACELC trade-off are amplified.</p>
+
+      <h4>The architectural patterns</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Pattern</th><th>CAP behaviour</th><th>Latency</th><th>Use case</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Active-passive with async replication</strong></td>
+              <td>AP during partition; primary region can lose recent writes</td>
+              <td>Low (local reads in primary); high for failover</td>
+              <td>Cost-sensitive; tolerable RPO of seconds</td>
+            </tr>
+            <tr>
+              <td><strong>Active-active with eventual reconciliation</strong></td>
+              <td>AP always; divergence reconciled later</td>
+              <td>Low (local reads and writes)</td>
+              <td>Global user base; UGC, feeds, carts</td>
+            </tr>
+            <tr>
+              <td><strong>Active-active with last-writer-wins</strong></td>
+              <td>AP; data loss on conflict (silent overwrites)</td>
+              <td>Low</td>
+              <td>Counters, low-conflict data</td>
+            </tr>
+            <tr>
+              <td><strong>Global consensus (Spanner, CockroachDB)</strong></td>
+              <td>CP during partition; minority region becomes unavailable for writes</td>
+              <td>High — 100+ ms per commit</td>
+              <td>Financial ledgers, inventory, compliance</td>
+            </tr>
+            <tr>
+              <td><strong>Regional consistency with async global</strong></td>
+              <td>Strong within region; eventual across regions</td>
+              <td>Low within region</td>
+              <td>Most SaaS — users primarily interact within a region</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The latency tax of global consistency</h4>
+      <p>A globally linearizable write must contact a majority of replicas across regions. With replicas in three
+      regions (US, EU, Asia), the commit latency is bounded below by the round-trip time to the second-fastest
+      region — at least 80–150 ms in the best case, and often more. For a user-facing write that is expected to
+      complete in 100 ms, this is unacceptable unless the workload genuinely requires it. This is why Spanner's
+      ~100 ms cross-region commit latency is a real cost, not a marketing footnote.</p>
+
+      <h4>Regional consistency as the pragmatic default</h4>
+      <p>The pattern used by most large-scale systems: keep the user's data primarily in their region, enforce strong
+      consistency within that region, and use asynchronous replication to other regions for disaster recovery and
+      cross-region reads. A user in Europe reads and writes European replicas with low latency and strong
+      consistency; the system asynchronously replicates to the US and Asia, where it may serve stale data to other
+      users. When the user travels, they may see a slightly stale view, which is usually acceptable.</p>
+      <p>This is not a pure CAP classification — it is a hybrid. Within a region the system is CP; across regions it
+      is AP with eventual consistency. The classification depends on which scope you are examining, which is why
+      labelling a multi-region system with a single CAP letter is misleading.</p>
+
+      <h4>The conflict resolution problem</h4>
+      <p>Active-active across regions means concurrent writes to different replicas with no coordination. The system
+      must have a conflict resolution policy:</p>
+      <ul>
+        <li><strong>Last-writer-wins</strong> — timestamp-based; simple, but silently discards data and depends on
+        clock synchronisation (a subtle failure mode).</li>
+        <li><strong>Application-defined merge</strong> — domain-specific logic to reconcile; correct but requires
+        the application to understand conflicts.</li>
+        <li><strong>CRDTs</strong> — commutative merges for algebraic data; no coordination, correct convergence, but
+        limited to certain data types.</li>
+        <li><strong>Escalation to user</strong> — surface the conflict for manual resolution; correct but high
+        friction.</li>
+      </ul>
+      <p>Each option is a design decision, and none is universally correct. The wrong choice produces silent data
+      loss or user-visible contradictions.</p>
+
+      <h4>Failure modes specific to multi-region</h4>
+      <p>Beyond partitions: regional failures (a whole cloud region becoming unavailable), asymmetric network
+      issues (one region cannot reach another but both can reach a third), and cross-region bandwidth saturation.
+      A well-designed multi-region system has to tolerate each. The standard pattern is <strong>cell-based
+      isolation</strong> — partition the system into self-contained cells so a failure in one does not cascade
+      across regions — combined with explicit runbooks for failover and reconciliation.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Multi-region is not a single design; it is a family. The choice between global consensus (~100 ms per
+        write), regional consistency with async replication (~5 ms per write, eventually consistent across regions),
+        and active-active eventual (~5 ms per write, conflict resolution required) is a decision about latency,
+        consistency, and data-loss tolerance. There is no universally correct answer — only a decision that must be
+        made explicitly.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: “I'll use regional strong consistency with async cross-region replication — users get low-latency
+        consistent reads and writes in their own region, and we accept RPO of a few seconds across regions for
+        disaster recovery.” That demonstrates you understand the multi-region trade-off as a concrete design choice,
+        not an abstract one.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- NEXT PART -->
+  <section class="next-part">
+    <h3>Coming in Volume 4 — Replication</h3>
+    <p>Volume 4 turns to the mechanics: how replication actually works. Leader-follower, multi-leader, and leaderless
+    replication; synchronous vs asynchronous; replication lag and the read-your-writes problem; split-brain and
+    fencing; conflict resolution with vector clocks and CRDTs; anti-entropy, Merkle trees, read repair, and hinted
+    handoff; physical vs logical replication; and designing replication for multi-region systems.</p>
+    <ul class="next-list">
+      <li>Leader-follower, multi-leader, leaderless</li>
+      <li>Synchronous vs asynchronous vs semi-synchronous</li>
+      <li>Replication lag and read-your-writes</li>
+      <li>Failover and split-brain prevention</li>
+      <li>Fencing tokens and leases</li>
+      <li>Conflict resolution: LWW, vector clocks, CRDTs</li>
+      <li>Anti-entropy, Merkle trees, read repair</li>
+      <li>Hinted handoff and sloppy quorums</li>
+      <li>Physical vs logical replication</li>
+      <li>Change data capture (CDC)</li>
+      <li>Multi-region replication strategies</li>
+    </ul>
+  </section>
+
+</div>
+</body>
+</html>
