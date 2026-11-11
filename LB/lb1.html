@@ -5,82 +5,382 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Load Balancing &amp; System Design — Interview Answers</title>
 <style>
+  /* ============ THEME TOKENS ============ */
   :root{
-    --bg:#0f1115; --panel:#161a22; --panel2:#1c222c; --text:#e6e9ef;
-    --muted:#9aa4b2; --accent:#4da3ff; --accent2:#57d9a3; --border:#2a3240;
-    --warn:#ffb454; --code:#0b0e13;
+    --ink:#161a2b;
+    --ink-soft:#3f4661;
+    --muted:#6b7390;
+    --line:#e6e8f2;
+    --card:#ffffff;
+    --bg:#f6f7fc;
+
+    --violet:#6366f1;   --violet-2:#a855f7;
+    --cyan:#0ea5e9;     --cyan-2:#06b6d4;
+    --emerald:#10b981;  --emerald-2:#14b8a6;
+    --amber:#f59e0b;    --amber-2:#f97316;
+    --rose:#f43f5e;     --rose-2:#ec4899;
+    --fuchsia:#8b5cf6;  --fuchsia-2:#d946ef;
+
+    --shadow-sm:0 1px 2px rgba(22,26,43,.06), 0 2px 8px rgba(22,26,43,.05);
+    --shadow-md:0 4px 12px rgba(22,26,43,.07), 0 12px 32px rgba(22,26,43,.07);
+    --shadow-lg:0 8px 24px rgba(22,26,43,.09), 0 24px 64px rgba(22,26,43,.08);
+    --radius:20px;
   }
+
   *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
   body{
-    margin:0; background:var(--bg); color:var(--text);
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    line-height:1.65; font-size:16px;
+    margin:0;
+    background:
+      radial-gradient(900px 600px at 8% -5%, rgba(99,102,241,.18), transparent 60%),
+      radial-gradient(800px 600px at 95% 0%, rgba(236,72,153,.16), transparent 60%),
+      radial-gradient(900px 700px at 50% 110%, rgba(16,185,129,.14), transparent 60%),
+      var(--bg);
+    color:var(--ink);
+    font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+    font-size:16.5px;
+    line-height:1.72;
+    -webkit-font-smoothing:antialiased;
   }
+
+  /* ============ HEADER ============ */
   header{
-    background:linear-gradient(135deg,#1b2330,#101520);
-    border-bottom:1px solid var(--border); padding:48px 24px 36px;
+    position:relative;
+    overflow:hidden;
+    padding:76px 24px 84px;
+    background:linear-gradient(120deg,#4f46e5 0%,#7c3aed 38%,#c026d3 72%,#ec4899 100%);
+    color:#fff;
+    isolation:isolate;
   }
-  header .wrap{max-width:920px;margin:0 auto}
-  header h1{margin:0 0 10px;font-size:2rem;letter-spacing:-.5px}
-  header p{margin:0;color:var(--muted)}
+  header::before,
+  header::after{
+    content:"";
+    position:absolute;
+    border-radius:50%;
+    filter:blur(70px);
+    opacity:.55;
+    z-index:-1;
+  }
+  header::before{
+    width:520px;height:520px;
+    background:radial-gradient(circle,#22d3ee,transparent 70%);
+    top:-220px;left:-120px;
+  }
+  header::after{
+    width:560px;height:560px;
+    background:radial-gradient(circle,#fbbf24,transparent 70%);
+    bottom:-300px;right:-140px;
+    opacity:.45;
+  }
+  header .wrap{max-width:980px;margin:0 auto;position:relative}
   .badge{
-    display:inline-block;background:var(--accent);color:#08111c;font-weight:700;
-    font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;
-    padding:4px 10px;border-radius:999px;margin-bottom:16px;
+    display:inline-flex;align-items:center;gap:8px;
+    background:rgba(255,255,255,.18);
+    backdrop-filter:blur(10px);
+    border:1px solid rgba(255,255,255,.35);
+    color:#fff;
+    font-weight:800;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;
+    padding:7px 16px;border-radius:999px;margin-bottom:22px;
   }
-  main{max-width:920px;margin:0 auto;padding:32px 24px 96px}
+  .badge .dot{
+    width:8px;height:8px;border-radius:50%;
+    background:#a7f3d0;
+    box-shadow:0 0 0 4px rgba(167,243,208,.35);
+    animation:pulse 2.2s infinite;
+  }
+  @keyframes pulse{
+    0%,100%{box-shadow:0 0 0 4px rgba(167,243,208,.35)}
+    50%{box-shadow:0 0 0 9px rgba(167,243,208,0)}
+  }
+  header h1{
+    margin:0 0 14px;
+    font-size:clamp(2rem,4.6vw,3.15rem);
+    line-height:1.08;
+    letter-spacing:-.025em;
+    font-weight:800;
+    text-shadow:0 2px 24px rgba(0,0,0,.16);
+  }
+  header p{
+    margin:0;
+    max-width:640px;
+    color:rgba(255,255,255,.9);
+    font-size:1.06rem;
+  }
+  .chiprow{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px}
+  .chip{
+    background:rgba(255,255,255,.16);
+    border:1px solid rgba(255,255,255,.3);
+    padding:6px 14px;border-radius:999px;
+    font-size:.8rem;font-weight:600;color:#fff;
+    backdrop-filter:blur(6px);
+  }
+
+  /* ============ LAYOUT ============ */
+  main{max-width:980px;margin:-46px auto 0;padding:0 24px 80px;position:relative;z-index:2}
+
+  /* ============ TOC ============ */
   nav.toc{
-    background:var(--panel);border:1px solid var(--border);border-radius:12px;
-    padding:20px 24px;margin-bottom:40px;
+    background:var(--card);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow-lg);
+    border:1px solid var(--line);
+    padding:28px 30px 30px;
+    margin-bottom:38px;
   }
-  nav.toc h2{margin:0 0 12px;font-size:.85rem;letter-spacing:.1em;
-    text-transform:uppercase;color:var(--muted)}
-  nav.toc ol{margin:0;padding-left:20px}
-  nav.toc a{color:var(--accent);text-decoration:none}
-  nav.toc a:hover{text-decoration:underline}
+  nav.toc h2{
+    margin:0 0 18px;
+    font-size:.78rem;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--muted);font-weight:800;
+    display:flex;align-items:center;gap:10px;
+  }
+  nav.toc h2::after{
+    content:"";flex:1;height:1px;
+    background:linear-gradient(90deg,var(--line),transparent);
+  }
+  nav.toc ol{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+  nav.toc li{margin:0}
+  nav.toc a{
+    display:flex;align-items:center;gap:14px;
+    text-decoration:none;color:var(--ink-soft);
+    font-weight:600;font-size:.96rem;
+    padding:11px 14px;border-radius:12px;
+    background:linear-gradient(90deg,rgba(99,102,241,.05),rgba(236,72,153,.03));
+    border:1px solid transparent;
+    transition:.22s ease;
+  }
+  nav.toc a:hover{
+    background:linear-gradient(90deg,rgba(99,102,241,.12),rgba(236,72,153,.09));
+    border-color:rgba(99,102,241,.25);
+    transform:translateX(4px);
+    color:var(--ink);
+  }
+  .tnum{
+    flex:0 0 auto;
+    width:32px;height:32px;border-radius:10px;
+    display:grid;place-items:center;
+    font-size:.78rem;font-weight:800;color:#fff;
+    background:linear-gradient(135deg,var(--violet),var(--violet-2));
+    box-shadow:0 4px 12px rgba(99,102,241,.35);
+  }
+  nav.toc li:nth-child(1) .tnum{background:linear-gradient(135deg,#6366f1,#a855f7);box-shadow:0 4px 12px rgba(99,102,241,.35)}
+  nav.toc li:nth-child(2) .tnum{background:linear-gradient(135deg,#0ea5e9,#06b6d4);box-shadow:0 4px 12px rgba(14,165,233,.35)}
+  nav.toc li:nth-child(3) .tnum{background:linear-gradient(135deg,#10b981,#14b8a6);box-shadow:0 4px 12px rgba(16,185,129,.35)}
+  nav.toc li:nth-child(4) .tnum{background:linear-gradient(135deg,#f59e0b,#f97316);box-shadow:0 4px 12px rgba(245,158,11,.35)}
+  nav.toc li:nth-child(5) .tnum{background:linear-gradient(135deg,#f43f5e,#ec4899);box-shadow:0 4px 12px rgba(244,63,94,.35)}
+  nav.toc li:nth-child(6) .tnum{background:linear-gradient(135deg,#8b5cf6,#d946ef);box-shadow:0 4px 12px rgba(139,92,246,.35)}
+
+  /* ============ QUESTION CARD ============ */
   section.qa{
-    background:var(--panel);border:1px solid var(--border);border-radius:14px;
-    padding:28px 28px 8px;margin-bottom:32px;
+    --a1:#6366f1;
+    --a2:#a855f7;
+    position:relative;
+    background:var(--card);
+    border-radius:var(--radius);
+    border:1px solid var(--line);
+    box-shadow:var(--shadow-md);
+    padding:38px 38px 12px;
+    margin-bottom:34px;
+    overflow:hidden;
+    transition:.25s ease;
+  }
+  section.qa:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px)}
+  section.qa::before{
+    content:"";
+    position:absolute;top:0;left:0;right:0;height:5px;
+    background:linear-gradient(90deg,var(--a1),var(--a2));
+  }
+  section.qa::after{
+    content:"";
+    position:absolute;
+    top:-120px;right:-120px;
+    width:280px;height:280px;border-radius:50%;
+    background:radial-gradient(circle,var(--a1),transparent 70%);
+    opacity:.07;pointer-events:none;
+  }
+
+  .qnum{
+    display:inline-block;
+    background:linear-gradient(135deg,var(--a1),var(--a2));
+    -webkit-background-clip:text;background-clip:text;
+    -webkit-text-fill-color:transparent;
+    font-size:.76rem;font-weight:900;
+    letter-spacing:.2em;text-transform:uppercase;
+    margin-bottom:10px;
   }
   section.qa > h2{
-    font-size:1.28rem;line-height:1.35;margin:0 0 6px;color:#fff;
+    font-size:clamp(1.16rem,2.1vw,1.42rem);
+    line-height:1.38;
+    margin:0 0 8px;
+    color:var(--ink);
+    font-weight:800;
+    letter-spacing:-.015em;
   }
-  .qnum{
-    display:inline-block;font-size:.75rem;font-weight:700;color:var(--accent2);
-    letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px;
-  }
+
+  /* ============ BODY TEXT ============ */
   .answer h3{
-    font-size:.95rem;letter-spacing:.04em;text-transform:uppercase;
-    color:var(--accent);margin:26px 0 8px;
+    position:relative;
+    font-size:.83rem;
+    letter-spacing:.14em;text-transform:uppercase;
+    font-weight:800;
+    color:var(--a1);
+    margin:34px 0 12px;
+    padding-left:16px;
   }
-  .answer p{margin:0 0 14px}
-  .answer ul,.answer ol{margin:0 0 16px;padding-left:22px}
-  .answer li{margin-bottom:7px}
+  .answer h3::before{
+    content:"";
+    position:absolute;left:0;top:50%;transform:translateY(-50%);
+    width:6px;height:6px;border-radius:50%;
+    background:linear-gradient(135deg,var(--a1),var(--a2));
+    box-shadow:0 0 0 3px rgba(99,102,241,.14);
+  }
+  .answer p{margin:0 0 15px;color:var(--ink-soft)}
+  .answer strong{color:var(--ink);font-weight:700}
+  .answer em{color:var(--ink-soft)}
+
+  .answer ul,
+  .answer ol{margin:0 0 18px;padding-left:0;list-style:none}
+  .answer li{
+    position:relative;
+    padding-left:26px;
+    margin-bottom:9px;
+    color:var(--ink-soft);
+  }
+  .answer li::before{
+    content:"";
+    position:absolute;left:6px;top:.68em;
+    width:7px;height:7px;border-radius:2px;
+    background:linear-gradient(135deg,var(--a1),var(--a2));
+    transform:rotate(45deg);
+  }
+
+  /* ============ CODE ============ */
   code{
-    background:var(--code);border:1px solid var(--border);border-radius:5px;
-    padding:1px 6px;font-size:.88em;color:var(--accent2);
+    background:linear-gradient(135deg,rgba(99,102,241,.1),rgba(168,85,247,.1));
+    border:1px solid rgba(99,102,241,.2);
+    border-radius:6px;
+    padding:1px 7px;
+    font-size:.88em;
+    color:#4f46e5;
+    font-weight:600;
     font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   }
   pre{
-    background:var(--code);border:1px solid var(--border);border-radius:10px;
-    padding:16px;overflow-x:auto;margin:0 0 18px;
+    background:linear-gradient(160deg,#1e1b4b,#312e81 55%,#4c1d95);
+    border-radius:14px;
+    padding:18px 20px;
+    overflow-x:auto;
+    margin:0 0 20px;
+    box-shadow:0 8px 24px rgba(49,46,129,.28);
   }
-  pre code{background:none;border:none;padding:0;color:#cfe3ff;font-size:.85rem;line-height:1.55}
-  table{width:100%;border-collapse:collapse;margin:0 0 18px;font-size:.93rem}
-  th,td{border:1px solid var(--border);padding:10px 12px;text-align:left;vertical-align:top}
-  th{background:var(--panel2);color:#fff;font-weight:600}
+  pre code{
+    background:none;border:none;padding:0;
+    color:#dbe4ff;font-size:.86rem;line-height:1.6;font-weight:500;
+  }
+
+  /* ============ TABLE ============ */
+  .tblwrap{
+    overflow-x:auto;
+    border-radius:14px;
+    border:1px solid var(--line);
+    box-shadow:var(--shadow-sm);
+    margin:0 0 22px;
+  }
+  table{width:100%;border-collapse:collapse;font-size:.93rem;background:#fff}
+  th{
+    background:linear-gradient(135deg,var(--a1),var(--a2));
+    color:#fff;
+    font-weight:700;
+    text-align:left;
+    padding:13px 16px;
+    font-size:.85rem;
+    letter-spacing:.02em;
+    white-space:nowrap;
+  }
+  td{
+    padding:12px 16px;
+    border-top:1px solid var(--line);
+    color:var(--ink-soft);
+    vertical-align:top;
+  }
+  tbody tr:nth-child(even){background:rgba(99,102,241,.035)}
+  tbody tr:hover{background:rgba(99,102,241,.07)}
+  td strong{color:var(--ink)}
+
+  /* ============ CALLOUT ============ */
   .callout{
-    border-left:3px solid var(--warn);background:rgba(255,180,84,.07);
-    padding:12px 16px;border-radius:0 8px 8px 0;margin:0 0 18px;color:#f0d9b5;
+    position:relative;
+    background:linear-gradient(135deg,#fff7ed,#fffbeb);
+    border:1px solid #fcd9a5;
+    border-left:5px solid var(--amber);
+    border-radius:0 14px 14px 0;
+    padding:18px 22px;
+    margin:0 0 22px;
+    color:#7c4a03;
+    box-shadow:0 4px 14px rgba(245,158,11,.12);
   }
-  .callout strong{color:var(--warn)}
+  .callout strong{color:#b45309}
+  .callout::before{
+    content:"💡";
+    position:absolute;
+    top:-12px;left:-14px;
+    width:32px;height:32px;
+    display:grid;place-items:center;
+    background:#fff;
+    border-radius:50%;
+    box-shadow:0 3px 10px rgba(245,158,11,.3);
+    font-size:.95rem;
+  }
+
+  /* ============ FOOTER ============ */
   footer{
-    max-width:920px;margin:0 auto;padding:0 24px 64px;color:var(--muted);
-    font-size:.9rem;border-top:1px solid var(--border);padding-top:24px;
+    max-width:980px;
+    margin:0 auto 70px;
+    padding:0 24px;
   }
-  @media(max-width:600px){
-    header{padding:32px 16px 24px} main{padding:24px 16px 64px}
-    section.qa{padding:20px 18px 4px} body{font-size:15px}
+  .footcard{
+    background:linear-gradient(135deg,#1e1b4b,#4c1d95 60%,#831843);
+    color:#e9e6ff;
+    border-radius:var(--radius);
+    padding:32px 34px;
+    box-shadow:var(--shadow-lg);
+    position:relative;
+    overflow:hidden;
+  }
+  .footcard::after{
+    content:"";
+    position:absolute;right:-80px;bottom:-120px;
+    width:300px;height:300px;border-radius:50%;
+    background:radial-gradient(circle,rgba(236,72,153,.5),transparent 70%);
+    filter:blur(30px);
+  }
+  .footcard p{margin:0 0 12px;position:relative;z-index:1;line-height:1.75}
+  .footcard p:last-child{margin:0}
+  .footcard strong{color:#fff}
+  .footcard .label{
+    display:inline-block;
+    background:rgba(255,255,255,.14);
+    border:1px solid rgba(255,255,255,.25);
+    padding:4px 12px;border-radius:999px;
+    font-size:.72rem;font-weight:800;
+    letter-spacing:.14em;text-transform:uppercase;
+    margin-bottom:14px;
+  }
+
+  /* ============ RESPONSIVE ============ */
+  @media (max-width:680px){
+    header{padding:56px 18px 70px}
+    main{padding:0 14px 60px;margin-top:-38px}
+    nav.toc{padding:22px 20px}
+    section.qa{padding:28px 20px 6px}
+    section.qa > h2{font-size:1.08rem}
+    body{font-size:15.8px}
+    .footcard{padding:24px 22px}
+  }
+
+  /* reduced motion */
+  @media (prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important}
+    html{scroll-behavior:auto}
   }
 </style>
 </head>
@@ -88,9 +388,14 @@
 
 <header>
   <div class="wrap">
-    <span class="badge">Batch 1 of 6</span>
+    <span class="badge"><span class="dot"></span>Batch 1 of 6</span>
     <h1>Load Balancing &amp; System Design</h1>
-    <p>Interview answers with depth, trade-offs, and failure modes. Answers are ~750–900 words each.</p>
+    <p>Interview answers with depth, trade-offs, and failure modes. Each answer runs roughly 750–900 words.</p>
+    <div class="chiprow">
+      <span class="chip">⚖️ Load Balancing</span>
+      <span class="chip">🏗️ System Design</span>
+      <span class="chip">🎯 Interview Prep</span>
+    </div>
   </div>
 </header>
 
@@ -99,17 +404,17 @@
   <nav class="toc">
     <h2>Batch 1 — Load Balancing Fundamentals</h2>
     <ol>
-      <li><a href="#q1">Define load balancing and its primary objectives</a></li>
-      <li><a href="#q2">Layer 4 vs Layer 7 load balancing</a></li>
-      <li><a href="#q3">Comparing load balancing algorithms</a></li>
-      <li><a href="#q4">Drawbacks of Round Robin &amp; Consistent Hashing</a></li>
-      <li><a href="#q5">Hardware vs Software load balancers</a></li>
-      <li><a href="#q6">Designing health checks</a></li>
+      <li><a href="#q1"><span class="tnum">01</span> Define load balancing and its primary objectives</a></li>
+      <li><a href="#q2"><span class="tnum">02</span> Layer 4 vs Layer 7 load balancing</a></li>
+      <li><a href="#q3"><span class="tnum">03</span> Comparing load balancing algorithms</a></li>
+      <li><a href="#q4"><span class="tnum">04</span> Drawbacks of Round Robin &amp; Consistent Hashing</a></li>
+      <li><a href="#q5"><span class="tnum">05</span> Hardware vs Software load balancers</a></li>
+      <li><a href="#q6"><span class="tnum">06</span> Designing health checks</a></li>
     </ol>
   </nav>
 
   <!-- ============ Q1 ============ -->
-  <section class="qa" id="q1">
+  <section class="qa" id="q1" style="--a1:#6366f1;--a2:#a855f7">
     <span class="qnum">Question 01</span>
     <h2>Define load balancing and explain its primary objectives (high availability, scalability, reliability).</h2>
     <div class="answer">
@@ -146,7 +451,7 @@
   </section>
 
   <!-- ============ Q2 ============ -->
-  <section class="qa" id="q2">
+  <section class="qa" id="q2" style="--a1:#0ea5e9;--a2:#06b6d4">
     <span class="qnum">Question 02</span>
     <h2>Explain the difference between Layer 4 (L4) and Layer 7 (L7) load balancing. When would you choose one over the other?</h2>
     <div class="answer">
@@ -175,29 +480,35 @@
       </ul>
 
       <h3>Decision framework</h3>
-      <table>
-        <tr><th>Choose L4 when…</th><th>Choose L7 when…</th></tr>
-        <tr>
-          <td>Protocol is non-HTTP (databases, Redis, Kafka, custom TCP)</td>
-          <td>You need path/host/header routing for microservices</td>
-        </tr>
-        <tr>
-          <td>Raw throughput and minimal latency dominate (ad tech, gaming, real-time bidding)</td>
-          <td>You need TLS termination, auth, WAF, or rate limiting</td>
-        </tr>
-        <tr>
-          <td>You need to preserve client IP and avoid proxy overhead (DSR)</td>
-          <td>You need canary/blue-green with request-level weights</td>
-        </tr>
-        <tr>
-          <td>Connections are long-lived and you want simple stream affinity</td>
-          <td>You need retries, timeouts, circuit breaking, or observability per route</td>
-        </tr>
-        <tr>
-          <td>Cost per request must be near zero at massive scale</td>
-          <td>You need to inspect or transform payloads (headers, JWTs, cookies)</td>
-        </tr>
-      </table>
+      <div class="tblwrap">
+        <table>
+          <thead>
+            <tr><th>Choose L4 when…</th><th>Choose L7 when…</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Protocol is non-HTTP (databases, Redis, Kafka, custom TCP)</td>
+              <td>You need path/host/header routing for microservices</td>
+            </tr>
+            <tr>
+              <td>Raw throughput and minimal latency dominate (ad tech, gaming, real-time bidding)</td>
+              <td>You need TLS termination, auth, WAF, or rate limiting</td>
+            </tr>
+            <tr>
+              <td>You need to preserve client IP and avoid proxy overhead (DSR)</td>
+              <td>You need canary/blue-green with request-level weights</td>
+            </tr>
+            <tr>
+              <td>Connections are long-lived and you want simple stream affinity</td>
+              <td>You need retries, timeouts, circuit breaking, or observability per route</td>
+            </tr>
+            <tr>
+              <td>Cost per request must be near zero at massive scale</td>
+              <td>You need to inspect or transform payloads (headers, JWTs, cookies)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
       <h3>Real architectures layer both</h3>
       <p>A typical production path is: <strong>anycast/DNS</strong> → <strong>L4 network LB</strong> (fast, DDoS absorption, cross-zone distribution) → <strong>L7 proxy</strong> (Envoy/NGINX/ALB: routing, TLS, retries) → <strong>service mesh sidecar</strong> (east-west L7) → pod. The L4 tier exists precisely so the L7 tier doesn't have to be the throughput bottleneck, and the L7 tier exists because L4 can't make intelligent decisions.</p>
@@ -213,7 +524,7 @@
   </section>
 
   <!-- ============ Q3 ============ -->
-  <section class="qa" id="q3">
+  <section class="qa" id="q3" style="--a1:#10b981;--a2:#14b8a6">
     <span class="qnum">Question 03</span>
     <h2>Compare common load balancing algorithms: Round Robin, Weighted Round Robin, Least Connections, Least Response Time, IP Hashing.</h2>
     <div class="answer">
@@ -246,22 +557,28 @@
       </ul>
 
       <h3>Choosing: the workload matrix</h3>
-      <table>
-        <tr><th>Workload</th><th>Best fit</th><th>Why</th></tr>
-        <tr><td>Uniform static content, identical servers</td><td>Round Robin</td><td>Zero overhead, perfectly even</td></tr>
-        <tr><td>Mixed instance sizes</td><td>Weighted RR / Weighted LC</td><td>Capacity-proportional</td></tr>
-        <tr><td>Highly variable request duration</td><td>Least Requests (L7) / P2C</td><td>Queue-depth proxy</td></tr>
-        <tr><td>Latency-sensitive microservices</td><td>P2C + EWMA latency</td><td>Adapts to slow tails</td></tr>
-        <tr><td>Stateful sessions / cache sharding</td><td>Consistent hash</td><td>Affinity with minimal remap</td></tr>
-        <tr><td>Canary rollout</td><td>Weighted RR</td><td>Explicit traffic split</td></tr>
-      </table>
+      <div class="tblwrap">
+        <table>
+          <thead>
+            <tr><th>Workload</th><th>Best fit</th><th>Why</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Uniform static content, identical servers</td><td>Round Robin</td><td>Zero overhead, perfectly even</td></tr>
+            <tr><td>Mixed instance sizes</td><td>Weighted RR / Weighted LC</td><td>Capacity-proportional</td></tr>
+            <tr><td>Highly variable request duration</td><td>Least Requests (L7) / P2C</td><td>Queue-depth proxy</td></tr>
+            <tr><td>Latency-sensitive microservices</td><td>P2C + EWMA latency</td><td>Adapts to slow tails</td></tr>
+            <tr><td>Stateful sessions / cache sharding</td><td>Consistent hash</td><td>Affinity with minimal remap</td></tr>
+            <tr><td>Canary rollout</td><td>Weighted RR</td><td>Explicit traffic split</td></tr>
+          </tbody>
+        </table>
+      </div>
 
       <div class="callout"><strong>Key line to use in interview:</strong> "The algorithm matters less than the <em>signal quality</em> — a least-connections LB with a 30-second stale view performs worse than round robin with accurate health checks."</div>
     </div>
   </section>
 
   <!-- ============ Q4 ============ -->
-  <section class="qa" id="q4">
+  <section class="qa" id="q4" style="--a1:#f59e0b;--a2:#f97316">
     <span class="qnum">Question 04</span>
     <h2>What are the drawbacks of Round Robin? Explain Consistent Hashing and why virtual nodes are needed.</h2>
     <div class="answer">
@@ -304,7 +621,7 @@
   </section>
 
   <!-- ============ Q5 ============ -->
-  <section class="qa" id="q5">
+  <section class="qa" id="q5" style="--a1:#f43f5e;--a2:#ec4899">
     <span class="qnum">Question 05</span>
     <h2>What is the difference between a hardware and a software load balancer?</h2>
     <div class="answer">
@@ -320,17 +637,23 @@
       <p><strong>Weaknesses:</strong> the data plane competes with the app for CPU/memory; noisy-neighbor effects; TLS handshakes are CPU-expensive in userspace; the control plane (config distribution) becomes its own distributed-systems problem; at extreme throughput, generic kernels struggle — hence eBPF/XDP and DPDK, which push forwarding into the kernel or bypass it entirely.</p>
 
       <h3>Comparison</h3>
-      <table>
-        <tr><th>Dimension</th><th>Hardware LB</th><th>Software LB</th></tr>
-        <tr><td>Latency</td><td>Microseconds, very low jitter</td><td>Low but variable (GC, scheduling)</td></tr>
-        <tr><td>Throughput ceiling</td><td>Very high per device</td><td>High per node; scales horizontally</td></tr>
-        <tr><td>Elasticity</td><td>Poor — fixed capacity</td><td>Excellent</td></tr>
-        <tr><td>Cost model</td><td>CapEx, licensing</td><td>OpEx, per-instance</td></tr>
-        <tr><td>Configuration</td><td>Proprietary, manual</td><td>Declarative, API/GitOps</td></tr>
-        <tr><td>Service discovery</td><td>Limited, static pools</td><td>Native (K8s, Consul, EDS)</td></tr>
-        <tr><td>Upgrade</td><td>Maintenance window</td><td>Rolling, continuous</td></tr>
-        <tr><td>Blast radius</td><td>Large (one device fronting everything)</td><td>Small (many small instances)</td></tr>
-      </table>
+      <div class="tblwrap">
+        <table>
+          <thead>
+            <tr><th>Dimension</th><th>Hardware LB</th><th>Software LB</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Latency</td><td>Microseconds, very low jitter</td><td>Low but variable (GC, scheduling)</td></tr>
+            <tr><td>Throughput ceiling</td><td>Very high per device</td><td>High per node; scales horizontally</td></tr>
+            <tr><td>Elasticity</td><td>Poor — fixed capacity</td><td>Excellent</td></tr>
+            <tr><td>Cost model</td><td>CapEx, licensing</td><td>OpEx, per-instance</td></tr>
+            <tr><td>Configuration</td><td>Proprietary, manual</td><td>Declarative, API/GitOps</td></tr>
+            <tr><td>Service discovery</td><td>Limited, static pools</td><td>Native (K8s, Consul, EDS)</td></tr>
+            <tr><td>Upgrade</td><td>Maintenance window</td><td>Rolling, continuous</td></tr>
+            <tr><td>Blast radius</td><td>Large (one device fronting everything)</td><td>Small (many small instances)</td></tr>
+          </tbody>
+        </table>
+      </div>
 
       <h3>How to choose</h3>
       <p>The industry has decisively moved to software-defined load balancing, but the honest answer is nuanced:</p>
@@ -345,7 +668,7 @@
   </section>
 
   <!-- ============ Q6 ============ -->
-  <section class="qa" id="q6">
+  <section class="qa" id="q6" style="--a1:#8b5cf6;--a2:#d946ef">
     <span class="qnum">Question 06</span>
     <h2>Explain the role of health checks in a load balancer. How would you design them?</h2>
     <div class="answer">
@@ -361,15 +684,21 @@
       </ul>
 
       <h3>Design parameters</h3>
-      <table>
-        <tr><th>Parameter</th><th>Typical value</th><th>Reasoning</th></tr>
-        <tr><td>Interval</td><td>2–10 s</td><td>Shorter = faster detection but more probe load</td></tr>
-        <tr><td>Timeout</td><td>1–3 s</td><td>Must be &lt; interval to avoid overlapping probes</td></tr>
-        <tr><td>Unhealthy threshold</td><td>2–3 consecutive fails</td><td>Avoids evicting on a single blip</td></tr>
-        <tr><td>Healthy threshold</td><td>2–5 consecutive passes</td><td>Prevents flapping on unstable nodes</td></tr>
-        <tr><td>Ejection time</td><td>30 s, exponential backoff</td><td>Don't immediately re-add a still-broken node</td></tr>
-        <tr><td>Max ejection %</td><td>≤ 50% of pool</td><td>Prevents evicting everything</td></tr>
-      </table>
+      <div class="tblwrap">
+        <table>
+          <thead>
+            <tr><th>Parameter</th><th>Typical value</th><th>Reasoning</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Interval</td><td>2–10 s</td><td>Shorter = faster detection but more probe load</td></tr>
+            <tr><td>Timeout</td><td>1–3 s</td><td>Must be &lt; interval to avoid overlapping probes</td></tr>
+            <tr><td>Unhealthy threshold</td><td>2–3 consecutive fails</td><td>Avoids evicting on a single blip</td></tr>
+            <tr><td>Healthy threshold</td><td>2–5 consecutive passes</td><td>Prevents flapping on unstable nodes</td></tr>
+            <tr><td>Ejection time</td><td>30 s, exponential backoff</td><td>Don't immediately re-add a still-broken node</td></tr>
+            <tr><td>Max ejection %</td><td>≤ 50% of pool</td><td>Prevents evicting everything</td></tr>
+          </tbody>
+        </table>
+      </div>
 
       <h3>Shallow vs deep checks — the critical design decision</h3>
       <p><strong>Shallow</strong> ("is this process able to accept a connection and return 200?") tells you the instance is alive. <strong>Deep</strong> ("can this instance reach the database, cache, and downstream service?") tells you it can do useful work — but it is dangerous.</p>
@@ -399,7 +728,11 @@
 </main>
 
 <footer>
-  <p><strong>Batch 1 of 6 complete.</strong> Remaining batches: (2) Load Balancing architecture &amp; global traffic — sticky sessions, autoscaling LB design, node failure &amp; draining, DNS failover, canary/blue-green, LB vs API Gateway, client-side LB. (3) System Design core — scalability, caching, SQL vs NoSQL, sharding, replication, CAP, proxies/CDN, concurrency. (4) Classic designs — URL shortener, rate limiter, KV store, crawler, chat, newsfeed, search, ride-sharing, video streaming. (5) Advanced — backpressure, cascading failure, idempotency, queues, consensus. (6) Fresher-level + ML/GenAI system design.</p>
+  <div class="footcard">
+    <span class="label">Batch 1 of 6 · Complete</span>
+    <p><strong>Remaining batches:</strong> (2) Load Balancing architecture &amp; global traffic — sticky sessions, autoscaling LB design, node failure &amp; draining, DNS failover, canary/blue-green, LB vs API Gateway, client-side LB.</p>
+    <p>(3) System Design core — scalability, caching, SQL vs NoSQL, sharding, replication, CAP, proxies/CDN, concurrency. (4) Classic designs — URL shortener, rate limiter, KV store, crawler, chat, newsfeed, search, ride-sharing, video streaming. (5) Advanced — backpressure, cascading failure, idempotency, queues, consensus. (6) Fresher-level + ML/GenAI system design.</p>
+  </div>
 </footer>
 
 </body>
