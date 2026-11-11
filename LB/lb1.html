@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Load Balancing &amp; System Design — Interview Answers</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#161a22; --panel2:#1c222c; --text:#e6e9ef;
+    --muted:#9aa4b2; --accent:#4da3ff; --accent2:#57d9a3; --border:#2a3240;
+    --warn:#ffb454; --code:#0b0e13;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.65; font-size:16px;
+  }
+  header{
+    background:linear-gradient(135deg,#1b2330,#101520);
+    border-bottom:1px solid var(--border); padding:48px 24px 36px;
+  }
+  header .wrap{max-width:920px;margin:0 auto}
+  header h1{margin:0 0 10px;font-size:2rem;letter-spacing:-.5px}
+  header p{margin:0;color:var(--muted)}
+  .badge{
+    display:inline-block;background:var(--accent);color:#08111c;font-weight:700;
+    font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;
+    padding:4px 10px;border-radius:999px;margin-bottom:16px;
+  }
+  main{max-width:920px;margin:0 auto;padding:32px 24px 96px}
+  nav.toc{
+    background:var(--panel);border:1px solid var(--border);border-radius:12px;
+    padding:20px 24px;margin-bottom:40px;
+  }
+  nav.toc h2{margin:0 0 12px;font-size:.85rem;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--muted)}
+  nav.toc ol{margin:0;padding-left:20px}
+  nav.toc a{color:var(--accent);text-decoration:none}
+  nav.toc a:hover{text-decoration:underline}
+  section.qa{
+    background:var(--panel);border:1px solid var(--border);border-radius:14px;
+    padding:28px 28px 8px;margin-bottom:32px;
+  }
+  section.qa > h2{
+    font-size:1.28rem;line-height:1.35;margin:0 0 6px;color:#fff;
+  }
+  .qnum{
+    display:inline-block;font-size:.75rem;font-weight:700;color:var(--accent2);
+    letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px;
+  }
+  .answer h3{
+    font-size:.95rem;letter-spacing:.04em;text-transform:uppercase;
+    color:var(--accent);margin:26px 0 8px;
+  }
+  .answer p{margin:0 0 14px}
+  .answer ul,.answer ol{margin:0 0 16px;padding-left:22px}
+  .answer li{margin-bottom:7px}
+  code{
+    background:var(--code);border:1px solid var(--border);border-radius:5px;
+    padding:1px 6px;font-size:.88em;color:var(--accent2);
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  pre{
+    background:var(--code);border:1px solid var(--border);border-radius:10px;
+    padding:16px;overflow-x:auto;margin:0 0 18px;
+  }
+  pre code{background:none;border:none;padding:0;color:#cfe3ff;font-size:.85rem;line-height:1.55}
+  table{width:100%;border-collapse:collapse;margin:0 0 18px;font-size:.93rem}
+  th,td{border:1px solid var(--border);padding:10px 12px;text-align:left;vertical-align:top}
+  th{background:var(--panel2);color:#fff;font-weight:600}
+  .callout{
+    border-left:3px solid var(--warn);background:rgba(255,180,84,.07);
+    padding:12px 16px;border-radius:0 8px 8px 0;margin:0 0 18px;color:#f0d9b5;
+  }
+  .callout strong{color:var(--warn)}
+  footer{
+    max-width:920px;margin:0 auto;padding:0 24px 64px;color:var(--muted);
+    font-size:.9rem;border-top:1px solid var(--border);padding-top:24px;
+  }
+  @media(max-width:600px){
+    header{padding:32px 16px 24px} main{padding:24px 16px 64px}
+    section.qa{padding:20px 18px 4px} body{font-size:15px}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <span class="badge">Batch 1 of 6</span>
+    <h1>Load Balancing &amp; System Design</h1>
+    <p>Interview answers with depth, trade-offs, and failure modes. Answers are ~750–900 words each.</p>
+  </div>
+</header>
+
+<main>
+
+  <nav class="toc">
+    <h2>Batch 1 — Load Balancing Fundamentals</h2>
+    <ol>
+      <li><a href="#q1">Define load balancing and its primary objectives</a></li>
+      <li><a href="#q2">Layer 4 vs Layer 7 load balancing</a></li>
+      <li><a href="#q3">Comparing load balancing algorithms</a></li>
+      <li><a href="#q4">Drawbacks of Round Robin &amp; Consistent Hashing</a></li>
+      <li><a href="#q5">Hardware vs Software load balancers</a></li>
+      <li><a href="#q6">Designing health checks</a></li>
+    </ol>
+  </nav>
+
+  <!-- ============ Q1 ============ -->
+  <section class="qa" id="q1">
+    <span class="qnum">Question 01</span>
+    <h2>Define load balancing and explain its primary objectives (high availability, scalability, reliability).</h2>
+    <div class="answer">
+
+      <h3>Definition</h3>
+      <p>Load balancing is the practice of distributing incoming work — TCP connections, HTTP requests, gRPC calls, database queries, or messages pulled from a queue — across a pool of backend resources so that no single resource becomes a bottleneck or a single point of failure. It is both a <em>component</em> (a load balancer, LB) and an <em>architectural property</em> (the system as a whole spreads load).</p>
+      <p>Formally: given a set of backends <code>B = {b1..bn}</code> with heterogeneous and time-varying capacity, and a stream of requests <code>R</code> with heterogeneous and time-varying cost, a load balancer is a function that maps each request to a backend such that (a) no backend is overloaded, (b) the mapping is stable enough to preserve useful locality, and (c) the mapping adapts when backends fail or join.</p>
+
+      <h3>Why it exists</h3>
+      <p>A single server has hard ceilings: CPU cores, memory, file descriptors, ephemeral ports, NIC bandwidth, and disk IOPS. Long before those ceilings are hit, queueing theory tells us latency degrades non-linearly — as utilization approaches 1, wait time approaches infinity. Beyond performance, a single server is a single failure domain. Load balancing solves three problems simultaneously: it breaks the capacity ceiling, it removes the single point of failure, and it gives you a control point where you can observe, route, and shape traffic.</p>
+
+      <h3>Primary objectives</h3>
+      <p><strong>1. High availability.</strong> The LB continuously probes backends via health checks and removes unhealthy ones from rotation. With N healthy replicas, the system tolerates N−1 failures (and often more, with capacity headroom). Availability compounds multiplicatively in series — a 99.9% backend behind a 99.99% LB still yields roughly 99.89% end-to-end — so the LB itself must be deployed redundantly (active-active pairs, anycast VIPs, or a cloud-managed LB with an SLA).</p>
+      <p><strong>2. Scalability.</strong> Load balancing is what makes horizontal scaling possible. Adding a backend is a config/discovery event rather than a re-architecture. This enables elastic autoscaling: when CPU or request rate crosses a threshold, new instances register with the LB and begin receiving traffic within seconds. Crucially, horizontal scaling requires the application to be stateless or to externalize state (sessions, uploads) — the LB is a necessary but not sufficient condition.</p>
+      <p><strong>3. Reliability.</strong> Reliability here means predictable, correct behavior under stress and partial failure. A good LB provides: avoidance of hot spots (a single slow backend doesn't get 1/N of traffic forever), graceful degradation (shed load rather than collapse), connection draining during deploys so in-flight requests complete, retry budgets with idempotency awareness, and outlier ejection so that a backend returning 5xx is quarantined before it poisons the user experience.</p>
+
+      <h3>Secondary objectives worth naming</h3>
+      <ul>
+        <li><strong>Efficiency / utilization:</strong> a good algorithm keeps all backends near a similar utilization band, which directly reduces cost per request.</li>
+        <li><strong>Latency control:</strong> least-latency or P2C routing avoids slow-tail backends; this is the difference between p50 optimization and p99 optimization.</li>
+        <li><strong>Zero-downtime deployment:</strong> LBs enable canary, blue-green, and rolling updates by shifting traffic weights.</li>
+        <li><strong>Security boundary:</strong> an L7 LB terminates TLS, hides backend topology, and is a natural place for WAF, mTLS, and rate limiting.</li>
+        <li><strong>Observability:</strong> the LB is the single chokepoint where you can measure true request rate, error rate, and latency per backend.</li>
+      </ul>
+
+      <h3>What load balancing does NOT do</h3>
+      <div class="callout">
+        <strong>Senior-signal answer:</strong> interviewers look for this distinction. A load balancer does not make a slow backend fast; it does not reduce total work; it does not fix a stateful design; it does not replace capacity planning; and it does not by itself reduce end-to-end latency. It redistributes load and failure. If every backend is saturated, an LB just makes the failure orderly.
+      </div>
+
+      <h3>Where load balancing lives</h3>
+      <p>Production systems typically have <em>several</em> layers: global DNS/GSLB for geo-routing, an edge L7 LB/CDN, a regional L4 network LB, a service-mesh sidecar layer for east-west traffic, and client-side load balancing inside SDKs. Each layer solves a different problem; naming this layering is a strong senior signal.</p>
+    </div>
+  </section>
+
+  <!-- ============ Q2 ============ -->
+  <section class="qa" id="q2">
+    <span class="qnum">Question 02</span>
+    <h2>Explain the difference between Layer 4 (L4) and Layer 7 (L7) load balancing. When would you choose one over the other?</h2>
+    <div class="answer">
+
+      <h3>The core distinction</h3>
+      <p>The difference is <em>how much of the packet the LB understands</em>. An L4 LB operates on the OSI transport layer: it sees IP addresses, ports, and TCP/UDP headers. It forwards packets or proxies byte streams without parsing the payload. An L7 LB terminates the application protocol — it reassembles HTTP/1.1, HTTP/2, HTTP/3, gRPC, or WebSocket — and makes routing decisions based on the actual request: method, path, host, headers, cookies, query parameters, or even a JWT claim.</p>
+
+      <h3>L4 characteristics</h3>
+      <ul>
+        <li><strong>Routing key:</strong> the 5-tuple (src IP, src port, dst IP, dst port, protocol).</li>
+        <li><strong>Implementation:</strong> often kernel-level — IPVS, ECMP hashing, DSR (direct server return) where the response bypasses the LB entirely.</li>
+        <li><strong>Performance:</strong> extremely high — millions of concurrent connections and multi-terabit throughput per cluster, with microsecond added latency.</li>
+        <li><strong>Protocol-agnostic:</strong> works for MySQL, Postgres, Redis, MQTT, DNS, custom TCP protocols — anything.</li>
+        <li><strong>Limitations:</strong> cannot route by URL, cannot terminate TLS (unless SNI-based, which is a hybrid), cannot do per-request retries, cannot inject headers, cannot do L7 rate limiting.</li>
+        <li><strong>Connection semantics:</strong> a connection is pinned to one backend for its lifetime. This matters enormously — an L4 LB cannot rebalance a long-lived multiplexed HTTP/2 connection, so a single connection can carry thousands of requests to one backend.</li>
+      </ul>
+
+      <h3>L7 characteristics</h3>
+      <ul>
+        <li><strong>Routing key:</strong> anything in the request. Path-based (<code>/api/v1/*</code>), host-based (<code>tenant.example.com</code>), header-based (<code>x-canary: true</code>), weight-based, or content-based.</li>
+        <li><strong>TLS termination</strong> and re-encryption, SNI routing, mTLS to backends.</li>
+        <li><strong>Traffic management:</strong> retries with budgets, timeouts, circuit breaking, request mirroring, header mutation, compression, response caching.</li>
+        <li><strong>Observability:</strong> per-route metrics, distributed trace propagation, structured access logs.</li>
+        <li><strong>Cost:</strong> higher CPU (parsing, TLS crypto), higher added latency (typically 1–10 ms), and it must handle connection fan-in/fan-out.</li>
+        <li><strong>Protocol support:</strong> limited to what the proxy implements. gRPC and HTTP/2 require proper stream-level handling; naive L7 proxies break multiplexing.</li>
+      </ul>
+
+      <h3>Decision framework</h3>
+      <table>
+        <tr><th>Choose L4 when…</th><th>Choose L7 when…</th></tr>
+        <tr>
+          <td>Protocol is non-HTTP (databases, Redis, Kafka, custom TCP)</td>
+          <td>You need path/host/header routing for microservices</td>
+        </tr>
+        <tr>
+          <td>Raw throughput and minimal latency dominate (ad tech, gaming, real-time bidding)</td>
+          <td>You need TLS termination, auth, WAF, or rate limiting</td>
+        </tr>
+        <tr>
+          <td>You need to preserve client IP and avoid proxy overhead (DSR)</td>
+          <td>You need canary/blue-green with request-level weights</td>
+        </tr>
+        <tr>
+          <td>Connections are long-lived and you want simple stream affinity</td>
+          <td>You need retries, timeouts, circuit breaking, or observability per route</td>
+        </tr>
+        <tr>
+          <td>Cost per request must be near zero at massive scale</td>
+          <td>You need to inspect or transform payloads (headers, JWTs, cookies)</td>
+        </tr>
+      </table>
+
+      <h3>Real architectures layer both</h3>
+      <p>A typical production path is: <strong>anycast/DNS</strong> → <strong>L4 network LB</strong> (fast, DDoS absorption, cross-zone distribution) → <strong>L7 proxy</strong> (Envoy/NGINX/ALB: routing, TLS, retries) → <strong>service mesh sidecar</strong> (east-west L7) → pod. The L4 tier exists precisely so the L7 tier doesn't have to be the throughput bottleneck, and the L7 tier exists because L4 can't make intelligent decisions.</p>
+
+      <h3>Nuances interviewers probe</h3>
+      <ul>
+        <li><strong>SNI-based routing</strong> is technically L4 but peeks into TLS — a useful hybrid to mention.</li>
+        <li><strong>L4 + connection pooling mismatch:</strong> if an L4 LB balances connections but clients use HTTP/2, load becomes skewed. L7 proxies fix this by balancing <em>requests</em>.</li>
+        <li><strong>Proxy protocol</strong> exists because L4 forwarding destroys the client IP.</li>
+        <li><strong>Latency amplification:</strong> each L7 hop adds tail latency; p99 through 4 hops can be much worse than the sum of p50s.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ Q3 ============ -->
+  <section class="qa" id="q3">
+    <span class="qnum">Question 03</span>
+    <h2>Compare common load balancing algorithms: Round Robin, Weighted Round Robin, Least Connections, Least Response Time, IP Hashing.</h2>
+    <div class="answer">
+
+      <h3>The framing</h3>
+      <p>Every algorithm is an answer to the same question: <em>given the current state I can observe, which backend should get the next request?</em> The differences are (a) how much state the algorithm tracks, (b) what it assumes about request cost and backend capacity, and (c) how it behaves when those assumptions break. Strong answers always connect the algorithm to the workload shape.</p>
+
+      <h3>Round Robin (RR)</h3>
+      <p>Cycle through backends in order. O(1) state (a counter), zero coordination, perfectly even <em>request</em> distribution. Works well when requests are homogeneous in cost and backends are identical. Breaks when: backend capacities differ, request costs vary by orders of magnitude (a 5 ms cache hit and a 2 s report generation both count as "1"), or a backend is slow-but-alive (it still gets 1/N).</p>
+
+      <h3>Weighted Round Robin (WRR)</h3>
+      <p>Each backend gets a weight proportional to capacity; the scheduler allocates proportionally (smooth WRR, as in NGINX, avoids burstiness by tracking current weights). Use it when you have known heterogeneous capacity — mixed instance sizes, or canary deploys where the new version gets 5% weight. Limitation: weights are static and operator-supplied. They don't adapt to real-time load or to a backend that is temporarily degraded.</p>
+
+      <h3>Least Connections (LC)</h3>
+      <p>Send to the backend with the fewest in-flight requests/connections. This is a proxy for queue depth and handles variable request duration far better than RR — a backend stuck on slow requests naturally stops receiving new ones. Weighted Least Connections divides by weight. <strong>The critical caveat:</strong> it counts <em>connections</em>, not requests, unless the LB is L7. With HTTP/2 or keep-alive, one connection carries many concurrent requests, so connection count badly misrepresents load. Modern L7 proxies therefore track <em>active requests</em> per backend.</p>
+
+      <h3>Least Response Time</h3>
+      <p>Route to the backend with the lowest observed latency (often a weighted blend of latency and active connections, e.g., NGINX's <code>least_time</code> or Envoy's EWMA). This directly optimizes the metric users feel. Risks: it is a feedback loop — a backend that gets a lucky fast sample attracts a burst, which slows it, causing oscillation; and latency measured at the LB includes network RTT, so a distant-but-idle backend may look worse than a nearby-but-busy one. Use EWMA smoothing and a connection/queue penalty term.</p>
+
+      <h3>IP Hashing / Source IP Affinity</h3>
+      <p><code>hash(client_ip) mod N</code> deterministically maps a client to a backend, giving session affinity without cookies and improving cache locality. Problems: (a) clients behind NAT/CGNAT/corporate proxies share an IP and all land on one backend — a hot spot; (b) <code>mod N</code> remaps almost every key when N changes, which is why production uses <strong>consistent hashing</strong> or <strong>rendezvous (HRW) hashing</strong> instead; (c) mobile clients change IPs constantly, destroying affinity.</p>
+
+      <h3>Others worth naming</h3>
+      <ul>
+        <li><strong>Random / Random Two Choices (P2C):</strong> pick two backends at random, choose the less loaded. Provably near-optimal (within a constant factor of optimal) with almost no state — this is what Envoy and many RPC frameworks default to. Excellent default when per-request state is expensive to share.</li>
+        <li><strong>Consistent hashing ring:</strong> for cache-affinity or sharded backends; minimal key remapping on scale events.</li>
+        <li><strong>Power-of-two with EWMA latency:</strong> the practical production winner for microservices.</li>
+        <li><strong>Priority / failover:</strong> primary pool, secondary pool on failure.</li>
+        <li><strong>Least Bandwidth / Least Load (CPU-based):</strong> requires backends to report load; accurate but adds a telemetry dependency and lag.</li>
+      </ul>
+
+      <h3>Choosing: the workload matrix</h3>
+      <table>
+        <tr><th>Workload</th><th>Best fit</th><th>Why</th></tr>
+        <tr><td>Uniform static content, identical servers</td><td>Round Robin</td><td>Zero overhead, perfectly even</td></tr>
+        <tr><td>Mixed instance sizes</td><td>Weighted RR / Weighted LC</td><td>Capacity-proportional</td></tr>
+        <tr><td>Highly variable request duration</td><td>Least Requests (L7) / P2C</td><td>Queue-depth proxy</td></tr>
+        <tr><td>Latency-sensitive microservices</td><td>P2C + EWMA latency</td><td>Adapts to slow tails</td></tr>
+        <tr><td>Stateful sessions / cache sharding</td><td>Consistent hash</td><td>Affinity with minimal remap</td></tr>
+        <tr><td>Canary rollout</td><td>Weighted RR</td><td>Explicit traffic split</td></tr>
+      </table>
+
+      <div class="callout"><strong>Key line to use in interview:</strong> "The algorithm matters less than the <em>signal quality</em> — a least-connections LB with a 30-second stale view performs worse than round robin with accurate health checks."</div>
+    </div>
+  </section>
+
+  <!-- ============ Q4 ============ -->
+  <section class="qa" id="q4">
+    <span class="qnum">Question 04</span>
+    <h2>What are the drawbacks of Round Robin? Explain Consistent Hashing and why virtual nodes are needed.</h2>
+    <div class="answer">
+
+      <h3>Round Robin drawbacks, precisely</h3>
+      <p>Round Robin is the correct answer when requests are homogeneous, backends are identical, and every backend is healthy. Each of those assumptions is usually false:</p>
+      <ul>
+        <li><strong>Ignores capacity heterogeneity.</strong> A 2-core pod and a 32-core pod each get 1/N. The small pod saturates; the large pod idles. Utilization becomes bimodal and cost per request rises.</li>
+        <li><strong>Ignores request cost.</strong> A cached lookup and a full-text search are both "one request." Under RR, a shard of expensive requests can land consecutively on one backend purely by chance — variance in queue depth grows, and tail latency (p99) degrades even while mean throughput looks fine.</li>
+        <li><strong>Ignores current load.</strong> If backend B is processing a batch job or GC-pausing, RR keeps feeding it. LC would have steered away within one RTT.</li>
+        <li><strong>Slow-start / JIT warmup.</strong> A freshly started instance gets full traffic immediately. Connection pools aren't warm, caches are cold, and it may be several times slower — but RR doesn't care. This is why warmup/ramp weights exist.</li>
+        <li><strong>Failure detection lag.</strong> RR is only as good as the health check. Between a backend dying and the health check marking it down, 1/N of requests fail. Passive outlier detection (consecutive 5xx) is needed to shorten that window.</li>
+        <li><strong>No affinity.</strong> With stateful backends or per-backend caches, RR maximizes cache misses and cross-node chatter.</li>
+        <li><strong>Amplification in fan-out systems.</strong> If a request fans out to 100 backends and each has a 1% chance of being overloaded, RR gives you ~63% chance of hitting at least one slow backend. Tail latency compounds — this is the classic "tail at scale" problem.</li>
+      </ul>
+
+      <h3>Consistent Hashing</h3>
+      <p>The problem it solves: with <code>hash(key) mod N</code>, changing N from 10 to 11 remaps roughly <strong>90% of keys</strong>. In a cache tier that's a catastrophic miss storm that hammers the origin; in a sharded store it's a mass data migration.</p>
+      <p><strong>Mechanism.</strong> Map both backends and keys onto a circular hash space (e.g., 0 to 2³²−1). Each backend is placed at <code>hash(backend_id)</code>. To place a key, compute <code>hash(key)</code> and walk clockwise to the first backend. When a backend is added or removed, only the keys in the arc between it and its predecessor move — on average <code>K/N</code> keys, not <code>K·(N−1)/N</code>. That's the defining property: <strong>minimal disruption on membership change</strong>.</p>
+
+      <h3>Why virtual nodes are needed</h3>
+      <p>With one point per backend, two problems appear immediately:</p>
+      <ul>
+        <li><strong>Non-uniform distribution.</strong> Hashing N identifiers onto a ring produces uneven arcs — with 3 nodes, the largest arc can easily be 2–3× the average. One backend gets a disproportionate share, which is exactly the imbalance you were trying to eliminate.</li>
+        <li><strong>No capacity weighting.</strong> A 2-core and a 32-core machine get identical expected share.</li>
+      </ul>
+      <p><strong>Solution:</strong> place each backend at many points — <code>hash(backend_id + "#" + i)</code> for i in 1..V (typically 100–1000 virtual nodes). Now each physical node owns many small arcs scattered across the ring. By the law of large numbers, load variance collapses: with V virtual nodes, the standard deviation of load share scales roughly as <code>1/√V</code>. And capacity weighting becomes trivial — give a 4× larger machine 4× the virtual nodes.</p>
+
+      <h3>Refinements to mention</h3>
+      <ul>
+        <li><strong>Bounded load / power-of-two-choices on the ring:</strong> when the next node is above <code>avg_load × (1+ε)</code>, continue clockwise. Prevents hot keys from overwhelming one node.</li>
+        <li><strong>Replication:</strong> write each key to the next R nodes clockwise for durability; read from the first. This is the Dynamo/Cassandra model.</li>
+        <li><strong>Jump Consistent Hash</strong> (Google): O(1) memory and no ring, but doesn't support weights or arbitrary removal order.</li>
+        <li><strong>Maglev hashing</strong> (Google LB): builds a fixed lookup table, designed for very fast, very uniform LB decisions with minimal disruption.</li>
+        <li><strong>Rendezvous (HRW) hashing:</strong> score each backend as <code>hash(key, backend)</code> and take the max — no ring needed, same minimal-disruption property, naturally weightable.</li>
+      </ul>
+
+      <div class="callout"><strong>Where consistent hashing shows up in LB interviews:</strong> cache-affinity routing (route the same user/URL to the same cache node), sharded stateful services, sticky sessions without cookies, and distributed storage placement. Name at least one concrete system (Cassandra, DynamoDB, Envoy's ring_hash) to show applied knowledge.</div>
+    </div>
+  </section>
+
+  <!-- ============ Q5 ============ -->
+  <section class="qa" id="q5">
+    <span class="qnum">Question 05</span>
+    <h2>What is the difference between a hardware and a software load balancer?</h2>
+    <div class="answer">
+
+      <h3>Hardware load balancers</h3>
+      <p>Purpose-built appliances — F5 BIG-IP, Citrix NetScaler, A10 Thunder, Radware — with custom ASICs or FPGAs for packet processing. They are deployed in pairs at the network edge, often using <strong>Direct Server Return (DSR)</strong>: the LB rewrites the destination MAC/IP on the way in, but the backend replies directly to the client, so the return path never touches the appliance. That's why an appliance with modest throughput can front a much larger response volume.</p>
+      <p><strong>Strengths:</strong> deterministic, extremely low, low-variance latency (hardware forwarding, no GC, no context switches); very high connection-per-second rates; mature feature sets (SSL offload, WAF, GSLB, connection limits, extensive health checks); vendor support and SLAs, which matters in regulated industries.</p>
+      <p><strong>Weaknesses:</strong> expensive (six figures with licensing tiers); capacity is fixed and over-provisioned for peak — you buy for Black Friday and idle the rest of the year; scaling means buying another chassis; configuration is vendor-proprietary (iRules, policies) and often managed by a separate network team, creating an org bottleneck; upgrading is a maintenance window on physical hardware.</p>
+
+      <h3>Software load balancers</h3>
+      <p>Software running on commodity compute or containers: NGINX/NGINX Plus, HAProxy, Envoy, Traefik, and the kernel datapath (IPVS, eBPF/XDP, DPDK). Cloud-managed LBs (AWS ALB/NLB, GCP Cloud Load Balancing, Azure Front Door) are software LBs with the operational burden outsourced.</p>
+      <p><strong>Strengths:</strong> elastic — scale horizontally with demand, pay for what you use; programmable — declarative config, APIs, GitOps, dynamic service discovery so backends register/deregister automatically; cheap to run many instances for redundancy; fast release cadence; runs anywhere (on-prem, cloud, edge); rich L7 features (header routing, retries, tracing, mTLS) because it's just code.</p>
+      <p><strong>Weaknesses:</strong> the data plane competes with the app for CPU/memory; noisy-neighbor effects; TLS handshakes are CPU-expensive in userspace; the control plane (config distribution) becomes its own distributed-systems problem; at extreme throughput, generic kernels struggle — hence eBPF/XDP and DPDK, which push forwarding into the kernel or bypass it entirely.</p>
+
+      <h3>Comparison</h3>
+      <table>
+        <tr><th>Dimension</th><th>Hardware LB</th><th>Software LB</th></tr>
+        <tr><td>Latency</td><td>Microseconds, very low jitter</td><td>Low but variable (GC, scheduling)</td></tr>
+        <tr><td>Throughput ceiling</td><td>Very high per device</td><td>High per node; scales horizontally</td></tr>
+        <tr><td>Elasticity</td><td>Poor — fixed capacity</td><td>Excellent</td></tr>
+        <tr><td>Cost model</td><td>CapEx, licensing</td><td>OpEx, per-instance</td></tr>
+        <tr><td>Configuration</td><td>Proprietary, manual</td><td>Declarative, API/GitOps</td></tr>
+        <tr><td>Service discovery</td><td>Limited, static pools</td><td>Native (K8s, Consul, EDS)</td></tr>
+        <tr><td>Upgrade</td><td>Maintenance window</td><td>Rolling, continuous</td></tr>
+        <tr><td>Blast radius</td><td>Large (one device fronting everything)</td><td>Small (many small instances)</td></tr>
+      </table>
+
+      <h3>How to choose</h3>
+      <p>The industry has decisively moved to software-defined load balancing, but the honest answer is nuanced:</p>
+      <ul>
+        <li><strong>Choose hardware/managed-appliance</strong> when you need guaranteed line-rate throughput with bounded tail latency, when regulatory or vendor-support requirements demand it, or when you have a very large, stable, non-HTTP footprint and a network team already operating appliances.</li>
+        <li><strong>Choose software</strong> for anything cloud-native, anything that autoscales, anything needing L7 routing or frequent configuration change. The default in modern architectures is a managed cloud LB at the edge plus a software L7 proxy/mesh inside.</li>
+        <li><strong>Hybrid is common:</strong> a hardware/anycast edge for DDoS absorption and TLS offload, with software L7 behind it.</li>
+      </ul>
+
+      <div class="callout"><strong>Scale nuance to mention:</strong> a naive userspace proxy saturates a core at roughly 100k–200k req/s. That's why high-scale software LBs use kernel bypass — eBPF/XDP (Cilium), DPDK (some NFV), or IPVS in the kernel — to reach millions of packets per second on commodity hardware. This is the real answer to "can software match hardware?"</div>
+    </div>
+  </section>
+
+  <!-- ============ Q6 ============ -->
+  <section class="qa" id="q6">
+    <span class="qnum">Question 06</span>
+    <h2>Explain the role of health checks in a load balancer. How would you design them?</h2>
+    <div class="answer">
+
+      <h3>The role</h3>
+      <p>Health checks are the load balancer's model of reality. Every routing decision implicitly assumes the backend is alive and able to serve; health checks are what keep that assumption true. Without them, a failed backend receives its share of traffic until an operator intervenes — converting a single-node failure into a sustained partial outage and, often, a cascading one as clients retry against the same dead endpoint.</p>
+      <p>The design goal is not "detect failure" but <strong>detect failure fast, without false positives, and recover without a thundering herd.</strong> Those three requirements are in direct tension.</p>
+
+      <h3>Two mechanisms, used together</h3>
+      <ul>
+        <li><strong>Active checks:</strong> the LB proactively probes an endpoint on a schedule (TCP connect, HTTP GET <code>/healthz</code>, gRPC health protocol). Deterministic and independent of traffic, but costs resources and only samples the endpoint — it can pass while real requests fail.</li>
+        <li><strong>Passive checks (outlier detection):</strong> the LB observes real request outcomes and ejects backends with elevated error rates or latency. Zero extra traffic, catches real failures, but only detects a backend when it is already serving bad traffic — so it must be paired with active checks.</li>
+      </ul>
+
+      <h3>Design parameters</h3>
+      <table>
+        <tr><th>Parameter</th><th>Typical value</th><th>Reasoning</th></tr>
+        <tr><td>Interval</td><td>2–10 s</td><td>Shorter = faster detection but more probe load</td></tr>
+        <tr><td>Timeout</td><td>1–3 s</td><td>Must be &lt; interval to avoid overlapping probes</td></tr>
+        <tr><td>Unhealthy threshold</td><td>2–3 consecutive fails</td><td>Avoids evicting on a single blip</td></tr>
+        <tr><td>Healthy threshold</td><td>2–5 consecutive passes</td><td>Prevents flapping on unstable nodes</td></tr>
+        <tr><td>Ejection time</td><td>30 s, exponential backoff</td><td>Don't immediately re-add a still-broken node</td></tr>
+        <tr><td>Max ejection %</td><td>≤ 50% of pool</td><td>Prevents evicting everything</td></tr>
+      </table>
+
+      <h3>Shallow vs deep checks — the critical design decision</h3>
+      <p><strong>Shallow</strong> ("is this process able to accept a connection and return 200?") tells you the instance is alive. <strong>Deep</strong> ("can this instance reach the database, cache, and downstream service?") tells you it can do useful work — but it is dangerous.</p>
+      <div class="callout">
+        <strong>The classic failure:</strong> if every health check queries the shared database, and the database has a brief slowdown, <em>every</em> backend fails its check simultaneously. The LB evicts the entire pool and a partial degradation becomes a total outage. Deep checks turn shared dependencies into a correlated failure mode.
+      </div>
+      <p><strong>Correct pattern:</strong> expose two endpoints. <code>/livez</code> (liveness) — is the process running; used to restart, never to remove from LB rotation. <code>/readyz</code> (readiness) — should this instance receive traffic; checks only <em>local</em> state (is it still warming up, is its own listener bound, has config loaded). Downstream dependency health should be handled by circuit breakers and outlier detection in the data path, not by the health check.</p>
+
+      <h3>Warmup and slow start</h3>
+      <p>A newly started instance is not equal to a warm one — empty connection pools, cold caches, un-JITted code. Without protection, the health check marks it ready and it immediately receives full 1/N traffic, producing a latency spike and sometimes failing under the load. Design a <strong>slow-start ramp</strong>: linearly increase the weight from ~10% to 100% over 30–60 s after the first successful check. Envoy's <code>slow_start</code> and NGINX's <code>slow_start</code> both implement this.</p>
+
+      <h3>Recovery storms</h3>
+      <p>When a large pool recovers, all nodes are marked healthy at once and traffic floods in. If the cause of the original failure was overload, you immediately re-trigger it. Mitigate with randomized health-check intervals (jitter), ramp-up weights, and consecutive-success thresholds so nodes rejoin gradually and at different times.</p>
+
+      <h3>Practical details that signal experience</h3>
+      <ul>
+        <li><strong>Health endpoint must be cheap:</strong> no auth, no heavy DB query, no logging spam. It will be called every few seconds by every LB instance.</li>
+        <li><strong>Don't let health checks depend on the LB's own hostname</strong> — that creates a circular dependency.</li>
+        <li><strong>Use the right probe type:</strong> TCP connect detects process death but not a hung-but-listening app; HTTP GET detects app-level hangs; gRPC requires the standard health-checking service.</li>
+        <li><strong>Health checks are a DoS vector</strong> if the endpoint is expensive and the LB fleet is large — monitor probe volume.</li>
+        <li><strong>Distinguish graceful shutdown:</strong> on SIGTERM, flip readiness to failing <em>first</em>, wait for connection draining (deregistration delay ≈ longest request timeout), then shut down.</li>
+        <li><strong>Alert on ejection rate</strong>, not just availability — a slowly rising ejection rate is the earliest signal of a systemic problem.</li>
+      </ul>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <p><strong>Batch 1 of 6 complete.</strong> Remaining batches: (2) Load Balancing architecture &amp; global traffic — sticky sessions, autoscaling LB design, node failure &amp; draining, DNS failover, canary/blue-green, LB vs API Gateway, client-side LB. (3) System Design core — scalability, caching, SQL vs NoSQL, sharding, replication, CAP, proxies/CDN, concurrency. (4) Classic designs — URL shortener, rate limiter, KV store, crawler, chat, newsfeed, search, ride-sharing, video streaming. (5) Advanced — backpressure, cascading failure, idempotency, queues, consensus. (6) Fresher-level + ML/GenAI system design.</p>
+</footer>
+
+</body>
+</html>
