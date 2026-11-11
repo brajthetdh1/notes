@@ -1,0 +1,1372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API Design — Volume 2: Resource Modeling &amp; REST Design</title>
+<style>
+  :root{
+    --ink:#0f172a;
+    --ink-soft:#334155;
+    --muted:#64748b;
+    --line:#e4def5;
+    --bg:#f7f5fd;
+    --card:#ffffff;
+    --indigo:#4f46e5;
+    --indigo-soft:#e0e7ff;
+    --indigo-deep:#3730a3;
+    --violet:#7c3aed;
+    --violet-soft:#ede9fe;
+    --rose:#e11d48;
+    --amber:#b45309;
+    --teal:#0d9488;
+    --shadow:0 1px 2px rgba(49,29,100,.06), 0 8px 24px -8px rgba(49,29,100,.14);
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 8% -10%, #e0e7ff 0%, transparent 60%),
+      radial-gradient(1000px 500px at 100% 0%, #ede9fe 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:"Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    line-height:1.72;
+    font-size:16.5px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px 90px;}
+
+  header.hero{
+    background:linear-gradient(135deg,#1e1b4b 0%, #312e81 45%, #4c1d95 100%);
+    color:#eef2ff;
+    padding:64px 22px 56px;
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::after{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      radial-gradient(600px 300px at 85% 15%, rgba(139,92,246,.42), transparent 70%),
+      radial-gradient(520px 280px at 12% 92%, rgba(99,102,241,.38), transparent 70%);
+    pointer-events:none;
+  }
+  .hero-inner{max-width:1080px;margin:0 auto;position:relative;z-index:2;}
+  .eyebrow{
+    display:inline-block;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;
+    font-weight:700;padding:7px 15px;border-radius:999px;
+    background:rgba(167,139,250,.18);border:1px solid rgba(167,139,250,.5);
+    color:#c4b5fd;margin-bottom:20px;
+  }
+  header.hero h1{
+    font-size:clamp(1.9rem, 4.4vw, 3rem);line-height:1.15;margin:0 0 16px;
+    font-weight:800;letter-spacing:-.02em;
+  }
+  header.hero h1 span{
+    background:linear-gradient(90deg,#c4b5fd,#a5b4fc);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  header.hero p.lede{font-size:1.06rem;color:#c7d2fe;max-width:780px;margin:0 0 26px;}
+  .meta-chips{display:flex;flex-wrap:wrap;gap:10px;}
+  .chip{
+    font-size:.78rem;font-weight:600;padding:7px 14px;border-radius:999px;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#e0e7ff;
+  }
+
+  .roadmap{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:26px 28px;margin-top:-34px;position:relative;z-index:5;
+  }
+  .roadmap h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 16px;font-weight:700;
+  }
+  .roadmap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;}
+  .roadmap-item{
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:.86rem;
+    background:#fcfbff;opacity:.7;
+  }
+  .roadmap-item.done{
+    border-color:#c4b5fd;background:linear-gradient(180deg,#f5f3ff,#ffffff);opacity:1;
+  }
+  .roadmap-item.current{
+    border-color:#a78bfa;background:linear-gradient(180deg,#ede9fe,#ffffff);opacity:1;
+    box-shadow:0 0 0 3px rgba(124,58,237,.14);
+  }
+  .roadmap-item .tag{
+    display:inline-block;font-size:.64rem;font-weight:800;letter-spacing:.08em;
+    padding:2px 8px;border-radius:999px;margin-bottom:6px;
+  }
+  .tag-done{background:var(--indigo-soft);color:var(--indigo-deep);}
+  .tag-now{background:var(--violet-soft);color:#5b21b6;}
+  .tag-next{background:#e2e8f0;color:#475569;}
+  .roadmap-item strong{display:block;color:var(--ink);font-size:.89rem;}
+
+  nav.toc{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:22px 26px;margin:26px 0 44px;
+  }
+  nav.toc h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 14px;font-weight:700;
+  }
+  nav.toc ol{
+    margin:0;padding-left:0;list-style:none;counter-reset:toc;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:8px 26px;
+  }
+  nav.toc li{
+    counter-increment:toc;font-size:.93rem;padding:6px 0 6px 34px;
+    position:relative;border-bottom:1px dashed #eef0fb;
+  }
+  nav.toc li::before{
+    content:counter(toc);position:absolute;left:0;top:7px;width:22px;height:22px;
+    border-radius:7px;background:var(--violet-soft);color:var(--violet);
+    font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center;
+  }
+  nav.toc a{color:var(--ink-soft);text-decoration:none;font-weight:500;}
+  nav.toc a:hover{color:var(--violet);}
+
+  .part-band{display:flex;align-items:center;gap:16px;margin:56px 0 26px;}
+  .part-band .bar{
+    width:5px;height:44px;border-radius:99px;
+    background:linear-gradient(180deg,var(--violet),#a78bfa);
+  }
+  .part-band.indigo .bar{background:linear-gradient(180deg,var(--indigo),#818cf8);}
+  .part-band.teal .bar{background:linear-gradient(180deg,var(--teal),#2dd4bf);}
+  .part-band h2{margin:0;font-size:1.5rem;letter-spacing:-.01em;font-weight:800;}
+  .part-band .sub{
+    display:block;font-size:.82rem;font-weight:600;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.12em;margin-top:2px;
+  }
+
+  article.q{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:0 0 26px;margin-bottom:28px;overflow:hidden;
+    scroll-margin-top:24px;
+  }
+  .q-head{
+    display:flex;gap:16px;align-items:flex-start;padding:22px 28px 18px;
+    border-bottom:1px solid #f0edfb;background:linear-gradient(180deg,#faf9ff,#ffffff);
+  }
+  .q-num{
+    flex:none;width:42px;height:42px;border-radius:12px;display:flex;
+    align-items:center;justify-content:center;font-weight:800;font-size:.92rem;color:#fff;
+    background:linear-gradient(135deg,#7c3aed,#6366f1);
+    box-shadow:0 6px 14px -6px rgba(124,58,237,.7);
+  }
+  .indigo .q-num{background:linear-gradient(135deg,#4f46e5,#6366f1);box-shadow:0 6px 14px -6px rgba(79,70,229,.7);}
+  .teal .q-num{background:linear-gradient(135deg,#0d9488,#14b8a6);box-shadow:0 6px 14px -6px rgba(13,148,136,.7);}
+  .q-head h3{margin:0;font-size:1.14rem;font-weight:700;line-height:1.4;letter-spacing:-.01em;}
+  .q-body{padding:22px 28px 0;}
+  .q-body p{margin:0 0 15px;color:var(--ink-soft);}
+  .q-body p:last-child{margin-bottom:0;}
+  .q-body h4{margin:24px 0 10px;font-size:.95rem;font-weight:800;color:var(--ink);}
+  .q-body h4::before{content:"▹";color:var(--violet);margin-right:8px;font-size:.85rem;}
+  .indigo .q-body h4::before{color:var(--indigo);}
+  .teal .q-body h4::before{color:var(--teal);}
+  .q-body ul,.q-body ol{margin:0 0 16px;padding-left:22px;color:var(--ink-soft);}
+  .q-body li{margin-bottom:8px;}
+  .q-body li::marker{color:var(--violet);}
+  .indigo .q-body li::marker{color:var(--indigo);}
+  .teal .q-body li::marker{color:var(--teal);}
+  strong{color:var(--ink);font-weight:700;}
+  code{
+    background:#f5f3ff;border:1px solid #e4def5;border-radius:6px;padding:1px 6px;
+    font-size:.87em;font-family:"SFMono-Regular",Consolas,monospace;color:#6d28d9;
+  }
+
+  .callout{border-radius:12px;padding:14px 18px;margin:18px 0 4px;font-size:.93rem;border-left:4px solid;}
+  .callout .label{
+    display:block;font-size:.68rem;font-weight:800;letter-spacing:.13em;
+    text-transform:uppercase;margin-bottom:5px;
+  }
+  .callout p{margin:0 0 8px;font-size:.93rem;}
+  .callout p:last-child{margin-bottom:0;}
+  .answer{background:linear-gradient(180deg,#f5f3ff,#ffffff);border-color:var(--violet);}
+  .answer .label{color:#5b21b6;}
+  .tip{background:linear-gradient(180deg,#eff6ff,#ffffff);border-color:var(--indigo);}
+  .tip .label{color:#3730a3;}
+  .tradeoff{background:linear-gradient(180deg,#fffbeb,#ffffff);border-color:var(--amber);}
+  .tradeoff .label{color:#b45309;}
+  .pitfall{background:linear-gradient(180deg,#fff1f2,#ffffff);border-color:var(--rose);}
+  .pitfall .label{color:#be123c;}
+
+  .table-scroll{overflow-x:auto;margin:18px 0;border-radius:12px;border:1px solid var(--line);}
+  table{width:100%;border-collapse:collapse;font-size:.87rem;background:#fff;}
+  thead th{
+    background:#f9f7ff;text-align:left;padding:11px 14px;font-weight:800;
+    font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+    border-bottom:2px solid var(--line);white-space:nowrap;
+  }
+  tbody td{padding:11px 14px;border-bottom:1px solid #f3f0fc;color:var(--ink-soft);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:nth-child(even){background:#fcfbff;}
+  tbody td:first-child{font-weight:700;color:var(--ink);}
+
+  .next-part{
+    background:linear-gradient(135deg,#1e1b4b,#4c1d95);color:#e0e7ff;
+    border-radius:var(--radius);padding:32px 34px;margin-top:50px;box-shadow:var(--shadow);
+  }
+  .next-part h3{margin:0 0 12px;font-size:1.2rem;color:#fff;font-weight:800;}
+  .next-part p{margin:0 0 16px;color:#c7d2fe;font-size:.95rem;}
+  .next-list{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:10px;list-style:none;padding:0;margin:0;
+  }
+  .next-list li{
+    background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
+    border-radius:10px;padding:10px 14px;font-size:.86rem;color:#e0e7ff;
+  }
+
+  @media (max-width:640px){
+    .q-head{padding:18px 18px 15px;}
+    .q-body{padding:18px 18px 0;}
+    header.hero{padding:44px 18px 46px;}
+    .roadmap{padding:20px;}
+    nav.toc{padding:18px;}
+    nav.toc ol{grid-template-columns:1fr;}
+  }
+  @media print{
+    body{background:#fff;}
+    article.q, nav.toc, .roadmap{box-shadow:none;page-break-inside:avoid;}
+    header.hero{background:#1e1b4b !important;-webkit-print-color-adjust:exact;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Volume 2 · Section 2 of 18</span>
+    <h1>API Design for System Interviews<br><span>Resource Modeling &amp; REST Design</span></h1>
+    <p class="lede">
+      The concrete mechanics of a usable REST API: how to model and name resources, how deeply to nest URLs,
+      how HTTP methods actually behave under retries, how to represent dates, money, enums, and nulls, and how
+      to recognise the RPC-over-REST anti-pattern before it becomes a permanent design.
+    </p>
+    <div class="meta-chips">
+      <span class="chip">10 Questions</span>
+      <span class="chip">500+ words each</span>
+      <span class="chip">Mechanics-heavy</span>
+      <span class="chip">Anti-patterns named</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ROADMAP -->
+  <section class="roadmap">
+    <h2>Answer-Series Roadmap</h2>
+    <div class="roadmap-grid">
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 1 — Complete</span>
+        <strong>Fundamentals &amp; Style Selection</strong>
+        API vs protocol vs service, contracts, styles, paradigms
+      </div>
+      <div class="roadmap-item current">
+        <span class="tag tag-now">Volume 2 — You are here</span>
+        <strong>Resource Modeling &amp; REST Design</strong>
+        Resources, URLs, nesting, HTTP methods, representations
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 3</span>
+        <strong>Contracts, Versioning &amp; Evolution</strong>
+        Breaking changes, deprecation, schema evolution
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 4</span>
+        <strong>Request/Response Design</strong>
+        Pagination, filtering, batching, envelopes
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 5</span>
+        <strong>Idempotency &amp; Correctness</strong>
+        Idempotency keys, conditional requests, retries
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 6</span>
+        <strong>Authentication &amp; Authorization</strong>
+        OAuth, JWT, RBAC, ABAC, IDOR
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 7</span>
+        <strong>Rate Limiting &amp; Quotas</strong>
+        Algorithms, distributed enforcement, headers
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 8</span>
+        <strong>Error Handling &amp; Status Codes</strong>
+        RFC 7807, retryability, partial failures
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 9</span>
+        <strong>API Gateways &amp; Management</strong>
+        Routing, BFF, canary, gateway vs mesh
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 10</span>
+        <strong>Performance &amp; Caching</strong>
+        HTTP caching, compression, HTTP/2 and HTTP/3
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 11</span>
+        <strong>Async APIs &amp; Webhooks</strong>
+        202 Accepted, callbacks, signatures, SSE
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 12–13</span>
+        <strong>GraphQL &amp; gRPC Deep Dives</strong>
+        N+1, DataLoader, streaming RPCs, gRPC-Web
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 14</span>
+        <strong>Security &amp; Abuse Prevention</strong>
+        OWASP API Top 10, injection, SSRF, enumeration
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 15</span>
+        <strong>Observability &amp; Operations</strong>
+        Metrics, tracing, deployment, incidents
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 16–17</span>
+        <strong>Lifecycle, Governance &amp; 17 Problems</strong>
+        Design reviews, DX, classic API prompts
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 18</span>
+        <strong>Senior &amp; Staff Trade-offs</strong>
+        Choosing between every pair of options
+      </div>
+    </div>
+  </section>
+
+  <!-- TOC -->
+  <nav class="toc">
+    <h2>Questions Answered in This Volume</h2>
+    <ol>
+      <li><a href="#q1">How do you model resources and collections?</a></li>
+      <li><a href="#q2">How do you name resources in URLs?</a></li>
+      <li><a href="#q3">Nesting depth and when to flatten</a></li>
+      <li><a href="#q4">PUT vs PATCH vs POST for updates</a></li>
+      <li><a href="#q5">Safety and idempotency of HTTP methods</a></li>
+      <li><a href="#q6">PUT-as-create vs PUT-as-update</a></li>
+      <li><a href="#q7">Designing URLs for non-CRUD actions</a></li>
+      <li><a href="#q8">How do you represent dates, money, enums, and nulls?</a></li>
+      <li><a href="#q9">How do you represent polymorphic resources?</a></li>
+      <li><a href="#q10">The RPC-over-REST anti-pattern</a></li>
+    </ol>
+  </nav>
+
+  <!-- ================= PART A ================= -->
+  <div class="part-band">
+    <div class="bar"></div>
+    <h2>Part A — Modeling Resources
+      <span class="sub">What is a thing, what is a collection, and where do they live</span>
+    </h2>
+  </div>
+
+  <!-- Q1 -->
+  <article class="q" id="q1">
+    <div class="q-head">
+      <div class="q-num">1</div>
+      <h3>How do you model resources and collections in a REST API?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A <strong>resource</strong> is a named thing the API exposes — a user, an order, a comment. A
+        <strong>collection</strong> is a resource that is a set of other resources — <code>/users</code>,
+        <code>/orders</code>. Every resource has a URL, a representation, and a set of methods. Collections hold
+        resources; resources belong to one or more collections; the whole API is a graph of resources linked by
+        URLs.</p>
+      </div>
+
+      <h4>Resources vs collections — the two fundamental shapes</h4>
+      <p>Every well-designed REST API reduces to these two shapes. A collection is an <em>enumerable set</em> — you
+      can list it, filter it, paginate it. A resource is a <em>single identified item</em> — you can fetch it,
+      update it, delete it. The distinction matters because the semantics differ:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Aspect</th><th>Collection</th><th>Resource</th></tr></thead>
+          <tbody>
+            <tr><td>URL shape</td><td><code>/users</code></td><td><code>/users/42</code></td></tr>
+            <tr><td>Primary operation</td><td><code>GET</code> — list, filtered, paginated</td><td><code>GET</code> — fetch by identifier</td></tr>
+            <tr><td>Creation</td><td><code>POST</code> — create a new member</td><td>Rarely created directly</td></tr>
+            <tr><td>Response type</td><td>Array (or paginated envelope)</td><td>Single object</td></tr>
+            <tr><td>Identity</td><td>Implicit — the set itself</td><td>Explicit — via path parameter</td></tr>
+            <tr><td>Delete</td><td>Usually not supported (mass delete)</td><td><code>DELETE /users/42</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>What qualifies as a resource</h4>
+      <p>A candidate is a resource if it has three properties: <strong>identity</strong> (it can be referenced),
+      <strong>state</strong> (it has attributes worth exposing), and <strong>lifecycle</strong> (it can be created,
+      updated, and deleted independently). A user is a resource. A user's name is an attribute of a resource, not a
+      resource. A user's addresses are a resource (they have identity, state, lifecycle) — a sub-collection of the
+      user.</p>
+      <p>This test rules out things that engineers often wrongly model as resources: search results (not a thing,
+      a query), aggregations (a computation over things), and transient operations (a transfer is an action, not a
+      noun). When the model starts to include non-resources, the API is drifting toward RPC — which is fine if it is
+      a deliberate choice, but is a problem if it is an accidental one.</p>
+
+      <h4>The domain model vs the API model</h4>
+      <p>The API model is not the domain model. The domain model includes internal entities, invariants, and
+      relationships that clients do not need to see. The API model is a <em>narrow projection</em> of the domain
+      designed around what clients actually need to do. This means:</p>
+      <ul>
+        <li>Not every database table is a resource. Some are internal bookkeeping.</li>
+        <li>One API resource can aggregate several tables. A <code>product</code> resource might combine rows from
+        <code>products</code>, <code>prices</code>, <code>inventory</code>.</li>
+        <li>Some domain concepts become attributes, not resources. A product's "on sale" flag is an attribute; its
+        sale events might be a sub-collection if clients need them.</li>
+        <li>The API model changes for client reasons, the domain model for business reasons — keeping them separate
+        lets each evolve.</li>
+      </ul>
+
+      <h4>The three questions that decide resource boundaries</h4>
+      <ol>
+        <li><strong>Does the client reference this thing by identifier?</strong> If a client asks for
+        <code>/orders/42</code>, orders are a resource. If the client only ever asks for "the current user's orders",
+        orders might be a sub-collection or a filtered view.</li>
+        <li><strong>Does it have its own lifecycle?</strong> Can this thing be created, updated, or deleted
+        independently? If yes, it is likely a resource; if its lifecycle is entirely tied to a parent, it might be
+        an attribute or an embedded object.</li>
+        <li><strong>Does it have meaningful state on its own?</strong> If it has five or more attributes the client
+        cares about, it is probably a resource. If it is a name-value pair, it is probably an attribute.</li>
+      </ol>
+
+      <h4>Sub-collections</h4>
+      <p>A resource can own sub-resources. <code>/users/42/orders</code> is the collection of orders belonging to
+      user 42. This is useful when the sub-resource is genuinely scoped to the parent — an order always belongs to
+      exactly one user, so <code>/users/42/orders</code> is a natural URL. It is a problem when the sub-resource
+      exists independently — an order can be looked up directly by its own ID, so <code>/orders/42</code> is
+      usually better than <code>/users/7/orders/42</code>.</p>
+
+      <h4>Collections are not just filters</h4>
+      <p>A common design mistake is to treat every filter as a collection. <code>/users/active</code> is not a
+      collection — it is a filtered view of <code>/users</code>. The correct form is
+      <code>/users?status=active</code>. Collections are defined by the resource type, not by the predicate.
+      Getting this wrong multiplies the URL surface and makes the API harder to consume.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "I'll model users, orders, and products as resources with their own URLs. Order lines belong to an
+        order, so I'll expose them as a sub-collection under <code>/orders/{id}/lines</code>, not a top-level
+        resource — they don't have an independent lifecycle." That sentence demonstrates the boundary test.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q2 -->
+  <article class="q" id="q2">
+    <div class="q-head">
+      <div class="q-num">2</div>
+      <h3>How do you name resources in URLs? Plural vs singular, nouns vs verbs?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Use <strong>plural nouns</strong> for collections (<code>/users</code>), and plural nouns plus an
+        identifier for a single resource (<code>/users/42</code>). Use <strong>nouns, not verbs</strong> — the HTTP
+        method supplies the verb. Use lowercase, hyphens between words, and no file extensions. URLs are stable,
+        human-readable identifiers, not sentences.</p>
+      </div>
+
+      <h4>The naming rules</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Rule</th><th>Good</th><th>Bad</th></tr></thead>
+          <tbody>
+            <tr><td>Plural for collections</td><td><code>/users</code></td><td><code>/user</code></td></tr>
+            <tr><td>Plural + ID for members</td><td><code>/users/42</code></td><td><code>/user/42</code></td></tr>
+            <tr><td>Nouns, not verbs</td><td><code>POST /orders</code></td><td><code>POST /createOrder</code></td></tr>
+            <tr><td>Lowercase</td><td><code>/users/42/profile</code></td><td><code>/Users/42/Profile</code></td></tr>
+            <tr><td>Hyphens, not underscores</td><td><code>/order-items</code></td><td><code>/order_items</code></td></tr>
+            <tr><td>No trailing slash</td><td><code>/users/42</code></td><td><code>/users/42/</code></td></tr>
+            <tr><td>No file extensions</td><td><code>/users/42</code></td><td><code>/users/42.json</code></td></tr>
+            <tr><td>No deep nesting for unrelated items</td><td><code>/orders/42</code></td><td><code>/users/7/orders/42</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Why plural</h4>
+      <p>Plural is the convention because it makes the collection the base case. <code>/users</code> is a set;
+      <code>/users/42</code> is a member. If you started with singular, you would have <code>/user</code> for the
+      collection and <code>/user/42</code> for the member, which is inconsistent — <code>/user</code> reads like
+      a single resource with no identifier, but it is actually a collection. Plural is more honest about what the
+      URL represents, and it is what every major public API does (Stripe, GitHub, Twilio, Slack).</p>
+      <p>The one exception people sometimes make is for singletons — a user has one profile, one settings object.
+      Some APIs use <code>/users/42/profile</code> (singular) for such singletons, on the logic that there is only
+      one. This is defensible, but the simpler rule — always plural — is easier to apply consistently and is what
+      most style guides recommend.</p>
+
+      <h4>Why nouns, not verbs</h4>
+      <p>In REST, the verb is the HTTP method. <code>POST /orders</code> means "create an order in the orders
+      collection". <code>POST /createOrder</code> means "post to an endpoint whose name happens to be a verb". The
+      second is technically functional but abandons the uniform interface — the client cannot generalise because
+      every operation has its own ad-hoc URL. The verb-in-URL pattern also makes it impossible to express the same
+      resource in multiple ways — you cannot list, filter, and search the same "createOrder" resource.</p>
+      <p>Verbs in URLs are not always wrong — for actions that genuinely have no resource representation, a verb is
+      the right answer (Question 7). But for CRUD operations, the HTTP method already provides the verb, and adding
+      it to the URL is redundant and harmful.</p>
+
+      <h4>Words with spaces and special characters</h4>
+      <p>Multi-word resource names should use hyphens, not underscores or camelCase. <code>/order-items</code>, not
+      <code>/order_items</code> or <code>/orderItems</code>. Hyphens are the standard across the web, are
+      SEO-friendly, and are unambiguous in URLs. Underscores can be confused with spaces in some rendering
+      contexts; camelCase requires case-sensitive comparisons that some systems mishandle.</p>
+
+      <h4>Case sensitivity</h4>
+      <p>URL paths are case-sensitive by spec, but many systems (proxies, caches, browsers) treat them
+      case-insensitively. The safest approach is to use lowercase everywhere, so case never matters. If you use
+      camelCase in identifiers, be aware that some clients will normalise them, and some CDNs will treat
+      <code>/users/42</code> and <code>/Users/42</code> as different cache entries.</p>
+
+      <h4>Identifiers in URLs</h4>
+      <p>The identifier in <code>/users/{id}</code> should be stable and public. This is why auto-increment integer
+      IDs are a mixed choice for public APIs — they leak volume and are enumerable. UUIDs are safer but uglier. The
+      common solution is a separate public identifier (a slug, an opaque token, or a UUID) distinct from the
+      internal primary key. Stripe uses prefixed opaque IDs (<code>cus_abc123</code>) which are neither sequential
+      nor guessable.</p>
+
+      <h4>URLs as stable identifiers</h4>
+      <p>Once a URL is published, it is a contract. Clients bookmark it, hardcode it, log it, and cache it. Changing
+      <code>/users</code> to <code>/people</code> breaks everyone. This is why the naming decision deserves more care
+      than the schema decision — a schema can be versioned, a URL cannot (except by keeping the old one around
+      forever). Choose names carefully, and stick with them.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Mixing conventions in the same API. <code>/users</code> next to <code>/order_items</code> next to
+        <code>/Products</code> is a sign that no one designed the API — it just grew. A style guide and a linter
+        (Spectral, OpenAPI Validator) enforce consistency at build time, which is the only reliable way to keep it.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q3 -->
+  <article class="q" id="q3">
+    <div class="q-head">
+      <div class="q-num">3</div>
+      <h3>How deep should URL nesting go, and when do you flatten?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Nest only when the sub-resource cannot exist without its parent. <strong>One level of nesting is usually
+        fine, two is the maximum, three is a warning sign.</strong> When a resource has its own identity and can be
+        looked up independently, flatten it to a top-level collection and use a query parameter to express the
+        relationship.</p>
+      </div>
+
+      <h4>The two competing URL styles</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Style</th><th>Example</th><th>When it fits</th></tr></thead>
+          <tbody>
+            <tr><td>Nested</td><td><code>/users/42/orders</code></td><td>The sub-resource is scoped to the parent; there is no meaningful "order" outside a user context</td></tr>
+            <tr><td>Top-level with filter</td><td><code>/orders?userId=42</code></td><td>The sub-resource is independent and globally addressable</td></tr>
+            <tr><td>Both</td><td><code>/users/42/orders</code> and <code>/orders/42</code></td><td>The client needs both perspectives</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The test: can it exist independently?</h4>
+      <p>The simplest test is: does the child resource have its own identifier that is meaningful outside the
+      parent? An order has <code>order_id</code>; it is referenced in shipments, invoices, and payments. It
+      exists independently of the user. A user's <em>address</em> is usually identified only by user and address
+      number — <code>address_id</code> is meaningful only in the user's context. So:</p>
+      <ul>
+        <li><strong>Independent identity → top-level.</strong> <code>/orders/42</code>, and optionally
+        <code>/users/7/orders</code> as a convenience sub-collection.</li>
+        <li><strong>Dependent identity → nested.</strong> <code>/users/42/addresses/3</code>, because the address's
+        identity is scoped to the user.</li>
+      </ul>
+
+      <h4>The problem with deep nesting</h4>
+      <p>Deep nesting looks tidy on a whiteboard but degrades in every operational dimension:</p>
+      <ul>
+        <li><strong>URLs become rigid.</strong> <code>/users/7/orders/42/lines/3</code> forces every lookup through
+        every parent. If the client only knows the line ID, it cannot find it without knowing the user and order.</li>
+        <li><strong>Authorization is harder.</strong> Each level implies a check — is the user allowed to see this
+        order, and this line within it? Deep nesting makes every authorization a chain of checks, each of which can
+        fail. Flatter URLs make auth a single check.</li>
+        <li><strong>Caching is fragmented.</strong> <code>/users/7/orders</code> and <code>/users/8/orders</code> are
+        different cache entries even if they hold the same data. Deep nesting multiplies cache entries with no
+        benefit.</li>
+        <li><strong>Versioning is harder.</strong> Changing the parent's URL changes the child's URL. A version bump
+        on users cascades to every nested resource.</li>
+        <li><strong>Refactoring is harder.</strong> Splitting a parent into two means rewriting every child URL.</li>
+      </ul>
+
+      <h4>The pragmatic rule</h4>
+      <p>A defensible rule that many public APIs follow:</p>
+      <ol>
+        <li><strong>Top-level collections for every independently addressable resource.</strong> <code>/users</code>,
+        <code>/orders</code>, <code>/products</code>.</li>
+        <li><strong>One level of nesting for sub-collections that are genuinely scoped to the parent.</strong>
+        <code>/users/42/addresses</code>, <code>/orders/42/lines</code>.</li>
+        <li><strong>Never two or more levels.</strong> If you find yourself writing
+        <code>/users/42/orders/42/lines/3</code>, stop — the line has a top-level URL and the user linkage is a
+        query parameter.</li>
+        <li><strong>Accept both forms when the client needs both.</strong> <code>/orders/42</code> and
+        <code>/users/7/orders/42</code> can both exist and return the same resource, with the second verifying that
+        the order belongs to the user.</li>
+      </ol>
+
+      <h4>Why the "one level" rule works</h4>
+      <p>One level of nesting mirrors the actual data model — most child resources belong to exactly one parent,
+      and the parent is what the client has in hand. Deeper nesting implies a hierarchical relationship that
+      usually does not exist; a line belongs to an order, and an order belongs to a user, but the line does not
+      belong to the user in any meaningful way. Modelling the true structure (one level) and expressing other
+      relationships via filters is both more accurate and more usable.</p>
+
+      <h4>When nesting is genuinely the right answer</h4>
+      <p>Some resources really do lack independent identity. A settings object, an address, an order line, a
+      permission grant — these exist only in the context of a parent, and their URLs reflect that. For these,
+      nesting is not a compromise, it is the correct model. The question is not "should I nest?", it is "does
+      this thing have identity outside its parent?" — and the answer should be based on the domain, not on
+      aesthetics.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Orders have their own ID and are referenced from shipments and payments, so they live at
+        <code>/orders/{id}</code>. Order lines don't have identity outside an order, so they're at
+        <code>/orders/{id}/lines</code>." That demonstrates you are applying the identity test, not a stylistic rule.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART B ================= -->
+  <div class="part-band indigo">
+    <div class="bar"></div>
+    <h2>Part B — HTTP Method Semantics
+      <span class="sub">What each verb means, and what it guarantees under retries</span>
+    </h2>
+  </div>
+
+  <!-- Q4 -->
+  <article class="q indigo" id="q4">
+    <div class="q-head">
+      <div class="q-num">4</div>
+      <h3>What is the difference between PUT, PATCH, and POST for updates?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p><strong>PUT</strong> replaces the resource entirely — the client sends the full representation, and
+        omitted fields are removed or reset. <strong>PATCH</strong> applies a partial update — the client sends only
+        the fields to change. <strong>POST</strong> creates a new resource in a collection. Using PUT for partial
+        updates is the most common and most damaging mistake in REST API design.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Aspect</th><th>PUT</th><th>PATCH</th><th>POST</th></tr></thead>
+          <tbody>
+            <tr><td>Semantics</td><td>Replace entire resource</td><td>Apply partial modification</td><td>Create new resource</td></tr>
+            <tr><td>Body contains</td><td>Full representation</td><td>Only the fields to change</td><td>Fields for the new resource</td></tr>
+            <tr><td>Omitted fields</td><td>Removed / reset to default</td><td>Left unchanged</td><td>N/A</td></tr>
+            <tr><td>Idempotent</td><td>Yes</td><td>Not guaranteed</td><td>No</td></tr>
+            <tr><td>Target URL</td><td>Specific resource (<code>/users/42</code>)</td><td>Specific resource (<code>/users/42</code>)</td><td>Collection (<code>/users</code>)</td></tr>
+            <tr><td>Response</td><td>200 or 204</td><td>200 or 204</td><td>201 with <code>Location</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>PUT — full replacement</h4>
+      <p>PUT means "make the resource at this URL look exactly like this body". It is a replace, not an update. If a
+      user has fields <code>{name, email, phone}</code> and the client PUTs <code>{name: "Alice"}</code>, the
+      result is a user with <code>name: "Alice"</code> and <code>email: null</code>, <code>phone: null</code> —
+      because the body is the complete new state.</p>
+      <p>This is why PUT is well-suited to idempotent, full-document resources — configuration files, settings
+      documents, and data where the client holds the full representation. It is a poor fit for entities with many
+      fields that the client only partially knows, because every PUT risks wiping fields the client did not
+      include.</p>
+
+      <h4>PATCH — partial update</h4>
+      <p>PATCH means "apply this change to the resource". A PATCH body of <code>{email: "alice@example.com"}</code>
+      updates only the email; the name and phone remain unchanged. This is what most applications actually want,
+      because clients rarely hold the entire resource — they edit one field on a form and submit the change.</p>
+      <p>PATCH is not guaranteed idempotent in the HTTP spec, because the patch format could be non-idempotent
+      (e.g., "increment a counter by 1"). In practice, most PATCH bodies are JSON objects that merge into the
+      resource, which is idempotent — applying the same PATCH twice gives the same result. But the <em>spec</em>
+      allows non-idempotent semantics, so retries must be considered carefully. The safest design is to make PATCH
+      idempotent in your API and document it.</p>
+
+      <h4>The PATCH format problem</h4>
+      <p>PATCH does not specify a body format. The two common ones:</p>
+      <ul>
+        <li><strong>JSON Merge Patch</strong> (RFC 7396) — a JSON object whose fields are merged into the target.
+        <code>{"email": "new@x.com"}</code> changes email. <code>{"email": null}</code> removes the field. Simple,
+        intuitive, and what most APIs use.</li>
+        <li><strong>JSON Patch</strong> (RFC 6902) — a list of operations: <code>[{"op": "replace", "path":
+        "/email", "value": "new@x.com"}]</code>. More powerful (can reorder arrays, test preconditions), but more
+        verbose and rarely needed.</li>
+      </ul>
+      <p>The choice matters because the semantics differ. JSON Merge Patch cannot express "set this field to null"
+      separately from "remove this field". JSON Patch can, at the cost of verbosity. Most APIs should use JSON
+      Merge Patch and document the limitation.</p>
+
+      <h4>POST — creation, and the "action" escape hatch</h4>
+      <p>POST to a collection creates a new member. The server generates the ID and returns
+      <code>201 Created</code> with a <code>Location</code> header pointing at the new resource.</p>
+      <p>POST is also the correct method for operations that are not CRUD — <code>POST /orders/42/cancel</code>,
+      <code>POST /payments</code>. These are actions that create a new resource (the cancellation, the payment) or
+      that change state in ways not expressible as PUT or PATCH. Using POST here is correct because POST is the
+      method of "anything not otherwise specified", and these operations do not fit the replace or partial-update
+      semantics of PUT/PATCH.</p>
+
+      <h4>The cardinal sin: PUT for partial updates</h4>
+      <p>Many APIs use PUT for partial updates, treating it as "the update method". This breaks the HTTP spec and
+      causes real bugs: a client that PUTs <code>{email: "new"}</code> silently wipes the user's name and phone.
+      This is not a theoretical concern — it is the most common data-loss bug in poorly designed REST APIs. If
+      partial updates are needed (and they almost always are), PATCH is the right method.</p>
+      <p>If a client genuinely wants to replace the whole resource, PUT is correct. If it wants to change one field,
+      PATCH is correct. The methods are not interchangeable, and treating them as such is a contract violation.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>PUT is idempotent and simple to reason about, but requires the client to know the full resource. PATCH
+        is ergonomic but requires the server to interpret a patch format and loses the idempotency guarantee unless
+        you document it. For internal APIs where the client controls both sides, PATCH is almost always the right
+        default; for public APIs, offering both (PUT for full replacement, PATCH for partial) is common.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q5 -->
+  <article class="q indigo" id="q5">
+    <div class="q-head">
+      <div class="q-num">5</div>
+      <h3>What is the difference between safe and idempotent HTTP methods?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p><strong>Safe</strong> means the method does not modify server state — reads are safe. <strong>Idempotent</strong>
+        means the effect of calling it multiple times is the same as calling it once. Safety is about whether it
+        changes anything; idempotency is about whether repeating it changes the outcome. GET, HEAD, OPTIONS, and
+        TRACE are safe. GET, HEAD, OPTIONS, TRACE, PUT, and DELETE are idempotent. POST is neither.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Method</th><th>Safe</th><th>Idempotent</th><th>Changes state</th></tr></thead>
+          <tbody>
+            <tr><td>GET</td><td>Yes</td><td>Yes</td><td>No</td></tr>
+            <tr><td>HEAD</td><td>Yes</td><td>Yes</td><td>No</td></tr>
+            <tr><td>OPTIONS</td><td>Yes</td><td>Yes</td><td>No</td></tr>
+            <tr><td>TRACE</td><td>Yes</td><td>Yes</td><td>No</td></tr>
+            <tr><td>PUT</td><td>No</td><td>Yes</td><td>Yes — replace</td></tr>
+            <tr><td>DELETE</td><td>No</td><td>Yes</td><td>Yes — remove</td></tr>
+            <tr><td>PATCH</td><td>No</td><td>Not guaranteed</td><td>Yes — partial</td></tr>
+            <tr><td>POST</td><td>No</td><td>No</td><td>Yes — create / action</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Safety</h4>
+      <p>A safe method does not change server state. GET, HEAD, OPTIONS, and TRACE are safe. This is why crawlers,
+      prefetchers, and caches can issue them freely — the spec guarantees that a GET never modifies anything.</p>
+      <p>Violating safety is a real bug: a GET that creates a record, deletes a row, or sends an email is not safe,
+      and any infrastructure that issues GETs speculatively (browsers, CDNs, bots) will cause unintended effects.
+      The classic example is a GET endpoint that decrements an inventory count — a crawler indexing the site
+      inadvertently sells out the stock. Every endpoint that changes state must be POST, PUT, PATCH, or DELETE.</p>
+
+      <h4>Idempotency</h4>
+      <p>An idempotent method's effect is the same whether called once or ten times. PUT is idempotent because the
+      second PUT sets the resource to the same state as the first. DELETE is idempotent because deleting an
+      already-deleted resource leaves it deleted — the state is the same. GET is idempotent because reading does not
+      change anything.</p>
+      <p>POST is not idempotent because two POSTs create two resources. A retry of <code>POST /orders</code>
+      after a network timeout may create two orders if the first one actually succeeded but the response was lost.
+      This is the core reason POST requires an <strong>idempotency key</strong> for safe retries — the key lets the
+      server detect that this is a retry, not a new request.</p>
+
+      <h4>Why this matters for retries</h4>
+      <p>The whole point of idempotency in HTTP is that a client or proxy can safely retry an idempotent method
+      after a network failure. If a PUT times out, the client can retry — the result is the same. If a DELETE times
+      out, retry — the result is the same. If a POST times out, retrying may duplicate the operation, so the client
+      must either give up or use an idempotency key to make the retry safe.</p>
+      <p>This is why load balancers and API gateways sometimes retry idempotent methods automatically but never
+      retry POST. The HTTP method is a signal that the retry is safe. Violating the convention breaks the
+      infrastructure's ability to help you.</p>
+
+      <h4>PATCH's ambiguous status</h4>
+      <p>PATCH is not required to be idempotent by spec, because a patch could contain a non-idempotent operation
+      ("append to list", "increment counter"). In practice, most PATCH bodies — JSON Merge Patch, JSON Patch with
+      only <code>replace</code> operations — are idempotent. The pragmatic recommendation: design your PATCH
+      endpoints to be idempotent when the operation permits, and document it clearly. Do not assume a PATCH is
+      safe to retry unless you know the specific patch semantics.</p>
+
+      <h4>DELETE and the "already deleted" question</h4>
+      <p>DELETE is idempotent, but there is a subtle debate: what should a DELETE of an already-deleted resource
+      return? Two defensible answers:</p>
+      <ul>
+        <li><strong>404 Not Found</strong> — the resource does not exist, so return an error. Idempotent because the
+        second call also returns 404.</li>
+        <li><strong>204 No Content</strong> — the resource is now deleted, which is what the client wanted. Idempotent
+        because the second call also returns 204, and the state is correct.</li>
+      </ul>
+      <p>Both are idempotent. The 404 approach is more informative; the 204 approach is more friendly to
+      idempotent retries. Most modern APIs (Stripe, GitHub) return 404 on the second DELETE of a resource. Choose
+      one and be consistent.</p>
+
+      <h4>What idempotency does not mean</h4>
+      <p>Idempotency does not mean the response is identical — only that the state is. <code>DELETE /users/42</code>
+      might return 200 the first time and 404 the second, but the state is "user 42 does not exist" in both cases.
+      This distinction matters when you build retry logic: the retry succeeds if the state is correct, even if the
+      response is different.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Treating idempotency as a binary property and assuming every POST needs an idempotency key. A POST that
+        creates a genuinely new resource on every call does not — the client simply must not retry. The ones that
+        need a key are POSTs whose duplicate execution would cause a harmful side effect (charging a card, sending
+        an email, creating an order). Adding a key to every POST is unnecessary overhead.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q6 -->
+  <article class="q indigo" id="q6">
+    <div class="q-head">
+      <div class="q-num">6</div>
+      <h3>What is the difference between PUT-as-create and PUT-as-update, and which should you use?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p><strong>PUT-as-update</strong> assumes the resource already exists: a PUT to a known URL replaces its
+        state, and 404 if it does not exist. <strong>PUT-as-create</strong> allows the client to choose the URL: a
+        PUT to a URL that does not yet exist creates the resource, returning 201; a PUT to an existing URL replaces
+        it, returning 200. Both are valid; which you choose depends on whether the client or the server owns
+        identifier generation.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Aspect</th><th>PUT-as-update</th><th>PUT-as-create (upsert)</th></tr></thead>
+          <tbody>
+            <tr><td>Who chooses the URL</td><td>Server (in a prior POST)</td><td>Client</td></tr>
+            <tr><td>Behaviour on missing resource</td><td>404</td><td>Creates it (201)</td></tr>
+            <tr><td>Behaviour on existing resource</td><td>Replaces (200)</td><td>Replaces (200)</td></tr>
+            <tr><td>Idempotent</td><td>Yes</td><td>Yes</td></tr>
+            <tr><td>Client knows the ID</td><td>Only after creation</td><td>Before creation</td></tr>
+            <tr><td>Typical use</td><td>Server-generated IDs</td><td>Client-generated IDs, config, snapshots</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>PUT-as-update</h4>
+      <p>The client creates a resource with POST, gets the ID from the server, and later updates it with PUT. The
+      server controls identity. This is the more common pattern because it lets the server assign collision-free
+      IDs (auto-increment, UUID, Snowflake) and enforce uniqueness without the client needing to know.</p>
+      <p>This pattern's strength is that it is unambiguous about state: "replace the resource at this URL, or tell
+      me it does not exist". The client cannot accidentally create a resource by trying to update a nonexistent one.
+      For most CRUD APIs, this is the right default.</p>
+
+      <h4>PUT-as-create (upsert)</h4>
+      <p>The client chooses the URL — usually by generating the identifier — and PUTs the full representation.
+      If the resource exists, it is replaced (200); if not, it is created (201). This is an <strong>upsert</strong>.</p>
+      <p>The classic use case is client-side ID generation: a mobile app creates a note while offline, generates a
+      UUID locally, and syncs later. The URL is known before the resource exists. PUT-as-create makes the sync
+      trivially idempotent — the app can retry the PUT as many times as needed without creating duplicates.</p>
+      <p>Other use cases: configuration documents (<code>PUT /configs/production</code> — set it to this value,
+      whether or not it exists), declarative resources (Kubernetes-style apply), and user-defined paths (a
+      project named <code>my-project</code> lives at <code>/projects/my-project</code>, and the user chooses the
+      name).</p>
+
+      <h4>The status code distinction</h4>
+      <p>The two behaviours return different status codes:</p>
+      <ul>
+        <li><strong>200 OK</strong> — the resource existed and was replaced.</li>
+        <li><strong>201 Created</strong> — the resource did not exist and was created. Include a <code>Location</code>
+        header pointing to the new resource (redundant if the client chose the URL, but good practice).</li>
+        <li><strong>204 No Content</strong> — sometimes used for 200 when the response body is empty.</li>
+      </ul>
+      <p>Clients can use the status code to know whether their PUT created or replaced — useful for logging and
+      metrics, though clients should not depend on it for correctness because a concurrent request could have
+      created the resource between their check and their PUT.</p>
+
+      <h4>The idempotency argument for PUT-as-create</h4>
+      <p>The strongest argument for PUT-as-create is idempotency without idempotency keys. A POST-based create
+      requires an idempotency key to be retry-safe (Volume 5 will cover this). A PUT-based create is idempotent by
+      definition — the URL identifies the resource, and repeating the PUT is a no-op if the state is already
+      correct. For mobile apps and unreliable networks, this is enormously valuable.</p>
+      <p>The cost is that the client must generate globally unique IDs. UUIDs are the standard answer; ULIDs or
+      other time-ordered IDs are better for index locality (see the distributed systems series). Auto-increment
+      IDs cannot be used here because the client cannot know the next value.</p>
+
+      <h4>Which to choose</h4>
+      <p>The decision is fundamentally about who owns identity:</p>
+      <ul>
+        <li><strong>Server owns identity → POST to create, PUT to update.</strong> The server generates the ID,
+        the client learns it from the POST response, and subsequent updates use it.</li>
+        <li><strong>Client owns identity → PUT-as-create.</strong> The client generates the ID, PUTs to the URL,
+        and retries freely.</li>
+        <li><strong>Hybrid</strong> — support both: POST for server-generated IDs, PUT with client-supplied ID for
+        client-generated ones. This is what many modern APIs do, at the cost of more surface area.</li>
+      </ul>
+
+      <h4>The "PUT to a URL that does not exist" trap</h4>
+      <p>Some APIs return 404 on PUT-to-nonexistent-resource, which makes the client's life harder — it must check
+      existence before creating, or handle the 404 with a fallback POST. Other APIs return 201 and create the
+      resource, which is friendlier but changes the semantics from "update" to "upsert". The spec allows both;
+      pick one and document it clearly. The most confusing design is a mix — some URLs create, others return 404 —
+      because the client cannot predict the behaviour.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>PUT-as-create is idempotent and offline-friendly but requires client-side ID generation and accepts
+        that the client chooses the URL (which is a security consideration — a client-supplied ID could collide
+        with another tenant's). PUT-as-update is simpler for the server but makes retries harder for the client.
+        The right choice depends on whether the client is offline-capable and whether the URLs are
+        client-meaningful.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART C ================= -->
+  <div class="part-band teal">
+    <div class="bar"></div>
+    <h2>Part C — Actions, Representations &amp; Anti-patterns
+      <span class="sub">Non-CRUD operations, data types, polymorphism, and what to avoid</span>
+    </h2>
+  </div>
+
+  <!-- Q7 -->
+  <article class="q teal" id="q7">
+    <div class="q-head">
+      <div class="q-num">7</div>
+      <h3>How do you design URLs for actions that don't map cleanly to CRUD?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Most non-CRUD actions fall into three categories: <strong>state transitions on an existing resource</strong>
+        (cancel, approve, publish), <strong>operations that create a new resource</strong> (transfer, payment,
+        checkout), and <strong>computations</strong> (search, estimate). The best practice is to model the action as
+        a sub-resource (<code>POST /orders/42/cancellation</code>) or a new resource (<code>POST /transfers</code>).
+        When that does not work, a verb endpoint (<code>POST /orders/42/cancel</code>) is a defensible escape hatch.</p>
+      </div>
+
+      <h4>Approach 1 — Model the action as a resource</h4>
+      <p>Many actions are really "create an instance of something". Cancelling an order creates a
+      <em>cancellation</em>. Refunding a payment creates a <em>refund</em>. Sending an email creates a
+      <em>message</em>. These are resources, and POSTing to a collection is the correct REST design:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Instead of</th><th>Use</th><th>Response</th></tr></thead>
+          <tbody>
+            <tr><td><code>POST /orders/42/cancel</code></td><td><code>POST /orders/42/cancellations</code></td><td>201 with cancellation resource</td></tr>
+            <tr><td><code>POST /payments/42/refund</code></td><td><code>POST /payments/42/refunds</code></td><td>201 with refund resource</td></tr>
+            <tr><td><code>POST /users/42/send-email</code></td><td><code>POST /users/42/emails</code></td><td>201 with email resource</td></tr>
+            <tr><td><code>POST /invoices/42/approve</code></td><td><code>POST /invoices/42/approvals</code></td><td>201 with approval resource</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The advantage is that the action has a resource — it can be queried (<code>GET /orders/42/cancellations</code>
+      lists all attempts), referenced in logs, and given its own state (pending, completed, rejected). The
+      cancellation is not just a method call, it is a thing that happened.</p>
+      <p>This approach is what Stripe uses for many operations (refunds are resources; payouts are resources) and
+      what many well-designed APIs use for anything with a lifecycle or an audit trail.</p>
+
+      <h4>Approach 2 — Model the action as a state transition via PATCH</h4>
+      <p>If the action is simply a state field changing (active → cancelled), the cleanest design is a PATCH to the
+      resource:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Action</th><th>Design</th></tr></thead>
+          <tbody>
+            <tr><td>Cancel an order</td><td><code>PATCH /orders/42</code> with <code>{"status": "cancelled"}</code></td></tr>
+            <tr><td>Publish a post</td><td><code>PATCH /posts/42</code> with <code>{"status": "published"}</code></td></tr>
+            <tr><td>Archive a project</td><td><code>PATCH /projects/42</code> with <code>{"archived": true}</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>This is the most RESTful approach and works beautifully when the action maps to a field. The server
+      validates that the transition is legal (you cannot cancel an already-shipped order) and returns 409 if not.</p>
+      <p>The limitation is that some actions have side effects beyond a field change (a refund is not just a flag,
+      it moves money). For those, Approach 1 or 3 is better.</p>
+
+      <h4>Approach 3 — Verb endpoints as an escape hatch</h4>
+      <p>Sometimes the action does not fit any of the above. A search is not a resource. A price estimate is not a
+      resource. A PDF generation is not a resource (or, alternatively, it is a job, and jobs are resources). For
+      these, a verb endpoint is defensible:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Action</th><th>Verb endpoint</th></tr></thead>
+          <tbody>
+            <tr><td>Search</td><td><code>POST /search</code> (body is the query)</td></tr>
+            <tr><td>Price estimate</td><td><code>POST /price-estimates</code> (still resource-shaped, but verb-y)</td></tr>
+            <tr><td>Convert file</td><td><code>POST /convert</code> or <code>POST /conversions</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The rule of thumb: if you can model it as a resource, do; if you cannot after honest effort, a verb is
+      better than a contorted resource. But be honest — most "actions" <em>are</em> resources in disguise
+      (a search is a query, a conversion is a job, a refund is a resource) and modelling them as such is better.</p>
+
+      <h4>What not to do</h4>
+      <ul>
+        <li><strong>Verb in a top-level URL for a single resource action</strong> — <code>POST /cancelOrder</code> is
+        not RESTful and creates a parallel URL structure.</li>
+        <li><strong>Using GET for actions</strong> — <code>GET /orders/42/cancel</code> violates safety and will be
+        triggered by crawlers and prefetchers.</li>
+        <li><strong>Using POST on a resource for a state change</strong> — <code>POST /orders/42</code> with a body
+        saying "cancel this" is ambiguous. PATCH or a sub-resource is clearer.</li>
+        <li><strong>One endpoint with an operation parameter</strong> — <code>POST /orders</code> with
+        <code>{"operation": "cancel", "id": 42}</code> is RPC hiding in REST clothing; it loses all the benefits
+        of resource-oriented URLs.</li>
+      </ul>
+
+      <h4>Idempotency for action endpoints</h4>
+      <p>Actions require special care about idempotency. Cancelling an already-cancelled order should probably return
+      200 (idempotent) rather than an error — the state is what the client wanted. Cancelling a shipped order should
+      return 409 (conflict). The decision is domain-specific, but it should be made deliberately, because a client
+      retrying an action after a timeout will hit the already-done case.</p>
+      <p>For actions that are not idempotent (a refund is a good example — two refunds refund twice), an
+      idempotency key is essential. This is a Volume 5 topic, but the design implication is that action endpoints
+      must be designed with idempotency in mind from the start.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Cancelling an order creates a cancellation resource at <code>/orders/{id}/cancellations</code>,
+        because the cancellation has its own lifecycle and audit trail. Publishing a post is a state change, so it's
+        a PATCH setting <code>status: published</code>." That shows you are classifying actions, not applying a
+        single rule.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q8 -->
+  <article class="q teal" id="q8">
+    <div class="q-head">
+      <div class="q-num">8</div>
+      <h3>How do you represent dates, money, enums, and nulls in an API?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p><strong>Dates</strong>: ISO 8601 in UTC, always with timezone information for instants, and date-only
+        where appropriate. <strong>Money</strong>: integer minor units plus a currency code, never floating point.
+        <strong>Enums</strong>: string values, versioned when extended, with a fallback for unknown values.
+        <strong>Nulls</strong>: distinguish absent from null from empty, and prefer omitting absent fields over
+        sending nulls.</p>
+      </div>
+
+      <h4>Dates and times</h4>
+      <p>The rules that avoid almost every date bug:</p>
+      <ul>
+        <li><strong>Instants</strong> (a specific moment) — ISO 8601 with UTC offset: <code>"2024-01-15T10:30:00Z"</code>.
+        The <code>Z</code> is critical — without it, the timestamp is ambiguous and different clients interpret it in
+        different timezones.</li>
+        <li><strong>Local times</strong> (a wall-clock time without a zone) — ISO 8601 without an offset:
+        <code>"2024-01-15T10:30:00"</code>. Use only when the time genuinely is local (a meeting scheduled "at 10:30
+        in New York" is different from "at 10:30 UTC").</li>
+        <li><strong>Dates</strong> (no time) — ISO 8601 date format: <code>"2024-01-15"</code>. Birthdates, invoice
+        dates, and reporting periods are dates, not timestamps. Converting a date to a timestamp creates false
+        precision and timezone problems.</li>
+        <li><strong>Durations</strong> — ISO 8601 duration: <code>"P1D"</code> (1 day), <code>"PT1H30M"</code> (1
+        hour 30 minutes).</li>
+      </ul>
+      <p>The most common mistake is storing timestamps without a timezone and treating them as UTC. This works until
+      a server is in a non-UTC zone and starts producing timestamps that are off by hours. Always include the
+      timezone, and prefer UTC for instants.</p>
+
+      <h4>Money</h4>
+      <p>Money must be represented as <strong>integer minor units plus a currency code</strong>. Never as a
+      floating-point number. Floats cannot represent 0.10 exactly — the classic bug is <code>0.1 + 0.2 = 0.30000000000000004</code>
+      — and any rounding in a financial calculation is a bug.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Format</th><th>Example</th><th>Verdict</th></tr></thead>
+          <tbody>
+            <tr><td>Integer minor units + currency</td><td><code>{"amount": 1050, "currency": "USD"}</code></td><td>Correct — 10.50 USD</td></tr>
+            <tr><td>String decimal + currency</td><td><code>{"amount": "10.50", "currency": "USD"}</code></td><td>Acceptable, if parsed carefully</td></tr>
+            <tr><td>Float + currency</td><td><code>{"amount": 10.50, "currency": "USD"}</code></td><td>Wrong — precision loss</td></tr>
+            <tr><td>Formatted string</td><td><code>"$10.50"</code></td><td>Wrong — cannot be parsed reliably across locales</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The currency is mandatory because 1050 is 10.50 USD, or 10.50 EUR, or 1050 JPY — the number alone is
+      meaningless. Use ISO 4217 currency codes (<code>USD</code>, <code>EUR</code>, <code>GBP</code>).</p>
+      <p>The minor-unit convention differs by currency: USD has 2 decimals (cents), JPY has 0, some currencies have
+      3. Include this in the documentation or, better, send the currency's exponent alongside the amount.</p>
+
+      <h4>Enums</h4>
+      <p>Enums should be <strong>strings</strong> (not integers, not booleans) so they are self-documenting and
+      extensible. <code>{"status": "active"}</code> is far better than <code>{"status": 1}</code>.</p>
+      <p>The versioning question: what happens when you add a new enum value? Clients that switch on the value will
+      hit the new case. The standard mitigations:</p>
+      <ul>
+        <li><strong>Tolerant reader.</strong> Document that clients must handle unknown values gracefully —
+        typically by treating them as "unknown" or by ignoring the record. This is what large APIs do (Stripe,
+        GitHub).</li>
+        <li><strong>Versioned enum values.</strong> Prefix values with a version (<code>v2_processing</code>) so
+        old clients do not confuse new values with old ones. This is heavier and rarely necessary.</li>
+        <li><strong>Never remove.</strong> Only add values. Removing a value is a breaking change.</li>
+      </ul>
+
+      <h4>Nulls</h4>
+      <p>There are three states that JSON conflates: <strong>absent</strong> (the field was not included),
+      <strong>null</strong> (the field is present with no value), and <strong>empty</strong> (the field is present
+      with an empty value — <code>""</code>, <code>[]</code>, <code>0</code>). The distinctions matter:</p>
+      <ul>
+        <li><strong>Absent</strong> — the client did not ask for it, or the server did not include it. A PATCH that
+        omits a field should not change it.</li>
+        <li><strong>Null</strong> — the field exists but has no value. A PATCH that sends <code>{"email": null}</code>
+        means "clear the email".</li>
+        <li><strong>Empty</strong> — the field has an empty value (an empty list of tags, an empty string for a
+        middle name). Not the same as null.</li>
+      </ul>
+      <p>Best practice: omit fields that are not applicable rather than sending nulls, and document what null means
+      for each field. For PATCH specifically, the distinction between absent (leave alone) and null (clear) is
+      critical — without it, you cannot express "clear this field" in a JSON Merge Patch.</p>
+
+      <h4>Booleans in JSON</h4>
+      <p>Use <code>true</code> / <code>false</code>, not <code>"true"</code> or <code>1</code> / <code>0</code>. This
+      is unambiguous and typed correctly. The one trap is optional booleans — a field that can be true, false, or
+      absent is effectively tri-state, and clients must handle the third case. Document it.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Returning a local-time timestamp without a timezone offset. It looks correct in development (both client
+        and server in the same timezone) and produces subtly wrong times in production when a user is in a different
+        zone. Always include the offset, always in UTC for instants.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q9 -->
+  <article class="q teal" id="q9">
+    <div class="q-head">
+      <div class="q-num">9</div>
+      <h3>How do you represent polymorphic resources?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>When a resource can be one of several types, include a <strong>discriminator field</strong> that identifies
+        the type, and document the schema for each variant. The two common patterns are
+        <strong>tagged unions</strong> (a <code>type</code> field alongside variant-specific fields) and
+        <strong>sub-resources</strong> (each variant has its own URL and schema). Tagged unions are simpler; sub-resources
+        are more discoverable and versionable.</p>
+      </div>
+
+      <h4>The problem</h4>
+      <p>A payment can be a card payment, a bank transfer, or a wallet payment. Each has different fields — a card has
+      a last-4 and expiry, a bank transfer has an account number and routing code, a wallet has a provider. The API
+      needs to return any of them in a consistent shape, and the client needs to know which fields to expect.</p>
+
+      <h4>Approach 1 — Tagged union with a discriminator</h4>
+      <p>Every variant includes a <code>type</code> (or <code>kind</code>) field, and the client switches on it to
+      know what other fields to expect:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Variant</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr><td>Card</td><td><code>{"type": "card", "last4": "4242", "expiry": "2026-12"}</code></td></tr>
+            <tr><td>Bank transfer</td><td><code>{"type": "bank_transfer", "account": "1234", "routing": "5678"}</code></td></tr>
+            <tr><td>Wallet</td><td><code>{"type": "wallet", "provider": "paypal"}</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>This is what Stripe does (its <code>PaymentMethod</code> has a <code>type</code> and variant-specific
+      objects under it — <code>card</code>, <code>bank_transfer</code>, etc.). It is the simplest pattern,
+      widely understood, and works with any JSON client.</p>
+      <p>The trade-off is that the schema is not obvious from the API definition — clients must know the mapping from
+      type to fields. OpenAPI's <code>oneOf</code> / <code>anyOf</code> with a discriminator can express this, but
+      code generation support varies.</p>
+
+      <h4>Approach 2 — Nested variant object</h4>
+      <p>The type-specific fields are nested under a key named after the type:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Variant</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr><td>Card</td><td><code>{"type": "card", "card": {"last4": "4242", "expiry": "2026-12"}}</code></td></tr>
+            <tr><td>Bank transfer</td><td><code>{"type": "bank_transfer", "bank_transfer": {"account": "1234", "routing": "5678"}}</code></td></tr>
+            <tr><td>Wallet</td><td><code>{"type": "wallet", "wallet": {"provider": "paypal"}}</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>This is a small variation that has two advantages: the top-level object's shape is uniform (always
+      <code>type</code> plus a variant object), which makes generic processing easier; and the variant object can be
+      absent when the type is unknown, which is graceful. Stripe's modern API actually uses this form.</p>
+      <p>The trade-off is more nesting, which some clients find awkward.</p>
+
+      <h4>Approach 3 — Separate sub-resources per variant</h4>
+      <p>Each variant has its own URL and schema:</p>
+      <ul>
+        <li><code>GET /payments/42</code> returns a base payment with <code>{"type": "card"}</code> and a
+        <code>_links</code> or <code>related</code> object pointing to <code>/payments/42/card</code>.</li>
+        <li><code>GET /payments/42/card</code> returns the card-specific fields.</li>
+      </ul>
+      <p>This is more HATEOAS-flavoured, more discoverable, and lets each variant have its own permissions. The
+      trade-off is two requests for one object, which is worse for performance and more complex for the client.</p>
+      <p>This pattern is worth it when the variants are truly different domains (a search result that could be a
+      user, a post, or a product), less worth it when they are minor variations of the same concept.</p>
+
+      <h4>What to avoid</h4>
+      <ul>
+        <li><strong>Implicit types.</strong> Returning fields that imply a type without a <code>type</code> field.
+        The client is left to guess by which fields are present — brittle and unversionable.</li>
+        <li><strong>Nullable everything.</strong> Making every field nullable and letting the client figure out what
+        applies. This loses the schema and defeats type checking.</li>
+        <li><strong>A <code>type</code> field that changes over the resource's lifetime.</strong> A payment should not
+        switch from card to bank transfer; if it can, it is really two resources.</li>
+        <li><strong>Enum-of-all-possible-fields.</strong> Returning all fields for all variants with nulls for the
+        ones that do not apply. This makes every response huge and makes the schema meaningless.</li>
+      </ul>
+
+      <h4>Versioning polymorphic types</h4>
+      <p>Adding a new variant is backward-compatible (clients ignore unknown types), provided the <code>type</code>
+      field is treated as an enum that can grow. Removing a variant is breaking. Changing a variant's fields is
+      breaking. The same rules as any schema change apply, with the extra complexity that clients may have
+      incomplete handling for new variants.</p>
+      <p>The tolerant reader pattern is essential here: clients must handle unknown types gracefully (displaying
+      "unsupported" or ignoring the record) rather than crashing or misinterpreting. Document this requirement
+      explicitly — it is the single most important thing consumers need to know about a polymorphic API.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Payment methods are polymorphic — a card, a bank transfer, or a wallet. I'll use a tagged union with
+        <code>type</code> and a nested variant object, and document that clients must handle unknown types
+        gracefully so we can add variants without breaking them." That shows you know the pattern, the schema
+        mechanism, and the versioning implication.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q10 -->
+  <article class="q teal" id="q10">
+    <div class="q-head">
+      <div class="q-num">10</div>
+      <h3>What is the RPC-over-REST anti-pattern, and how do you recognise it?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>RPC-over-REST is using HTTP transport while ignoring REST semantics — typically a single endpoint
+        (<code>POST /api</code>) with a body containing an operation name and parameters, or a set of verb URLs
+        (<code>/getUser</code>, <code>/createOrder</code>). It works, but it discards the entire benefit of the HTTP
+        ecosystem: caching, conditional requests, meaningful status codes, and discoverability.</p>
+      </div>
+
+      <h4>The signature of RPC-over-REST</h4>
+      <ul>
+        <li><strong>One endpoint for everything.</strong> <code>POST /api</code> with a body like
+        <code>{"method": "getUser", "params": {"id": 42}}</code>. This is JSON-RPC — it is not wrong, but it is not
+        REST.</li>
+        <li><strong>Verbs in URLs.</strong> <code>/getUser</code>, <code>/createOrder</code>, <code>/updateProfile</code>.
+        Every operation has its own URL, and the HTTP method is always POST.</li>
+        <li><strong>POST for reads.</strong> Using POST for a read operation to avoid putting data in the URL, or
+        because "the client sends a body anyway". This breaks caching, breaks bookmarks, and breaks the semantics
+        of GET.</li>
+        <li><strong>Status code 200 for everything.</strong> Returning 200 with an error object in the body
+        (<code>{"success": false, "error": "..."}</code>) instead of a 4xx or 5xx status. This breaks every
+        monitoring, alerting, and retry system.</li>
+        <li><strong>Operations that do not map to resources.</strong> When the API has no clear notion of
+        "resources", but only "operations".</li>
+        <li><strong>The same URL means different things based on a body field.</strong>
+        <code>POST /api</code> with <code>{"op": "delete"}</code> versus <code>{"op": "create"}</code> — the URL is
+        not an identifier, it is a dispatcher.</li>
+      </ul>
+
+      <h4>Why it happens</h4>
+      <p>RPC-over-REST is easy to build. You add one endpoint, switch on a method name, and call the right function.
+      It is what a first-pass API looks like when the designer has not spent time on resource modeling. It is also
+      what happens when the API is auto-generated from a service's internal methods, without an intermediate
+      design step.</p>
+      <p>It is not, in itself, wrong — JSON-RPC is a legitimate protocol. The problem is when it is called "REST" and
+      consumers expect REST semantics. The label promises caching, conditional requests, and status codes that the
+      API does not provide.</p>
+
+      <h4>The real cost</h4>
+      <ul>
+        <li><strong>No caching.</strong> A cache cannot cache a POST, and cannot distinguish "get user 42" from
+        "get user 43" if both are <code>POST /api</code> with a body. Every request hits the origin, every time.</li>
+        <li><strong>No conditional requests.</strong> ETags, <code>If-Match</code>, and <code>If-None-Match</code> are
+        HTTP header mechanisms that assume a GET. Without GET, they do not apply, so optimistic concurrency must be
+        reimplemented in the body.</li>
+        <li><strong>No meaningful status codes.</strong> Everything is 200, so monitoring cannot distinguish success
+        from failure. Retry logic cannot distinguish retryable from non-retryable. Load balancers cannot detect
+        health by status code.</li>
+        <li><strong>No browser tooling.</strong> You cannot open the URL in a browser, cannot bookmark it, cannot
+        inspect it in the dev tools network panel as a readable request.</li>
+        <li><strong>No discoverability.</strong> Clients cannot construct URLs from a base; every operation has its
+        own URL and its own semantics.</li>
+        <li><strong>No standard tooling.</strong> Swagger/OpenAPI can document it, but the generated clients are
+        awkward, and the ecosystem of REST tooling (Postman collections, GraphQL-to-REST bridges, CDN rules) does not
+        apply.</li>
+      </ul>
+
+      <h4>The legitimate RPC-over-HTTP design</h4>
+      <p>If you genuinely want RPC, use a proper RPC framework. <strong>gRPC</strong> is the modern choice, with
+      binary encoding, streaming, and a proper schema. <strong>JSON-RPC</strong> is the HTTP-native option — one
+      endpoint, a standard envelope, consistent error handling, and batch support. Both are honest about being RPC,
+      and neither pretends to be REST.</p>
+      <p>The problem is not RPC. The problem is claiming REST while doing RPC, because consumers then expect
+      semantics that are not provided.</p>
+
+      <h4>When RPC-over-REST is acceptable</h4>
+      <p>There is a narrow case where it makes sense: a small internal API with a single consumer and no caching or
+      observability requirements. For a prototype, or a one-off integration, RPC-over-REST is faster to build than a
+      proper REST API. The moment the API has more than one consumer, or the moment caching matters, the cost
+      outweighs the simplicity.</p>
+
+      <h4>How to fix it</h4>
+      <p>If you inherit an RPC-over-REST API and want to migrate:</p>
+      <ol>
+        <li><strong>Add resource-oriented endpoints alongside the RPC one.</strong> <code>GET /users/42</code> can
+        coexist with <code>POST /api</code> for a transition period.</li>
+        <li><strong>Migrate consumers one at a time.</strong> The RPC endpoint can be deprecated once all consumers
+        are on the new endpoints.</li>
+        <li><strong>Extract resources from the operations.</strong> Every operation on a "user" implies a user
+        resource. Map the operations to resources and define the CRUD equivalents.</li>
+        <li><strong>Fix the status codes first.</strong> Even within an RPC-over-REST design, return proper 4xx/5xx
+        codes instead of 200-with-an-error-body. This is a small change with a large operational benefit.</li>
+      </ol>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Building a REST API and then adding a <code>POST /api</code> endpoint "for special cases". It starts as an
+        escape hatch and becomes the primary interface, because it is easier to add an operation there than to model
+        a resource. The result is two APIs — a real one and a shadow one — with no shared semantics. Resist the
+        temptation; if an operation does not fit, model a resource for it (Question 7).</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- NEXT PART -->
+  <section class="next-part">
+    <h3>Coming in Volume 3 — Contracts, Versioning &amp; Evolution</h3>
+    <p>Volume 3 turns to how an API survives contact with time: what counts as a breaking change, how to version
+    (URL, header, media type, query parameter), how to deprecate gracefully, how to add and remove fields without
+    breaking clients, the tolerant reader pattern, schema evolution across REST, GraphQL, and gRPC, and the
+    contract-testing practices that make all of it enforceable.</p>
+    <ul class="next-list">
+      <li>Breaking vs non-breaking changes</li>
+      <li>URL, header, and media-type versioning</li>
+      <li>Deprecation and sunset headers</li>
+      <li>Adding required fields safely</li>
+      <li>Removing and renaming fields</li>
+      <li>The tolerant reader pattern</li>
+      <li>Enum evolution</li>
+      <li>Schema evolution in GraphQL and gRPC</li>
+      <li>Contract testing with Pact and Schemathesis</li>
+      <li>Support windows and communication</li>
+    </ul>
+  </section>
+
+</div>
+</body>
+</html>
