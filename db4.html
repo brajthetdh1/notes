@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Database Design Mastery — Part 2: Keys, Identity &amp; Uniqueness</title>
+<style>
+  :root{
+    --ink:#0f172a;
+    --ink-soft:#334155;
+    --muted:#64748b;
+    --line:#e2e8f0;
+    --bg:#f6f8fb;
+    --card:#ffffff;
+    --teal:#0d9488;
+    --teal-soft:#ccfbf1;
+    --violet:#7c3aed;
+    --violet-soft:#ede9fe;
+    --amber:#d97706;
+    --amber-soft:#fef3c7;
+    --rose:#e11d48;
+    --rose-soft:#ffe4e6;
+    --blue:#2563eb;
+    --blue-soft:#dbeafe;
+    --shadow:0 1px 2px rgba(15,23,42,.06), 0 8px 24px -8px rgba(15,23,42,.12);
+    --radius:16px;
+  }
+
+  *{box-sizing:border-box;}
+
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 10% -10%, #e0f2fe 0%, transparent 60%),
+      radial-gradient(1000px 500px at 100% 0%, #ede9fe 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:"Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    line-height:1.72;
+    font-size:16.5px;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px 90px;}
+
+  /* ---------- HERO ---------- */
+  header.hero{
+    background:linear-gradient(135deg,#0f172a 0%, #1e293b 45%, #312e81 100%);
+    color:#f8fafc;
+    padding:64px 22px 56px;
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::after{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      radial-gradient(600px 300px at 85% 15%, rgba(20,184,166,.35), transparent 70%),
+      radial-gradient(500px 260px at 15% 90%, rgba(139,92,246,.35), transparent 70%);
+    pointer-events:none;
+  }
+  .hero-inner{max-width:1080px;margin:0 auto;position:relative;z-index:2;}
+  .eyebrow{
+    display:inline-block;
+    font-size:.72rem;
+    letter-spacing:.18em;
+    text-transform:uppercase;
+    font-weight:700;
+    padding:7px 15px;
+    border-radius:999px;
+    background:rgba(45,212,191,.16);
+    border:1px solid rgba(45,212,191,.45);
+    color:#5eead4;
+    margin-bottom:20px;
+  }
+  header.hero h1{
+    font-size:clamp(1.9rem, 4.4vw, 3.05rem);
+    line-height:1.15;
+    margin:0 0 16px;
+    font-weight:800;
+    letter-spacing:-.02em;
+  }
+  header.hero h1 span{
+    background:linear-gradient(90deg,#5eead4,#a78bfa);
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+  }
+  header.hero p.lede{
+    font-size:1.06rem;
+    color:#cbd5e1;
+    max-width:760px;
+    margin:0 0 26px;
+  }
+  .meta-chips{display:flex;flex-wrap:wrap;gap:10px;}
+  .chip{
+    font-size:.78rem;
+    font-weight:600;
+    padding:7px 14px;
+    border-radius:999px;
+    background:rgba(255,255,255,.08);
+    border:1px solid rgba(255,255,255,.16);
+    color:#e2e8f0;
+  }
+
+  /* ---------- ROADMAP ---------- */
+  .roadmap{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    padding:26px 28px;
+    margin-top:-34px;
+    position:relative;
+    z-index:5;
+  }
+  .roadmap h2{
+    font-size:.78rem;
+    text-transform:uppercase;
+    letter-spacing:.14em;
+    color:var(--muted);
+    margin:0 0 16px;
+    font-weight:700;
+  }
+  .roadmap-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+    gap:12px;
+  }
+  .roadmap-item{
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:12px 14px;
+    font-size:.87rem;
+    background:#fbfcfe;
+    opacity:.72;
+  }
+  .roadmap-item.done{
+    border-color:#99f6e4;
+    background:linear-gradient(180deg,#f0fdfa,#ffffff);
+    opacity:1;
+  }
+  .roadmap-item.current{
+    border-color:#c4b5fd;
+    background:linear-gradient(180deg,#f5f3ff,#ffffff);
+    opacity:1;
+    box-shadow:0 0 0 3px rgba(124,58,237,.12);
+  }
+  .roadmap-item .tag{
+    display:inline-block;
+    font-size:.66rem;
+    font-weight:800;
+    letter-spacing:.08em;
+    padding:2px 8px;
+    border-radius:999px;
+    margin-bottom:6px;
+  }
+  .tag-done{background:var(--teal-soft);color:#0f766e;}
+  .tag-now{background:var(--violet-soft);color:#6d28d9;}
+  .tag-next{background:#e2e8f0;color:#475569;}
+  .roadmap-item strong{display:block;color:var(--ink);font-size:.9rem;}
+
+  /* ---------- TOC ---------- */
+  nav.toc{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    padding:22px 26px;
+    margin:26px 0 44px;
+  }
+  nav.toc h2{
+    font-size:.78rem;
+    text-transform:uppercase;
+    letter-spacing:.14em;
+    color:var(--muted);
+    margin:0 0 14px;
+    font-weight:700;
+  }
+  nav.toc ol{
+    margin:0;
+    padding-left:0;
+    list-style:none;
+    counter-reset:toc;
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+    gap:8px 26px;
+  }
+  nav.toc li{
+    counter-increment:toc;
+    font-size:.93rem;
+    padding:6px 0 6px 34px;
+    position:relative;
+    border-bottom:1px dashed #eef2f7;
+  }
+  nav.toc li::before{
+    content:counter(toc);
+    position:absolute;
+    left:0; top:7px;
+    width:22px;height:22px;
+    border-radius:7px;
+    background:var(--blue-soft);
+    color:var(--blue);
+    font-size:.72rem;
+    font-weight:800;
+    display:flex;align-items:center;justify-content:center;
+  }
+  nav.toc a{color:var(--ink-soft);text-decoration:none;font-weight:500;}
+  nav.toc a:hover{color:var(--blue);}
+
+  /* ---------- SECTION HEADERS ---------- */
+  .part-band{
+    display:flex;
+    align-items:center;
+    gap:16px;
+    margin:56px 0 26px;
+  }
+  .part-band .bar{
+    width:5px;height:44px;border-radius:99px;
+    background:linear-gradient(180deg,var(--teal),#22d3ee);
+  }
+  .part-band.violet .bar{background:linear-gradient(180deg,var(--violet),#c084fc);}
+  .part-band h2{
+    margin:0;
+    font-size:1.5rem;
+    letter-spacing:-.01em;
+    font-weight:800;
+  }
+  .part-band .sub{
+    display:block;
+    font-size:.82rem;
+    font-weight:600;
+    color:var(--muted);
+    text-transform:uppercase;
+    letter-spacing:.12em;
+    margin-top:2px;
+  }
+
+  /* ---------- QUESTION CARDS ---------- */
+  article.q{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    padding:0 0 26px;
+    margin-bottom:28px;
+    overflow:hidden;
+    scroll-margin-top:24px;
+  }
+  .q-head{
+    display:flex;
+    gap:16px;
+    align-items:flex-start;
+    padding:22px 28px 18px;
+    border-bottom:1px solid #eef2f7;
+    background:linear-gradient(180deg,#fafcff,#ffffff);
+  }
+  .q-num{
+    flex:none;
+    width:42px;height:42px;
+    border-radius:12px;
+    display:flex;align-items:center;justify-content:center;
+    font-weight:800;
+    font-size:.95rem;
+    color:#fff;
+    background:linear-gradient(135deg,var(--teal),#0891b2);
+    box-shadow:0 6px 14px -6px rgba(13,148,136,.7);
+  }
+  .violet .q-num{background:linear-gradient(135deg,var(--violet),#a855f7);box-shadow:0 6px 14px -6px rgba(124,58,237,.7);}
+  .q-head h3{
+    margin:0;
+    font-size:1.14rem;
+    font-weight:700;
+    line-height:1.4;
+    letter-spacing:-.01em;
+  }
+  .q-body{padding:22px 28px 0;}
+  .q-body p{margin:0 0 15px;color:var(--ink-soft);}
+  .q-body p:last-child{margin-bottom:0;}
+
+  .q-body h4{
+    margin:24px 0 10px;
+    font-size:.95rem;
+    font-weight:800;
+    color:var(--ink);
+    letter-spacing:.01em;
+  }
+  .q-body h4::before{
+    content:"▹";
+    color:var(--teal);
+    margin-right:8px;
+    font-size:.85rem;
+  }
+  .violet .q-body h4::before{color:var(--violet);}
+
+  .q-body ul, .q-body ol{margin:0 0 16px;padding-left:22px;color:var(--ink-soft);}
+  .q-body li{margin-bottom:8px;}
+  .q-body li::marker{color:var(--teal);}
+  .violet .q-body li::marker{color:var(--violet);}
+
+  strong{color:var(--ink);font-weight:700;}
+  code{
+    background:#f1f5f9;
+    border:1px solid #e2e8f0;
+    border-radius:6px;
+    padding:1px 6px;
+    font-size:.87em;
+    font-family:"SFMono-Regular",Consolas,monospace;
+    color:#0f766e;
+  }
+
+  /* ---------- CALLOUTS ---------- */
+  .callout{
+    border-radius:12px;
+    padding:14px 18px;
+    margin:18px 0 4px;
+    font-size:.93rem;
+    border-left:4px solid;
+  }
+  .callout .label{
+    display:block;
+    font-size:.68rem;
+    font-weight:800;
+    letter-spacing:.13em;
+    text-transform:uppercase;
+    margin-bottom:5px;
+  }
+  .callout p{margin:0 0 8px;font-size:.93rem;}
+  .callout p:last-child{margin-bottom:0;}
+
+  .answer{
+    background:linear-gradient(180deg,#f0fdfa,#ffffff);
+    border-color:var(--teal);
+  }
+  .answer .label{color:#0f766e;}
+
+  .tip{
+    background:linear-gradient(180deg,#eff6ff,#ffffff);
+    border-color:var(--blue);
+  }
+  .tip .label{color:#1d4ed8;}
+
+  .tradeoff{
+    background:linear-gradient(180deg,#fffbeb,#ffffff);
+    border-color:var(--amber);
+  }
+  .tradeoff .label{color:#b45309;}
+
+  .pitfall{
+    background:linear-gradient(180deg,#fff1f2,#ffffff);
+    border-color:var(--rose);
+  }
+  .pitfall .label{color:#be123c;}
+
+  /* ---------- TABLE ---------- */
+  .table-scroll{overflow-x:auto;margin:18px 0;border-radius:12px;border:1px solid var(--line);}
+  table{width:100%;border-collapse:collapse;font-size:.88rem;background:#fff;}
+  thead th{
+    background:#f8fafc;
+    text-align:left;
+    padding:11px 14px;
+    font-weight:800;
+    font-size:.76rem;
+    text-transform:uppercase;
+    letter-spacing:.07em;
+    color:var(--muted);
+    border-bottom:2px solid var(--line);
+    white-space:nowrap;
+  }
+  tbody td{padding:11px 14px;border-bottom:1px solid #f1f5f9;color:var(--ink-soft);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:nth-child(even){background:#fcfdff;}
+  tbody td:first-child{font-weight:700;color:var(--ink);}
+
+  /* ---------- FOOTER ---------- */
+  .next-part{
+    background:linear-gradient(135deg,#0f172a,#312e81);
+    color:#e2e8f0;
+    border-radius:var(--radius);
+    padding:32px 34px;
+    margin-top:50px;
+    box-shadow:var(--shadow);
+  }
+  .next-part h3{
+    margin:0 0 12px;
+    font-size:1.2rem;
+    color:#fff;
+    font-weight:800;
+  }
+  .next-part p{margin:0 0 16px;color:#cbd5e1;font-size:.95rem;}
+  .next-list{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:10px;
+    list-style:none;
+    padding:0;
+    margin:0;
+  }
+  .next-list li{
+    background:rgba(255,255,255,.07);
+    border:1px solid rgba(255,255,255,.13);
+    border-radius:10px;
+    padding:10px 14px;
+    font-size:.86rem;
+    color:#e2e8f0;
+  }
+
+  @media (max-width:640px){
+    .q-head{padding:18px 18px 15px;}
+    .q-body{padding:18px 18px 0;}
+    header.hero{padding:44px 18px 46px;}
+    .roadmap{padding:20px;}
+    nav.toc{padding:18px;}
+    nav.toc ol{grid-template-columns:1fr;}
+  }
+
+  @media print{
+    body{background:#fff;}
+    article.q, nav.toc, .roadmap{box-shadow:none;page-break-inside:avoid;}
+    header.hero{background:#0f172a !important;-webkit-print-color-adjust:exact;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Part 2 of a Multi-Part Series</span>
+    <h1>Database Design Mastery<br><span>Keys, Identity &amp; Uniqueness</span></h1>
+    <p class="lede">
+      The questions that decide whether a schema stays correct under concurrency and scale. Primary key selection,
+      ID generation across shards, composite keys, soft deletes, and the NULL semantics that silently break
+      unique constraints in production.
+    </p>
+    <div class="meta-chips">
+      <span class="chip">8 Questions</span>
+      <span class="chip">~550 words each</span>
+      <span class="chip">Engine-specific detail</span>
+      <span class="chip">PostgreSQL · MySQL · Distributed</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ROADMAP -->
+  <section class="roadmap">
+    <h2>Series Roadmap</h2>
+    <div class="roadmap-grid">
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Part 1 — Complete</span>
+        <strong>Requirements &amp; Data Modeling</strong>
+        NFRs, access patterns, OLTP vs OLAP, ER models
+      </div>
+      <div class="roadmap-item current">
+        <span class="tag tag-now">Part 2 — You are here</span>
+        <strong>Keys, Identity &amp; Uniqueness</strong>
+        Primary keys, ID generation, composite keys, soft deletes, NULLs
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Part 3</span>
+        <strong>Constraints &amp; Integrity</strong>
+        Foreign keys, distributed invariants, idempotency, cascades
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Part 4</span>
+        <strong>Normalization, Indexing &amp; Performance</strong>
+        Denormalization, composite indexes, query plans
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Part 5</span>
+        <strong>Transactions &amp; Concurrency</strong>
+        Isolation levels, MVCC, deadlocks, outbox/Saga
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Part 6</span>
+        <strong>Replication, Sharding &amp; Multi-Region</strong>
+        Consistency models, shard keys, hot partitions
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Part 7</span>
+        <strong>Polyglot Persistence &amp; Multi-Tenancy</strong>
+        DB selection, bounded contexts, tenant isolation
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Part 8</span>
+        <strong>Migrations, Reliability &amp; Scenarios</strong>
+        Zero-downtime DDL, backups, 25+ design scenarios
+      </div>
+    </div>
+  </section>
+
+  <!-- TOC -->
+  <nav class="toc">
+    <h2>In This Part</h2>
+    <ol>
+      <li><a href="#q1">How do you choose a primary key?</a></li>
+      <li><a href="#q2">Natural key vs surrogate key — when to use each?</a></li>
+      <li><a href="#q3">Auto-increment vs UUID vs ULID vs Snowflake IDs</a></li>
+      <li><a href="#q4">How do you generate unique IDs across shards and regions?</a></li>
+      <li><a href="#q5">How do you design composite keys?</a></li>
+      <li><a href="#q6">How do you enforce uniqueness across shards?</a></li>
+      <li><a href="#q7">How do you design soft-delete uniqueness constraints?</a></li>
+      <li><a href="#q8">How do you handle NULL semantics in unique constraints?</a></li>
+    </ol>
+  </nav>
+
+  <!-- ================= PART A ================= -->
+  <div class="part-band">
+    <div class="bar"></div>
+    <h2>Part A — Primary &amp; Alternate Keys
+      <span class="sub">Identity: what makes a row a row</span>
+    </h2>
+  </div>
+
+  <!-- Q1 -->
+  <article class="q" id="q1">
+    <div class="q-head">
+      <div class="q-num">1</div>
+      <h3>How do you choose a primary key?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A good primary key is <strong>unique, immutable, narrow, opaque, and generated outside the business
+        domain</strong>. It is not a label for the business object — it is the physical address of the row and the
+        anchor for every foreign key and index in the schema. Choose it for stability and width first, and for
+        readability never.</p>
+      </div>
+
+      <p>Primary key selection is the highest-leverage decision in a schema, because it propagates. Every foreign
+      key that references the table inherits the type and width. In MySQL/InnoDB, every secondary index physically
+      embeds the primary key value, so a 36-byte UUID primary key inflates <em>every</em> index on the table by
+      roughly 28 bytes per entry compared to an 8-byte integer. That is not a micro-optimisation; on a table with
+      four secondary indexes and a billion rows it is tens of gigabytes of extra I/O.</p>
+
+      <h4>The four properties that matter</h4>
+      <ul>
+        <li><strong>Unique and non-null.</strong> Trivial, but the enforcement matters: a primary key constraint is
+        the only way to guarantee a stable row identity, so it must be declared as a real constraint, not merely
+        assumed unique in the application.</li>
+        <li><strong>Immutable.</strong> If a key can change, every foreign key referencing it must cascade an update,
+        and any cached or logged copy of the value becomes stale. The classic mistake is using an email address as
+        the key: users change emails, and now a simple profile edit rewrites rows across half the schema.</li>
+        <li><strong>Narrow and fixed-width.</strong> Width multiplies. An <code>INTEGER</code> (4 bytes) or
+        <code>BIGINT</code> (8 bytes) is ideal. A <code>VARCHAR(255)</code> key is a design smell that will surface
+        as index bloat and slower joins months later.</li>
+        <li><strong>Opaque to the business.</strong> If the key carries meaning — an incrementing counter that
+        reveals order volume, a region prefix that must change on migration — the business will eventually want to
+        change it, and you cannot.</li>
+      </ul>
+
+      <h4>Storage-engine reality check</h4>
+      <p>In <strong>InnoDB</strong>, the primary key is the clustered index: rows are physically stored in primary
+      key order, and secondary indexes store the PK value as the row pointer. This has two consequences. First,
+      inserting random UUIDs causes page splits throughout the B-tree, fragmenting the table and reducing fill
+      factor. Second, wide keys blow up every index. In <strong>PostgreSQL</strong>, the heap is unordered and
+      secondary indexes store the physical tuple ID (TID), so PK width matters far less for secondary index size —
+      but the primary key index itself, and any join on it, still pays for width. In <strong>wide-column
+      stores</strong> such as Cassandra, the partition key <em>is</em> the storage layout, so key choice determines
+      query capability, not just performance.</p>
+
+      <h4>What to avoid</h4>
+      <ul>
+        <li><strong>Email, phone, SSN, or username as the primary key.</strong> All mutable, all personal data,
+        all prone to duplicates and reformatting. Keep them as <code>UNIQUE</code> alternate keys.</li>
+        <li><strong>Wide composite keys on entity tables.</strong> A junction table with two 8-byte FKs is fine.
+        A five-column composite primary key on <code>orders</code> is not.</li>
+        <li><strong>Using auto-increment values in public URLs.</strong> Sequential IDs enable enumeration:
+        <code>/orders/1001</code>, <code>/orders/1002</code>. Use a separate opaque public identifier or a signed
+        token for anything exposed to clients.</li>
+        <li><strong>Assuming sequences are gapless.</strong> Sequences allocate outside the transaction, so rollbacks
+        and crashes leave holes. Gaps are normal; invoice numbers are a business concern that needs its own
+        transactional counter.</li>
+      </ul>
+
+      <div class="callout tip">
+        <span class="label">Interview Tip</span>
+        <p>When you declare a primary key in an interview, immediately justify the type: “I'll use an 8-byte
+        surrogate here because this table is referenced by four other tables and I want the foreign keys narrow.”
+        That single sentence demonstrates you understand PK propagation.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q2 -->
+  <article class="q" id="q2">
+    <div class="q-head">
+      <div class="q-num">2</div>
+      <h3>When do you use a natural key vs a surrogate key?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Use a surrogate key when the natural identifier is mutable, wide, personal, or externally assigned.
+        Use a natural key when it is short, immutable, universally unique, and genuinely owned by the domain.
+        In practice the right answer is almost always <strong>both</strong>: surrogate primary key plus a
+        <code>UNIQUE</code> constraint on the natural key.</p>
+      </div>
+
+      <h4>Definitions</h4>
+      <p>A <strong>natural key</strong> is an attribute that exists in the business domain and happens to uniquely
+      identify the entity: ISBN for a book, ISO 4217 code for a currency, IATA code for an airport, VAT number for
+      a company. A <strong>surrogate key</strong> is a system-generated value with no business meaning: an
+      auto-increment integer, a UUID, or a Snowflake ID.</p>
+
+      <h4>When a natural key is the right call</h4>
+      <ul>
+        <li><strong>Small, fixed reference data.</strong> A <code>currencies</code> table keyed on
+        <code>CHAR(3)</code> ISO code is better than adding an integer surrogate — the code is what every query,
+        report, and API already uses, and it will never change.</li>
+        <li><strong>Standards-body identifiers with guaranteed immutability.</strong> ISO country codes, ISO
+        currency codes, IATA airport codes are stable enough that the join is not a risk.</li>
+        <li><strong>Junction tables.</strong> A composite natural key of the two participating foreign keys is
+        idiomatic and adds no cost.</li>
+        <li><strong>External identifiers you must look up by anyway.</strong> If every integration looks up a record
+        by its external reference, storing that reference as the key removes an index and a join.</li>
+      </ul>
+
+      <h4>When a natural key is a trap</h4>
+      <ul>
+        <li><strong>Mutable attributes.</strong> Email, phone number, username, company name, address. Any change
+        forces cascading updates across every foreign key, and any forgotten copy — a cache, an event payload, a
+        log — becomes silently stale.</li>
+        <li><strong>Wide attributes.</strong> An email can be 254 characters. A URL can be longer. Every referencing
+        table and every secondary index pays that width forever.</li>
+        <li><strong>Personal data.</strong> Using an email or national ID as the key means the key itself is
+        regulated PII. A GDPR erasure request forces you to rewrite a primary key, which is close to impossible
+        at scale.</li>
+        <li><strong>Externally assigned identifiers.</strong> A vendor's customer number is unique in the vendor's
+        system but may collide with a second vendor's numbering, may be recycled, and may change when the
+        integration changes. Treat it as an attribute with a unique index, not as the identity.</li>
+        <li><strong>Identifiers that are not actually unique.</strong> SSNs have been reused; phone numbers get
+        recycled; company registration numbers collide across jurisdictions.</li>
+      </ul>
+
+      <h4>The default pattern: surrogate PK + natural unique index</h4>
+      <p>For entity tables, the standard design is:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Column</th><th>Role</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>id BIGINT</code></td><td>Primary key</td><td>Narrow, immutable anchor for foreign keys</td></tr>
+            <tr><td><code>email VARCHAR</code></td><td>Unique alternate key</td><td>Enforces the business rule, used for lookups</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>This gives you narrow joins and stable references, while still enforcing the business invariant at the
+      database layer. The only cost is an extra unique index on <code>email</code>, which you would need for login
+      lookups anyway.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Surrogate keys hide business meaning, which is usually a feature but occasionally a problem: a report
+        that joins eight tables to recover a human-readable name is annoying. The mitigation is to keep natural
+        keys as unique alternate keys so they are always joinable — you lose nothing but one index.</p>
+      </div>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Using a surrogate key <em>instead of</em> a unique constraint rather than <em>in addition to</em> it.
+        If <code>email</code> is not declared <code>UNIQUE</code>, the application layer will eventually create two
+        accounts with the same address under concurrent signup, and no amount of retry logic will fix it.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q3 -->
+  <article class="q" id="q3">
+    <div class="q-head">
+      <div class="q-num">3</div>
+      <h3>What are the trade-offs of auto-increment IDs vs UUIDs vs ULIDs/Snowflake IDs in distributed systems?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Auto-increment is compact and perfectly sequential but requires a single writer and cannot be generated
+        client-side. UUIDv4 is coordination-free but random, which destroys B-tree locality and doubles key width.
+        Time-ordered IDs — UUIDv7, ULID, Snowflake — give you coordination-free generation <em>and</em> sequential
+        locality, and are the right default for distributed systems in 2025.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>Scheme</th><th>Width</th><th>Ordered?</th><th>Coordination</th><th>Main Risk</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Auto-increment</td><td>4 / 8 B</td><td>Yes, perfectly</td><td>Central sequence</td><td>Single writer; enumeration leak</td></tr>
+            <tr><td>UUIDv4</td><td>16 B</td><td>No — random</td><td>None</td><td>Page splits, index bloat</td></tr>
+            <tr><td>UUIDv7</td><td>16 B</td><td>Yes, by time</td><td>None</td><td>Clock skew; still 16 B</td></tr>
+            <tr><td>ULID</td><td>16 B</td><td>Yes, by time</td><td>None</td><td>Lexical order is case-sensitive in base32</td></tr>
+            <tr><td>Snowflake</td><td>8 B</td><td>Yes, by time</td><td>Machine ID assignment</td><td>Clock skew; 41-bit time horizon (~69 yrs)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Auto-increment: the locality champion</h4>
+      <p>An <code>INTEGER</code>/<code>BIGINT</code> identity column is the cheapest possible key: 4–8 bytes, always
+      increasing, so inserts always land at the right edge of the B-tree, filling pages sequentially and keeping
+      the index dense. The cost is architectural. Generation requires a single authority — one sequence per database —
+      so sharding requires per-shard offsets or composite keys, and client-side generation before the round trip is
+      impossible. It also leaks volume: a competitor can infer your order volume from an order ID.</p>
+
+      <h4>UUIDv4: coordination-free, locality-hostile</h4>
+      <p>Random 128-bit values can be generated anywhere, including the browser, with zero coordination. The problem
+      is that random inserts scatter across the entire B-tree. On InnoDB a million random inserts into a fresh table
+      can produce a table 2–4× larger than the same data inserted sequentially, because page splits leave pages
+      half-full and the working set no longer fits in the buffer pool. The WAL also grows faster because every
+      scattered insert dirties a different page.</p>
+
+      <h4>Time-ordered IDs: the modern default</h4>
+      <p><strong>UUIDv7</strong> (RFC 9562) puts a 48-bit Unix millisecond timestamp in the high bits, followed by
+      random bits. Sortable, index-friendly, generatable anywhere, no coordination. <strong>ULID</strong> is the
+      same idea in Crockford base32, which makes it shorter when rendered as text. <strong>Snowflake</strong>
+      (Twitter's design, and the basis of Instagram's and Discord's variants) packs a 41-bit timestamp, 10 bits of
+      machine identity, and 12 bits of per-millisecond sequence into a 64-bit integer — half the width of a UUID
+      and fully sortable.</p>
+
+      <h4>How to choose</h4>
+      <ul>
+        <li><strong>Single database, modest scale:</strong> auto-increment is still the best choice — simplest,
+        narrowest, fastest.</li>
+        <li><strong>Distributed, client-generated, no coordination needed:</strong> UUIDv7 or ULID. This is the
+        default recommendation for new microservice schemas.</li>
+        <li><strong>Compactness matters (high-volume indexes, embedded storage, binary protocols):</strong>
+        Snowflake-style 64-bit IDs, accepting the machine-ID assignment burden.</li>
+        <li><strong>Never:</strong> UUIDv4 as a clustered primary key on a write-heavy InnoDB table.</li>
+      </ul>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Sortable IDs leak creation time. A UUIDv7 or Snowflake ID embedded in a public URL reveals when the
+        record was created and roughly how many records preceded it. If that is sensitive, keep an internal
+        sortable key and expose a separate random public token.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q4 -->
+  <article class="q" id="q4">
+    <div class="q-head">
+      <div class="q-num">4</div>
+      <h3>How do you generate unique IDs across shards and regions?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Either eliminate coordination entirely (UUIDv7, ULID, or a composite of shard ID plus local sequence),
+        or make coordination rare (block/segment allocation, Snowflake machine IDs). Never call a central authority
+        on every insert — that reintroduces the single writer you sharded to escape.</p>
+      </div>
+
+      <h4>Option 1 — No coordination at all</h4>
+      <p>UUIDv7, ULID, and their relatives need no coordination because uniqueness is probabilistic across 74–122
+      bits of randomness. The probability of a collision with UUIDv7 is negligible at any realistic scale: you would
+      need roughly 10<sup>18</sup> IDs generated within the same millisecond for a meaningful chance. The trade-off
+      is width (16 bytes) and the fact that ordering is only per-millisecond, not globally strict.</p>
+
+      <h4>Option 2 — Composite key: shard ID + local sequence</h4>
+      <p>If you already shard by a key, prefix it. A user in shard 7 gets ID <code>(7, 100045)</code>. Uniqueness is
+      structural, generation is local and cheap, and IDs are 12 bytes as a composite or 8 bytes packed as
+      <code>shard_id &lt;&lt; 48 | local_id</code>. The cost is that the consumer must know or be told the shard to
+      look up the row — which is usually fine if the shard key is also the user ID, but painful if you need to
+      fetch by ID alone.</p>
+
+      <h4>Option 3 — Block / segment allocation</h4>
+      <p>A central allocator hands out <em>ranges</em> rather than individual values. Each node requests 10,000 IDs,
+      serves them from memory, and requests a new block when it runs low. This reduces coordination by four orders
+      of magnitude and survives allocator outages for as long as the pre-allocated block lasts. The trade-off is
+      that IDs are not globally ordered across nodes — node A might be issuing 10,000–19,999 while node B issues
+      20,000–29,999 — and a node restart wastes whatever remained in its block. Implementations: a database sequence
+      with <code>allocationSize</code> (JPA/Hibernate default), Flickr's ticket server, or a table with
+      <code>UPDATE ... SET next = next + 10000 RETURNING</code>.</p>
+
+      <h4>Option 4 — Snowflake-style bit packing</h4>
+      <p>A 64-bit value composed of <code>timestamp(41) | datacenter(5) | machine(5) | sequence(12)</code>. Each
+      node generates IDs independently, and uniqueness comes from the machine ID. This is the best compactness
+      you can get with local generation. The complications are real:</p>
+      <ul>
+        <li><strong>Machine ID assignment</strong> must be coordinated — via config, environment variable, or a
+        ZooKeeper/etcd lease. Duplicate machine IDs cause silent collisions, which are the worst kind of bug.</li>
+        <li><strong>Clock skew</strong> breaks monotonicity. If a node's clock jumps backwards, it must refuse to
+        generate until time catches up, or you get duplicates. Production implementations detect this and either
+        wait or borrow the sequence field.</li>
+        <li><strong>Time horizon.</strong> 41 bits of milliseconds is about 69 years from the epoch — fine, but
+        worth documenting.</li>
+      </ul>
+
+      <h4>Multi-region specifics</h4>
+      <p>Across regions, a central allocator adds cross-region latency to the write path, which is usually
+      unacceptable. Two workable patterns: <strong>regional allocators</strong> (each region has its own sequence
+      with a region prefix or a disjoint range), or <strong>coordination-free IDs</strong> (UUIDv7), which is why
+      UUIDv7 is increasingly the default in multi-region services. If you need short human-friendly IDs across
+      regions, a regional prefix plus a local sequence — <code>EU-0001234</code> — is the pragmatic answer.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Confusing <strong>unique</strong> with <strong>monotonic</strong>. Global strict ordering requires
+        coordination (or hybrid logical clocks) and is almost never needed. What applications actually need is
+        <em>per-entity</em> ordering — messages in a conversation, events in an aggregate — which you get by using
+        the entity's partition key plus a local sequence.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q5 -->
+  <article class="q" id="q5">
+    <div class="q-head">
+      <div class="q-num">5</div>
+      <h3>How do you design composite keys, and when are they better than surrogate keys?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Use a composite key when the natural identity of the row <em>is</em> the combination of its parts —
+        junction tables, weak entities, multi-tenant tables, and time-series partitions. Use a surrogate key when
+        the composite would be wide, mutable, or referenced by many other tables.</p>
+      </div>
+
+      <h4>Where composite keys are the right answer</h4>
+      <ul>
+        <li><strong>Junction tables.</strong> <code>enrollments(student_id, course_id)</code> with a composite
+        primary key is correct and adds nothing. A surrogate <code>enrollment_id</code> here buys you almost
+        nothing and costs an index.</li>
+        <li><strong>Weak entities.</strong> <code>order_lines(order_id, line_no)</code> — the line is meaningless
+        without its order, and the composite naturally expresses that dependency and enforces cascade deletion.</li>
+        <li><strong>Multi-tenant tables.</strong> <code>(tenant_id, id)</code> makes tenant isolation structural and
+        gives the query planner an obvious partition-pruning predicate on every query.</li>
+        <li><strong>Time-series and wide-column stores.</strong> <code>(device_id, bucket_time, sequence)</code> —
+        the first column is the partition key, the rest are clustering columns. This is the only way to query these
+        systems efficiently.</li>
+      </ul>
+
+      <h4>Where composite keys hurt</h4>
+      <ul>
+        <li><strong>Width propagation.</strong> In InnoDB, secondary indexes embed the primary key. A composite PK
+        of two 16-byte UUIDs makes every secondary index 32 bytes wider per entry.</li>
+        <li><strong>Foreign key ergonomics.</strong> Referencing a composite PK requires repeating all its columns
+        in the child table. One FK becomes three columns. Two levels of nesting becomes six.</li>
+        <li><strong>Application and ORM friction.</strong> Most ORMs handle single-column surrogate keys far more
+        gracefully than composite keys, and composite-key handling often means custom repository code.</li>
+        <li><strong>Mutation.</strong> A composite key cannot be partially updated without effectively deleting and
+        reinserting the row.</li>
+      </ul>
+
+      <h4>Column order matters</h4>
+      <p>For a B-tree composite index, order columns by <strong>equality filters first, then the range or sort
+      column</strong>. For a composite primary key on a junction table, either order works for uniqueness, but the
+      order determines which single-column prefix queries can use the index. For wide-column stores the order is
+      semantic: the first column is the partition key and everything after is a clustering column. Getting this
+      backwards is the single most common Cassandra data-modelling error.</p>
+
+      <h4>The pragmatic hybrid</h4>
+      <p>A defensible pattern for entity tables that need composite uniqueness: surrogate primary key for
+      referential convenience, plus a composite <code>UNIQUE</code> constraint expressing the natural identity.
+      For example, <code>memberships</code> with <code>id BIGSERIAL PRIMARY KEY</code> and
+      <code>UNIQUE(user_id, organization_id)</code>. You get narrow foreign keys <em>and</em> the invariant is
+      enforced. The cost is one extra index — worth it if the table is referenced elsewhere.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>The rule of thumb: <strong>composite PK when the row is a relationship or a dependent; surrogate PK when
+        the row is an entity with an independent lifecycle.</strong> Junction tables and weak entities are the
+        former. Customers and orders are the latter.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART B ================= -->
+  <div class="part-band violet">
+    <div class="bar"></div>
+    <h2>Part B — Uniqueness Under Adversity
+      <span class="sub">When the constraint has to hold across shards, deletes, and NULLs</span>
+    </h2>
+  </div>
+
+  <!-- Q6 -->
+  <article class="q violet" id="q6">
+    <div class="q-head">
+      <div class="q-num">6</div>
+      <h3>How do you enforce uniqueness across shards?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A <code>UNIQUE</code> index is local to one node, so a hash-sharded table cannot enforce a global unique
+        constraint on its own. The two reliable patterns are <strong>shard by the unique key</strong> (uniqueness
+        becomes local) or maintain a <strong>dedicated lookup table sharded by that key</strong>. Everything else is
+        a variation on those two.</p>
+      </div>
+
+      <h4>The core problem</h4>
+      <p>Suppose you shard <code>users</code> by <code>user_id</code> and need <code>email</code> to be globally
+      unique. A unique index on <code>(user_id, email)</code> enforces nothing useful, because the uniqueness you
+      need is on <code>email</code> alone. Checking with a <code>SELECT</code> before inserting is not safe: two
+      concurrent signups for the same email both see zero rows, both insert, and you now have duplicates. This is
+      the classic distributed uniqueness problem, and it is not solvable with application-level checks alone.</p>
+
+      <h4>Pattern 1 — Shard by the unique key</h4>
+      <p>If the only uniqueness requirement is <code>email</code>, shard the users table by a hash of the email.
+      Now all rows with the same email land on the same shard, and a local <code>UNIQUE(email)</code> constraint is
+      globally correct. This is the simplest and most robust solution, and it is what you should reach for first.
+      Its limitation is obvious: you can only shard by one key. The moment you need uniqueness on both email
+      <em>and</em> username, this pattern breaks.</p>
+
+      <h4>Pattern 2 — Dedicated lookup tables</h4>
+      <p>This is the standard answer to the two-unique-keys problem. Keep the main <code>users</code> table sharded
+      by <code>user_id</code>, and add two small lookup tables:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Table</th><th>Shard key</th><th>Schema</th></tr></thead>
+          <tbody>
+            <tr><td><code>email_lookup</code></td><td><code>hash(email)</code></td><td><code>UNIQUE(email)</code>, <code>user_id</code></td></tr>
+            <tr><td><code>username_lookup</code></td><td><code>hash(username)</code></td><td><code>UNIQUE(username)</code>, <code>user_id</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Because each lookup table is sharded by its own key, its unique constraint is globally valid. Signup
+      becomes a sequence: reserve in <code>email_lookup</code>, reserve in <code>username_lookup</code>, then insert
+      the user. Each reservation is an atomic insert that fails on conflict, so concurrent duplicates are
+      impossible.</p>
+
+      <h4>Pattern 3 — Conditional writes / lightweight transactions</h4>
+      <p>Stores that support compare-and-set — DynamoDB's <code>ConditionExpression</code>, Cassandra's
+      <code>INSERT ... IF NOT EXISTS</code> (implemented with Paxos), or a Redis <code>SET NX</code> — can enforce
+      uniqueness on a single-key partition. These are effectively Pattern 1 plus an atomic primitive: the unique
+      value becomes the partition key, and the conditional write is the constraint. Be aware that Cassandra LWTs
+      are roughly four times slower than normal writes because they run a Paxos round, so they are fine for
+      low-volume uniqueness checks (usernames) and wrong for high-volume counters.</p>
+
+      <h4>Handling partial failures</h4>
+      <p>With Pattern 2, a crash between the first reservation and the user insert leaves an orphaned reservation
+      that permanently blocks that email. The standard mitigation is a <strong>reservation with a TTL</strong>:
+      store a <code>reserved_until</code> timestamp, and have a background reaper delete expired reservations.
+      Similarly, if the second reservation fails after the first succeeded, the transaction must compensate by
+      deleting the first — the saga pattern, which Part 3 covers in detail.</p>
+
+      <h4>What NewSQL buys you</h4>
+      <p>CockroachDB, Spanner, and YugabyteDB implement distributed transactions underneath a normal
+      <code>UNIQUE</code> constraint, so the problem simply disappears. The cost is latency: a cross-shard unique
+      check in Spanner typically requires a round trip to a Paxos leader in a nearby region. That is often
+      acceptable for a signup flow and never acceptable for a high-volume event stream.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Tip</span>
+        <p>When the prompt has two unique attributes, immediately say “shard by one, maintain a lookup table for
+        the other” and draw both. Candidates who try to enforce two unique constraints on one sharded table are
+        usually stuck for the rest of the interview.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q7 -->
+  <article class="q violet" id="q7">
+    <div class="q-head">
+      <div class="q-num">7</div>
+      <h3>How do you design soft-delete uniqueness constraints?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A plain <code>UNIQUE(email)</code> plus soft deletes means a user can never re-register a deleted email.
+        The clean fix is a <strong>partial (filtered) unique index</strong> restricted to live rows. Where partial
+        indexes are unavailable — notably MySQL — emulate them with a generated column that is
+        <code>NULL</code> for deleted rows, since multiple <code>NULL</code>s are permitted in a unique index.</p>
+      </div>
+
+      <h4>Why teams soft delete</h4>
+      <p>Soft delete replaces <code>DELETE</code> with <code>UPDATE ... SET deleted_at = now()</code>. Teams do it
+      for undo windows, audit requirements, foreign-key preservation, and moderation workflows. It is a legitimate
+      pattern, but it interacts badly with constraints because the row physically still exists — and a unique index
+      sees it.</p>
+
+      <h4>Solution 1 — Partial unique index (PostgreSQL, SQL Server)</h4>
+      <p>Restrict the constraint to live rows:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Engine</th><th>Syntax</th></tr></thead>
+          <tbody>
+            <tr><td>PostgreSQL</td><td><code>CREATE UNIQUE INDEX ON users(email) WHERE deleted_at IS NULL;</code></td></tr>
+            <tr><td>SQL Server</td><td><code>CREATE UNIQUE INDEX ix ON users(email) WHERE deleted_at IS NULL;</code></td></tr>
+            <tr><td>SQLite</td><td><code>CREATE UNIQUE INDEX ix ON users(email) WHERE deleted_at IS NULL;</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>This is the correct design when the engine supports it: the index is smaller, the intent is explicit, and
+      re-registration works naturally.</p>
+
+      <h4>Solution 2 — Generated column with NULLs (MySQL)</h4>
+      <p>MySQL has no partial indexes, but it treats multiple <code>NULL</code>s as distinct in a unique index.
+      So make the indexed value <code>NULL</code> whenever the row is deleted:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Step</th><th>DDL</th></tr></thead>
+          <tbody>
+            <tr><td>Add generated column</td><td><code>active_email VARCHAR(255) AS (IF(deleted_at IS NULL, email, NULL)) STORED</code></td></tr>
+            <tr><td>Unique index</td><td><code>UNIQUE KEY ux_active_email (active_email)</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Live rows carry the real email and collide correctly. Deleted rows all carry <code>NULL</code>, and any
+      number of <code>NULL</code>s coexist. The cost is a stored generated column (extra disk) and the fact that
+      restoring a soft-deleted row can now fail if the email was re-registered in the meantime — which is usually
+      the correct behaviour, but should be surfaced as a real error in the UI.</p>
+
+      <h4>Solution 3 — Mutate the value on delete</h4>
+      <p>On soft delete, rewrite the unique column to something like <code>deleted+{id}@invalid.local</code>. This
+      works on every engine and requires no schema change beyond the delete logic, but it destroys the original value
+      unless you copy it to an archive column, and it makes restore non-trivial. It also breaks any audit requirement
+      to preserve the exact prior state.</p>
+
+      <h4>Solution 4 — Archive table on delete</h4>
+      <p>Move the row to <code>users_archive</code> and delete it from the live table. The live unique constraint is
+      then trivially correct and small, and the archive can be queried separately. This is the cleanest design
+      conceptually, but it complicates every read path that needs to consider deleted users (support tools, audit,
+      foreign keys pointing at the row).</p>
+
+      <h4>The hidden cost of soft delete</h4>
+      <p>Whatever uniqueness approach you choose, soft delete imposes a tax on every query: each one must remember
+      <code>WHERE deleted_at IS NULL</code>. One forgotten predicate leaks deleted rows into a UI or a report. The
+      mitigations are a database view exposing only live rows, row-level security policies that filter automatically,
+      or — best — an ORM-layer default scope that makes the filter opt-out rather than opt-in.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Compliance Note</span>
+        <p>Soft delete is not a substitute for erasure. A GDPR "right to be forgotten" request generally requires
+        actually deleting the personal data, and keeping it in a <code>deleted_at</code> row may itself be a
+        violation. Design a hard-delete path for erasure requests, distinct from the user-facing soft delete.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q8 -->
+  <article class="q violet" id="q8">
+    <div class="q-head">
+      <div class="q-num">8</div>
+      <h3>How do you handle NULL semantics in unique constraints and indexes?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>In SQL, <code>NULL</code> means "unknown", so <code>NULL = NULL</code> is unknown, not true. Most engines
+        therefore allow <em>unlimited</em> duplicate <code>NULL</code>s in a unique index — silently defeating the
+        constraint you thought you had. SQL Server is the notable exception: it permits exactly one <code>NULL</code>.
+        Know which engine you are on, and prefer <code>NOT NULL</code> with explicit sentinels.</p>
+      </div>
+
+      <h4>The rules, per engine</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Engine</th><th>NULLs in a UNIQUE index</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>PostgreSQL</td><td>Multiple allowed</td><td><code>UNIQUE NULLS NOT DISTINCT</code> since PG 15</td></tr>
+            <tr><td>MySQL / MariaDB</td><td>Multiple allowed</td><td>No partial indexes; use generated columns</td></tr>
+            <tr><td>Oracle</td><td>Multiple allowed</td><td>Nullable-column workarounds common before 23c</td></tr>
+            <tr><td>SQL Server</td><td>Exactly one</td><td>Filtered indexes are the standard workaround</td></tr>
+            <tr><td>SQLite</td><td>Multiple allowed</td><td>Matches the standard</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The bug this causes</h4>
+      <p>Consider <code>UNIQUE(tenant_id, email)</code> where <code>tenant_id</code> is nullable for
+      platform-level accounts. Three rows with <code>(NULL, 'a@b.com')</code> all pass, because each comparison
+      involves an unknown. The constraint looks correct in the DDL and silently fails in production. The same thing
+      happens with a nullable <code>external_id</code> in an idempotency table: duplicate webhook deliveries
+      insert duplicates because the deduplication key contains a <code>NULL</code>.</p>
+
+      <h4>The fixes</h4>
+      <ul>
+        <li><strong>Make the columns <code>NOT NULL</code>.</strong> The overwhelmingly correct answer. A nullable
+        column in a unique key is almost always a modelling error — "tenant unknown" should be an explicit
+        sentinel row, not <code>NULL</code>.</li>
+        <li><strong><code>UNIQUE NULLS NOT DISTINCT</code></strong> (PostgreSQL 15+) makes <code>NULL</code> behave
+        like an ordinary value for uniqueness purposes. Clean, but not portable.</li>
+        <li><strong>Expression index with <code>COALESCE</code>:</strong>
+        <code>CREATE UNIQUE INDEX ON t (tenant_id, COALESCE(email,''))</code>. Portable across most engines;
+        costs an expression index.</li>
+        <li><strong>Filtered index on the <code>NOT NULL</code> subset</strong> when the semantics genuinely allow
+        many unknowns: <code>CREATE UNIQUE INDEX ON t(id) WHERE id IS NOT NULL</code>.</li>
+        <li><strong>Sentinel values</strong> instead of <code>NULL</code> — <code>0</code> for a numeric FK,
+        <code>''</code> for a string. This is what SQL Server forces on you by allowing only one <code>NULL</code>.
+        Document the sentinel loudly; it is a footgun if anyone writes real data equal to it.</li>
+      </ul>
+
+      <h4>NULLs elsewhere in the schema</h4>
+      <ul>
+        <li><strong>Foreign keys.</strong> A <code>NULL</code> FK is not checked — it represents an optional
+        relationship. That is usually what you want, but it means an optional FK cannot be used to guarantee
+        referential integrity of a required relationship.</li>
+        <li><strong><code>NOT IN</code> with a NULL.</strong> <code>x NOT IN (1, 2, NULL)</code> evaluates to
+        unknown for every row, so the query returns zero rows. This is one of the most common silent SQL bugs;
+        use <code>NOT EXISTS</code> instead.</li>
+        <li><strong>Aggregates.</strong> <code>COUNT(col)</code> skips <code>NULL</code>s while
+        <code>COUNT(*)</code> does not; <code>SUM</code>, <code>AVG</code>, and <code>MIN</code> ignore them.
+        A report that averages a nullable column silently excludes incomplete records.</li>
+        <li><strong><code>DISTINCT</code> and <code>GROUP BY</code></strong> treat all <code>NULL</code>s as a single
+        group, even though they are not equal under <code>=</code>. This inconsistency is a standards quirk, not a
+        bug, and it is worth knowing.</li>
+        <li><strong>Sort order.</strong> PostgreSQL sorts <code>NULL</code>s last by default for <code>ASC</code>;
+        Oracle sorts them first. Pagination logic that assumes an order breaks on the boundary.</li>
+      </ul>
+
+      <div class="callout tradeoff">
+        <span class="label">Design Guidance</span>
+        <p>Default to <code>NOT NULL</code> everywhere, with an explicit default or sentinel where "not yet known"
+        is a genuine state. Reserve true <code>NULL</code> for optional relationships and genuinely absent optional
+        attributes. When a nullable column participates in a unique key, treat it as a bug until proven otherwise —
+        and write a test that inserts two rows with <code>NULL</code> and asserts the constraint fires.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- NEXT PART -->
+  <section class="next-part">
+    <h3>Coming in Part 3 — Constraints &amp; Integrity</h3>
+    <p>Part 3 tackles the constraints that must hold across tables, services, and retries: where foreign keys
+    belong in a microservice architecture, how to enforce business invariants when data is distributed, how to
+    design idempotency keys and deduplication tables, and how cascading deletes and orphaned records should
+    actually be handled.</p>
+    <ul class="next-list">
+      <li>Foreign keys: database vs application enforcement</li>
+      <li>Referential integrity in sharded and microservice systems</li>
+      <li>Enforcing invariants across distributed data</li>
+      <li>Check, unique, partial unique, and exclusion constraints</li>
+      <li>Preventing duplicates under retries</li>
+      <li>Idempotency keys and deduplication tables</li>
+      <li>Orphaned records and cascade strategies</li>
+      <li>Constraints for multi-tenant isolation</li>
+    </ul>
+  </section>
+
+</div>
+</body>
+</html>
