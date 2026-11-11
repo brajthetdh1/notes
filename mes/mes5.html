@@ -1,0 +1,1739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Messaging Systems — Section 5: Real-Time Protocols &amp; Connection Management</title>
+<style>
+  :root{
+    --ink:#0f172a;
+    --ink-soft:#334155;
+    --muted:#64748b;
+    --line:#d7e7ee;
+    --bg:#f4fafc;
+    --card:#ffffff;
+    --cyan:#0e7490;
+    --cyan-soft:#cffafe;
+    --cyan-deep:#164e63;
+    --slate:#334155;
+    --teal:#0d9488;
+    --amber:#b45309;
+    --rose:#e11d48;
+    --blue:#2563eb;
+    --shadow:0 1px 2px rgba(8,51,68,.06), 0 8px 24px -8px rgba(8,51,68,.14);
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 8% -10%, #cffafe 0%, transparent 60%),
+      radial-gradient(1000px 500px at 100% 0%, #a5f3fc 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:"Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    line-height:1.72;
+    font-size:16.5px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px 90px;}
+
+  header.hero{
+    background:linear-gradient(135deg,#083344 0%, #164e63 45%, #155e75 100%);
+    color:#ecfeff;
+    padding:64px 22px 56px;
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::after{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      radial-gradient(600px 300px at 85% 15%, rgba(34,211,238,.4), transparent 70%),
+      radial-gradient(520px 280px at 12% 92%, rgba(6,182,212,.42), transparent 70%);
+    pointer-events:none;
+  }
+  .hero-inner{max-width:1080px;margin:0 auto;position:relative;z-index:2;}
+  .eyebrow{
+    display:inline-block;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;
+    font-weight:700;padding:7px 15px;border-radius:999px;
+    background:rgba(103,232,249,.16);border:1px solid rgba(103,232,249,.45);
+    color:#67e8f9;margin-bottom:20px;
+  }
+  header.hero h1{
+    font-size:clamp(1.9rem, 4.4vw, 3rem);line-height:1.15;margin:0 0 16px;
+    font-weight:800;letter-spacing:-.02em;
+  }
+  header.hero h1 span{
+    background:linear-gradient(90deg,#67e8f9,#a5f3fc);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  header.hero p.lede{font-size:1.06rem;color:#a5f3fc;max-width:790px;margin:0 0 26px;}
+  .meta-chips{display:flex;flex-wrap:wrap;gap:10px;}
+  .chip{
+    font-size:.78rem;font-weight:600;padding:7px 14px;border-radius:999px;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#cffafe;
+  }
+
+  .roadmap{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:26px 28px;margin-top:-34px;position:relative;z-index:5;
+  }
+  .roadmap h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 16px;font-weight:700;
+  }
+  .roadmap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;}
+  .roadmap-item{
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:.86rem;
+    background:#fafdfe;opacity:.7;
+  }
+  .roadmap-item.done{
+    border-color:#67e8f9;background:linear-gradient(180deg,#ecfeff,#ffffff);opacity:1;
+  }
+  .roadmap-item.current{
+    border-color:#22d3ee;background:linear-gradient(180deg,#cffafe,#ffffff);opacity:1;
+    box-shadow:0 0 0 3px rgba(14,116,144,.14);
+  }
+  .roadmap-item .tag{
+    display:inline-block;font-size:.64rem;font-weight:800;letter-spacing:.08em;
+    padding:2px 8px;border-radius:999px;margin-bottom:6px;
+  }
+  .tag-done{background:var(--cyan-soft);color:var(--cyan-deep);}
+  .tag-now{background:#a5f3fc;color:#164e63;}
+  .tag-next{background:#e2e8f0;color:#475569;}
+  .roadmap-item strong{display:block;color:var(--ink);font-size:.89rem;}
+
+  nav.toc{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:22px 26px;margin:26px 0 44px;
+  }
+  nav.toc h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 14px;font-weight:700;
+  }
+  nav.toc ol{
+    margin:0;padding-left:0;list-style:none;counter-reset:toc;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:8px 26px;
+  }
+  nav.toc li{
+    counter-increment:toc;font-size:.92rem;padding:6px 0 6px 34px;
+    position:relative;border-bottom:1px dashed #e6f4f8;
+  }
+  nav.toc li::before{
+    content:counter(toc);position:absolute;left:0;top:7px;width:22px;height:22px;
+    border-radius:7px;background:var(--cyan-soft);color:var(--cyan);
+    font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center;
+  }
+  nav.toc a{color:var(--ink-soft);text-decoration:none;font-weight:500;}
+  nav.toc a:hover{color:var(--cyan);}
+
+  .part-band{display:flex;align-items:center;gap:16px;margin:56px 0 26px;}
+  .part-band .bar{
+    width:5px;height:44px;border-radius:99px;
+    background:linear-gradient(180deg,var(--cyan),#22d3ee);
+  }
+  .part-band.slate .bar{background:linear-gradient(180deg,var(--slate),#64748b);}
+  .part-band.teal .bar{background:linear-gradient(180deg,var(--teal),#2dd4bf);}
+  .part-band.blue .bar{background:linear-gradient(180deg,var(--blue),#60a5fa);}
+  .part-band h2{margin:0;font-size:1.5rem;letter-spacing:-.01em;font-weight:800;}
+  .part-band .sub{
+    display:block;font-size:.82rem;font-weight:600;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.12em;margin-top:2px;
+  }
+
+  article.q{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:0 0 26px;margin-bottom:28px;overflow:hidden;
+    scroll-margin-top:24px;
+  }
+  .q-head{
+    display:flex;gap:16px;align-items:flex-start;padding:22px 28px 18px;
+    border-bottom:1px solid #eef7fa;background:linear-gradient(180deg,#f9fdff,#ffffff);
+  }
+  .q-num{
+    flex:none;width:42px;height:42px;border-radius:12px;display:flex;
+    align-items:center;justify-content:center;font-weight:800;font-size:.92rem;color:#fff;
+    background:linear-gradient(135deg,#0e7490,#06b6d4);
+    box-shadow:0 6px 14px -6px rgba(14,116,144,.7);
+  }
+  .slate .q-num{background:linear-gradient(135deg,#334155,#64748b);box-shadow:0 6px 14px -6px rgba(51,65,85,.7);}
+  .teal .q-num{background:linear-gradient(135deg,#0d9488,#14b8a6);box-shadow:0 6px 14px -6px rgba(13,148,136,.7);}
+  .blue .q-num{background:linear-gradient(135deg,#2563eb,#3b82f6);box-shadow:0 6px 14px -6px rgba(37,99,235,.7);}
+  .q-head h3{margin:0;font-size:1.13rem;font-weight:700;line-height:1.4;letter-spacing:-.01em;}
+  .q-body{padding:22px 28px 0;}
+  .q-body p{margin:0 0 15px;color:var(--ink-soft);}
+  .q-body p:last-child{margin-bottom:0;}
+  .q-body h4{margin:24px 0 10px;font-size:.95rem;font-weight:800;color:var(--ink);}
+  .q-body h4::before{content:"▹";color:var(--cyan);margin-right:8px;font-size:.85rem;}
+  .slate .q-body h4::before{color:var(--slate);}
+  .teal .q-body h4::before{color:var(--teal);}
+  .blue .q-body h4::before{color:var(--blue);}
+  .q-body ul,.q-body ol{margin:0 0 16px;padding-left:22px;color:var(--ink-soft);}
+  .q-body li{margin-bottom:8px;}
+  .q-body li::marker{color:var(--cyan);}
+  .slate .q-body li::marker{color:var(--slate);}
+  .teal .q-body li::marker{color:var(--teal);}
+  .blue .q-body li::marker{color:var(--blue);}
+  strong{color:var(--ink);font-weight:700;}
+  code{
+    background:#f0fafc;border:1px solid #d7e7ee;border-radius:6px;padding:1px 6px;
+    font-size:.87em;font-family:"SFMono-Regular",Consolas,monospace;color:#0e7490;
+  }
+
+  .callout{border-radius:12px;padding:14px 18px;margin:18px 0 4px;font-size:.93rem;border-left:4px solid;}
+  .callout .label{
+    display:block;font-size:.68rem;font-weight:800;letter-spacing:.13em;
+    text-transform:uppercase;margin-bottom:5px;
+  }
+  .callout p{margin:0 0 8px;font-size:.93rem;}
+  .callout p:last-child{margin-bottom:0;}
+  .answer{background:linear-gradient(180deg,#ecfeff,#ffffff);border-color:var(--cyan);}
+  .answer .label{color:var(--cyan-deep);}
+  .tip{background:linear-gradient(180deg,#f0fdfa,#ffffff);border-color:var(--teal);}
+  .tip .label{color:#0f766e;}
+  .tradeoff{background:linear-gradient(180deg,#fffbeb,#ffffff);border-color:var(--amber);}
+  .tradeoff .label{color:#b45309;}
+  .pitfall{background:linear-gradient(180deg,#fff1f2,#ffffff);border-color:var(--rose);}
+  .pitfall .label{color:#be123c;}
+
+  .table-scroll{overflow-x:auto;margin:18px 0;border-radius:12px;border:1px solid var(--line);}
+  table{width:100%;border-collapse:collapse;font-size:.87rem;background:#fff;}
+  thead th{
+    background:#f6fbfd;text-align:left;padding:11px 14px;font-weight:800;
+    font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+    border-bottom:2px solid var(--line);white-space:nowrap;
+  }
+  tbody td{padding:11px 14px;border-bottom:1px solid #f0fafc;color:var(--ink-soft);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:nth-child(even){background:#fbfeff;}
+  tbody td:first-child{font-weight:700;color:var(--ink);}
+
+  .next-part{
+    background:linear-gradient(135deg,#083344,#155e75);color:#cffafe;
+    border-radius:var(--radius);padding:32px 34px;margin-top:50px;box-shadow:var(--shadow);
+  }
+  .next-part h3{margin:0 0 12px;font-size:1.2rem;color:#fff;font-weight:800;}
+  .next-part p{margin:0 0 16px;color:#a5f3fc;font-size:.95rem;}
+  .next-list{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:10px;list-style:none;padding:0;margin:0;
+  }
+  .next-list li{
+    background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
+    border-radius:10px;padding:10px 14px;font-size:.86rem;color:#cffafe;
+  }
+
+  @media (max-width:640px){
+    .q-head{padding:18px 18px 15px;}
+    .q-body{padding:18px 18px 0;}
+    header.hero{padding:44px 18px 46px;}
+    .roadmap{padding:20px;}
+    nav.toc{padding:18px;}
+    nav.toc ol{grid-template-columns:1fr;}
+  }
+  @media print{
+    body{background:#fff;}
+    article.q, nav.toc, .roadmap{box-shadow:none;page-break-inside:avoid;}
+    header.hero{background:#083344 !important;-webkit-print-color-adjust:exact;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Messaging Series · Section 5 of 10</span>
+    <h1>Messaging Systems for System Design<br><span>Real-Time Protocols &amp; Connection Management</span></h1>
+    <p class="lede">
+      The transport layer that everything real-time depends on. Why WebSocket wins and when it does not, the actual
+      resource cost of polling at 100k clients, the hybrid architecture that splits send and receive across two
+      protocols, the gateway fleet and connection registry that track millions of live sockets, and the operational
+      machinery — heartbeats, draining, reconnect storms, per-connection backpressure, TLS termination — that keeps
+      the fleet alive during deploys and failures.
+    </p>
+    <div class="meta-chips">
+      <span class="chip">13 Questions</span>
+      <span class="chip">500+ words each</span>
+      <span class="chip">Fleet-scale operations</span>
+      <span class="chip">Failure modes included</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ROADMAP -->
+  <section class="roadmap">
+    <h2>Messaging Answer-Series Roadmap</h2>
+    <div class="roadmap-grid">
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 1 — Complete</span>
+        <strong>Chat Applications &amp; Real-Time Messaging</strong>
+        Protocols, ordering, presence, sync, E2E
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 2 — Complete</span>
+        <strong>Message Queues &amp; Distributed Brokers</strong>
+        Acks, offsets, DLQs, consumer groups, backpressure
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 3 — Complete</span>
+        <strong>Publish/Subscribe &amp; Event Streaming</strong>
+        Kafka internals, ISR, exactly-once, tiered storage
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 4 — Complete</span>
+        <strong>Push Notification Systems</strong>
+        Multi-channel, preferences, priority, retries, rate caps
+      </div>
+      <div class="roadmap-item current">
+        <span class="tag tag-now">Section 5 — You are here</span>
+        <strong>Real-Time Protocols &amp; Connection Management</strong>
+        WebSocket, SSE, polling, gateway fleets, draining, backpressure, TLS
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Section 6</span>
+        <strong>Delivery Guarantees, Ordering &amp; Idempotency</strong>
+        At-least-once, exactly-once, per-key ordering, idempotency keys
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Section 7</span>
+        <strong>Fan-Out &amp; Group Messaging</strong>
+        Write vs read fan-out, hot groups, broadcast channels
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Section 8</span>
+        <strong>Event-Driven Architecture</strong>
+        Events vs commands, event sourcing, CQRS, outbox
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Section 9</span>
+        <strong>Operational Concerns &amp; Failure Modes</strong>
+        Monitoring, tracing, poison pills, multi-tenancy
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Section 10</span>
+        <strong>Classic System Design Problems</strong>
+        8 end-to-end messaging design prompts solved
+      </div>
+    </div>
+  </section>
+
+  <!-- TOC -->
+  <nav class="toc">
+    <h2>Questions Answered in This Section</h2>
+    <ol>
+      <li><a href="#q1">Compare WebSocket, long-polling, and SSE. When is each appropriate?</a></li>
+      <li><a href="#q2">Why does polling not scale? Resource costs at 100k clients</a></li>
+      <li><a href="#q3">Hybrid WebSocket + REST: which functions go where?</a></li>
+      <li><a href="#q4">Managing millions of stateful WebSocket connections</a></li>
+      <li><a href="#q5">Designing the connection registry and routing messages to a socket</a></li>
+      <li><a href="#q6">Multi-region gateway placement and cross-region routing</a></li>
+      <li><a href="#q7">When a WebSocket drops: reconnect and missed-message recovery</a></li>
+      <li><a href="#q8">Detecting dead connections: heartbeats, timeouts, false positives</a></li>
+      <li><a href="#q9">Connection draining during a gateway deployment</a></li>
+      <li><a href="#q10">Preventing reconnect storms when a gateway fails</a></li>
+      <li><a href="#q11">Per-connection backpressure and slow consumers</a></li>
+      <li><a href="#q12">TLS termination and mTLS for WebSocket at scale</a></li>
+      <li><a href="#q13">Metrics, traces, and operating a WebSocket fleet</a></li>
+    </ol>
+  </nav>
+
+  <!-- ================= PART A ================= -->
+  <div class="part-band">
+    <div class="bar"></div>
+    <h2>Part A — Transport Selection
+      <span class="sub">WebSocket, SSE, long-polling, and the hybrid boundary</span>
+    </h2>
+  </div>
+
+  <!-- Q1 -->
+  <article class="q" id="q1">
+    <div class="q-head">
+      <div class="q-num">1</div>
+      <h3>Compare WebSocket, HTTP long-polling, and Server-Sent Events (SSE). When is each appropriate?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>WebSocket is a persistent, full-duplex, low-overhead connection — the default for chat and any
+        bidirectional real-time interaction. SSE is a one-way server-to-client stream over a long-lived HTTP response —
+        ideal for feeds, notifications, and dashboards that only receive. Long-polling is a compatibility fallback that
+        costs one round trip per message and should only be used where WebSocket cannot be negotiated.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>Aspect</th><th>WebSocket</th><th>Long-polling</th><th>SSE</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Direction</td><td>Full duplex</td><td>Client-initiated only</td><td>Server → client only</td></tr>
+            <tr><td>Transport</td><td>TCP after HTTP Upgrade</td><td>Repeated HTTP requests</td><td>One HTTP response held open</td></tr>
+            <tr><td>Per-message overhead</td><td>2–6 bytes (frame header)</td><td>800+ bytes (full HTTP headers)</td><td>~10 bytes (event framing)</td></tr>
+            <tr><td>Connection cost</td><td>1 socket per client</td><td>1 request in flight per poll</td><td>1 socket per client</td></tr>
+            <tr><td>Auto-reconnect</td><td>Manual (client code)</td><td>Implicit — every poll is a new request</td><td>Built into <code>EventSource</code></td></tr>
+            <tr><td>Browser support</td><td>Universal</td><td>Universal</td><td>Universal (no IE)</td></tr>
+            <tr><td>Proxy/firewall</td><td>Some corporate proxies block Upgrade</td><td>Works everywhere</td><td>Works through HTTP proxies</td></tr>
+            <tr><td>Binary support</td><td>Yes</td><td>Base64 in JSON only</td><td>Text only</td></tr>
+            <tr><td>HTTP/2 multiplexing</td><td>No (one stream per connection)</td><td>Yes</td><td>Yes</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>WebSocket in depth</h4>
+      <p>WebSocket starts as an HTTP request with an <code>Upgrade: websocket</code> header. The server responds with
+      <code>101 Switching Protocols</code>, and from that point the connection is a raw bidirectional byte stream with
+      a thin frame protocol on top. Each frame has a 2-byte header (plus extended length when needed), so a small
+      message costs a handful of bytes rather than the hundreds of bytes of an HTTP request with cookies, headers, and
+      host. The connection is long-lived, so TLS handshake, authentication, and TCP slow-start are paid once rather
+      than per message.</p>
+      <p>The cost is that WebSocket is stateful. The server holds a socket per client, which means file descriptors,
+      kernel buffers, TLS state, and application-level connection metadata. Deploying a new server version means
+      either draining the live connections or dropping them. Load balancers must support long-lived connections and
+      be configured to not idle-timeout them. And a WebSocket connection is one TCP stream — HTTP/2's stream
+      multiplexing does not apply, so all messages for that client share one TCP connection's head-of-line behaviour.</p>
+
+      <h4>SSE in depth</h4>
+      <p>SSE is an HTTP response with <code>Content-Type: text/event-stream</code> that stays open, and the server
+      writes events to it. The format is simple: <code>data:</code>, <code>event:</code>, <code>id:</code> lines,
+      blank-line separated. The browser's <code>EventSource</code> API reconnects automatically on disconnect, sending
+      <code>Last-Event-ID</code> so the server can resume from where the client left off. It works through HTTP
+      proxies, supports HTTP/2 multiplexing (many SSE streams over one TCP connection), and requires no special
+      protocol handling on the server side — it is just a slow HTTP response.</p>
+      <p>The limitation is that SSE is one-way. The client cannot send messages on the same channel. For a
+      notification feed or a dashboard, that is fine. For chat, presence, typing indicators, and read receipts, the
+      client needs a second channel (HTTP POST) to send, and the two channels must be ordered relative to each
+      other — which is a coordination problem.</p>
+
+      <h4>Long-polling in depth</h4>
+      <p>The client sends an HTTP request; the server holds it open until a message is available or a timeout fires;
+      the client receives the response, immediately issues a new request, and repeats. Each message costs a full
+      HTTP round trip (headers, cookies, TLS on new connections if not kept alive). Latency is bounded by the
+      round-trip time, not by the server's processing. At low message rates the connection is mostly idle, but it still
+      occupies a server thread or connection slot for the entire hold.</p>
+      <p>The advantage is universal compatibility — no proxies block it, no special server code is needed, and the
+      client code is trivial. The cost is throughput: at 10 messages per second per client and 100k clients, that is
+      a million HTTP requests per second just for message delivery, each with hundreds of bytes of headers, plus the
+      server thread or async slot held for each open request.</p>
+
+      <h4>The decision matrix</h4>
+      <ul>
+        <li><strong>Chat, collaboration, multiplayer, presence:</strong> WebSocket — bidirectional is required and
+        per-message overhead matters.</li>
+        <li><strong>Notification feed, live dashboard, progress updates, stock ticker:</strong> SSE — one-way is
+        sufficient, and auto-reconnect plus proxy friendliness are valuable.</li>
+        <li><strong>Restrictive networks, legacy clients, extremely low message rate:</strong> long-polling as a
+        fallback, negotiated at connect time.</li>
+        <li><strong>Bidirectional plus proxy-hostile network:</strong> WebSocket with long-polling fallback, the
+        pattern used by every major chat app.</li>
+      </ul>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>WebSocket's low overhead and bidirectionality come at the cost of operational complexity (stateful fleet,
+        draining, reconnects). SSE's simplicity and proxy friendliness come at the cost of one-way traffic. Long-polling's
+        compatibility comes at the cost of throughput. The right choice is per-channel, and many systems use two of
+        the three simultaneously.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: “WebSocket for the bidirectional channel — chat, typing, receipts. SSE for the one-way feed if the
+        product needs it. Long-polling only as a fallback for restrictive networks.” That names each transport's
+        role and shows you are not choosing by popularity.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q2 -->
+  <article class="q" id="q2">
+    <div class="q-head">
+      <div class="q-num">2</div>
+      <h3>Why does polling not scale for real-time messaging? What are the resource costs of polling at 100k clients?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Polling converts a push into repeated pulls, so the cost scales with clients × poll frequency × message
+        rate rather than with actual messages. At 100k clients polling every second, that is 100k requests/s even when
+        nothing happened, each carrying HTTP headers, hitting the same backend that must be provisioned for the peak.
+        WebSocket's persistent connection amortizes the setup cost across the session.</p>
+      </div>
+
+      <h4>The arithmetic at 100k clients</h4>
+      <p>Two polling variants matter. Short polling: the client polls every N seconds regardless of whether there is
+      anything to deliver. Long polling: the client holds a request open until there is a message or a timeout.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Scenario</th><th>Requests/s</th><th>Requests/day</th><th>Bytes of headers/day</th></tr></thead>
+          <tbody>
+            <tr><td>Short poll, 1 s interval, 100k clients</td><td>100,000</td><td>8.64 B</td><td>~4.3 PB</td></tr>
+            <tr><td>Short poll, 5 s interval, 100k clients</td><td>20,000</td><td>1.73 B</td><td>~0.86 PB</td></tr>
+            <tr><td>Long poll, 1 message/min, 100k clients</td><td>~1,700</td><td>~150 M</td><td>~75 TB</td></tr>
+            <tr><td>WebSocket, 1 message/min, 100k clients</td><td>~1,700 messages</td><td>—</td><td>~10 GB</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The header cost assumes ~500 bytes of HTTP headers per request (Host, User-Agent, Cookies, Authorization,
+      Accept, etc.). At 100k short-poll clients per second, the system moves 50 MB/s of pure headers — for
+      notifications that mostly do not exist. The application sees 100k requests/s, each of which must be routed,
+      authenticated, authorized, and checked against a message store, before returning a 304 or an empty body.</p>
+
+      <h4>The server-side cost</h4>
+      <p>Each polling request consumes a connection slot, a thread or async task, a database or Redis lookup, and an
+      authentication check. At 100k/s, even a 1 ms handling time per request is 100 concurrent request slots
+      continuously occupied. If the server is synchronous (thread per request), 100k concurrent requests means 100k
+      threads, which is far beyond what a standard runtime can handle. Async servers (Node, Go, Netty) handle this
+      better, but the CPU cost of parsing headers, routing, and returning a response for 100k requests/s is
+      substantial — typically 10–30% of a mid-sized fleet just for empty polls.</p>
+      <p>Long polling is better but not free: each open request holds a connection and an async task for up to the
+      timeout (typically 30–60 s). At 100k clients with one open request each, that is 100k held connections — the
+      same connection count as WebSocket, but with the added cost of re-establishing the request every timeout period
+      and re-authenticating every time. Long polling at scale converges toward WebSocket's connection cost without
+      WebSocket's message efficiency.</p>
+
+      <h4>The latency cost</h4>
+      <p>Short polling has latency equal to the poll interval on average. A 5-second poll means a message arrives up
+      to 5 seconds late. For chat, that is unacceptable. Reducing the interval to 1 second reduces latency but
+      multiplies the request rate. Long polling fixes the latency (the request returns as soon as there is a message)
+      but still pays a round trip per message and a re-establishment cost per timeout. WebSocket has near-zero
+      delivery latency because the connection is always ready.</p>
+
+      <h4>The autoscaling trap</h4>
+      <p>The polling load is constant — it does not drop when there are no messages and does not spike when there
+      are. Autoscaling policies driven by CPU or request rate see the polling load as a flat baseline, so the fleet
+      is provisioned for it even during quiet periods. The result is a fleet sized for the poll rate, not the message
+      rate, which is 10×–100× larger than necessary. WebSocket's fleet is sized by connection count (which is
+      proportional to users) and is much less sensitive to message rate.</p>
+
+      <h4>When polling is the right choice</h4>
+      <ul>
+        <li><strong>Very low message rate:</strong> a notification that arrives once an hour does not justify a
+        persistent connection. A 60-second poll is cheaper and simpler.</li>
+        <li><strong>Serverless backends:</strong> a Lambda-backed API cannot hold a WebSocket; polling is the natural
+        fit. API Gateway WebSockets exist but have their own constraints.</li>
+        <li><strong>Battery-sensitive mobile:</strong> the OS will suspend a background socket anyway; polling on
+        foreground with push for background is the practical answer (Section 1, Question 7).</li>
+        <li><strong>Fallback:</strong> when WebSocket cannot be negotiated, long polling is the fallback.</li>
+      </ul>
+
+      <h4>The comparison in one number</h4>
+      <p>For a chat app with 100k concurrent users and 10 messages/s per user (a busy group chat), polling at
+      1-second intervals generates 100k requests/s for 1M messages/s — a 10:1 ratio of requests to messages.
+      WebSocket generates 1M messages on 100k persistent connections, with no empty requests. The resource ratio is
+      not close: WebSocket is 10–100× cheaper per delivered message at any meaningful message rate.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Choosing polling because it is “simpler” and then discovering at 10k users that the backend is CPU-bound
+        on header parsing and auth checks. Polling is simpler to write, not simpler to operate at scale. The break-even
+        is usually around a few thousand concurrent clients with meaningful message rates.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q3 -->
+  <article class="q" id="q3">
+    <div class="q-head">
+      <div class="q-num">3</div>
+      <h3>In a hybrid WebSocket + REST architecture, which functions should each protocol handle? How do you define the interface boundary?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>REST handles everything that is request/response, idempotent, cacheable, or needs a synchronous answer:
+        fetching history, sending a message that must be acknowledged, uploading media, marking read, updating
+        preferences. WebSocket handles everything that is a push, real-time, or ephemeral: new messages, presence,
+        typing indicators, receipts, connection health. The boundary is defined by who initiates and whether the
+        caller needs the response to continue.</p>
+      </div>
+
+      <h4>The decision rule</h4>
+      <p>Ask three questions about each operation:</p>
+      <ol>
+        <li><strong>Who initiates?</strong> Client-initiated → REST is natural (the client is already making a
+        request). Server-initiated (a new message arrives) → WebSocket.</li>
+        <li><strong>Does the caller need the answer before continuing?</strong> Sending a message and needing the
+        assigned <code>seq</code> → REST, so the client can await the response. Fire-and-forget typing indicator →
+        WebSocket, no response needed.</li>
+        <li><strong>Is it ephemeral or durable?</strong> Typing, presence, cursor position → ephemeral, WebSocket.
+        Message history, read state → durable, REST with caching.</li>
+      </ol>
+
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>Operation</th><th>Protocol</th><th>Why</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Fetch conversation history</td><td>REST GET</td><td>Cacheable, paginated, client-initiated</td></tr>
+            <tr><td>Send a message</td><td>REST POST</td><td>Needs an idempotency key and a synchronous <code>seq</code> response</td></tr>
+            <tr><td>New message arrives</td><td>WebSocket push</td><td>Server-initiated, real-time</td></tr>
+            <tr><td>Mark conversation read</td><td>REST POST (or WS fire-and-forget)</td><td>Idempotent, can be batched</td></tr>
+            <tr><td>Read receipt from another user</td><td>WebSocket push</td><td>Server-initiated, ephemeral</td></tr>
+            <tr><td>Typing indicator</td><td>WebSocket</td><td>Ephemeral, high frequency, no durable record</td></tr>
+            <tr><td>Presence changes</td><td>WebSocket push + REST GET for initial snapshot</td><td>Push for changes, GET for the current state</td></tr>
+            <tr><td>Upload media</td><td>REST POST (or pre-signed URL PUT)</td><td>Large payload, progress tracking, not a WS frame</td></tr>
+            <tr><td>Update notification preferences</td><td>REST PUT</td><td>Idempotent, durable, cacheable</td></tr>
+            <tr><td>Connection health (ping/pong)</td><td>WebSocket</td><td>Must be on the same connection being tested</td></tr>
+            <tr><td>Auth token refresh</td><td>REST</td><td>Synchronous, needs a new token before retry</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Why send via REST, not WebSocket</h4>
+      <p>The temptation is to send messages over the WebSocket because it is already open. The problem is that a
+      WebSocket frame has no built-in request/response correlation — the server cannot return "here is the
+      <code>seq</code> for the message you just sent" unless the protocol defines a correlation ID. That is doable,
+      but it means reimplementing request/response semantics on top of a protocol that does not have them. REST
+      gives you request/response, HTTP status codes, idempotency keys in headers, and retry semantics for free.</p>
+      <p>There is also a failure-mode argument: if the WebSocket drops mid-send, the client does not know whether the
+      message was received. With REST, the client gets a clear error or a clear success, and can retry with the same
+      idempotency key. The WebSocket can be re-established without affecting the send.</p>
+
+      <h4>Why push via WebSocket, not polling REST</h4>
+      <p>Push is the entire reason for the WebSocket. Polling REST for new messages is the polling problem from
+      Question 2 — expensive, high-latency, and wasteful. The WebSocket is the efficient path for server-initiated
+      events, and it is the reason the client holds a connection at all.</p>
+
+      <h4>The interface boundary in detail</h4>
+      <p>The boundary is not just protocol — it is also data shape and lifecycle. The REST API returns the full
+      message object; the WebSocket push returns a minimal envelope (conversation_id, seq, and either the message or a
+      hint that a message exists). The client that is connected merges the WebSocket push into its state; the client
+      that is not connected fetches via REST on reconnect. The two paths converge in the client's message store, which
+      is the single source of truth for the UI (Section 1, Question 12).</p>
+      <p>Authentication is also split: the REST API uses short-lived bearer tokens or cookies; the WebSocket is
+      authenticated once at connect time with the same token, and the connection is trusted for its lifetime. Token
+      refresh happens via REST, and the client either reconnects the WebSocket with the new token or the server sends
+      a "re-auth" frame that the client responds to. The choice depends on how long the tokens live and how strict the
+      security posture is.</p>
+
+      <h4>What goes wrong without a boundary</h4>
+      <p>Two failure modes dominate. First, everything goes over the WebSocket: sending, fetching history, uploading
+      media. The WebSocket becomes a fragile, stateful, unauthenticated-per-request API that cannot be cached, cannot
+      be load-balanced independently, and cannot be retried idempotently. Second, everything goes over REST: the
+      WebSocket is used only as a notification hint, and every actual operation is a REST call. That works but loses
+      the low-latency advantage of the persistent connection and makes the WebSocket a glorified polling mechanism.</p>
+      <p>The right boundary is the one where each protocol does what it is good at: REST for request/response and
+      durable state, WebSocket for push and ephemeral events. The client's state store is the merge point, and the
+      server's message log is the source of truth. Neither protocol is the system — both are transports over the same
+      data.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Two protocols means two code paths, two auth mechanisms, two sets of error handling, and two things to
+        observe. The complexity is real. The alternative — one protocol for everything — either loses the push
+        (REST-only) or loses the request/response semantics (WebSocket-only). Most mature systems accept the
+        complexity because the boundary is clean and the client state store makes the merge straightforward.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART B ================= -->
+  <div class="part-band slate">
+    <div class="bar"></div>
+    <h2>Part B — Gateway Fleets &amp; Registries
+      <span class="sub">Millions of sockets, and how to find one</span>
+    </h2>
+  </div>
+
+  <!-- Q4 -->
+  <article class="q slate" id="q4">
+    <div class="q-head">
+      <div class="q-num">4</div>
+      <h3>How do you manage millions of stateful WebSocket connections across a fleet of gateway servers?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Each gateway is a long-lived process holding 100k–500k sockets, each socket a file descriptor plus a TLS
+        session plus a small per-connection state. The gateway is stateless apart from the sockets: identity lives in
+        the connection registry, message state lives in the log. The fleet is scaled by adding gateways, drained by
+        telling clients to reconnect elsewhere, and monitored by per-gateway connection counts, file descriptor usage,
+        and heartbeat failure rates.</p>
+      </div>
+
+      <h4>The resource envelope per connection</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Resource</th><th>Per connection</th><th>At 500k connections</th></tr></thead>
+          <tbody>
+            <tr><td>File descriptor</td><td>1</td><td>500k (needs <code>ulimit -n</code> raised)</td></tr>
+            <tr><td>Kernel socket buffer (RX + TX)</td><td>~80–200 KB</td><td>40–100 GB of kernel memory</td></tr>
+            <tr><td>TLS session state</td><td>~5–20 KB</td><td>2.5–10 GB</td></tr>
+            <tr><td>Application state (user_id, connection_id, subscriptions)</td><td>~200–500 B</td><td>100–250 MB</td></tr>
+            <tr><td>Heartbeat timer / event</td><td>~50 B + timer</td><td>25 MB + timer pressure</td></tr>
+            <tr><td>CPU for heartbeat and framing</td><td>Negligible per connection</td><td>A few cores across the fleet</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The dominant cost is the kernel socket buffer, not the application state. A gateway with 500k connections is
+      really limited by kernel memory and file descriptors, not by heap. This is why the gateway's memory sizing is
+      different from a typical API server: it is sized for sockets × buffer, not for request concurrency.</p>
+
+      <h4>Why the gateway is a stateless server with stateful sockets</h4>
+      <p>The application logic on the gateway should be minimal: accept the connection, authenticate, register the
+      connection, forward incoming messages to the chat service, and deliver outgoing messages to the socket. It
+      should not hold the message log, the presence state, or the business rules. This separation is what makes the
+      fleet scalable: adding a gateway adds sockets, and the chat service handles the logic independently. The
+      gateway is disposable — it can be killed and its clients will reconnect.</p>
+
+      <h4>Fleet sizing</h4>
+      <p>The fleet size is driven by peak concurrent connections, not by message rate. A million concurrent users need
+      at least 2–4 gateways at 250k–500k each, plus headroom for failure (losing one gateway should not overload the
+      rest) and for deployment (draining one gateway at a time). The practical formula is:</p>
+      <p><code>gateways = ceil(peak_concurrent / per_gateway_limit) × (1 + headroom)</code></p>
+      <p>With 1M peak, 400k per gateway, and 50% headroom, that is 4 gateways. The headroom covers both failure
+      (one gateway can absorb its neighbour's clients temporarily) and drains (one gateway is out during deploy
+      while the rest absorb its clients).</p>
+
+      <h4>Load balancing across gateways</h4>
+      <p>The load balancer in front of the gateway fleet must support long-lived connections, which most L4 balancers
+      do. The key configuration: TCP keepalive to detect dead peers, idle timeout longer than the client heartbeat
+      interval (or the balancer will drop live connections), connection draining on deployment, and source-IP
+      affinity if the backend requires it (it should not — gateways are interchangeable).</p>
+      <p>For the connection registry to work, the gateway must know its own identity (its pod name, IP, or a unique
+      gateway ID) and register that identity with the connection. When a message is routed to a user, the registry
+      returns the gateway ID, and the router sends the message to that gateway via an internal RPC or a per-gateway
+      queue. The load balancer is not involved in message routing — it only handles new connections.</p>
+
+      <h4>Kernel and runtime tuning</h4>
+      <ul>
+        <li><strong>File descriptors:</strong> <code>ulimit -n</code> and systemd limits must be raised to at least 2×
+        the connection limit (for ephemeral ports and files).</li>
+        <li><strong>Socket buffers:</strong> <code>net.core.rmem_max</code>, <code>wmem_max</code>, and per-socket
+        <code>SO_RCVBUF</code>/<code>SO_SNDBUF</code> tuned for the expected message rate.</li>
+        <li><strong>Backlog:</strong> <code>net.core.somaxconn</code> and <code>tcp_max_syn_backlog</code> raised for
+        reconnect storms.</li>
+        <li><strong>Ephemeral ports:</strong> <code>net.ipv4.ip_local_port_range</code> widened for outbound
+        connections (the gateway also makes outbound RPCs).</li>
+        <li><strong>Runtime:</strong> an event-loop-based server (Go, Netty, Node, Rust) is required; a thread-per-connection
+        model cannot handle 500k connections.</li>
+      </ul>
+
+      <h4>Connection lifecycle on the gateway</h4>
+      <ol>
+        <li><strong>Accept:</strong> the balancer hands a new TCP connection to a gateway.</li>
+        <li><strong>TLS handshake:</strong> the gateway terminates TLS (Question 12).</li>
+        <li><strong>Authenticate:</strong> the client sends a token (first frame or query parameter); the gateway
+        validates it against the auth service.</li>
+        <li><strong>Register:</strong> the gateway writes <code>user_id → (gateway_id, connection_id)</code> to the
+        registry, with a TTL.</li>
+        <li><strong>Serve:</strong> forward client frames to the chat service; deliver server pushes to the socket.</li>
+        <li><strong>Heartbeat:</strong> send a ping every 20–30 s; expect a pong; remove the connection after two
+        missed.</li>
+        <li><strong>Disconnect:</strong> on close, timeout, or error, remove the registry entry and notify presence.</li>
+      </ol>
+
+      <h4>What breaks at scale</h4>
+      <p>The failures are predictable. The registry becomes a hot spot if every message routes through it (Question
+      5). The kernel runs out of file descriptors or socket memory if the per-gateway limit is not tuned. The
+      gateway's GC pauses (if it is a JVM runtime) cause missed heartbeats and spurious disconnects. The
+      balancer's idle timeout drops connections that are alive but quiet. The auth service becomes a bottleneck
+      during reconnect storms. Each has a specific mitigation, but the common theme is that the gateway is a
+      resource-constrained server whose limits must be known and tuned, not discovered in production.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Sizing gateways by CPU or memory in the usual way and ignoring the socket buffer. A gateway at 20% CPU can
+        still be at its connection limit because each socket consumes kernel memory. The correct sizing metric is
+        connections per gateway, not CPU per gateway, and it must be tuned against the kernel limits.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q5 -->
+  <article class="q slate" id="q5">
+    <div class="q-head">
+      <div class="q-num">5</div>
+      <h3>How do you design the connection registry, and how do you route a message to the server holding the recipient's connection?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>The registry is a sharded, in-memory map from <code>user_id</code> (and device) to
+        <code>(gateway_id, connection_id)</code>, with a TTL refreshed by heartbeats. Routing a message means looking
+        up the recipient in the registry, getting the gateway, and sending the message to that gateway over an
+        internal RPC or a per-gateway queue. The registry must be highly available and low-latency, because every
+        server-push message depends on it.</p>
+      </div>
+
+      <h4>The registry data model</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Key</th><th>Value</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>user:{user_id}</code></td><td>Set of <code>(gateway_id, connection_id, device_id, last_heartbeat)</code></td><td>All active connections for the user (multi-device)</td></tr>
+            <tr><td><code>gateway:{gateway_id}</code></td><td>Set of <code>connection_id</code></td><td>All connections on a gateway (for draining and monitoring)</td></tr>
+            <tr><td><code>conn:{connection_id}</code></td><td><code>{user_id, gateway_id, connected_at, last_seen}</code></td><td>Lookup by connection (for cleanup and audit)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The <code>user</code> entry is the one used on the routing hot path. It is a set because a user may be
+      connected on multiple devices, and each must receive the message. The <code>gateway</code> entry is used for
+      draining and monitoring: when a gateway is removed, its connections must be found and told to reconnect.</p>
+
+      <h4>Storage choices</h4>
+      <ul>
+        <li><strong>Redis:</strong> the pragmatic default. A sharded Redis cluster (or Redis Cluster) holds the map
+        with TTL on each entry. Lookup is a single <code>HGETALL</code> or <code>SMEMBERS</code> — sub-millisecond.
+        The operations are simple, the tooling is mature, and the memory cost at 1M connections is ~1 GB.</li>
+        <li><strong>Purpose-built registry service:</strong> a sharded, in-memory service with consistent hashing on
+        <code>user_id</code>, so each user's entry lives on a known node. Higher throughput than Redis, but you build
+        and operate it. Used by very large platforms where Redis becomes the bottleneck.</li>
+        <li><strong>Consistent hashing without a registry:</strong> the routing layer computes
+        <code>gateway = hash(user_id) mod N</code> and sends to that gateway. No registry at all; the gateway is
+        stateless and if the user is not connected there, the message is queued or falls back to push. This works
+        when the gateway count is stable and the routing layer knows the hash ring, but it makes the gateway
+        fleet rigid — changing the count reshuffles users. It is the Discord-style approach for their gateway
+        routing.</li>
+        <li><strong>Hybrid:</strong> consistent hashing for the steady state, with a registry fallback for the
+        rebalance window and for users connected to a non-home gateway.</li>
+      </ul>
+
+      <h4>The routing path</h4>
+      <ol>
+        <li>A message is produced to a fan-out worker (from the chat service or the message log).</li>
+        <li>The worker looks up the recipient in the registry: <code>user:{user_id}</code> → list of gateways.</li>
+        <li>For each gateway, the worker sends the message over an internal RPC (gRPC) or a per-gateway queue.</li>
+        <li>The gateway receives the message, looks up the connection_id(s) for the user in its local table, and
+        writes the frame to the socket(s).</li>
+        <li>The gateway acks the delivery to the worker; if the gateway has no matching connection (the user
+        disconnected between the lookup and the send), it returns "not found" and the worker falls back to push or
+        queues for offline delivery.</li>
+      </ol>
+
+      <h4>Why not broadcast</h4>
+      <p>Redis Pub/Sub broadcasts every message to every gateway, so each gateway receives every message and
+      discards the ones that are not for its connections. With 100 gateways and 1M messages/s, that is 100M message
+      copies per second across the fleet — 99.9% of which are wasted. The CPU and network cost of receiving and
+      discarding them dominates. Targeted routing (look up the gateway, send to only that gateway) is O(recipients)
+      instead of O(recipients × gateways), which is the difference between scaling with users and scaling with
+      messages × gateways.</p>
+
+      <h4>The TTL and cleanup</h4>
+      <p>Each registry entry has a TTL (e.g., 90 seconds) refreshed by the heartbeat. If a gateway crashes without
+      deregistering, the entry expires and the user is considered offline; the client reconnects to a new gateway
+      and registers a new entry. The TTL is the primary cleanup mechanism — it is more reliable than explicit
+      deregistration, which can fail if the gateway dies mid-operation. Explicit deregistration is an optimization
+      (faster cleanup), not the safety net.</p>
+
+      <h4>The registry failure mode</h4>
+      <p>If the registry is down, the routing layer cannot find users, and push messages fail. This is a
+      single-point-of-failure risk for a component on the hot path. The mitigations:</p>
+      <ul>
+        <li><strong>Replication:</strong> the registry is replicated across nodes, with automatic failover.</li>
+        <li><strong>Client-side cache:</strong> the routing layer caches recent lookups (LRU, 10–60 s TTL) so a
+        registry blip does not immediately stop routing. The cache is stale for the TTL, so a user who moved
+        gateways may miss one message — acceptable for most applications.</li>
+        <li><strong>Fallback to push:</strong> if the registry lookup fails, fall back to a push notification and let
+        the client fetch on reconnect. The message is in the log, so it is not lost; it is delayed.</li>
+        <li><strong>Consistent hashing:</strong> if the routing layer computes the gateway without the registry, the
+        registry outage does not affect routing at all. This is the strongest mitigation, at the cost of fleet
+        rigidity.</li>
+      </ul>
+
+      <h4>Observability of the registry</h4>
+      <p>The metrics: lookup rate, lookup latency p99, cache hit rate, stale entry rate (entries with expired
+      heartbeats), registry size, and the rate of "user not found" results. A rising "user not found" rate means
+      the TTL is too short (heartbeats are being missed) or the registry is losing entries. A rising lookup latency
+      means the registry is approaching capacity and needs sharding or a dedicated service.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>The registry gives flexibility (users can connect anywhere, gateways are interchangeable) but adds a
+        component on the hot path and a failure mode. Consistent hashing eliminates the registry but makes the
+        fleet rigid. Most systems start with a registry and move to consistent hashing only if the registry becomes
+        the bottleneck.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: “The registry maps user to gateway with a TTL, and the router sends the message to that gateway over
+        an internal RPC. Not broadcast — targeted routing is O(recipients) instead of O(recipients × gateways).”
+        That names the data structure, the routing mechanism, and why broadcast is wrong.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q6 -->
+  <article class="q slate" id="q6">
+    <div class="q-head">
+      <div class="q-num">6</div>
+      <h3>How do you handle multi-region gateway placement and cross-region message routing?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Each user connects to the gateway in their home region, determined by the nearest datacenter (GeoDNS or
+        anycast). The registry is regional, so routing within a region is local. Cross-region messages — a user in
+        EU sending to a user in US — go through a regional bridge or the replicated message log, and are delivered to
+        the recipient's regional gateway. This keeps the common case local and pays the cross-region hop only when
+        the conversation is genuinely cross-region.</p>
+      </div>
+
+      <h4>The regional topology</h4>
+      <p>Three deployment patterns are common:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Pattern</th><th>How it works</th><th>Trade-off</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Single global region</td>
+              <td>All gateways in one region; users worldwide connect to it</td>
+              <td>Simplest; high latency for distant users</td>
+            </tr>
+            <tr>
+              <td>Regional gateways, global registry</td>
+              <td>Gateways per region; a single global registry holds all connections</td>
+              <td>Low connection latency; registry is a cross-region hot spot</td>
+            </tr>
+            <tr>
+              <td>Regional gateways, regional registries</td>
+              <td>Each region has its own registry; cross-region routing goes through a bridge</td>
+              <td>Local routing is fast; cross-region needs a bridge</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The third pattern is what most large systems use. It keeps the registry local, which means routing is a
+      local lookup with sub-millisecond latency. The cost is that cross-region messages need a bridge — a component
+      that knows how to route to another region's registries.</p>
+
+      <h4>Connection assignment</h4>
+      <p>The user's device resolves the gateway endpoint via GeoDNS (returns the nearest region's address) or
+      anycast (routes to the nearest datacenter at the network layer). The gateway in that region authenticates the
+      user, registers the connection in the regional registry, and serves the socket. The user's "home region" is
+      implicit — it is wherever they connected. If they travel, they reconnect to a new region on next connect, and
+      the old registry entry expires via TTL.</p>
+
+      <h4>Cross-region routing</h4>
+      <p>A message from Alice (EU) to Bob (US) follows this path:</p>
+      <ol>
+        <li>Alice's message reaches the EU chat service.</li>
+        <li>The chat service writes to the message log (which is replicated cross-region) and fans out.</li>
+        <li>The fan-out worker looks up Bob in the US registry. It does not find him locally because the registry is
+        regional.</li>
+        <li>The worker sends the message to the US regional bridge via a cross-region stream (a replicated topic, a
+        dedicated RPC, or a global queue).</li>
+        <li>The US bridge looks up Bob in the US registry, finds his gateway, and sends the message.</li>
+        <li>The gateway delivers to Bob's socket.</li>
+      </ol>
+      <p>The cross-region hop costs 80–200 ms depending on distance. For real-time chat, this is noticeable but
+      acceptable — the message is still delivered within a second. For critical paths (call signalling, live
+      collaboration), it may not be acceptable, and the design must route through a closer region or accept the
+      latency.</p>
+
+      <h4>Why not a single global registry</h4>
+      <p>A global registry would make routing a single lookup regardless of region, but it would be a cross-region
+      round trip for every lookup (80+ ms), which is worse than the cross-region hop for the message. It would also
+      be a global hot spot and a global single point of failure. Regional registries are the standard because they
+      localize the lookup and the failure domain.</p>
+
+      <h4>The bridge design</h4>
+      <p>The bridge is a stateless service per region that consumes cross-region messages and routes them into the
+      local registry. It must handle:</p>
+      <ul>
+        <li><strong>Ordering:</strong> messages from the same conversation should be delivered in order. The bridge
+        consumes from a partitioned stream (partitioned by conversation_id) so ordering is preserved.</li>
+        <li><strong>Backpressure:</strong> if the local region is overloaded, the bridge should slow its consumption
+        from the cross-region stream, not drop messages. The cross-region stream buffers.</li>
+        <li><strong>Idempotency:</strong> the bridge may receive the same message twice (replication lag, retries); it
+        deduplicates by message_id before routing.</li>
+        <li><strong>Fallback:</strong> if the local registry lookup fails, the bridge falls back to push (the message
+        is in the log).</li>
+      </ul>
+
+      <h4>Data residency</h4>
+      <p>Some data cannot leave its region (GDPR, data sovereignty). The cross-region bridge must respect this: a
+      message containing EU personal data cannot be routed through US infrastructure. The design is to keep the data
+      in the region and route only the metadata (message_id, conversation_id, recipient_user_id) across the border;
+      the recipient's client fetches the content from the regional store. This is more complex than routing the
+      full message, but it is legally required in some jurisdictions.</p>
+
+      <h4>Failure modes</h4>
+      <ul>
+        <li><strong>Cross-region link down:</strong> messages between regions are delayed until the link recovers.
+        The log buffers them; the client sees late delivery, not loss.</li>
+        <li><strong>Regional registry down:</strong> that region's routing fails; the bridge falls back to push. Users
+        in the region are online but do not receive real-time messages; they fetch on reconnect.</li>
+        <li><strong>Bridge overload:</strong> backpressure on the cross-region stream; the log grows; delivery is
+        delayed but not lost.</li>
+        <li><strong>Region failure:</strong> the region's gateways are lost; users reconnect to another region on the
+        next attempt (GeoDNS failover). The registry entries expire.</li>
+      </ul>
+
+      <h4>The measurement</h4>
+      <p>The key metric is cross-region delivery latency: produce_time to deliver_time, split by region pair. A rising
+      p99 indicates the bridge or the cross-region link is congested. The second metric is cross-region message
+      volume — if it is growing, the regions are not well-aligned with the user base, and a redistribution (moving
+      a region, adding a new one) may be needed.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Regional registries localize lookups and failures but require a bridge for cross-region messages. A global
+        registry avoids the bridge but makes every lookup cross-region. The regional model wins at scale because the
+        common case (users in the same region) is fast and the rare case (cross-region) pays the cost only when it
+        occurs.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART C ================= -->
+  <div class="part-band teal">
+    <div class="bar"></div>
+    <h2>Part C — Lifecycle &amp; Failure
+      <span class="sub">Drops, detection, drains, storms, and slow consumers</span>
+    </h2>
+  </div>
+
+  <!-- Q7 -->
+  <article class="q teal" id="q7">
+    <div class="q-head">
+      <div class="q-num">7</div>
+      <h3>What happens when a WebSocket connection drops? How does the client reconnect, and how do you recover missed messages?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>The client detects the drop (socket close, heartbeat timeout, or network error), reconnects with
+        exponential backoff and jitter, re-authenticates, and sends its <code>last_seen_seq</code> per conversation.
+        The server returns the messages after that position, and the client merges them into its local store. The
+        WebSocket is a real-time optimization; the message log is the source of truth, and recovery is a fetch from
+        the log.</p>
+      </div>
+
+      <h4>Detecting the drop</h4>
+      <p>The client may not know the connection is dead — a network partition, a NAT timeout, or a dead server can
+      leave a half-open TCP connection that looks alive to the client but delivers nothing. Three detection
+      mechanisms:</p>
+      <ul>
+        <li><strong>Socket close event:</strong> the cleanest signal. The server sent a close frame or the TCP
+        connection was reset. The client reconnects immediately (with jitter).</li>
+        <li><strong>Heartbeat timeout:</strong> the client sends a ping every N seconds and expects a pong within M
+        seconds. If the pong does not arrive, the connection is presumed dead and the client reconnects. This catches
+        half-open connections, which the socket close event misses.</li>
+        <li><strong>Server-side heartbeat:</strong> the server pings the client; if the client does not pong, the server
+        closes the connection and removes the registry entry. The client then reconnects (it sees the close).</li>
+      </ul>
+      <p>Both heartbeats matter: the client's detects a dead server; the server's detects a dead client. Without
+      both, dead connections accumulate on the server (leaking registry entries and socket resources) and dead
+      connections linger on the client (delaying reconnect).</p>
+
+      <h4>Reconnect with backoff</h4>
+      <p>The client reconnects with exponential backoff: 1 s, 2 s, 4 s, 8 s, up to a max (30–60 s), with jitter
+      (±20%) to avoid synchronized reconnects when a server fails and thousands of clients reconnect at once. The
+      backoff resets after a successful connection that lasts beyond a stability window (e.g., 60 s) — otherwise a
+      flapping connection causes the backoff to grow unboundedly.</p>
+      <p>On reconnect, the client re-authenticates with a fresh or refreshed token. The old connection's registry
+      entry is stale; the new connection registers a new entry. The old entry expires via TTL if the server did not
+      clean it up. The user sees no interruption if the reconnect is fast enough; if it takes seconds, the UI shows
+      a "reconnecting" indicator.</p>
+
+      <h4>Recovering missed messages</h4>
+      <p>The client's local store has a <code>last_seen_seq</code> per conversation. On reconnect, it sends these to
+      the server, which returns the messages after each. The fetch is paginated (e.g., 100 messages per request) and
+      rate-limited so a client that was offline for a week does not overwhelm the server or the device. The client
+      merges the fetched messages into its local store using the same merge algorithm as the live WebSocket path
+      (Section 1, Question 12): duplicates are dropped, gaps trigger another fetch, and the UI renders from the
+      contiguous buffer.</p>
+
+      <h4>Why not just replay from the WebSocket</h4>
+      <p>Some systems try to deliver missed messages over the WebSocket as soon as it reconnects. This works but has
+      two problems: the WebSocket's per-frame overhead is higher than a batched HTTP fetch, and the ordering of
+      the replayed messages relative to new messages arriving on the same connection must be managed. A separate
+      HTTP fetch is simpler, batchable, cacheable, and independent of the WebSocket's state. The WebSocket resumes
+      real-time delivery after the fetch, with the client's <code>last_seen_seq</code> as the boundary.</p>
+
+      <h4>The reconnection race</h4>
+      <p>A subtle race: the client reconnects, starts fetching missed messages via HTTP, and simultaneously receives
+      a new message over the WebSocket. The new message might have a <code>seq</code> that is already in the fetch
+      response (if the fetch and the push overlap). The merge algorithm handles this — the duplicate is dropped by
+      <code>seq</code>. The client does not need to coordinate the two paths; it just merges by <code>seq</code>.</p>
+
+      <h4>What the client persists</h4>
+      <p>The <code>last_seen_seq</code> per conversation must be persisted locally (IndexedDB on web, SQLite on
+      mobile) so it survives app restarts and crashes. Without persistence, the client starts from scratch on every
+      launch, which means either fetching the full history (slow, expensive) or missing messages. The local store is
+      the client's replica of the log, and the watermark is its position in that replica.</p>
+
+      <h4>Reconnect storms</h4>
+      <p>When a gateway fails, all its clients reconnect at once. Without jitter, they hit the load balancer and the
+      healthy gateways simultaneously, causing a second failure. The backoff-and-jitter is the primary mitigation;
+      the load balancer's connection limits and admission control are the secondary. This is covered in detail in
+      Question 10.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Relying on the socket close event alone. A half-open connection (network partition, NAT timeout) never
+        fires a close event, so the client believes it is connected and never reconnects — while receiving nothing.
+        The heartbeat is not optional; it is the only way to detect this failure mode.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q8 -->
+  <article class="q teal" id="q8">
+    <div class="q-head">
+      <div class="q-num">8</div>
+      <h3>How do you detect a dead connection? Heartbeats, timeouts, and the false-positive problem.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Use application-level ping/pong over the WebSocket, sent by both client and server, with a timeout of
+        two missed intervals before declaring the connection dead. The hard part is choosing the interval and timeout:
+        too short and you disconnect healthy clients on slow mobile networks; too long and dead connections occupy
+        resources and delay presence updates. Tune from production data, and make the timeout adaptive if possible.</p>
+      </div>
+
+      <h4>Why TCP keepalive is not enough</h4>
+      <p>TCP has a built-in keepalive mechanism, but it is unsuitable for WebSocket liveness for three reasons:
+      the default interval is 2 hours (far too long), it is often disabled by default or by intermediaries, and it
+      only tests the TCP connection, not the application's ability to process messages. A server can have a live TCP
+      connection to a client whose application is frozen (GC pause, deadlock) and still pass the TCP keepalive. The
+      application-level ping/pong tests the full path: the client's event loop is running, the server can send, and
+      the client can respond.</p>
+
+      <h4>The protocol</h4>
+      <p>The standard is a WebSocket ping frame (opcode 0x9) and pong frame (opcode 0xA), which are part of the
+      WebSocket spec and handled automatically by most libraries. Alternatively, an application-level JSON message
+      (<code>{"type":"ping"}</code> / <code>{"type":"pong"}</code>) is used when the library does not expose ping/pong
+      or when the heartbeat needs to carry data (e.g., the client's current presence state).</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Direction</th><th>Sender</th><th>Interval</th><th>Timeout</th><th>Detects</th></tr></thead>
+          <tbody>
+            <tr><td>Server → client</td><td>Gateway</td><td>20–30 s</td><td>2 missed = 40–60 s</td><td>Dead client, frozen app</td></tr>
+            <tr><td>Client → server</td><td>Client</td><td>20–30 s</td><td>2 missed = 40–60 s</td><td>Dead server, network partition</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The false-positive problem</h4>
+      <p>A false positive is a healthy connection that is declared dead. The common causes:</p>
+      <ul>
+        <li><strong>Mobile network latency:</strong> a client on a slow 3G connection has a round-trip time of
+        hundreds of milliseconds, sometimes seconds. A heartbeat timeout of 5 s might be exceeded during a brief
+        network stall even though the client is alive.</li>
+        <li><strong>App backgrounding:</strong> the OS suspends the app, the event loop stops, and the pong is not
+        sent. The connection is effectively dead from the server's perspective, but the user will return.</li>
+        <li><strong>GC pauses:</strong> a long GC pause in the client (JVM, .NET) or the server (JVM) can delay the
+        pong beyond the timeout.</li>
+        <li><strong>Server overload:</strong> the gateway's event loop is saturated and cannot process the pong in
+        time, even though the client responded.</li>
+      </ul>
+      <p>The consequence of a false positive is a disconnect and reconnect, which is a brief interruption and a
+      registry churn. For mobile clients, this can be frequent, and the reconnect cost (TLS handshake, auth, fetch
+      missed messages) is significant. The design must minimize false positives while still detecting real
+      failures.</p>
+
+      <h4>Mitigations</h4>
+      <ul>
+        <li><strong>Generous timeout:</strong> 2 missed intervals at 30 s each (60 s total) is the common default.
+        It detects real failures within a minute, which is acceptable for presence and resource cleanup, while
+        tolerating slow networks.</li>
+        <li><strong>Adaptive interval:</strong> the server measures the client's pong latency and adjusts the
+        timeout per connection. A client with 500 ms latency gets a longer timeout than one with 20 ms. This is
+        complex but reduces false positives on slow networks.</li>
+        <li><strong>Platform-aware policy:</strong> mobile clients get a longer timeout than web clients, because
+        mobile networks are slower and the OS suspends apps. The server can read the client's platform from the
+        auth token or the connection metadata.</li>
+        <li><strong>Graceful close on timeout:</strong> instead of abruptly dropping the connection, send a close
+        frame and wait briefly for the client to acknowledge. This lets the client distinguish "the server thinks I'm
+        dead" from "the network failed", and reconnect gracefully.</li>
+        <li><strong>Don't treat heartbeat timeout as offline immediately:</strong> mark the connection as
+        "unresponsive" for a grace period before removing it. A message that arrives during the grace period can be
+        queued, and if the client recovers, it gets the message; if not, the entry expires and the message goes to
+        push.</li>
+      </ul>
+
+      <h4>The server-side cost of dead connections</h4>
+      <p>A dead connection that is not detected occupies a file descriptor, kernel socket buffer, TLS session, and
+      registry entry. At 500k connections per gateway, even 1% undetected dead connections is 5,000 wasted resources.
+      The heartbeat is not just a correctness mechanism — it is the resource reclamation mechanism. Without it, the
+      gateway slowly fills with zombies and eventually refuses new connections.</p>
+
+      <h4>Heartbeat and presence interaction</h4>
+      <p>The heartbeat is also the presence signal. A pong updates the presence TTL; a missed pong starts the
+      countdown to offline. The heartbeat interval and the presence TTL must be consistent: a presence TTL of 60 s
+      with a 30 s heartbeat means one missed heartbeat does not mark the user offline, two do. This is the hysteresis
+      from Section 1, Question 13, applied to the connection layer.</p>
+
+      <h4>Monitoring heartbeats</h4>
+      <p>The metrics: heartbeat success rate, p50/p99 pong latency, false-positive rate (connections that reconnect
+      within 5 s of a timeout), and the distribution of missed-heartbeat counts. A rising false-positive rate means
+      the timeout is too aggressive or the server is overloaded. A rising p99 pong latency means the network or the
+      server is degrading, and the timeout may need to be adjusted before it causes mass disconnects.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>A short heartbeat interval detects failures quickly but increases bandwidth and CPU, and raises the false
+        positive rate on slow networks. A long interval is cheaper and gentler but leaves dead connections around
+        longer. The right answer is 20–30 s intervals with 60 s timeouts, tuned per platform, and monitored for false
+        positives.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q9 -->
+  <article class="q teal" id="q9">
+    <div class="q-head">
+      <div class="q-num">9</div>
+      <h3>How do you handle connection draining during a gateway deployment? How do you move live connections without dropping messages?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Mark the gateway as draining in the registry, tell its clients to reconnect (a close frame with a
+        "server draining" code), wait for them to migrate with jittered backoff, and keep serving existing
+        connections until the grace period expires. The client reconnects to a healthy gateway and fetches missed
+        messages from the log. The key is that the drain is announced, not abrupt, so clients migrate before the
+        socket is killed.</p>
+      </div>
+
+      <h4>Why abrupt termination is bad</h4>
+      <p>If a gateway is killed without draining, all its connections drop at once. The clients detect the drop
+      (close event or heartbeat timeout), reconnect, and the fleet sees a burst of reconnects — a reconnect storm
+      (Question 10). The clients also miss messages during the gap, which they recover from the log, but the
+      recovery is slower than a graceful handoff. And the presence state flickers: users briefly appear offline,
+      which is visible to their contacts.</p>
+
+      <h4>The drain sequence</h4>
+      <ol>
+        <li><strong>Mark draining.</strong> The gateway sets a flag in the registry (and in its own state) that it is
+        draining. New connections are no longer routed to it.</li>
+        <li><strong>Announce to clients.</strong> The gateway sends a WebSocket close frame (code 1001 "going away")
+        or a custom application message ("please reconnect") to every connection. Clients that support graceful
+        reconnect start the process immediately; clients that do not will detect the close and reconnect anyway.</li>
+        <li><strong>Stop accepting new connections.</strong> The load balancer removes the gateway from the pool, so
+        new connections go to healthy gateways. The gateway keeps serving existing connections for the grace
+        period.</li>
+        <li><strong>Grace period.</strong> The gateway continues to serve existing connections for a configured
+        window (30–120 s). Messages sent during this period are delivered normally. Clients that reconnect promptly
+        leave the gateway naturally; clients that are slow or offline do not hold up the drain.</li>
+        <li><strong>Force close.</strong> After the grace period, the gateway closes any remaining connections
+        (another close frame, then the socket). Those clients reconnect to healthy gateways on their next
+        heartbeat or reconnect attempt.</li>
+        <li><strong>Deregister.</strong> The gateway removes itself from the registry and shuts down.</li>
+      </ol>
+
+      <h4>The client-side reconnect</h4>
+      <p>The client receives the "going away" close frame, waits a jittered delay (100 ms to a few seconds, randomized
+      across clients to avoid a thundering herd), reconnects to the load balancer, and is routed to a healthy
+      gateway. It re-authenticates, registers with the new gateway, and fetches missed messages from its
+      <code>last_seen_seq</code>. The gap is usually under a second, so the user sees no interruption.</p>
+
+      <h4>Message continuity</h4>
+      <p>Messages produced during the drain are written to the log, not to the gateway. The fan-out worker routes
+      them to the user's current gateway — which may be the draining one (if the client has not yet reconnected) or
+      the new one (if it has). If the message arrives at the draining gateway after the client has left, the gateway
+      returns "not found" and the worker falls back to the next connection or to push. The message is never lost
+      because it is in the log; the client fetches it on reconnect if it missed the push.</p>
+
+      <h4>The load balancer's role</h4>
+      <p>The load balancer must support draining. For L4 balancers, this means a "drain" or "connection termination"
+      API that stops new connections but keeps existing ones alive for a timeout. For Kubernetes, the pod is marked
+      <code>Terminating</code> and removed from the Service endpoints, but the container keeps running until the
+      preStop hook and the terminationGracePeriodSeconds complete. The gateway's drain sequence must fit within the
+      grace period — if the grace period is 30 s, the drain must complete in under 30 s, or the pod is killed
+      mid-drain.</p>
+
+      <h4>The drain and the registry TTL</h4>
+      <p>The registry TTL (90 s) is longer than the drain grace period (30–60 s). This means a draining gateway's
+      entries expire naturally after the drain, even if the gateway did not explicitly remove them. The explicit
+      removal is faster and cleaner; the TTL is the safety net for a gateway that crashed instead of draining.</p>
+
+      <h4>Deployment strategy</h4>
+      <p>A rolling deployment drains one gateway at a time: drain gateway A, wait for its clients to migrate, drain
+      gateway B, and so on. At any moment, only one gateway is out of service, so the remaining gateways can absorb
+      the redistributed connections if the fleet has headroom. A blue-green deployment drains the entire old fleet
+      before switching, which requires 2× capacity but is faster and gives an instant rollback. The choice depends
+      on the cost of capacity versus the cost of deployment duration.</p>
+
+      <h4>What goes wrong</h4>
+      <ul>
+        <li><strong>Drain too fast:</strong> the grace period is too short, and slow clients are force-closed,
+        causing a reconnect storm.</li>
+        <li><strong>Drain too slow:</strong> the deployment takes hours because some clients never reconnect
+        promptly. The fix is a maximum drain time after which the gateway closes anyway.</li>
+        <li><strong>No announcement:</strong> the gateway is killed without a close frame, and clients detect the
+        drop via heartbeat, taking 30–60 s to reconnect. The drain must announce.</li>
+        <li><strong>Load balancer not configured:</strong> the balancer keeps routing new connections to the draining
+        gateway, so it never empties. The drain flag must propagate to the balancer, or the gateway must refuse new
+        connections itself.</li>
+      </ul>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Relying on Kubernetes' pod termination alone. The pod receives SIGTERM, but if the application does not
+        implement a drain, the connections are killed at the end of the grace period. The drain is application-level
+        logic, not a Kubernetes feature — the pod's <code>terminationGracePeriodSeconds</code> is the time budget, and
+        the application must use it.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q10 -->
+  <article class="q teal" id="q10">
+    <div class="q-head">
+      <div class="q-num">10</div>
+      <h3>How do you prevent reconnect storms when a gateway fails?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Jitter the reconnect delay so clients do not all reconnect at the same instant, use exponential backoff
+        with a cap, and add admission control at the load balancer so a burst of reconnects does not overwhelm the
+        healthy gateways. The client must also be able to reconnect to a different gateway than the one that failed,
+        which means the registry entry must expire (or be removed) and the load balancer must route to the healthy
+        pool.</p>
+      </div>
+
+      <h4>The storm scenario</h4>
+      <p>A gateway holding 300k connections fails. All 300k clients detect the failure within the heartbeat timeout
+      (30–60 s), and all of them attempt to reconnect. Without jitter, they reconnect at roughly the same time,
+      creating a spike of 300k connection attempts against the load balancer and the remaining gateways. If the
+      remaining gateways have 50% headroom, they can absorb 300k new connections, but not all at once — the
+      connection establishment (TCP handshake, TLS, auth, registry write) takes resources, and doing 300k of them in
+      a few seconds saturates the fleet.</p>
+
+      <h4>Mitigation 1 — Jittered backoff</h4>
+      <p>The client's reconnect delay is <code>base × 2^attempts + random(0, base × 2^attempts)</code>, capped at a
+      maximum (30–60 s). The jitter spreads the reconnects over the backoff window, so the load is distributed
+      rather than spiked. The first attempt is quick (with jitter, 0–2 s), so most clients reconnect within a few
+      seconds; the later attempts are spread over minutes, so any clients that failed the first attempt do not
+      pile up.</p>
+
+      <h4>Mitigation 2 — Admission control</h4>
+      <p>The load balancer and the gateways limit the rate of new connections. A token bucket at the balancer allows
+      e.g., 10k new connections/s across the fleet; beyond that, connections are queued or rejected with a
+      "try again later" (the client backs off). This caps the storm's peak and gives the fleet time to absorb the
+      reconnects gradually. The limit must be tuned to the fleet's capacity — high enough to recover quickly, low
+      enough to not overload.</p>
+
+      <h4>Mitigation 3 — Fleet headroom</h4>
+      <p>The fleet is sized so that the remaining gateways can absorb a failed gateway's connections. If the fleet
+      runs at 90% capacity, losing one gateway pushes the rest to 100% and causes cascading failures. The standard
+      headroom is N+1 (one spare gateway's worth of capacity) or N+2 for higher availability. The cost is running
+      more capacity than needed at steady state, which is the price of resilience.</p>
+
+      <h4>Mitigation 4 — Graceful failure</h4>
+      <p>If the gateway is failing gracefully (deployment, planned maintenance), it drains (Question 9) and the
+      clients migrate in an orderly way. The storm only happens on unplanned failure (crash, network partition,
+      node failure). The graceful path eliminates most storms; the mitigations above handle the unplanned ones.</p>
+
+      <h4>Mitigation 5 — Client-side connection strategy</h4>
+      <p>The client should not reconnect in a tight loop. It should:</p>
+      <ul>
+        <li><strong>Wait for a stable network:</strong> do not reconnect while the device reports no network; wait
+        for a network-change event.</li>
+        <li><strong>Pause on app background:</strong> do not reconnect while the app is backgrounded; reconnect on
+        foreground, when the user is likely to be active.</li>
+        <li><strong>Cap the retry rate:</strong> after several failures, back off to minutes rather than seconds. The
+        client is not useful if it is hammering the server.</li>
+        <li><strong>Use the server's hint:</strong> if the server returns a "retry after" or a close code indicating
+        the reason, the client should respect it (e.g., "server overloaded" → back off longer).</li>
+      </ul>
+
+      <h4>Mitigation 6 — DNS and load balancer behavior</h4>
+      <p>If the load balancer's DNS entry has a short TTL, clients may re-resolve to a healthy endpoint during
+      reconnect. If it has a long TTL, they may keep hitting the failed endpoint until the TTL expires. The design
+      should use short TTLs (30–60 s) for the gateway endpoint, so DNS failover is quick, while accepting the
+      additional DNS query load (cached by the client and the resolver).</p>
+
+      <h4>The cascading failure risk</h4>
+      <p>The most dangerous outcome is a cascading failure: the storm overloads the healthy gateways, they start
+      failing, their clients join the storm, and the fleet collapses. The mitigations above are all designed to
+      prevent this — the admission control caps the load, the headroom absorbs the burst, and the jitter spreads
+      it over time. But the design must also have a circuit breaker at the balancer level: if the new-connection
+      rate exceeds capacity, reject new connections with a clear error so clients back off rather than pile up.</p>
+
+      <h4>Monitoring</h4>
+      <p>The metrics that reveal a storm: new connections/s at the balancer, connection establishment latency,
+      auth service QPS, registry write rate, and the rate of failed reconnects. A spike in any of these during a
+      gateway failure indicates the storm is happening. The alert should fire when the new-connection rate exceeds
+      a threshold, before the fleet is overloaded.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Aggressive backoff and admission control prevent storms but slow recovery — clients take longer to
+        reconnect, and the user sees a longer interruption. The right balance depends on the application: a chat app
+        should reconnect fast (seconds), accepting a higher storm risk mitigated by headroom; a notification app can
+        afford slower recovery. The tuning is a per-product decision.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q11 -->
+  <article class="q teal" id="q11">
+    <div class="q-head">
+      <div class="q-num">11</div>
+      <h3>How do you apply backpressure on a per-connection basis? What happens when a single client cannot keep up?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Each WebSocket connection has an outgoing buffer. When the client is slow, the buffer fills, and the
+        gateway must decide: buffer more (memory risk), drop messages (data loss), or slow the producer (backpressure).
+        The right answer is a bounded buffer with a policy: buffer up to a limit, then drop low-priority messages or
+        close the connection, and signal the producer to slow down. A single slow client must not affect the other
+        connections on the gateway.</p>
+      </div>
+
+      <h4>Why a slow client is dangerous</h4>
+      <p>A WebSocket connection is a TCP stream with a send buffer (in the kernel and in the application). If the
+      client reads slowly — because it is on a slow network, its event loop is busy, or it is paused in the
+      background — the server's send buffer fills. If the server keeps writing, the buffer grows unboundedly, and
+      the gateway's memory is exhausted. A single slow client can consume gigabytes of buffer and eventually crash
+      the gateway, taking down all its other connections.</p>
+
+      <h4>The bounded buffer</h4>
+      <p>Each connection has a per-connection queue with a maximum size (e.g., 1 MB or 1000 messages). The gateway
+      writes to the queue; a writer task drains the queue to the socket. If the queue is full, the gateway must
+      choose a policy:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Policy</th><th>Behaviour</th><th>Use case</th></tr></thead>
+          <tbody>
+            <tr><td>Block the producer</td><td>The fan-out worker waits until the queue has space</td><td>Never — blocks the worker for all connections</td></tr>
+            <tr><td>Drop oldest</td><td>Overwrite the oldest queued message</td><td>Ephemeral data (cursor positions, typing)</td></tr>
+            <tr><td>Drop newest</td><td>Reject the new message</td><td>Not useful — the newest is usually most important</td></tr>
+            <tr><td>Drop by priority</td><td>Drop low-priority (presence, typing) and keep high-priority (messages)</td><td>General purpose</td></tr>
+            <tr><td>Close the connection</td><td>Terminate the socket; the client reconnects and fetches from the log</td><td>Durable data where the log has the messages</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The right policy for chat</h4>
+      <p>Chat messages are durable — they are in the log, and the client can fetch them on reconnect. So the
+      gateway can close a slow connection without losing data: the client reconnects, sends its
+      <code>last_seen_seq</code>, and fetches the missed messages. This is the cleanest policy for durable data: a
+      bounded buffer plus a forced close when it is full, and the log handles the recovery.</p>
+      <p>For ephemeral data (typing, presence, cursor), dropping is fine — the client does not need the old
+      positions, only the latest. The gateway can drop old ephemeral messages when the buffer is full, keeping the
+      latest one.</p>
+
+      <h4>The producer side</h4>
+      <p>The fan-out worker sends messages to the gateway. If the gateway's queue is full, the worker must not
+      block — that would stall the worker for all its other recipients. Instead, the gateway returns a "full" status
+      for that connection, and the worker decides: skip (the client will fetch on reconnect), or route to a
+      fallback (push notification). The worker's own queue is bounded, and if it is also full, the worker applies
+      backpressure to the upstream producer — the chat service's fan-out queue — which eventually backs up to the
+      message log, where retention bounds the growth.</p>
+
+      <h4>Slow client detection</h4>
+      <p>The gateway measures the queue depth per connection. A connection that has had a queue depth above a
+      threshold for more than N seconds is flagged as slow. The metric is the per-connection queue depth
+      distribution — p50, p99, and the count of connections above the threshold. A rising count of slow connections
+      indicates a network problem, a client bug, or an overloaded gateway.</p>
+
+      <h4>The head-of-line problem</h4>
+      <p>WebSocket is one TCP stream. A single large message (e.g., a 1 MB image in a chat) blocks all subsequent
+      messages on that connection until it is fully sent. On a slow connection, this can be seconds. The mitigations:
+      keep WebSocket frames small (send media URLs, not media bytes), use separate channels for large payloads (HTTP
+      upload), and prioritize small messages ahead of large ones if the application supports it.</p>
+
+      <h4>Gateway-level backpressure</h4>
+      <p>If the gateway itself is overloaded (CPU, memory, event loop), it must apply backpressure to the load
+      balancer: refuse new connections, slow the accept rate, or shed existing connections. The mechanism is the
+      same as any server: a health check that fails when overloaded, so the balancer stops routing to it, plus a
+      graceful drain so existing connections are not abruptly lost. A gateway that accepts connections it cannot
+      serve is worse than one that refuses them.</p>
+
+      <h4>The interaction with heartbeats</h4>
+      <p>A slow client that cannot process messages also cannot process pings. The heartbeat timeout (60 s) will
+      eventually close it, which is the right outcome — the client is genuinely unable to participate. But the
+      heartbeat timeout is slower than the buffer-full close (seconds), so the buffer policy handles the fast case
+      and the heartbeat handles the slow case.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Aggressive buffer limits and forced closes protect the gateway but disconnect slow clients more often.
+        Generous buffers are gentler but risk memory exhaustion. The right answer is a moderate buffer (a few
+        hundred messages), a priority-aware drop policy, and a forced close when the buffer is full for durable
+        data — because the log makes reconnection cheap.</p>
+      </div>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>An unbounded per-connection queue. It works fine in testing and fails catastrophically in production when
+        one slow client accumulates gigabytes of queued messages and crashes the gateway. The queue must be bounded
+        from day one, with a policy for what happens when it is full.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART D ================= -->
+  <div class="part-band blue">
+    <div class="bar"></div>
+    <h2>Part D — Security &amp; Observability
+      <span class="sub">TLS at scale, service identity, and the metrics that keep the fleet alive</span>
+    </h2>
+  </div>
+
+  <!-- Q12 -->
+  <article class="q blue" id="q12">
+    <div class="q-head">
+      <div class="q-num">12</div>
+      <h3>How do you terminate TLS and secure WebSocket connections at scale? What about mTLS for service-to-service?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Terminate TLS at the gateway or at a load balancer in front of it, using a certificate managed by a
+        certificate authority with automatic rotation. Authenticate the WebSocket connection once at connect time
+        with a token (JWT or session), and trust the connection for its lifetime. For service-to-service calls, use
+        mTLS with short-lived certificates issued by a service mesh or SPIFFE/SPIRE, so every internal call is
+        mutually authenticated.</p>
+      </div>
+
+      <h4>Where TLS terminates</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Termination point</th><th>Pros</th><th>Cons</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Load balancer (L4/L7)</td>
+              <td>Centralized cert management; offloads crypto from gateways</td>
+              <td>The LB must support long-lived connections and re-encryption to the gateway; the internal hop is plaintext unless re-encrypted</td>
+            </tr>
+            <tr>
+              <td>Gateway directly</td>
+              <td>End-to-end TLS; the internal network never sees plaintext</td>
+              <td>Every gateway needs the cert and the crypto CPU; rotation must be coordinated across the fleet</td>
+            </tr>
+            <tr>
+              <td>Both (terminate at LB, re-encrypt to gateway)</td>
+              <td>Zero-trust internal; LB handles public TLS, gateway handles internal TLS</td>
+              <td>Double the crypto; more complex</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The common production choice is terminate at the LB, re-encrypt to the gateway (or terminate at the
+      gateway if the LB is L4 and passes through). The gateway must handle TLS handshake for new connections, which
+      is CPU-intensive — a gateway accepting 10k new connections/s spends significant CPU on handshakes. The
+      mitigation is TLS session resumption (session tickets) so returning clients skip the full handshake, and
+      offloading the handshake to the LB where possible.</p>
+
+      <h4>Certificate management</h4>
+      <p>The certificate (or certificates, for multiple domains) must be rotated before expiry. The standard is
+      ACME (Let's Encrypt) or a corporate CA with a short validity (90 days or less). The rotation must be
+      automatic and must not drop connections: the new cert is loaded into the server, new connections use it, and
+      existing connections keep their old TLS session until they close naturally. A manual rotation is a recurring
+      outage risk.</p>
+
+      <h4>Authenticating the connection</h4>
+      <p>TLS secures the transport, but it does not identify the user. Authentication happens after the handshake:
+      the client sends a token (JWT in the first frame or as a query parameter, or a session cookie), and the
+      gateway validates it. The validation must happen before the connection is registered and before any message is
+      accepted — an unauthenticated connection is a resource leak and a security hole.</p>
+      <p>The token's lifetime is the key decision. A short-lived token (minutes) requires re-authentication during
+      the connection's lifetime — the client must refresh and send a "re-auth" frame. A long-lived token (hours)
+      means the connection is trusted until it drops, which is simpler but riskier if the token is stolen. The
+      pragmatic design is a moderate token (1 hour), with the server sending a "re-auth required" frame before
+      expiry and the client responding with a fresh token. The connection is not dropped if re-auth fails; the
+      user is simply marked as needing re-login.</p>
+
+      <h4>Authorization per message</h4>
+      <p>Authentication proves who the user is; authorization decides what they can do. Every incoming message must
+      be authorized — can this user send to this conversation? Can this user subscribe to this channel? The
+      authorization check happens in the chat service, not the gateway (the gateway does not know the business
+      rules). A message that fails authorization is rejected with an error frame, and the connection is not
+      closed (unless the user is repeatedly abusive).</p>
+
+      <h4>mTLS for service-to-service</h4>
+      <p>The gateway, chat service, fan-out workers, registry, and message log all communicate with each other.
+      Those calls must be authenticated too — otherwise an attacker who compromises one service can impersonate it
+      to the others. mTLS is the standard: each service has a certificate issued by the internal CA, and every call
+      presents and verifies a certificate.</p>
+      <p>The certificate lifecycle is the hard part. A service mesh (Istio, Linkerd) or SPIFFE/SPIRE automates it:
+      each workload gets a SPIFFE identity (e.g., <code>spiffe://cluster.local/ns/chat/sa/gateway</code>), a
+      certificate is issued with a short lifetime (hours), and the sidecar proxy rotates it automatically. The
+      application does not manage certificates — the mesh does. This is the reason service meshes exist (Volume 2,
+      Question 11).</p>
+
+      <h4>What mTLS protects against</h4>
+      <ul>
+        <li><strong>Impersonation:</strong> a compromised service cannot call another service as itself without
+        a valid certificate.</li>
+        <li><strong>Eavesdropping:</strong> the internal traffic is encrypted; a network tap sees ciphertext.</li>
+        <li><strong>Man-in-the-middle:</strong> both sides verify each other's identity, so a proxy cannot
+        intercept without detection.</li>
+        <li><strong>Lateral movement:</strong> a compromised pod cannot reach services it is not authorized for,
+        because the mesh enforces authorization policy on the identity.</li>
+      </ul>
+
+      <h4>Browser and client certificate auth</h4>
+      <p>Most chat apps do not use client certificates — the token is the authentication. But some enterprise
+      deployments (Slack Enterprise, Teams) use SSO with SAML or OIDC, which is a token-based flow. Mutual TLS for
+      end-user clients is rare because certificate management on user devices is painful; the token is the
+      practical answer.</p>
+
+      <h4>Common TLS pitfalls at scale</h4>
+      <ul>
+        <li><strong>Expired certificate:</strong> the classic outage. Automatic rotation and monitoring are
+        mandatory.</li>
+        <li><strong>Weak cipher suites:</strong> old TLS versions (1.0, 1.1) and weak ciphers must be disabled;
+        TLS 1.2+ with modern ciphers is the baseline.</li>
+        <li><strong>Session ticket key rotation:</strong> TLS session tickets are encrypted with a key; if the key
+        is not rotated, a compromised key allows decryption of past sessions. Rotate regularly.</li>
+        <li><strong>Handshake CPU:</strong> a gateway under a reconnect storm spends most of its CPU on handshakes.
+        Session resumption and an LB that terminates TLS mitigate this.</li>
+      </ul>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Terminating TLS at the LB and leaving the internal hop plaintext, in a network that is “trusted”. The
+        internal network is not trusted — a compromised pod, a misconfigured network policy, or a cloud provider
+        incident can expose it. The internal hop should be mTLS or at least TLS, even if it is “inside”.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q13 -->
+  <article class="q blue" id="q13">
+    <div class="q-head">
+      <div class="q-num">13</div>
+      <h3>What metrics and traces do you need to operate a WebSocket fleet? How do you diagnose a per-connection problem?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Monitor connection counts, heartbeat success, reconnect rate, message delivery latency, and per-connection
+        queue depth. Trace messages end-to-end from producer to socket write. For a per-connection problem, use a
+        connection ID that appears in every log line and trace span, so the entire lifecycle of one socket can be
+        reconstructed.</p>
+      </div>
+
+      <h4>The fleet-level metrics</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Metric</th><th>What it reveals</th><th>Alert</th></tr></thead>
+          <tbody>
+            <tr><td>Active connections per gateway</td><td>Load distribution, capacity headroom</td><td>Any gateway &gt; 80% of limit</td></tr>
+            <tr><td>New connections/s</td><td>Growth, churn, reconnect storms</td><td>Spike vs baseline</td></tr>
+            <tr><td>Disconnects/s (by reason)</td><td>Network, timeout, server close, client close</td><td>Spike in timeouts or server closes</td></tr>
+            <tr><td>Heartbeat success rate</td><td>Connection health</td><td>&lt; 99%</td></tr>
+            <tr><td>Heartbeat p99 latency</td><td>Network / gateway saturation</td><td>&gt; 2× baseline</td></tr>
+            <tr><td>Reconnect rate</td><td>Churn, client instability</td><td>Spike vs baseline</td></tr>
+            <tr><td>Message delivery latency (produce → socket write)</td><td>The user-visible latency</td><td>p99 &gt; 1 s</td></tr>
+            <tr><td>Per-connection queue depth</td><td>Slow consumers</td><td>Count above threshold</td></tr>
+            <tr><td>File descriptor usage</td><td>Approaching the limit</td><td>&gt; 80% of <code>ulimit</code></td></tr>
+            <tr><td>CPU per gateway</td><td>Crypto, framing, event loop</td><td>&gt; 70% sustained</td></tr>
+            <tr><td>Registry lookup latency</td><td>Registry health</td><td>p99 &gt; 10 ms</td></tr>
+            <tr><td>Auth failures</td><td>Token expiry, misconfiguration</td><td>Spike</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The message-level metrics</h4>
+      <p>Fleet metrics tell you the system is healthy; message metrics tell you a specific message is late. The
+      end-to-end latency is measured from the message's <code>produced_at</code> timestamp to the socket write
+      completion. The p50/p95/p99 across all messages, split by region and by gateway, reveals where the latency
+      is introduced. A rising p99 on one gateway points to that gateway; a rising p99 across all gateways points to
+      the registry, the fan-out workers, or the message log.</p>
+
+      <h4>Distributed tracing</h4>
+      <p>Every message carries a trace ID (from the producer) and every hop adds a span: the chat service, the
+      fan-out worker, the registry lookup, the gateway RPC, the socket write. The trace shows the full path and the
+      time spent at each hop. For a slow message, the trace identifies the bottleneck — the registry lookup took
+      200 ms, or the gateway's queue depth was high, or the cross-region bridge was slow.</p>
+      <p>Sampling is necessary at scale (a million messages per second cannot all be traced). The standard is
+      head-based sampling for a small fraction (1–10%) plus tail-based sampling that keeps all slow or error traces.
+      Tail-based sampling requires a collector that buffers spans until the trace is complete, which is more
+      expensive but catches the interesting traces.</p>
+
+      <h4>The connection ID</h4>
+      <p>Every connection has a unique <code>connection_id</code> (a UUID generated at accept time). It appears in
+      every log line and trace span for that connection. When a user reports a problem ("messages are delayed"),
+      the support team looks up the user's <code>connection_id</code> (from the registry, if it is still connected,
+      or from the log, if it dropped) and traces it through its lifecycle: when it connected, which gateway, what
+      messages were delivered, when the heartbeats failed, when it reconnected. This is the per-connection
+      diagnosis, and it is impossible without the correlation ID.</p>
+
+      <h4>Structured logging</h4>
+      <p>Every log line is JSON with the standard fields: timestamp, level, connection_id, user_id, gateway_id,
+      message (a human-readable summary), and any context (message_id, error code). The logs are shipped to a
+      central store (Elasticsearch, Loki, Splunk) where they can be queried by connection_id. Without structured
+      logging, the per-connection diagnosis is a grep through unstructured text across hundreds of gateways.</p>
+
+      <h4>The lifecycle of one connection</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Event</th><th>Logged at</th><th>What it reveals</th></tr></thead>
+          <tbody>
+            <tr><td>TCP accept</td><td>Gateway</td><td>Connection arrived</td></tr>
+            <tr><td>TLS handshake complete</td><td>Gateway</td><td>Handshake latency, cipher, session resumption</td></tr>
+            <tr><td>Auth success/failure</td><td>Gateway + auth service</td><td>Token validity, auth latency</td></tr>
+            <tr><td>Registered</td><td>Gateway + registry</td><td>Registry write latency</td></tr>
+            <tr><td>Message delivered</td><td>Gateway</td><td>Queue depth at delivery, socket write latency</td></tr>
+            <tr><td>Heartbeat missed</td><td>Gateway</td><td>When the connection started failing</td></tr>
+            <tr><td>Disconnected</td><td>Gateway</td><td>Close code, reason, duration</td></tr>
+            <tr><td>Reconnected</td><td>Gateway</td><td>New connection_id, time since disconnect</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The diagnosis workflow</h4>
+      <ol>
+        <li>User reports a problem; support looks up the user's current connection (registry) and recent
+        connections (log).</li>
+        <li>For each <code>connection_id</code>, query the logs for its lifecycle events.</li>
+        <li>Look for anomalies: long TLS handshakes, auth failures, registry write errors, high queue depth,
+        missed heartbeats, forced closes.</li>
+        <li>Trace a specific message through its trace ID to see where it spent time.</li>
+        <li>Correlate with fleet metrics: was the gateway overloaded at that moment? Was the registry slow?</li>
+      </ol>
+
+      <h4>What is hard to observe</h4>
+      <ul>
+        <li><strong>Client-side problems:</strong> the server sees a slow connection but does not know why (network,
+        app freeze, backgrounded). The client must report its state (battery, network type, app foreground) in
+        telemetry, correlated by connection_id.</li>
+        <li><strong>Half-open connections:</strong> the server thinks the connection is alive until the heartbeat
+        fails. The gap between the actual failure and the detection is invisible to the server, but the client
+        knows (it detected the drop and reconnected). The client's telemetry fills this gap.</li>
+        <li><strong>Cross-region delivery:</strong> the message traverses multiple services and regions; the trace
+        must propagate across them, which requires trace context in the message headers (not just the payload).</li>
+      </ul>
+
+      <h4>The dashboard</h4>
+      <p>A standard WebSocket fleet dashboard has four rows: connections (count per gateway, new/disconnect rates),
+      health (heartbeat success, reconnect rate, queue depth), latency (message delivery p50/p99, heartbeat p99), and
+      resources (CPU, memory, file descriptors per gateway). Each panel is split by region and by gateway version,
+      so a bad deploy is visible as a version-specific anomaly.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: “Fleet metrics for health, message-level latency for user experience, and a connection_id in every
+        log line and trace span so one socket can be reconstructed end to end.” That covers the three levels of
+        observability: aggregate, message, and connection.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- NEXT PART -->
+  <section class="next-part">
+    <h3>Coming in Section 6 — Delivery Guarantees, Ordering &amp; Idempotency</h3>
+    <p>Section 6 is the correctness section: at-most-once, at-least-once, and exactly-once delivery; why ordering
+    breaks in distributed queues; per-key vs global ordering; idempotency keys and deduplication tables;
+    consumer-side exactly-once effects; and the patterns that make duplicate delivery harmless.</p>
+    <ul class="next-list">
+      <li>At-most-once, at-least-once, exactly-once</li>
+      <li>Diagnosing duplicate processing</li>
+      <li>Idempotency keys and idempotent consumers</li>
+      <li>Why ordering breaks: partitions, parallelism, retries</li>
+      <li>Per-key ordering in Kafka and the throughput cost</li>
+      <li>Global ordering and when it is required</li>
+      <li>Exactly-once effects without exactly-once delivery</li>
+      <li>The dedup table: design, TTL, and failure modes</li>
+    </ul>
+  </section>
+
+</div>
+</body>
+</html>
