@@ -1,0 +1,1539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Distributed Systems — Volume 4: Replication</title>
+<style>
+  :root{
+    --ink:#0f172a;
+    --ink-soft:#334155;
+    --muted:#64748b;
+    --line:#e7e2d9;
+    --bg:#faf7f2;
+    --card:#ffffff;
+    --amber:#b45309;
+    --amber-soft:#fef3c7;
+    --amber-deep:#92400e;
+    --slate:#334155;
+    --slate-soft:#e2e8f0;
+    --teal:#0d9488;
+    --rose:#e11d48;
+    --blue:#2563eb;
+    --shadow:0 1px 2px rgba(60,42,20,.06), 0 8px 24px -8px rgba(60,42,20,.14);
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 8% -10%, #fef3c7 0%, transparent 60%),
+      radial-gradient(1000px 500px at 100% 0%, #fde68a 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:"Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    line-height:1.72;
+    font-size:16.5px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px 90px;}
+
+  header.hero{
+    background:linear-gradient(135deg,#0c0a09 0%, #1c1917 40%, #451a03 100%);
+    color:#fafaf9;
+    padding:64px 22px 56px;
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::after{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      radial-gradient(600px 300px at 85% 15%, rgba(245,158,11,.38), transparent 70%),
+      radial-gradient(520px 280px at 12% 92%, rgba(180,83,9,.4), transparent 70%);
+    pointer-events:none;
+  }
+  .hero-inner{max-width:1080px;margin:0 auto;position:relative;z-index:2;}
+  .eyebrow{
+    display:inline-block;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;
+    font-weight:700;padding:7px 15px;border-radius:999px;
+    background:rgba(251,191,36,.16);border:1px solid rgba(251,191,36,.45);
+    color:#fcd34d;margin-bottom:20px;
+  }
+  header.hero h1{
+    font-size:clamp(1.9rem, 4.4vw, 3rem);line-height:1.15;margin:0 0 16px;
+    font-weight:800;letter-spacing:-.02em;
+  }
+  header.hero h1 span{
+    background:linear-gradient(90deg,#fcd34d,#fb923c);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  header.hero p.lede{font-size:1.06rem;color:#d6d3d1;max-width:780px;margin:0 0 26px;}
+  .meta-chips{display:flex;flex-wrap:wrap;gap:10px;}
+  .chip{
+    font-size:.78rem;font-weight:600;padding:7px 14px;border-radius:999px;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#e7e5e4;
+  }
+
+  .roadmap{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:26px 28px;margin-top:-34px;position:relative;z-index:5;
+  }
+  .roadmap h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 16px;font-weight:700;
+  }
+  .roadmap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;}
+  .roadmap-item{
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:.86rem;
+    background:#fdfbf7;opacity:.7;
+  }
+  .roadmap-item.done{
+    border-color:#fcd34d;background:linear-gradient(180deg,#fffbeb,#ffffff);opacity:1;
+  }
+  .roadmap-item.current{
+    border-color:#f59e0b;background:linear-gradient(180deg,#fef3c7,#ffffff);opacity:1;
+    box-shadow:0 0 0 3px rgba(245,158,11,.16);
+  }
+  .roadmap-item .tag{
+    display:inline-block;font-size:.64rem;font-weight:800;letter-spacing:.08em;
+    padding:2px 8px;border-radius:999px;margin-bottom:6px;
+  }
+  .tag-done{background:var(--amber-soft);color:var(--amber-deep);}
+  .tag-now{background:#fed7aa;color:#9a3412;}
+  .tag-next{background:#e7e5e4;color:#57534e;}
+  .roadmap-item strong{display:block;color:var(--ink);font-size:.89rem;}
+
+  nav.toc{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:22px 26px;margin:26px 0 44px;
+  }
+  nav.toc h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 14px;font-weight:700;
+  }
+  nav.toc ol{
+    margin:0;padding-left:0;list-style:none;counter-reset:toc;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:8px 26px;
+  }
+  nav.toc li{
+    counter-increment:toc;font-size:.93rem;padding:6px 0 6px 34px;
+    position:relative;border-bottom:1px dashed #f0ebe2;
+  }
+  nav.toc li::before{
+    content:counter(toc);position:absolute;left:0;top:7px;width:22px;height:22px;
+    border-radius:7px;background:var(--amber-soft);color:var(--amber);
+    font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center;
+  }
+  nav.toc a{color:var(--ink-soft);text-decoration:none;font-weight:500;}
+  nav.toc a:hover{color:var(--amber);}
+
+  .part-band{display:flex;align-items:center;gap:16px;margin:56px 0 26px;}
+  .part-band .bar{
+    width:5px;height:44px;border-radius:99px;
+    background:linear-gradient(180deg,var(--amber),#f59e0b);
+  }
+  .part-band.slate .bar{background:linear-gradient(180deg,var(--slate),#64748b);}
+  .part-band.teal .bar{background:linear-gradient(180deg,var(--teal),#2dd4bf);}
+  .part-band h2{margin:0;font-size:1.5rem;letter-spacing:-.01em;font-weight:800;}
+  .part-band .sub{
+    display:block;font-size:.82rem;font-weight:600;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.12em;margin-top:2px;
+  }
+
+  article.q{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:0 0 26px;margin-bottom:28px;overflow:hidden;
+    scroll-margin-top:24px;
+  }
+  .q-head{
+    display:flex;gap:16px;align-items:flex-start;padding:22px 28px 18px;
+    border-bottom:1px solid #f3efe7;background:linear-gradient(180deg,#fdfbf7,#ffffff);
+  }
+  .q-num{
+    flex:none;width:42px;height:42px;border-radius:12px;display:flex;
+    align-items:center;justify-content:center;font-weight:800;font-size:.92rem;color:#fff;
+    background:linear-gradient(135deg,#b45309,#f59e0b);
+    box-shadow:0 6px 14px -6px rgba(180,83,9,.7);
+  }
+  .slate .q-num{background:linear-gradient(135deg,#334155,#64748b);box-shadow:0 6px 14px -6px rgba(51,65,85,.7);}
+  .teal .q-num{background:linear-gradient(135deg,#0d9488,#14b8a6);box-shadow:0 6px 14px -6px rgba(13,148,136,.7);}
+  .q-head h3{margin:0;font-size:1.14rem;font-weight:700;line-height:1.4;letter-spacing:-.01em;}
+  .q-body{padding:22px 28px 0;}
+  .q-body p{margin:0 0 15px;color:var(--ink-soft);}
+  .q-body p:last-child{margin-bottom:0;}
+  .q-body h4{margin:24px 0 10px;font-size:.95rem;font-weight:800;color:var(--ink);}
+  .q-body h4::before{content:"▹";color:var(--amber);margin-right:8px;font-size:.85rem;}
+  .slate .q-body h4::before{color:var(--slate);}
+  .teal .q-body h4::before{color:var(--teal);}
+  .q-body ul,.q-body ol{margin:0 0 16px;padding-left:22px;color:var(--ink-soft);}
+  .q-body li{margin-bottom:8px;}
+  .q-body li::marker{color:var(--amber);}
+  .slate .q-body li::marker{color:var(--slate);}
+  .teal .q-body li::marker{color:var(--teal);}
+  strong{color:var(--ink);font-weight:700;}
+  code{
+    background:#f5f2ec;border:1px solid #e7e2d9;border-radius:6px;padding:1px 6px;
+    font-size:.87em;font-family:"SFMono-Regular",Consolas,monospace;color:#9a3412;
+  }
+
+  .callout{border-radius:12px;padding:14px 18px;margin:18px 0 4px;font-size:.93rem;border-left:4px solid;}
+  .callout .label{
+    display:block;font-size:.68rem;font-weight:800;letter-spacing:.13em;
+    text-transform:uppercase;margin-bottom:5px;
+  }
+  .callout p{margin:0 0 8px;font-size:.93rem;}
+  .callout p:last-child{margin-bottom:0;}
+  .answer{background:linear-gradient(180deg,#fffbeb,#ffffff);border-color:var(--amber);}
+  .answer .label{color:var(--amber-deep);}
+  .tip{background:linear-gradient(180deg,#eff6ff,#ffffff);border-color:var(--blue);}
+  .tip .label{color:#1d4ed8;}
+  .tradeoff{background:linear-gradient(180deg,#f0fdfa,#ffffff);border-color:var(--teal);}
+  .tradeoff .label{color:#0f766e;}
+  .pitfall{background:linear-gradient(180deg,#fff1f2,#ffffff);border-color:var(--rose);}
+  .pitfall .label{color:#be123c;}
+
+  .table-scroll{overflow-x:auto;margin:18px 0;border-radius:12px;border:1px solid var(--line);}
+  table{width:100%;border-collapse:collapse;font-size:.87rem;background:#fff;}
+  thead th{
+    background:#faf7f2;text-align:left;padding:11px 14px;font-weight:800;
+    font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+    border-bottom:2px solid var(--line);white-space:nowrap;
+  }
+  tbody td{padding:11px 14px;border-bottom:1px solid #f5f2ec;color:var(--ink-soft);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:nth-child(even){background:#fdfcf9;}
+  tbody td:first-child{font-weight:700;color:var(--ink);}
+
+  .next-part{
+    background:linear-gradient(135deg,#0c0a09,#451a03);color:#e7e5e4;
+    border-radius:var(--radius);padding:32px 34px;margin-top:50px;box-shadow:var(--shadow);
+  }
+  .next-part h3{margin:0 0 12px;font-size:1.2rem;color:#fff;font-weight:800;}
+  .next-part p{margin:0 0 16px;color:#d6d3d1;font-size:.95rem;}
+  .next-list{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:10px;list-style:none;padding:0;margin:0;
+  }
+  .next-list li{
+    background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
+    border-radius:10px;padding:10px 14px;font-size:.86rem;color:#e7e5e4;
+  }
+
+  @media (max-width:640px){
+    .q-head{padding:18px 18px 15px;}
+    .q-body{padding:18px 18px 0;}
+    header.hero{padding:44px 18px 46px;}
+    .roadmap{padding:20px;}
+    nav.toc{padding:18px;}
+    nav.toc ol{grid-template-columns:1fr;}
+  }
+  @media print{
+    body{background:#fff;}
+    article.q, nav.toc, .roadmap{box-shadow:none;page-break-inside:avoid;}
+    header.hero{background:#0c0a09 !important;-webkit-print-color-adjust:exact;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Volume 4 · Section 3</span>
+    <h1>Distributed Systems for System Design<br><span>Replication</span></h1>
+    <p class="lede">
+      How data gets copied, how copies stay coherent, and how they fail. Leader-follower, multi-leader, and
+      leaderless topologies; the mechanics of synchronous and asynchronous replication; split-brain and fencing;
+      conflict resolution; anti-entropy and Merkle trees; hinted handoff and sloppy quorums; physical vs logical
+      replication; change data capture; and multi-region strategy.
+    </p>
+    <div class="meta-chips">
+      <span class="chip">13 Questions</span>
+      <span class="chip">500+ words each</span>
+      <span class="chip">Mechanism + failure modes</span>
+      <span class="chip">Real database examples</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ROADMAP -->
+  <section class="roadmap">
+    <h2>Answer-Series Roadmap</h2>
+    <div class="roadmap-grid">
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 1 — Complete</span>
+        <strong>Fundamentals &amp; Core Concepts</strong>
+        Definitions, fallacies, scaling, HA vs FT, statelessness
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 2 — Complete</span>
+        <strong>Infrastructure, Caching &amp; Communication</strong>
+        Caches, LBs, gateways, CDNs, queues, meshes
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 3 — Complete</span>
+        <strong>Consistency, CAP &amp; PACELC</strong>
+        CAP, PACELC, linearizability, causal, sessions, quorums, CRDTs
+      </div>
+      <div class="roadmap-item current">
+        <span class="tag tag-now">Volume 4 — You are here</span>
+        <strong>Replication</strong>
+        Topologies, sync/async, failover, split-brain, repair, CDC, multi-region
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 5</span>
+        <strong>Partitioning &amp; Sharding</strong>
+        Consistent hashing, hot keys, resharding
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 6</span>
+        <strong>Consensus &amp; Leader Election</strong>
+        Paxos, Raft, ZAB, fencing tokens
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 7</span>
+        <strong>Distributed Transactions</strong>
+        2PC, Saga, Outbox, idempotency
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 8</span>
+        <strong>Time, Ordering &amp; Clocks</strong>
+        Lamport, vector clocks, TrueTime, watermarks
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 9</span>
+        <strong>Fault Tolerance &amp; Failure Detection</strong>
+        Circuit breakers, backpressure, chaos engineering
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 10</span>
+        <strong>Communication &amp; Messaging</strong>
+        gRPC, Kafka, delivery semantics, event sourcing
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 11+</span>
+        <strong>Data Structures, Coordination, Scale</strong>
+        Bloom filters, ZooKeeper, Amdahl's Law
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 13+</span>
+        <strong>Multi-Region, Observability, Security</strong>
+        TrueTime, tracing, mTLS, zero trust
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 16</span>
+        <strong>Classic Design Problems</strong>
+        40+ system design prompts solved end-to-end
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 17</span>
+        <strong>Senior &amp; Staff Trade-off Questions</strong>
+        Choosing between every pair of options
+      </div>
+    </div>
+  </section>
+
+  <!-- TOC -->
+  <nav class="toc">
+    <h2>Questions Answered in This Volume</h2>
+    <ol>
+      <li><a href="#q1">What is replication, and why is it used?</a></li>
+      <li><a href="#q2">Explain leader-follower replication</a></li>
+      <li><a href="#q3">Explain multi-leader replication</a></li>
+      <li><a href="#q4">Explain leaderless replication (Dynamo-style)</a></li>
+      <li><a href="#q5">Synchronous vs asynchronous vs semi-synchronous</a></li>
+      <li><a href="#q6">Replication lag and the read-your-writes problem</a></li>
+      <li><a href="#q7">Failover and split-brain prevention</a></li>
+      <li><a href="#q8">Conflict resolution: LWW, vector clocks, CRDTs</a></li>
+      <li><a href="#q9">Anti-entropy, Merkle trees, and read repair</a></li>
+      <li><a href="#q10">Hinted handoff and sloppy quorums</a></li>
+      <li><a href="#q11">Physical vs logical replication</a></li>
+      <li><a href="#q12">Change data capture (CDC)</a></li>
+      <li><a href="#q13">Multi-region replication strategies</a></li>
+    </ol>
+  </nav>
+
+  <!-- ================= PART A ================= -->
+  <div class="part-band">
+    <div class="bar"></div>
+    <h2>Part A — Replication Topologies
+      <span class="sub">Who writes, who follows, and who disagrees</span>
+    </h2>
+  </div>
+
+  <!-- Q1 -->
+  <article class="q" id="q1">
+    <div class="q-head">
+      <div class="q-num">1</div>
+      <h3>What is replication, and why is it used?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Replication keeps multiple copies of the same data on different nodes. It buys <strong>durability</strong>
+        (survive a node loss), <strong>availability</strong> (serve from survivors), <strong>read scalability</strong>
+        (parallel reads), and <strong>low latency</strong> (serve from a nearby copy). It costs
+        <strong>write amplification</strong>, <strong>storage</strong>, and — most importantly —
+        <strong>consistency complexity</strong>, because keeping copies identical is a distributed coordination
+        problem.</p>
+      </div>
+
+      <h4>What replication is for</h4>
+      <ul>
+        <li><strong>Durability.</strong> A single disk or machine is a single point of data loss. Three copies on
+        independent hardware means a disk failure or a whole node failure does not lose the data. This is the most
+        fundamental reason and the one that applies to every system.</li>
+        <li><strong>Availability.</strong> If one replica is down for maintenance, upgrade, or failure, others can
+        still serve. Without replication, any node restart is downtime.</li>
+        <li><strong>Read scalability.</strong> Read-heavy workloads (typically 10:1 to 100:1 read/write) can be served
+        by many replicas in parallel. The primary handles writes; replicas share the read load.</li>
+        <li><strong>Latency.</strong> A user in Singapore served from a replica in Singapore gets a 5 ms response
+        rather than a 200 ms round trip to Virginia. Geographic replication is the only way to fix the physics of
+        distance.</li>
+        <li><strong>Disaster recovery.</strong> A replica in a different region survives a regional outage — not just
+        a node failure.</li>
+        <li><strong>Offline and edge.</strong> Mobile apps, IoT devices, and edge nodes hold a local replica so they
+        can operate without connectivity and synchronise later.</li>
+      </ul>
+
+      <h4>What replication costs</h4>
+      <ul>
+        <li><strong>Write amplification.</strong> A write that touches one node now touches N. Each replica consumes
+        network bandwidth, disk I/O, and CPU to apply the change. With replication factor 3, the total write work
+        is three times the logical write.</li>
+        <li><strong>Storage.</strong> Three copies means three times the storage cost, which is trivial for small
+        datasets and significant for terabytes.</li>
+        <li><strong>Consistency complexity.</strong> The copies can diverge. Writes may be applied in different
+        orders, one replica may lag, and a partition may leave two replicas disagreeing. Every consistency model in
+        Volume 3 exists because of this.</li>
+        <li><strong>Operational surface.</strong> More nodes to monitor, more failure modes, more ways for things to
+        go wrong. A lagging replica is a new operational concept that did not exist in a single-node deployment.</li>
+      </ul>
+
+      <h4>Replication vs backup vs sharding</h4>
+      <p>These are constantly confused and the distinction matters:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Mechanism</th><th>What it does</th><th>Protects against</th><th>Does not protect against</th></tr></thead>
+          <tbody>
+            <tr><td>Replication</td><td>Keeps live copies in sync</td><td>Node failure, disk failure, region failure</td><td>Application bugs, accidental deletes (they replicate too)</td></tr>
+            <tr><td>Backup</td><td>Periodic point-in-time snapshot</td><td>Accidental deletes, ransomware, corruption</td><td>Node failure between backups</td></tr>
+            <tr><td>Sharding</td><td>Splits data across nodes, each holding a subset</td><td>Single-node capacity limits</td><td>Node failure (unless each shard is replicated)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>A critical point: replication is <em>not</em> a backup. If a user deletes a record, the delete replicates to every replica within milliseconds. The data is gone everywhere. Backups exist precisely because replication faithfully propagates mistakes.</p>
+
+      <h4>Replication and scale</h4>
+      <p>Replication solves availability and read throughput, but it does not solve write throughput — every replica still applies every write, so the write capacity is bounded by one node's write capacity (in a leader-based design) or by the coordination cost of multiple writers. Scaling writes requires <em>partitioning</em> (Volume 5), often combined with replication within each partition. The standard architecture is: shard the data, and replicate each shard.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: “I'll replicate each shard with a leader and two followers — the followers give read scalability and survive a node failure, and the leader serialises writes.” That demonstrates you understand replication and sharding are complementary, not alternatives.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q2 -->
+  <article class="q" id="q2">
+    <div class="q-head">
+      <div class="q-num">2</div>
+      <h3>Explain leader-follower replication.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>One node — the <strong>leader</strong> (master, primary) — accepts all writes. It records every change in a
+        log and streams that log to <strong>followers</strong> (slaves, replicas, secondaries), which apply the
+        changes in the same order. Reads can be served by any node. The leader is the single source of truth for
+        write ordering, which makes consistency straightforward and failure complex.</p>
+      </div>
+
+      <h4>The mechanics</h4>
+      <ol>
+        <li>The client sends a write to the leader.</li>
+        <li>The leader validates it, applies it to its own storage, and appends the change to its
+        <strong>write-ahead log</strong> (WAL) or binary log.</li>
+        <li>It acknowledges the write to the client — immediately (async) or after some followers confirm (sync).</li>
+        <li>Followers receive the log stream, apply the changes in order, and advance their own position.</li>
+        <li>Reads are served by the leader (for fresh data) or by followers (for scalable but potentially stale
+        reads).</li>
+      </ol>
+
+      <h4>How followers apply the log</h4>
+      <p>There are three main approaches, and the choice affects what is possible downstream:</p>
+      <ul>
+        <li><strong>Statement-based.</strong> The leader ships the actual SQL statement. Simple, but breaks on
+        non-deterministic functions (<code>NOW()</code>, <code>RAND()</code>), auto-increment values, and triggers.
+        MySQL's statement-based binlog mode has these pitfalls.</li>
+        <li><strong>Write-ahead-log shipping.</strong> The leader ships the physical page changes. Byte-identical,
+        but tightly coupled to the storage format and version — the follower must run the same engine version.
+        PostgreSQL streaming replication works this way.</li>
+        <li><strong>Logical / row-based.</strong> The leader ships row-level changes — insert this row, update that
+        column. Portable across versions and usable for change data capture. This is the modern default and the
+        basis of CDC (Question 12).</li>
+      </ul>
+
+      <h4>The failure process: failover</h4>
+      <p>When the leader fails, the system must promote a follower. The steps are:</p>
+      <ol>
+        <li><strong>Detect</strong> the failure — heartbeat timeout, missing keepalive, an external monitor.</li>
+        <li><strong>Elect</strong> a new leader — via a consensus protocol (Raft), a coordinator (ZooKeeper), or
+        manual promotion (the least good option).</li>
+        <li><strong>Reconfigure</strong> — clients, proxies, and remaining followers are pointed at the new leader.</li>
+        <li><strong>Old leader rejoins</strong> — when the failed node comes back, it must be demoted and resynced
+        from the new leader. Any writes it received before failing that were not replicated must be discarded,
+        which is why asynchronous replication can lose data on failover.</li>
+      </ol>
+
+      <h4>Strengths and weaknesses</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Strength</th><th>Weakness</th></tr></thead>
+          <tbody>
+            <tr><td>Simple to reason about — one writer, one order</td><td>Leader is a write bottleneck and a single point of failure during failover</td></tr>
+            <tr><td>Supports strong consistency cleanly</td><td>Follows are asynchronous by default, so reads can be stale</td></tr>
+            <tr><td>Mature in every major database</td><td>Failover takes seconds — not zero-downtime</td></tr>
+            <tr><td>Reads scale horizontally</td><td>Writes do not scale beyond one node's capacity</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Where it is used</h4>
+      <p>PostgreSQL streaming replication, MySQL replicas, MongoDB replica sets (with a primary), Kafka partitions
+      (each partition has a leader replica), Redis Sentinel and Redis Cluster, and most managed SQL services. It is
+      the default replication model for anything that needs serialisable writes and a well-understood failure story.</p>
+
+      <h4>The read-your-writes problem</h4>
+      <p>Because followers are asynchronous, a user who writes to the leader and then reads from a follower may see
+      the old value — a direct violation of the user's expectations. This is the subject of Question 6, but the
+      takeaway here is that <em>the moment you introduce asynchronous followers, you introduce this problem</em> and
+      must address it at the application layer or with a session token.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Sending all reads to followers without considering freshness. A user updates their profile and immediately
+        cannot see the change; a count seems to go backwards. Always route read-your-own-write traffic to the
+        leader, or use a session token, or explicitly accept the staleness.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q3 -->
+  <article class="q" id="q3">
+    <div class="q-head">
+      <div class="q-num">3</div>
+      <h3>Explain multi-leader replication.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Multiple nodes accept writes and replicate to each other. This enables writes close to users in several
+        regions and active-active availability, but it makes <strong>conflicts inevitable</strong> — two leaders can
+        accept conflicting writes at the same time, and the system must resolve them. Multi-leader is powerful and
+        subtle, and it is often the wrong choice unless the workload genuinely needs multi-region writes.</p>
+      </div>
+
+      <h4>Why multi-leader</h4>
+      <ul>
+        <li><strong>Geographic write latency.</strong> With a single leader in Virginia, a write from Singapore pays
+        ~200 ms round trip. With a leader in each region, writes are local (5 ms) and replicate asynchronously.</li>
+        <li><strong>Active-active availability.</strong> Each region can serve writes if another is unreachable. This
+        is the classic use case for global products.</li>
+        <li><strong>Offline clients.</strong> A mobile app, laptop, or edge device holds a local leader that
+        accumulates writes and syncs when connectivity returns. The device is effectively a multi-leader replica.</li>
+        <li><strong>Collaborative editing.</strong> Multiple users editing a document simultaneously are multiple
+        writers producing concurrent changes. (Though this is usually implemented with CRDTs rather than a database
+        multi-leader model.)</li>
+      </ul>
+
+      <h4>The conflict problem</h4>
+      <p>Two leaders in two regions accept concurrent writes to the same row. Both succeed locally. When they
+      replicate, they disagree. The system must resolve this. Options:</p>
+      <ul>
+        <li><strong>Last-writer-wins (LWW).</strong> Highest timestamp wins. Simple, but silently discards one user's
+        data, and depends on clock synchronisation. This is what DynamoDB Global Tables does, and it is why
+        conflicting writes are said to be "eventually lost".</li>
+        <li><strong>Application-defined merge.</strong> The application knows the domain and can merge — e.g., a
+        shopping cart unions both sets of items. Correct, but requires domain knowledge to be encoded.</li>
+        <li><strong>CRDTs.</strong> Data types with commutative merge semantics — see Volume 3, Question 12.</li>
+        <li><strong>Conflict escalation.</strong> Keep both versions, surface them to a human to resolve.</li>
+      </ul>
+      <p>Whatever the policy, <strong>the conflict is real and the resolution loses information</strong>. There is no
+      way to accept concurrent writes to the same row and not lose something.</p>
+
+      <h4>Replication topologies</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Topology</th><th>Description</th><th>Issue</th></tr></thead>
+          <tbody>
+            <tr><td>Star</td><td>All leaders communicate via one central node</td><td>Central node is a single point of failure</td></tr>
+            <tr><td>Ring</td><td>Each leader forwards to the next in a circle</td><td>A single node failure breaks the loop</td></tr>
+            <tr><td>All-to-all</td><td>Every leader communicates with every other</td><td>Message ordering issues; can produce non-convergent histories</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>All-to-all is the most resilient but the hardest to reason about. Causal ordering can be violated when
+      messages take different paths — a classic result is that without careful design, all-to-all topologies can
+      leave replicas disagreeing permanently.</p>
+
+      <h4>Multi-leader in practice</h4>
+      <p>MySQL Group Replication and Percona XtraDB Cluster support multi-master mode. PostgreSQL BDR offers it.
+      CouchDB uses a multi-leader model. DynamoDB Global Tables is the managed version. In every case the operation
+      is materially more complex than leader-follower, and the conflicts — while rare in normal operation — are
+      catastrophic when they occur because they involve real user data being silently overwritten.</p>
+
+      <h4>The decision</h4>
+      <p>Use multi-leader when: writes genuinely occur in multiple regions and the latency of a single leader is
+      unacceptable, or when the data model can tolerate conflict resolution (last-write-wins for counters, CRDTs
+      for collaborative data). Do not use it for financial ledgers, inventory, or anything where a lost write is a
+      customer-facing failure. Most systems that think they need multi-leader actually need a single leader per
+      region (sharding by user) — a design that avoids conflicts entirely.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Multi-leader trades consistency for availability and latency. When you choose it, write down the conflict
+        resolution policy and its failure mode. “Last-write-wins” is not a resolution — it is a declaration that
+        concurrent writes are acceptable losses. That must be a business decision, not an implementation detail.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q4 -->
+  <article class="q" id="q4">
+    <div class="q-head">
+      <div class="q-num">4</div>
+      <h3>Explain leaderless replication (Dynamo-style).</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Every replica can accept both reads and writes — there is no leader. A client (or a coordinator) sends
+        writes to N replicas and waits for W acknowledgements; reads query R replicas and take the freshest response.
+        With R + W &gt; N, reads are guaranteed to see the latest write. There is no failover, because there is no
+        leader to lose — the system is always writable on whichever replicas are alive.</p>
+      </div>
+
+      <h4>The write and read path</h4>
+      <p>On a write, the client sends it to all replicas responsible for the key (or to a coordinator, which
+      forwards). It waits for W responses. As long as W replicas acknowledge, the write is considered successful.
+      On a read, the client queries R replicas; each returns the version it has; the client (or coordinator) picks
+      the most recent. With R + W &gt; N, at least one of the R responses overlaps with at least W of the replicas,
+      so the latest write is visible.</p>
+
+      <h4>Why it is attractive</h4>
+      <ul>
+        <li><strong>No failover.</strong> There is no leader election, no promotion, no window of unavailability.
+        If a replica dies, the next write simply succeeds on the remaining replicas.</li>
+        <li><strong>Always writable.</strong> As long as any W replicas are alive, writes succeed. In a multi-region
+        deployment this means every region is writable even during a partition.</li>
+        <li><strong>Simple operational model.</strong> No primary to manage, no failover runbook. Add a node, it joins
+        the ring, it starts receiving traffic.</li>
+        <li><strong>Tunable consistency.</strong> The client can choose W and R per operation — ONE for speed,
+        QUORUM for balance, ALL for maximum consistency. This makes the PACELC choice explicit and per-query.</li>
+      </ul>
+
+      <h4>Why it is subtle</h4>
+      <p>Leaderless replication is easy to describe and easy to get subtly wrong. The issues:</p>
+      <ul>
+        <li><strong>Concurrent writes.</strong> Two clients can write different values to the same key, both reaching
+        W replicas. No replica has a "latest" value; the system must resolve the conflict with timestamps or version
+        vectors. This is why Cassandra and Riak support last-write-wins or per-key versioning.</li>
+        <li><strong>Read repair.</strong> When a read queries R replicas and finds divergent values, it can write the
+        latest value back to stale replicas. This repairs the inconsistency in the background — but only for keys
+        that are actually read.</li>
+        <li><strong>Anti-entropy.</strong> A background process compares replicas and repairs differences, because
+        read repair only fixes what is read. Merkle trees (Question 9) make the comparison efficient.</li>
+        <li><strong>Hinted handoff.</strong> If a replica is unreachable, another node temporarily accepts the write
+        and delivers it when the original recovers. This maintains the write-availability guarantee at the cost of
+        weakening quorum overlap (Question 10).</li>
+        <li><strong>Stale reads.</strong> Even with R + W &gt; N, if a replica has a partially applied write or
+        conflicting writes, the "latest" value can be wrong. Cassandra's quirks with LWW timestamps and clock skew
+        are well documented.</li>
+      </ul>
+
+      <h4>Leaderless vs leader-based</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Aspect</th><th>Leader-based</th><th>Leaderless</th></tr></thead>
+          <tbody>
+            <tr><td>Write availability</td><td>Leader must be up</td><td>W replicas must be up</td></tr>
+            <tr><td>Failover</td><td>Required, takes seconds</td><td>None</td></tr>
+            <tr><td>Consistency</td><td>Straightforward</td><td>Tunable, requires conflict handling</td></tr>
+            <tr><td>Conflicts</td><td>Avoided by serialising on leader</td><td>Unavoidable — must be resolved</td></tr>
+            <tr><td>Operational simplicity</td><td>Well understood, mature tooling</td><td>More complex for the developer</td></tr>
+            <tr><td>Examples</td><td>PostgreSQL, MySQL, MongoDB, Kafka</td><td>Cassandra, DynamoDB, Riak, Voldemort</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>When to use it</h4>
+      <p>Leaderless fits workloads with high write availability requirements, geographically dispersed writers,
+      and data that tolerates conflict resolution (counters, event logs, time-series, shopping carts). It is the
+      wrong choice for financial ledgers, inventory, or anything with invariants that must hold across concurrent
+      writers. When in doubt, the simpler leader-based model with a well-understood failover is usually the better
+      engineering trade.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: “I'll use Cassandra with QUORUM reads and QUORUM writes for the event log, so writes are available
+        even when a replica is down and reads are guaranteed fresh. For the ledger I'll use a single-leader database
+        with a synchronous standby.” That demonstrates you are choosing per data type, not per product.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART B ================= -->
+  <div class="part-band slate">
+    <div class="bar"></div>
+    <h2>Part B — Replication Mechanics &amp; Failure
+      <span class="sub">Synchronous, lag, failover, and conflict</span>
+    </h2>
+  </div>
+
+  <!-- Q5 -->
+  <article class="q slate" id="q5">
+    <div class="q-head">
+      <div class="q-num">5</div>
+      <h3>What is the difference between synchronous, asynchronous, and semi-synchronous replication?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p><strong>Synchronous</strong> — the leader waits for followers to acknowledge before replying to the client.
+        Durable and consistent, but a slow or dead follower blocks writes. <strong>Asynchronous</strong> — the leader
+        replies immediately; followers catch up later. Fast and tolerant of follower failure, but can lose recent
+        writes. <strong>Semi-synchronous</strong> — the leader waits for at least one follower, balancing the two.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Aspect</th><th>Synchronous</th><th>Semi-synchronous</th><th>Asynchronous</th></tr></thead>
+          <tbody>
+            <tr><td>Leader waits for</td><td>All (or a quorum of) followers</td><td>At least one follower</td><td>No follower</td></tr>
+            <tr><td>Client latency</td><td>Highest — round trip to slowest follower</td><td>Moderate — round trip to fastest follower</td><td>Lowest — local write only</td></tr>
+            <tr><td>Data loss on leader failure</td><td>None</td><td>Possible for the un-acked followers</td><td>Possible for any un-replicated write</td></tr>
+            <tr><td>Write availability</td><td>Blocked if any follower is down</td><td>Blocked if all followers are down</td><td>Always available</td></tr>
+            <tr><td>Typical use</td><td>Financial ledgers, compliance</td><td>Most production databases</td><td>Read replicas, DR</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Synchronous replication in depth</h4>
+      <p>In fully synchronous mode, the leader commits only after every replica has acknowledged. This gives a
+      <strong>zero data loss</strong> guarantee: once the client sees the write acknowledged, the data is on
+      multiple independent machines. The cost is that the write is blocked by the slowest replica — and if any
+      replica is down, writes stop entirely. A single slow disk on one follower can stall the entire cluster, which
+      is why "fully synchronous" is almost never used in production.</p>
+      <p>What people call "synchronous" in practice is usually synchronous with a quorum — for example PostgreSQL's
+      <code>synchronous_commit = remote_write</code> with <code>synchronous_standby_names = 'ANY 1 (node1, node2)'</code>
+      waits for one of the standbys. MySQL Group Replication uses a majority quorum. This gives zero loss without a
+      single point of blocking.</p>
+
+      <h4>Asynchronous replication in depth</h4>
+      <p>The leader acknowledges the write as soon as it has applied it locally; replication happens in the
+      background. This is fast and always available, and it is what read replicas almost always use. The risk is
+      straightforward: if the leader dies before the write has replicated, the write is lost — the follower that gets
+      promoted simply does not have it. This is the source of the failover data-loss problem.</p>
+      <p>Asynchronous replication is appropriate when: the write is not critical (analytics, logs, feeds), or the
+      application can tolerate a few seconds of loss, or the follower is in a different region where synchronous
+      latency would be prohibitive.</p>
+
+      <h4>Semi-synchronous as the default</h4>
+      <p>Semi-synchronous replication — wait for at least one follower — is the pragmatic default. It bounds the
+      data-loss window to writes that were in flight when the leader failed, which is usually seconds or less. It
+      does not block on a single slow follower as long as one follower is fast. It is a real trade-off: slightly
+      higher write latency for substantially better durability. MySQL's semi-sync, PostgreSQL's quorum commit, and
+      MongoDB's <code>{w: 2}</code> write concern all provide it.</p>
+
+      <h4>The latency arithmetic</h4>
+      <p>Write latency with synchronous replication = local write time + round trip to follower + follower apply
+      time. In one datacenter this is 1–5 ms. Across regions it is 50–150 ms. This is the reason multi-region
+      synchronous replication is expensive, and why most systems use synchronous replication within a region and
+      asynchronous across regions.</p>
+
+      <h4>The failure modes</h4>
+      <ul>
+        <li><strong>Blocking on a slow follower.</strong> In fully synchronous mode, one slow disk stalls all
+        writes. Solution: quorum-based sync, or an escape hatch that falls back to async when followers are slow.</li>
+        <li><strong>Lost writes on failover.</strong> In async mode, the new leader does not have the last few writes.
+        Solution: semi-sync or quorum, or accept the data-loss window.</li>
+        <li><strong>Split-brain with two leaders.</strong> If failover is triggered but the old leader is not actually
+        dead, both may accept writes. Solution: fencing (Question 7).</li>
+      </ul>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>The choice is fundamentally: do you want the write to be durable before acknowledging (sync) or fast and
+        available (async)? Every production system sits somewhere on this spectrum, and the exact setting should be
+        chosen per data type. A payment needs quorum sync; a page view count does not.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q6 -->
+  <article class="q slate" id="q6">
+    <div class="q-head">
+      <div class="q-num">6</div>
+      <h3>What is replication lag, and how do you handle the read-your-writes problem it creates?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Replication lag is the delay between a write being committed on the leader and it being applied on a
+        follower. It is normally milliseconds but can grow to seconds or minutes during load, network issues, or a
+        follower restart. The user-visible consequence is that a user can write and then read stale data from a
+        follower — a violation of read-your-writes (Volume 3, Question 7). The solutions are routing, version tokens,
+        or waiting for the follower to catch up.</p>
+      </div>
+
+      <h4>Why lag happens</h4>
+      <ul>
+        <li><strong>Network delay.</strong> The log stream takes time to travel, especially across regions.</li>
+        <li><strong>Follower is slow.</strong> Under-provisioned follower CPU, slow disk, competing workloads.
+        Applying changes serially on a single-threaded applier is a common bottleneck.</li>
+        <li><strong>Burst load.</strong> A large write burst on the leader overwhelms the follower's apply rate.
+        The lag grows during the burst and drains afterwards.</li>
+        <li><strong>Follower restart.</strong> A follower that has been down must catch up, which can take minutes
+        for a large delta. During that time, reads served from it are stale.</li>
+        <li><strong>Long-running queries.</strong> On the follower, a slow read can hold a snapshot and prevent the
+        apply process from advancing (a problem in MySQL, less so in PostgreSQL).</li>
+        <li><strong>Schema changes.</strong> Some DDL blocks replication, causing a lag spike during migrations.</li>
+      </ul>
+
+      <h4>The anomalies lag causes</h4>
+      <ul>
+        <li><strong>Read-your-writes violation.</strong> A user posts, then refreshes and does not see the post
+        because the follower has not applied it.</li>
+        <li><strong>Monotonic read violation.</strong> A user reads value A from a fast follower, refreshes, and
+        reads the older value B from a lagged one. The UI seems to go backwards.</li>
+        <li><strong>Non-causal reads.</strong> A user sees a comment before the post it replies to, because the
+        comment was applied to one follower and the post to another.</li>
+      </ul>
+
+      <h4>Solutions, in increasing complexity</h4>
+      <ol>
+        <li><strong>Route write-adjacent reads to the leader.</strong> For a short window after a write — or by
+        attaching a flag to the session — serve reads from the leader. Simple and effective, but concentrates read
+        load on the leader.</li>
+        <li><strong>Use a version token.</strong> The write returns a version (LSN, GTID, logical timestamp). The
+        read includes it. The follower responds only if its version is ≥ the token, otherwise the request is
+        routed to a more current replica or the leader. This is the most precise solution and is used by MongoDB
+        causal sessions and Cosmos DB session consistency.</li>
+        <li><strong>Wait for a specific position.</strong> Related to the version token — the follower blocks
+        briefly until it has replayed to a given position, then serves the read. Bounded wait with a timeout.</li>
+        <li><strong>Sticky sessions to the leader.</strong> Route all of a user's traffic to the leader for a short
+        period after a write. Simpler than version tokens but coarser.</li>
+        <li><strong>Optimistic local echo.</strong> The client stores the write locally, shows it immediately, and
+        reconciles when the server response arrives. Masks the problem entirely from the user without changing the
+        backend.</li>
+      </ol>
+
+      <h4>Monitoring lag</h4>
+      <p>Every serious database exposes lag metrics:</p>
+      <ul>
+        <li><strong>MySQL:</strong> <code>Seconds_Behind_Master</code> — but it is unreliable, especially for
+        multi-source replication. Prefer comparing GTIDs.</li>
+        <li><strong>PostgreSQL:</strong> the difference between the primary's WAL LSN and the replica's
+        <code>pg_last_wal_replay_lsn()</code>, expressed in bytes or seconds.</li>
+        <li><strong>Generic:</strong> a heartbeat table where the leader writes a timestamp and the follower reads it —
+        the difference is the lag. This is portable and unambiguous.</li>
+      </ul>
+      <p>Lag should be alarmed on, because an unnoticed growing lag is either a precursor to data loss (the follower
+      will be promoted and be missing data) or a sign that the system is about to become unavailable.</p>
+
+      <h4>When lag becomes unbounded</h4>
+      <p>Sometimes the lag does not recover — a follower is too far behind, or a burst overwhelms it permanently.
+      The mitigations: remove the follower from rotation, take a fresh snapshot and rebuild it, add capacity to the
+      follower, or (in the worst case) promote a different follower and rebuild. A design that reads from any
+      follower without checking its lag is a design that will serve increasingly stale data under stress.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Load-balancing reads across replicas without considering session stickiness. A user's reads can be served
+        by different replicas with different lag, causing the UI to flicker between stale and fresh values. The fix is
+        session-affinity for reads, or monotonic-read guarantees via a version token.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q7 -->
+  <article class="q slate" id="q7">
+    <div class="q-head">
+      <div class="q-num">7</div>
+      <h3>What is split-brain, and how do you prevent it during failover?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Split-brain is when two nodes each believe they are the leader — usually because a network partition
+        separated them and each lost contact with the other, so each promoted itself or failed to notice it was
+        demoted. Both then accept writes, which diverge and cannot be merged. Prevention requires two things:
+        a quorum-based leader election, and <strong>fencing</strong> — a mechanism that makes the old leader unable to
+        write once it has been superseded.</p>
+      </div>
+
+      <h4>How split-brain happens</h4>
+      <p>A three-node cluster: leader A, followers B and C. The network partitions A from B and C. B and C decide A is
+      dead and elect B as the new leader. But A is not actually dead — it is just isolated. A still thinks it is the
+      leader and continues to accept writes from any client that can still reach it. Now A and B are both accepting
+      writes, and their data diverges.</p>
+      <p>This is not rare. It happens with datacenter connectivity issues, a network interface failing, a GC pause
+      long enough to trigger a heartbeat timeout, or an operator error. It is the single most damaging failure mode
+      in leader-based replication, because the data divergence may be unrecoverable.</p>
+
+      <h4>Prevention 1 — Quorum-based election</h4>
+      <p>The first defence is that a new leader can only be elected with a majority of the cluster. In a three-node
+      cluster, a new leader requires two votes; A alone cannot elect itself, and B + C together form a majority.
+      Raft, Paxos, and ZAB all enforce this: a leader must be elected by a quorum, and a node that cannot reach a
+      quorum cannot become leader. This ensures that <em>at most one</em> leader can be elected for a given term.</p>
+      <p>The corollary is that a cluster that loses quorum (more than half its nodes) cannot elect a leader and cannot
+      accept writes. This is deliberate: it is better to be unavailable than to be split-brained. A two-node cluster
+      is therefore always a bad idea — losing either node makes the cluster unavailable, and the split-brain risk is
+      higher because there is no majority to arbitrate.</p>
+
+      <h4>Prevention 2 — Fencing tokens</h4>
+      <p>Quorum election ensures at most one leader is elected, but it does not prevent the <em>old</em> leader from
+      continuing to accept writes if it does not know it has been demoted. It might be isolated, alive, and happily
+      serving stale clients.</p>
+      <p>The fix is a <strong>fencing token</strong>: each leadership term gets a monotonically increasing number,
+      and every write carries the token. Storage — the actual disk or database — rejects writes with a lower token
+      than the highest it has seen. So even if the old leader thinks it is in charge, its writes are rejected by the
+      storage layer once the new leader has written with a higher token. The old leader eventually learns it is stale
+      and steps down.</p>
+      <p>Fencing requires that the storage layer (or every shared resource the leader touches) checks the token. This
+      is not automatic — it must be designed in. But it is the definitive prevention against split-brain damage, and
+      it is used in every serious consensus system.</p>
+
+      <h4>Prevention 3 — STONITH and node isolation</h4>
+      <p>An older approach: when a leader is suspected of being partition, physically kill it — "shoot the other node
+      in the head". This is STONITH (Shoot The Other Node In The Head), a hardware fencing technique that powers off
+      or network-isolates the suspect node before promoting a new one. Crude but effective, and used in many
+      enterprise HA clusters where the failure modes are well understood.</p>
+
+      <h4>Detection is the hard part</h4>
+      <p>All of these mechanisms depend on correctly detecting that the leader is dead or unreachable. The
+      fundamental difficulty is that a slow node and a dead node look identical from the outside — both fail to
+      respond within a timeout. Set the timeout too short and you get false failovers (a busy but healthy leader
+      is demoted); set it too long and you have extended downtime. The standard mitigation is a longer timeout than
+      any reasonable GC pause, plus a lease (the leader's term expires after a fixed wall-clock interval unless
+      renewed) so that even a stalled leader eventually stops acting as leader.</p>
+
+      <h4>What split-brain costs</h4>
+      <p>Data divergence, which must be resolved manually if it occurs. In a payment system, two sets of transactions
+      that each think they are canonical. In an inventory system, two counts. The resolution is painful and often
+      involves choosing one side's data and discarding the other. The engineering effort of prevention is trivially
+      small compared to the cost of remediation.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: “I'll prevent split-brain with quorum election — a leader needs a majority — and fencing tokens so
+        the old leader's writes are rejected even if it's still alive. And I'll use an odd number of nodes so a
+        single failure can't destroy quorum.” That covers election, fencing, and topology in three sentences.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q8 -->
+  <article class="q slate" id="q8">
+    <div class="q-head">
+      <div class="q-num">8</div>
+      <h3>How do you handle conflict resolution with LWW, vector clocks, and CRDTs?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Conflicts arise whenever multiple replicas can accept writes without coordination — multi-leader,
+        leaderless, and offline-first. There are four strategies: <strong>last-writer-wins</strong> (simple, loses
+        data), <strong>version vectors</strong> (detect concurrency, keep both values for the application to
+        resolve), <strong>CRDTs</strong> (merge automatically, limited data types), and <strong>application-defined
+        merge</strong> (correct for the domain, requires domain logic). The right choice depends on whether the
+        conflict can be resolved automatically and whether losing a write is acceptable.</p>
+      </div>
+
+      <h4>The four strategies</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Strategy</th><th>Mechanism</th><th>Pros</th><th>Cons</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Last-writer-wins (LWW)</td>
+              <td>Highest timestamp wins</td>
+              <td>Trivial; automatic; no metadata beyond a clock</td>
+              <td>Silently loses one write; depends on clock sync; wrong when clocks skew</td>
+            </tr>
+            <tr>
+              <td>Version vectors</td>
+              <td>Track per-replica versions; detect if writes are concurrent or ordered</td>
+              <td>Detects conflicts accurately; keeps both values for later resolution</td>
+              <td>Metadata grows with replica count; the application must resolve</td>
+            </tr>
+            <tr>
+              <td>CRDTs</td>
+              <td>Commutative merge — mathematically guaranteed convergence</td>
+              <td>Automatic and correct for the supported types</td>
+              <td>Only certain data structures; metadata overhead; cannot enforce arbitrary invariants</td>
+            </tr>
+            <tr>
+              <td>Application-defined merge</td>
+              <td>Domain logic decides — e.g., union shopping carts, sum counters</td>
+              <td>Correct for the business domain</td>
+              <td>Requires domain expertise; must be written for each type</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Last-writer-wins in depth</h4>
+      <p>LWW attaches a timestamp to each write; the replica with the higher timestamp survives. It is used by
+      Cassandra (default), DynamoDB Global Tables, and most "conflict-free" multi-region databases. The advantage is
+      that it never fails to produce a value — no conflict handling, no application changes. The disadvantages are
+      severe:</p>
+      <ul>
+        <li><strong>Silent data loss.</strong> One user's write is discarded with no notification. They see their
+        update succeed, then discover it was overwritten.</li>
+        <li><strong>Clock skew.</strong> Two nodes with clocks off by seconds will produce incorrect ordering. A
+        write from the faster clock always wins, even if the other write was objectively later. This is a real
+        production failure mode with NTP drift.</li>
+        <li><strong>No causal awareness.</strong> LWW can "resurrect" a deleted item if an earlier write has a later
+        timestamp than the delete.</li>
+      </ul>
+      <p>LWW is acceptable for counters (approximately), presence, session heartbeats, and low-stakes preferences.
+      It is not acceptable for user content, financial data, or anything where the losing write matters.</p>
+
+      <h4>Version vectors in depth</h4>
+      <p>A version vector tracks, for each replica, how many writes it has applied. When replica A receives a write
+      from replica B, it compares B's version vector with its own:</p>
+      <ul>
+        <li>If B's is strictly greater, B's write is newer — apply it.</li>
+        <li>If A's is strictly greater, A's is newer — discard B's.</li>
+        <li>If neither dominates, the writes are <strong>concurrent</strong> — a genuine conflict.</li>
+      </ul>
+      <p>Riak uses this approach, returning multiple "siblings" to the client so the application can merge. The
+      client might union shopping carts, sum counters, or ask the user. The trade-off is that the metadata grows
+      with the number of replicas (O(N) per key), and the application must handle the multi-value case.</p>
+
+      <h4>CRDTs in depth</h4>
+      <p>Conflict-free Replicated Data Types are covered in Volume 3, Question 12. Their property is that the merge
+      is commutative, associative, and idempotent, so any order of delivery converges. They are the right answer for
+      counters, sets, sequences, and collaborative editing. They are the wrong answer for anything with a global
+      invariant — you cannot enforce "balance ≥ 0" with a CRDT because two replicas can both approve a debit
+      independently.</p>
+
+      <h4>Application-defined merge</h4>
+      <p>Often the correct answer is to define merge logic for each data type:</p>
+      <ul>
+        <li><strong>Set-like data (tags, likes):</strong> union of adds, union of removes — an OR-Set or a simple
+        set union.</li>
+        <li><strong>Counters:</strong> sum of per-replica deltas — a PN-Counter.</li>
+        <li><strong>Text editing:</strong> a sequence CRDT or operational transformation.</li>
+        <li><strong>Numeric totals in accounting:</strong> append-only ledger entries — never overwrite; always
+        append a correcting entry.</li>
+      </ul>
+
+      <h4>The honest guidance</h4>
+      <p>The first question is not "which conflict resolution?" but "must this data be writable in multiple places?"
+      For most financial, inventory, and identity data, the answer is no — shard by user or entity so that one node
+      owns the record, and conflicts cannot occur. For the smaller set of genuinely multi-writer data (carts,
+      collaborative documents, presence, feeds), pick a conflict strategy and document it. LWW is a decision to lose
+      data silently; that must be a conscious, product-level decision.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Using last-write-wins and assuming it "just works". It works silently and lossily. If a user complains
+        "my edit disappeared", the answer is not a bug — it is the chosen policy. Teams should either accept that
+        explicitly or choose a strategy that preserves both writes.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART C ================= -->
+  <div class="part-band teal">
+    <div class="bar"></div>
+    <h2>Part C — Repair, Movement &amp; Multi-Region
+      <span class="sub">Keeping replicas consistent, and moving data across the world</span>
+    </h2>
+  </div>
+
+  <!-- Q9 -->
+  <article class="q teal" id="q9">
+    <div class="q-head">
+      <div class="q-num">9</div>
+      <h3>What are anti-entropy, Merkle trees, and read repair?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>These are the three mechanisms that bring divergent replicas back into agreement.
+        <strong>Read repair</strong> fixes a discrepancy discovered during a read. <strong>Anti-entropy</strong> is a
+        background process that compares replicas and fixes differences even for keys that are never read.
+        <strong>Merkle trees</strong> are hash trees that make anti-entropy efficient — comparing two replicas
+        requires exchanging only a handful of hashes rather than comparing every key.</p>
+      </div>
+
+      <h4>Read repair</h4>
+      <p>When a client reads a key from R replicas and discovers that they disagree, the coordinator writes the latest
+      version back to the stale replicas. The next read from those replicas returns the corrected value. This is
+      cheap — it piggybacks on the read path — and it keeps frequently-read keys fresh. Its limitation is obvious:
+      it only repairs keys that are actually read. A key that is written once and read once a year will remain
+      inconsistent for up to a year.</p>
+      <p>Read repair can be <strong>synchronous</strong> (block the read until repair completes) or
+      <strong>asynchronous</strong> (return the fresh value now, repair in the background). Synchronous is slower
+      but the read is guaranteed to have propagated the fix; asynchronous is faster but the repair may fail silently.
+      Cassandra uses both modes depending on the consistency level.</p>
+
+      <h4>Anti-entropy</h4>
+      <p>A background process that periodically compares every replica's data with every other's and repairs the
+      differences. It catches everything read repair missed — keys that were never read. It is the safety net that
+      guarantees eventual convergence.</p>
+      <p>The naive implementation compares every key: O(K) time and bandwidth. For a dataset of a billion keys, this
+      is infeasible. This is where Merkle trees come in.</p>
+
+      <h4>Merkle trees</h4>
+      <p>A Merkle tree is a hash tree over a key space. The leaves are hashes of individual keys (or small ranges of
+      keys); each internal node is the hash of its children. The root hash summarises the entire tree.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Level</th><th>Content</th></tr></thead>
+          <tbody>
+            <tr><td>Leaves</td><td>hash(key, value) for each key, or hash of a range bucket</td></tr>
+            <tr><td>Level 1</td><td>hash(leaf1 + leaf2) for each pair</td></tr>
+            <tr><td>Level 2</td><td>hash(level1 pair) ...</td></tr>
+            <tr><td>Root</td><td>hash of everything</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Two replicas exchange root hashes. If they match, they are identical — done. If they differ, they descend into
+      the child hashes and compare. At each level, only the subtrees whose hashes differ need further exploration.
+      If only 10 keys differ out of a billion, the comparison finds them in O(log K) exchanges rather than O(K).
+      This is the same structure Git uses for its object store and Bitcoin for block integrity.</p>
+      <p>Cassandra, Dynamo, and Riak all use Merkle trees for anti-entropy. The tree is rebuilt periodically (or
+      incrementally maintained), and the diff is a handful of hash exchanges.</p>
+
+      <h4>The repair pipeline in practice</h4>
+      <ol>
+        <li><strong>Write path:</strong> write reaches W replicas; the rest catch up later via hinted handoff.</li>
+        <li><strong>Read path:</strong> reads query R replicas; if they disagree, read repair fixes the stale ones.</li>
+        <li><strong>Hinted handoff:</strong> failed replica's writes are held by a peer and delivered on recovery
+        (Question 10).</li>
+        <li><strong>Anti-entropy:</strong> periodic Merkle-tree comparison catches everything the above missed.</li>
+      </ol>
+      <p>These are layered defences, each catching what the previous one missed. Read repair is fast and reactive;
+      hinted handoff handles transient failures; anti-entropy guarantees eventual convergence for all keys.</p>
+
+      <h4>Costs and tuning</h4>
+      <p>Anti-entropy is expensive — it consumes network bandwidth and CPU on both replicas. It is usually run during
+      off-peak hours with rate limiting. The interval (e.g., nightly) is a trade-off between convergence time and cost.
+      Merkle trees must be rebuilt when data changes, which is itself expensive; some systems maintain them
+      incrementally, others rebuild on a schedule.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Read repair is cheap but only fixes what is read. Anti-entropy fixes everything but is expensive. The
+        standard design is both: read repair for the hot path, anti-entropy for the long tail. The Merkle tree is
+        what makes the latter affordable.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q10 -->
+  <article class="q teal" id="q10">
+    <div class="q-head">
+      <div class="q-num">10</div>
+      <h3>What are hinted handoff and sloppy quorums?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p><strong>Sloppy quorum</strong> allows a write to be acknowledged by nodes that are not the designated
+        replicas for the key — any live nodes will do. <strong>Hinted handoff</strong> is the mechanism that makes it
+        work: the temporary node stores a "hint" that the write belongs to a specific replica, and delivers it once
+        that replica recovers. Together they preserve write availability during a failure, at the cost of weakening
+        the strict quorum overlap guarantee.</p>
+      </div>
+
+      <h4>The problem</h4>
+      <p>In a leaderless system with N=3 and W=2, a write must reach two of the three designated replicas. If one of
+      them is down, the writer can reach only two — but if a different node has also failed, it might reach only
+      one. Strictly, the write must fail. Sloppy quorum says: rather than fail, write to any available node, and
+      the system remains available.</p>
+
+      <h4>How sloppy quorum works</h4>
+      <p>A client sends the write to the N designated replicas. If some are unreachable, the coordinator walks the
+      consistent-hash ring and sends the write to the next available nodes instead. It counts those as
+      acknowledgements. With W acknowledgements (from designated or substitute nodes), the write is considered
+      successful. The client does not know or care that some replicas were substitutes.</p>
+
+      <h4>How hinted handoff completes it</h4>
+      <p>The substitute node cannot hold the data forever — it is not a designated replica, and other clients will
+      read from the correct nodes. So it stores the write as a <strong>hint</strong>: a message that says "this write
+      belongs to replica R, deliver when R comes back." A background process periodically checks whether R is
+      reachable, and if so, delivers the hint and deletes its local copy.</p>
+      <p>If R never comes back (hardware failure), the hint is held until R is replaced. If R stays down long enough,
+      the hint may expire and the write is lost from that replica — but it is still on the other W replicas, so the
+      data is not lost as long as the write itself succeeded. The hint is a courtesy, not a durability guarantee.</p>
+
+      <h4>The consistency cost</h4>
+      <p>This is where the subtlety lives. The standard quorum argument is that R + W &gt; N guarantees overlap
+      <em>among the designated replicas</em>. With sloppy quorum, some of the W acknowledgements may come from
+      substitute nodes, which means the actual designated-replica set has fewer than W copies. A subsequent read
+      quorum of R designated replicas may not overlap with those substitutes — so it may miss the write entirely.</p>
+      <p>Concretely: N=3, W=2. Replica A is down; the write goes to A' (a substitute) and B. That is two
+      acknowledgements — the write succeeds. Now a read with R=2 queries A and C. A does not have the write (it was
+      never delivered), C does not have it, and A' (which does) is not queried. The read returns stale data
+      despite R + W &gt; N.</p>
+      <p>This is exactly the scenario that makes sloppy quorums and R + W &gt; N not equivalent to strong consistency.
+      Dynamo's original paper was explicit about this: sloppy quorum favours availability, and the consistency is
+      "eventual" rather than "guaranteed at read time".</p>
+
+      <h4>When hinted handoff is appropriate</h4>
+      <ul>
+        <li><strong>Transient failures.</strong> A node is temporarily unreachable, expected to return within minutes
+        or hours. Hint delivery is fast and the system does not lose availability.</li>
+        <li><strong>High write availability requirement.</strong> The business genuinely prefers a write to succeed
+        over strict consistency. Feeds, carts, activity streams.</li>
+        <li><strong>Combined with read repair and anti-entropy.</strong> The hint is one mechanism among several; the
+        others catch any gap it leaves.</li>
+      </ul>
+
+      <h4>When it is a mistake</h4>
+      <ul>
+        <li><strong>Anything requiring strong consistency.</strong> Financial transactions, inventory, ledgers.
+        The sloppy quorum breaks the read-time guarantee.</li>
+        <li><strong>Long node outages.</strong> If a node is down for days, hint storage accumulates on substitutes,
+        which is itself a problem, and the eventual catch-up is large.</li>
+        <li><strong>Strict durability requirements.</strong> A write acknowledged by a substitute node is not on the
+        canonical replicas; if the substitute also fails, the hint is lost.</li>
+      </ul>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Assuming a system with sloppy quorums provides the same consistency guarantee as one with strict quorums.
+        It does not. The documentation usually says "eventually consistent"; the operational reality is that reads
+        can return stale data even when R + W &gt; N. Choose strict quorums for consistency-critical data, and sloppy
+        quorums for availability-critical data — and do not mix them within one dataset.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q11 -->
+  <article class="q teal" id="q11">
+    <div class="q-head">
+      <div class="q-num">11</div>
+      <h3>What is the difference between physical and logical replication?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p><strong>Physical replication</strong> ships the exact bytes of storage changes — WAL records, data pages —
+        producing byte-identical replicas that must run the same engine version and schema.
+        <strong>Logical replication</strong> ships the semantic changes — "insert this row, update this column" —
+        which can be applied to a different schema, engine version, or even a different database. Physical is for
+        HA and DR; logical is for migration, fan-out, and change data capture.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Aspect</th><th>Physical</th><th>Logical</th></tr></thead>
+          <tbody>
+            <tr><td>What is shipped</td><td>WAL records, data blocks</td><td>Row-level inserts/updates/deletes</td></tr>
+            <tr><td>Replica fidelity</td><td>Byte-identical to primary</td><td>Logically equivalent, can differ physically</td></tr>
+            <tr><td>Version compatibility</td><td>Must match engine version exactly</td><td>Can differ — even different engines</td></tr>
+            <tr><td>Schema flexibility</td><td>Same schema, same indexes</td><td>Can be subset, different schema, different indexes</td></tr>
+            <tr><td>Selectivity</td><td>Whole database (or tablespace)</td><td>Selected tables, columns, rows</td></tr>
+            <tr><td>Overhead on primary</td><td>Low — just ship the WAL</td><td>Higher — must decode and publish</td></tr>
+            <tr><td>Typical use</td><td>HA standby, disaster recovery</td><td>Migration, CDC, multi-database fan-out</td></tr>
+            <tr><td>Examples</td><td>PostgreSQL streaming replication, MySQL binlog (physical-ish)</td><td>PostgreSQL logical decoding, MySQL ROW binlog, Debezium</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Physical replication in detail</h4>
+      <p>The primary writes to its write-ahead log. A standby streams the WAL, applies it, and becomes byte-identical.
+      Because it is byte-identical, it can be promoted instantly to primary (no reconstruction needed) — which is why
+      physical replication is the standard for HA. The constraint is rigidity: a PostgreSQL 15 standby cannot replicate
+      from a PostgreSQL 16 primary, and you cannot replicate only a subset of tables.</p>
+
+      <h4>Logical replication in detail</h4>
+      <p>The primary decodes the WAL into logical change events — the actual rows that changed, with before/after
+      values. These can be published to subscribers, transformed, or sent to external consumers. The replica applies
+      the same row-level changes into its own tables, which may have different indexes, different schema, or be a
+      different database entirely.</p>
+      <p>The trade-offs: logical replication requires more CPU on the primary (decoding) and on the replica
+      (re-applying). It also requires the primary to retain WAL long enough for slow consumers, which is a
+      disk-usage concern. It does not replicate DDL in many engines (PostgreSQL historically required schema changes
+      to be done manually on both sides). But it is enormously more flexible.</p>
+
+      <h4>What each is good for</h4>
+      <ul>
+        <li><strong>Physical:</strong> HA standby that can be promoted in seconds, disaster recovery, read replicas
+        of the exact same data. This is the default for a single-database deployment.</li>
+        <li><strong>Logical:</strong> migrating between major versions (zero-downtime upgrade via logical replication
+        to a new-version replica), migrating between clouds or engines, replicating a subset of tables, feeding
+        data to a warehouse or search index, and CDC (Question 12).</li>
+      </ul>
+
+      <h4>MySQL's slightly different model</h4>
+      <p>MySQL's binary log can operate in statement, row, or mixed mode. Row-based binlog is effectively logical —
+      it records the actual row changes. Statement-based is effectively logical too, but with the pitfalls of
+      non-deterministic statements. MySQL does not have a separate "physical replication" mode in the PostgreSQL sense;
+      the binary log is a logical stream. This is why MySQL replication is more forgiving of version differences than
+      PostgreSQL streaming.</p>
+
+      <h4>Choosing between them</h4>
+      <p>Use physical when: you need HA/DR, the replicas must be identical, and the primary is the same engine version.
+      Use logical when: you need to transform the data, replicate a subset, migrate between versions or engines, or
+      feed downstream systems. Many production systems use both — physical for the HA standby, logical for CDC to the
+      warehouse and search index.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: “I'll use physical replication for the hot standby that can be promoted, and logical replication to feed
+        the search index and the data warehouse.” That demonstrates you understand the two roles are different, not
+        competing.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q12 -->
+  <article class="q teal" id="q12">
+    <div class="q-head">
+      <div class="q-num">12</div>
+      <h3>What is change data capture (CDC), and how does it relate to replication?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>CDC is the process of capturing row-level changes from a database's log and publishing them as a stream of
+        events to downstream consumers — search indexes, caches, data warehouses, other services. It is built on
+        logical replication: the database's own write-ahead log is the source of truth, and CDC turns it into a
+        change stream without polling and without duplicating writes.</p>
+      </div>
+
+      <h4>Why CDC exists</h4>
+      <p>The naive alternative is dual-write: after writing to the database, the application also publishes an event
+      to a message queue. This is straightforward and catastrophically wrong:</p>
+      <ul>
+        <li><strong>Atomicity failure.</strong> The DB write succeeds and the event publish fails (or vice versa). No
+        transaction covers both.</li>
+        <li><strong>Ordering failure.</strong> Two writes in quick succession may publish events out of order.</li>
+        <li><strong>Missed writes.</strong> A batch job, a migration, or a direct SQL update bypasses the application
+        and never publishes an event.</li>
+        <li><strong>Duplicate writes.</strong> The application writes, retries, writes again — two events for one
+        logical change.</li>
+      </ul>
+      <p>CDC eliminates all of these by using the database log as the single source of change. The log is ordered,
+      complete, and already transactional. If a transaction commits, every change is in the log; if it rolls back,
+      none are. CDC reads the log and publishes in order.</p>
+
+      <h4>How it works</h4>
+      <ol>
+        <li>Enable logical replication (or use the database's native CDC mechanism) on the source.</li>
+        <li>A CDC connector — Debezium is the standard, alongside native connectors in cloud databases — reads the
+        log and decodes changes into structured events.</li>
+        <li>The events are published to a message broker (Kafka, Pub/Sub) or directly to consumers.</li>
+        <li>Consumers apply the changes to their own stores: Elasticsearch for search, Redis for cache, ClickHouse or
+        BigQuery for analytics, another database for a service.</li>
+      </ol>
+
+      <h4>Exactly-once and ordering</h4>
+      <p>CDC streams are almost always at-least-once — a consumer may receive the same event twice after a retry or
+      rebalance. Consumers must be <strong>idempotent</strong>: applying the same insert twice should not create two
+      records, applying the same update twice should produce the same result. This usually means including the
+      primary key and a version/timestamp in the event, and using upsert semantics on the consumer side.</p>
+      <p>Ordering is per-key, not global. Kafka preserves order within a partition; partitioning by the row's primary
+      key ensures that changes to the same row arrive in order, which is what consumers actually need. Cross-row
+      ordering is not guaranteed and is not usually required.</p>
+
+      <h4>Schema evolution</h4>
+      <p>The source schema changes — a column is added, renamed, dropped. The CDC stream must communicate this to
+      consumers. The standard approach is a <strong>schema registry</strong> (Confluent Schema Registry is the
+      common one) that holds versioned Avro/Protobuf schemas, with compatibility rules (backward, forward, full).
+      Consumers can evolve at their own pace as long as the schemas remain compatible. Without this, a schema change
+      silently breaks every downstream consumer.</p>
+
+      <h4>CDC vs replication vs polling</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Mechanism</th><th>Latency</th><th>Load on source</th><th>Completeness</th></tr></thead>
+          <tbody>
+            <tr><td>CDC (log-based)</td><td>Milliseconds</td><td>Low — reads the log</td><td>All changes, including batch and direct SQL</td></tr>
+            <tr><td>Polling (WHERE updated_at &gt; ?)</td><td>Polling interval (seconds to minutes)</td><td>High — repeated queries</td><td>Misses deletes, misses changes without updated_at</td></tr>
+            <tr><td>Dual-write from application</td><td>Immediate</td><td>None on DB</td><td>Misses any non-application write</td></tr>
+            <tr><td>Replication (physical)</td><td>Milliseconds</td><td>Low</td><td>Byte-identical replica, not a change stream</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>What CDC is used for</h4>
+      <ul>
+        <li><strong>Search index synchronisation.</strong> Keep Elasticsearch in sync with the operational database —
+        the canonical use case.</li>
+        <li><strong>Cache invalidation.</strong> Publish change events that invalidate cached entries.</li>
+        <li><strong>Data warehouse ingestion.</strong> Stream operational changes into an analytics store with
+        seconds of latency, replacing nightly batch ETL.</li>
+        <li><strong>Microservice data sync.</strong> Propagate a service's changes to other services that need a read
+        model — CQRS-style.</li>
+        <li><strong>Audit logs.</strong> Every change becomes an event, giving a complete history.</li>
+      </ul>
+
+      <h4>The operational concerns</h4>
+      <p>CDC introduces a new component (the connector) that must be monitored, and a new failure mode: a stalled
+      connector means the downstream store falls behind. The connector's position in the log (the LSN or offset) is
+      the key metric — if it is not advancing, something is wrong. Also, the source database must retain WAL long
+      enough for the connector to keep up; a slow connector can cause the source to accumulate log, filling disk.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>CDC eliminates dual-write inconsistency and gives a complete, ordered change stream, at the cost of an
+        extra connector, a schema registry, and a new class of operational concerns. For any system with a search
+        index, a cache, or a warehouse that must stay fresh, it is worth the cost. For a small system with one
+        database and no downstream, it is over-engineering.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q13 -->
+  <article class="q teal" id="q13">
+    <div class="q-head">
+      <div class="q-num">13</div>
+      <h3>How do you design a multi-region replication strategy?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>There is no single answer — it is a family of strategies along the consistency/latency/cost spectrum.
+        The three dominant patterns are <strong>active-passive</strong> (one region writes, the other is standby),
+        <strong>regional ownership</strong> (users are pinned to a home region, cross-region replication is async for
+        DR and cross-region reads), and <strong>active-active</strong> (every region writes, conflicts are resolved
+        with LWW or CRDTs). The choice is driven by RPO, RTO, latency SLO, and whether the data tolerates conflicts.</p>
+      </div>
+
+      <h4>The three patterns</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Pattern</th><th>Consistency</th><th>Write latency</th><th>RPO</th><th>Use case</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Active-passive</td>
+              <td>Strong in active region</td>
+              <td>Local (~ms)</td>
+              <td>Seconds (async) to zero (sync)</td>
+              <td>Cost-sensitive; failover on regional outage; compliance</td>
+            </tr>
+            <tr>
+              <td>Regional ownership (sharded by user/geo)</td>
+              <td>Strong within region</td>
+              <td>Local (~ms)</td>
+              <td>Seconds cross-region</td>
+              <td>Most SaaS — user data lives where the user does</td>
+            </tr>
+            <tr>
+              <td>Active-active</td>
+              <td>Eventual with conflict resolution</td>
+              <td>Local (~ms)</td>
+              <td>Zero within sync window, conflicts resolved later</td>
+              <td>Global UGC, carts, feeds, presence</td>
+            </tr>
+            <tr>
+              <td>Global consensus</td>
+              <td>Strong globally (linearizable)</td>
+              <td>Cross-region (~100 ms)</td>
+              <td>Zero</td>
+              <td>Financial ledgers, inventory, identity</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Active-passive in detail</h4>
+      <p>One region is the active primary and handles all reads and writes. A second region runs a replica (or a
+      full standby cluster) that receives changes asynchronously. On failure of the primary region, traffic is
+      switched to the standby — either via DNS failover, a global load balancer, or manual intervention. This is the
+      simplest to reason about and the cheapest to run (the standby is idle or read-only). The RPO depends on
+      replication mode: sync gives zero loss but adds latency; async gives a window of potential loss.</p>
+      <p>The failure mode is the failover itself: DNS TTLs mean the switch takes minutes, the standby may be behind,
+      and the old primary's un-replicated writes are lost. Testing failover regularly is mandatory, because the
+      first time you discover the runbook is wrong should not be during an actual outage.</p>
+
+      <h4>Regional ownership — the pragmatic default</h4>
+      <p>Users are assigned a home region (by geography, by tenant, by hash). Their data lives in that region and is
+      read/written there with low latency and strong consistency. The data is replicated asynchronously to other
+      regions for disaster recovery and cross-region reads, but those reads are eventually consistent. A user
+      traveling to another region gets a slightly stale view, which is usually acceptable.</p>
+      <p>This pattern is what most large SaaS systems actually implement. It gives the latency benefit of being
+      "local" to the user, the consistency benefit of a single writer per record (no conflicts), and the DR benefit
+      of cross-region replication — all without the complexity of multi-region writes. Its constraint is that a
+      user cannot write to two regions simultaneously; if they could, the home region is still the authority for
+      their data.</p>
+
+      <h4>Active-active in detail</h4>
+      <p>Every region accepts writes and replicates asynchronously to the others. This gives the lowest write
+      latency (always local) and highest availability (any region can serve even if others are down), but it makes
+      conflicts inevitable. The system must have a conflict resolution policy — LWW, CRDTs, or application-specific
+      merge — and must accept that concurrent writes to the same record lose data or require reconciliation.
+      Active-active is appropriate for data where that is acceptable (feeds, carts, presence, counters) and wrong for
+      data where it is not (ledgers, inventory, identity).</p>
+
+      <h4>Global consensus</h4>
+      <p>Spanner, CockroachDB, and YugabyteDB provide linearizable reads and writes across regions using a replicated
+      consensus protocol (Raft or Paxos). This gives zero RPO and strong consistency but at a latency cost — every
+      write pays a cross-region round trip, typically 100+ ms. It is the right choice for data where the business
+      cannot tolerate any loss or conflict, and the latency is acceptable. It is expensive and operationally complex,
+      which is why it is reserved for the few datasets that genuinely require it.</p>
+
+      <h4>Choosing between them</h4>
+      <p>Ask four questions:</p>
+      <ol>
+        <li><strong>What is the RPO?</strong> Zero means sync replication or consensus. Seconds is acceptable for
+        async.</li>
+        <li><strong>What is the RTO?</strong> Minutes means active-passive with automatic failover. Seconds means
+        active-active or regional ownership.</li>
+        <li><strong>Does the data tolerate conflicts?</strong> If yes, active-active is available. If no, regional
+        ownership or consensus.</li>
+        <li><strong>What is the write latency budget?</strong> Under 10 ms means local writes (regional or active-active).
+        Over 100 ms allows consensus.</li>
+      </ol>
+
+      <h4>Data residency and compliance</h4>
+      <p>A critical non-technical constraint: GDPR, data sovereignty, and industry regulations often require that
+      certain data never leaves a region. This pushes towards regional ownership with strict isolation — the
+      European data lives in Europe and is never replicated outside. Designing for residency from the start is far
+      easier than retrofitting it: the tenant or user record needs a region field, and every query must respect it.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: “I'll shard users by region so writes are local and strongly consistent, replicate asynchronously for
+        DR with an RPO of a few seconds, and keep the ledger on a global-consensus store because the RPO there must
+        be zero.” That names three patterns for three data types and shows you understand that a single strategy is
+        rarely correct.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- NEXT PART -->
+  <section class="next-part">
+    <h3>Coming in Volume 5 — Partitioning &amp; Sharding</h3>
+    <p>Replication makes copies; partitioning splits them. Volume 5 covers the mechanics of horizontal scaling:
+    range, hash, and directory-based partitioning; consistent hashing and virtual nodes; choosing a shard key;
+    the celebrity/hot-key problem; cross-shard queries and transactions; resharding without downtime; global
+    secondary indexes; and monitoring shard balance.</p>
+    <ul class="next-list">
+      <li>Partitioning vs sharding</li>
+      <li>Range, hash, list, directory partitioning</li>
+      <li>Consistent hashing and virtual nodes</li>
+      <li>Choosing a shard key</li>
+      <li>Hot partitions and the celebrity problem</li>
+      <li>Cross-shard queries and transactions</li>
+      <li>Resharding and rebalancing without downtime</li>
+      <li>Global secondary indexes</li>
+      <li>Shard-aware clients and routing tables</li>
+      <li>Monitoring shard balance and hotspots</li>
+    </ul>
+  </section>
+
+</div>
+</body>
+</html>
