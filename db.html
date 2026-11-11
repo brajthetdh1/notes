@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Replication · Sharding · System Design — Complete Interview Q&amp;A</title>
+<style>
+  :root{
+    --bg:#070b14;
+    --bg2:#0b1120;
+    --card:#0f172a;
+    --card2:#131f38;
+    --text:#e8eefc;
+    --muted:#8fa0bd;
+    --border:#1e2c47;
+    --rep:#22d3ee;
+    --rep-soft:rgba(34,211,238,.12);
+    --sha:#a78bfa;
+    --sha-soft:rgba(167,139,250,.12);
+    --sd:#34d399;
+    --sd-soft:rgba(52,211,153,.12);
+    --amber:#fbbf24;
+    --red:#f87171;
+    --blue:#60a5fa;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0; background:
+      radial-gradient(1200px 600px at 10% -10%, rgba(34,211,238,.10), transparent 60%),
+      radial-gradient(1000px 500px at 90% 0%, rgba(167,139,250,.10), transparent 60%),
+      radial-gradient(900px 600px at 50% 100%, rgba(52,211,153,.07), transparent 60%),
+      var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.7; font-size:16px;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ---------- HERO ---------- */
+  header.hero{
+    position:relative; padding:64px 24px 48px; text-align:center; overflow:hidden;
+    border-bottom:1px solid var(--border);
+  }
+  header.hero::before{
+    content:""; position:absolute; inset:0; z-index:-1;
+    background:
+      linear-gradient(135deg, rgba(34,211,238,.10), rgba(167,139,250,.10) 45%, rgba(52,211,153,.10));
+    animation:shift 14s ease-in-out infinite alternate;
+  }
+  @keyframes shift{
+    0%{transform:scale(1) translate(0,0);}
+    100%{transform:scale(1.15) translate(-2%, 1%);}
+  }
+  .kicker{
+    display:inline-block; font-size:.72rem; letter-spacing:.22em; text-transform:uppercase;
+    color:var(--rep); border:1px solid rgba(34,211,238,.35); border-radius:999px;
+    padding:5px 16px; margin-bottom:18px; background:rgba(34,211,238,.06);
+  }
+  header.hero h1{
+    margin:0 0 14px; font-size:clamp(1.7rem, 4.2vw, 2.9rem);
+    letter-spacing:-.03em; line-height:1.15;
+    background:linear-gradient(100deg,#fff 0%, var(--rep) 38%, var(--sha) 68%, var(--sd) 100%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  header.hero p{
+    margin:0 auto; max-width:780px; color:var(--muted); font-size:1.02rem;
+  }
+  .stats{
+    display:flex; flex-wrap:wrap; justify-content:center; gap:14px; margin-top:28px;
+  }
+  .stat{
+    background:rgba(255,255,255,.035); border:1px solid var(--border);
+    border-radius:12px; padding:12px 22px; min-width:120px;
+  }
+  .stat b{display:block; font-size:1.5rem; line-height:1.2;}
+  .stat span{font-size:.74rem; letter-spacing:.08em; text-transform:uppercase; color:var(--muted);}
+  .stat.rep b{color:var(--rep);} .stat.sha b{color:var(--sha);} .stat.sd b{color:var(--sd);}
+
+  /* ---------- LAYOUT ---------- */
+  .wrap{max-width:1080px; margin:0 auto; padding:40px 20px 90px;}
+
+  /* ---------- TOC ---------- */
+  nav.toc{
+    background:linear-gradient(180deg, rgba(15,23,42,.9), rgba(11,17,32,.9));
+    border:1px solid var(--border); border-radius:16px;
+    padding:24px 28px; margin-bottom:16px;
+    box-shadow:0 20px 50px -30px rgba(0,0,0,.9);
+  }
+  nav.toc h2{
+    margin:0 0 16px; font-size:1rem; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--muted); font-weight:600;
+  }
+  nav.toc ol{
+    margin:0; padding:0; list-style:none;
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:8px;
+  }
+  nav.toc a{
+    display:flex; align-items:center; gap:10px; text-decoration:none;
+    color:var(--text); font-size:.94rem; padding:10px 12px; border-radius:10px;
+    border:1px solid transparent; transition:.18s;
+  }
+  nav.toc a:hover{background:rgba(255,255,255,.04); border-color:var(--border);}
+  nav.toc a i{
+    width:8px; height:8px; border-radius:50%; flex:0 0 auto;
+  }
+  .dot-rep{background:var(--rep); box-shadow:0 0 10px var(--rep);}
+  .dot-sha{background:var(--sha); box-shadow:0 0 10px var(--sha);}
+  .dot-sd{background:var(--sd); box-shadow:0 0 10px var(--sd);}
+
+  /* ---------- SECTION HEADERS ---------- */
+  section{margin-top:56px;}
+  .sec-head{
+    display:flex; align-items:center; gap:16px; margin-bottom:8px;
+    padding-bottom:14px; border-bottom:1px solid var(--border);
+  }
+  .sec-head .badge{
+    flex:0 0 auto; width:46px; height:46px; border-radius:14px;
+    display:grid; place-items:center; font-size:1.3rem; font-weight:700;
+    border:1px solid var(--border);
+  }
+  .sec-rep .badge{background:var(--rep-soft); color:var(--rep); border-color:rgba(34,211,238,.35);}
+  .sec-sha .badge{background:var(--sha-soft); color:var(--sha); border-color:rgba(167,139,250,.35);}
+  .sec-sd  .badge{background:var(--sd-soft);  color:var(--sd);  border-color:rgba(52,211,153,.35);}
+  .sec-head h2{margin:0; font-size:1.55rem; letter-spacing:-.02em;}
+  .sec-head p{margin:2px 0 0; color:var(--muted); font-size:.9rem;}
+  .sec-rep h2{color:var(--rep);}
+  .sec-sha h2{color:var(--sha);}
+  .sec-sd  h2{color:var(--sd);}
+
+  /* ---------- CARDS / DETAILS ---------- */
+  details.card{
+    position:relative;
+    background:linear-gradient(180deg, rgba(19,31,56,.85), rgba(15,23,42,.85));
+    border:1px solid var(--border); border-radius:14px;
+    margin:14px 0; padding:0 22px;
+    overflow:hidden; transition:.22s ease;
+  }
+  details.card::before{
+    content:""; position:absolute; left:0; top:0; bottom:0; width:3px;
+    background:var(--rep); opacity:.7; transition:.22s;
+  }
+  .sha details.card::before{background:var(--sha);}
+  .sd details.card::before{background:var(--sd);}
+  details.card:hover{border-color:rgba(255,255,255,.14); transform:translateY(-1px);}
+  details.card[open]{
+    background:linear-gradient(180deg, rgba(24,38,68,.95), rgba(15,23,42,.95));
+    border-color:rgba(255,255,255,.16);
+    box-shadow:0 24px 60px -34px rgba(0,0,0,.95);
+  }
+  details.card[open]::before{opacity:1; width:4px;}
+
+  details.card > summary{
+    cursor:pointer; list-style:none; padding:18px 0 18px 8px;
+    display:flex; align-items:flex-start; gap:14px; font-weight:600; font-size:1.02rem;
+  }
+  details.card > summary::-webkit-details-marker{display:none;}
+  .chev{
+    flex:0 0 auto; width:22px; height:22px; margin-top:2px; border-radius:6px;
+    display:grid; place-items:center; font-size:.72rem; color:var(--muted);
+    border:1px solid var(--border); background:rgba(255,255,255,.03);
+    transition:transform .22s ease, color .22s;
+  }
+  details.card[open] .chev{transform:rotate(90deg); color:var(--rep);}
+  .sha details.card[open] .chev{color:var(--sha);}
+  .sd details.card[open] .chev{color:var(--sd);}
+  details.card > summary:hover .chev{color:var(--text);}
+  details.card > summary .qtext{flex:1 1 auto;}
+
+  .tags{display:flex; gap:6px; flex-wrap:wrap; margin-left:auto; flex:0 0 auto;}
+  .tag{
+    font-size:.64rem; letter-spacing:.09em; text-transform:uppercase;
+    padding:3px 9px; border-radius:999px; border:1px solid var(--border);
+    color:var(--muted); background:rgba(255,255,255,.03); white-space:nowrap;
+  }
+  .tag.core{color:var(--rep); border-color:rgba(34,211,238,.35); background:rgba(34,211,238,.07);}
+  .tag.adv{color:var(--amber); border-color:rgba(251,191,36,.35); background:rgba(251,191,36,.07);}
+  .tag.trap{color:var(--red); border-color:rgba(248,113,113,.35); background:rgba(248,113,113,.07);}
+  .tag.design{color:var(--sd); border-color:rgba(52,211,153,.35); background:rgba(52,211,153,.07);}
+  .tag.sha{color:var(--sha); border-color:rgba(167,139,250,.35); background:rgba(167,139,250,.07);}
+
+  .answer{
+    padding:0 0 22px 36px; color:#d3ddf0; font-size:.96rem;
+    animation:fade .3s ease;
+  }
+  @keyframes fade{from{opacity:0; transform:translateY(-4px);} to{opacity:1; transform:none;}}
+  .answer p{margin:0 0 13px;}
+  .answer p:last-child{margin-bottom:0;}
+  .answer ul, .answer ol{margin:0 0 14px; padding-left:22px;}
+  .answer li{margin:7px 0;}
+  .answer strong{color:#fff;}
+  .answer em{color:#bfe3ff; font-style:normal;}
+  .answer code{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:.86em; background:#060a12; color:var(--sd);
+    padding:2px 7px; border-radius:5px; border:1px solid #172136;
+  }
+  .answer pre{
+    background:#060a12; border:1px solid #172136; border-radius:10px;
+    padding:14px 16px; overflow-x:auto; margin:0 0 14px; font-size:.85rem;
+  }
+  .answer pre code{background:none; border:none; padding:0; color:#bcd7ff;}
+
+  .callout{
+    border-left:3px solid var(--amber); background:rgba(251,191,36,.06);
+    border-radius:0 8px 8px 0; padding:12px 16px; margin:0 0 14px; font-size:.92rem;
+  }
+  .callout.trap{border-color:var(--red); background:rgba(248,113,113,.06);}
+  .callout.good{border-color:var(--sd); background:rgba(52,211,153,.06);}
+  .callout b{color:#fff;}
+
+  table{
+    width:100%; border-collapse:collapse; margin:0 0 16px; font-size:.88rem;
+    border:1px solid var(--border); border-radius:8px; overflow:hidden;
+  }
+  th,td{border-bottom:1px solid var(--border); padding:9px 12px; text-align:left; vertical-align:top;}
+  th{background:#0b1526; color:var(--rep); font-weight:600; font-size:.78rem; letter-spacing:.05em; text-transform:uppercase;}
+  tr:nth-child(even) td{background:rgba(255,255,255,.015);}
+  td code{font-size:.84em;}
+
+  footer{
+    text-align:center; color:var(--muted); font-size:.86rem;
+    padding:40px 20px; border-top:1px solid var(--border);
+    background:rgba(0,0,0,.2);
+  }
+  footer b{color:var(--text);}
+
+  @media (max-width:640px){
+    header.hero{padding:44px 16px 34px;}
+    .wrap{padding:24px 12px 60px;}
+    details.card{padding:0 14px;}
+    .answer{padding-left:6px;}
+    .tags{display:none;}
+    nav.toc ol{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <span class="kicker">Interview Question Bank</span>
+  <h1>Replication · Sharding · System Design</h1>
+  <p>Every question from the exhaustive list — with full written answers, trade-off analysis, failure-mode reasoning, and the senior-level signals interviewers listen for. Click any question to expand the answer.</p>
+  <div class="stats">
+    <div class="stat rep"><b>11</b><span>Replication</span></div>
+    <div class="stat sha"><b>9</b><span>Sharding</span></div>
+    <div class="stat sd"><b>25</b><span>System Design</span></div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<nav class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#rep"><i class="dot-rep"></i>Part 1 — Database Replication</a></li>
+    <li><a href="#sha"><i class="dot-sha"></i>Part 2 — Database Sharding</a></li>
+    <li><a href="#sd"><i class="dot-sd"></i>Part 3 — System Design in Context</a></li>
+  </ol>
+</nav>
+
+<!-- ================================================================
+     PART 1 — REPLICATION
+================================================================= -->
+<section id="rep" class="sec-rep">
+  <div class="sec-head">
+    <div class="badge">1</div>
+    <div>
+      <h2>Database Replication</h2>
+      <p>Consistency, durability, topology, failover, and multi-region design.</p>
+    </div>
+  </div>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">What is the difference between synchronous and asynchronous replication? What does each sacrifice?</span>
+      <span class="tags"><span class="tag core">Core</span></span>
+    </summary>
+    <div class="answer">
+      <p><strong>Synchronous replication</strong> means the primary does not acknowledge a write to the client until at least one replica has confirmed receipt and persisted the change. The consequence is a zero <em>Recovery Point Objective</em> (RPO): if the primary fails and you promote that replica, no committed write is lost. The price is latency — every write requires an additional network round trip, and more importantly, <strong>availability is coupled to replica health</strong>. If the synchronous replica goes down, writes on the primary block entirely unless the system degrades to async.</p>
+      <p><strong>Asynchronous replication</strong> means the primary writes to its own log, acknowledges the client immediately, and streams changes to replicas in the background. Write latency is low and the primary is never blocked by replica failure. The risk is replication lag: if the primary crashes before changes are streamed, the last few committed writes are lost. RPO is non-zero.</p>
+      <table>
+        <tr><th>Aspect</th><th>Synchronous</th><th>Asynchronous</th></tr>
+        <tr><td>RPO</td><td>Zero (no committed write lost)</td><td>Non-zero (last writes may be lost)</td></tr>
+        <tr><td>Write latency</td><td>Higher (extra round trip)</td><td>Lower</td></tr>
+        <tr><td>Write availability</td><td>Coupled to replica health</td><td>Independent of replica health</td></tr>
+        <tr><td>Typical use</td><td>Financial ledgers, inventory</td><td>Analytics replicas, read scaling</td></tr>
+      </table>
+      <div class="callout good"><b>Interview signal:</b> Frame the choice as an RPO-vs-latency trade-off, not a binary preference. A strong answer names the workload ("for payments I accept the latency cost of synchronous") rather than reciting definitions.</div>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">What is semi-synchronous replication?</span>
+      <span class="tags"><span class="tag core">Core</span></span>
+    </summary>
+    <div class="answer">
+      <p><strong>Semi-synchronous replication</strong> is a middle ground: the primary waits for acknowledgment from <em>one</em> replica (not all of them) before acknowledging the client. This gives you durability against the loss of a single node — the write exists on at least two machines — while avoiding the latency cost of waiting for every replica.</p>
+      <p>MySQL's semi-sync plugin is the classic example. You configure how many replicas must acknowledge (usually one) and how long the primary waits before falling back to async. The fallback behaviour matters: if the designated replica is slow or down, the primary may time out and continue asynchronously, which silently reopens the data-loss window. Interviewers often probe this: <em>"What happens if the semi-sync replica fails mid-operation?"</em> The answer is that the primary degrades to async after a timeout, so you must monitor and alert on that degradation.</p>
+      <p>Use semi-sync when you want meaningful durability with tolerable latency — a common production default for transactional databases that cannot afford full synchronous fan-out but refuse to accept pure async data loss.</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">What is replication lag, and how do you handle the read-your-writes problem?</span>
+      <span class="tags"><span class="tag core">Core</span></span>
+    </summary>
+    <div class="answer">
+      <p><strong>Replication lag</strong> is the delay between a write being committed on the primary and its becoming visible on a replica. Under light load it is milliseconds; under heavy write load, a slow network, or a large batch operation it can stretch to seconds. Lag is inherent to asynchronous replication — the goal is to measure it accurately and hide its user-visible effects.</p>
+      <p>The <strong>read-your-writes anomaly</strong> is the classic symptom. A user updates their profile → the write goes to the primary → success is returned → the user's next request is routed to a lagging replica → the old profile is displayed. From the user's perspective, the update silently failed. This is one of the most common consistency bugs in read-scaled systems.</p>
+      <p>Mitigations, in increasing order of sophistication:</p>
+      <ul>
+        <li><strong>Sticky primary routing:</strong> route a user's own reads to the primary for a short window (e.g., 5 seconds) after any write. Simple, but coarse — it adds primary load and does not help across devices.</li>
+        <li><strong>Read-your-writes token:</strong> the primary returns a logical timestamp or WAL LSN on write; the client passes it on subsequent reads; the router checks replica progress and falls back to the primary if the replica has not caught up.</li>
+        <li><strong>Session pinning:</strong> keep the user's session on the same replica that has applied their writes, advancing the pin as lag is resolved.</li>
+      </ul>
+      <div class="callout"><b>Related anomalies:</b> monotonic reads (data appears to move backwards across reads) is fixed by session stickiness; causality violations (seeing a reply before its parent post) are fixed by causal tokens or consistent-prefix reads.</div>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">What are other replication lag anomalies beyond read-your-writes?</span>
+      <span class="tags"><span class="tag adv">Advanced</span></span>
+    </summary>
+    <div class="answer">
+      <p>Beyond read-your-writes, two other anomalies appear when reads can hit different replicas with different lag:</p>
+      <ul>
+        <li><strong>Monotonic reads violation:</strong> a user refreshes and sees newer data, then refreshes again and sees older data because the second read hit a more-lagging replica. The fix is session stickiness — pin a user's reads to one replica (or a set) for the duration of their session, or track a per-user high-water mark and refuse to serve below it.</li>
+        <li><strong>Causality violation:</strong> a user sees a comment before the post it replies to, or a message reply before the original, because the two records were written at different times and replicated in an order that hides the dependency. Fixes include <em>causal consistency tokens</em> (carry a vector clock with each record), <em>consistent-prefix reads</em> (ensure causally related data is ordered), or writing related records in the same partition so they replicate together.</li>
+      </ul>
+      <p>These matter because users experience them as "the app is broken" or "data disappeared," which erodes trust far more than raw latency does. A senior answer names the anomaly, the user-visible symptom, and the mechanism that bounds it.</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">What is a multi-master (active-active) replication topology, and when would you use it?</span>
+      <span class="tags"><span class="tag adv">Advanced</span></span>
+    </summary>
+    <div class="answer">
+      <p>In <strong>multi-master replication</strong>, more than one node accepts writes, and changes are propagated between nodes. This is attractive because each region or node can accept writes locally — a user in Frankfurt writes to the Frankfurt node with local latency, instead of paying a cross-Atlantic round trip to a primary in Virginia.</p>
+      <p>The fundamental problem is <strong>write conflicts</strong>. If two users in two regions update the same record at the same time, both local commits succeed but they contradict each other. Replication will not resolve that automatically. Common strategies:</p>
+      <ul>
+        <li><strong>Last-write-wins (LWW):</strong> highest timestamp wins. Simple, but depends on clock synchronization and silently discards data — dangerous for anything beyond ephemeral state.</li>
+        <li><strong>Vector clocks / version vectors:</strong> detect concurrent writes and surface conflicts to the application for explicit resolution.</li>
+        <li><strong>CRDTs (Conflict-free Replicated Data Types):</strong> design data structures whose merge operation is deterministic and commutative (counters, sets, sequences), so concurrent updates always converge without application intervention.</li>
+        <li><strong>Consensus-based strong consistency:</strong> systems like Spanner and CockroachDB use Paxos/Raft to serialize writes globally, eliminating most conflicts at the cost of higher write latency.</li>
+      </ul>
+      <p>Use multi-master when write locality genuinely matters (globally distributed users, offline-capable clients) and when the data model can tolerate or resolve conflicts — not as a general default.</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">What are the trade-offs of primary-replica vs multi-primary replication?</span>
+      <span class="tags"><span class="tag adv">Advanced</span></span>
+    </summary>
+    <div class="answer">
+      <p><strong>Primary-replica</strong> gives you a single write authority, which means a simple conflict model: there are no conflicting writes by construction. Reads scale out to replicas easily. The costs are (a) all writes funnel through one node, so write throughput is capped by that node's capacity and distant writers pay long round trips; (b) primary failure blocks writes until failover completes; and (c) failover under async replication can lose recent writes.</p>
+      <p><strong>Multi-primary</strong> removes the write bottleneck and gives local write latency in every region. The costs are conflict resolution (complex application logic or CRDT design), higher operational complexity (topology management, loop prevention, schema-change coordination across nodes), and the risk of subtle divergence if conflict logic has bugs.</p>
+      <table>
+        <tr><th>Dimension</th><th>Primary-replica</th><th>Multi-primary</th></tr>
+        <tr><td>Write latency</td><td>Depends on distance to primary</td><td>Local in every region</td></tr>
+        <tr><td>Write throughput</td><td>Capped by primary</td><td>Aggregate across nodes</td></tr>
+        <tr><td>Conflict model</td><td>None (single writer)</td><td>Explicit resolution required</td></tr>
+        <tr><td>Failover</td><td>Promotion needed; possible data loss</td><td>No promotion; writes continue locally</td></tr>
+        <tr><td>Operational complexity</td><td>Low</td><td>High</td></tr>
+      </table>
+      <p>Most teams start with primary-replica and only move to multi-primary when write locality or write throughput becomes the measured bottleneck.</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">What is a quorum in replication?</span>
+      <span class="tags"><span class="tag core">Core</span></span>
+    </summary>
+    <div class="answer">
+      <p>A <strong>quorum</strong> is the minimum number of replicas that must acknowledge an operation before it is considered successful. With <code>N</code> replicas, a write quorum <code>W</code> and a read quorum <code>R</code> such that <code>W + R &gt; N</code> guarantees that every read overlaps with the most recent write — a strong-consistency property without requiring all replicas to participate.</p>
+      <p>Common configurations:</p>
+      <ul>
+        <li><code>N=3, W=2, R=2</code> — tolerates one node failure for both reads and writes, while guaranteeing consistency.</li>
+        <li><code>N=3, W=3, R=1</code> — writes require all replicas (slow, intolerant of failure), reads are fast. Suited to write-rare, read-heavy workloads.</li>
+        <li><code>N=3, W=1, R=1</code> — low latency, eventual consistency; useful when staleness is acceptable.</li>
+      </ul>
+      <p>Quorums are the foundation of systems like Cassandra, DynamoDB, and Riak, where consistency is tunable per operation. The trade-off is latency and availability versus freshness: higher quorums mean more nodes must respond, so a single slow node can stall the operation. Interviewers often follow up with <em>"what happens if a write succeeds on W nodes but a node later fails?"</em> — the answer is that read repair and hinted handoff or anti-entropy processes reconcile the gap once the node returns.</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">Design a read routing strategy for a high-traffic web application that uses PostgreSQL with two read replicas.</span>
+      <span class="tags"><span class="tag design">Design</span></span>
+    </summary>
+    <div class="answer">
+      <p>Start with the constraint: writes must go to the primary, and reads should be spread across two replicas to reduce primary load — but you cannot blindly route all reads to replicas because of read-your-writes and lag anomalies.</p>
+      <p>A concrete architecture:</p>
+      <ul>
+        <li><strong>Write path:</strong> all INSERT/UPDATE/DELETE and transactions go to the primary. Use a separate connection pool per role so writes cannot accidentally land on a replica.</li>
+        <li><strong>Read path:</strong> route reads to replicas using least-connections or round-robin, but exclude replicas that fail a health check. Health checks should include actual query probes, not just TCP pings.</li>
+        <li><strong>Read-your-writes:</strong> after a write, return a logical LSN or timestamp to the client. On subsequent reads, the router checks each replica's applied LSN (available via <code>pg_stat_replication</code> or the replica's recovery position) and serves only from replicas that have caught up to the client's LSN; otherwise fall back to the primary. A simpler alternative is to pin the user's session to the primary for a short window after any write.</li>
+        <li><strong>Analytics isolation:</strong> route heavy reporting or aggregation queries to a dedicated replica (or a separate analytics replica) so they cannot starve the latency-sensitive read pool.</li>
+        <li><strong>Degradation:</strong> if both replicas are unhealthy, fail open to the primary rather than failing reads — availability over read scaling, with an alert so the team responds.</li>
+      </ul>
+      <p>This design makes the consistency contract explicit: normal reads are eventually consistent, and a user's own reads are strongly consistent via LSN fallback. That is the kind of precision senior interviewers look for.</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">What happens if the primary fails in primary-replica replication? What is the risk of automatic failover?</span>
+      <span class="tags"><span class="tag trap">Trap</span></span>
+    </summary>
+    <div class="answer">
+      <p>If the primary fails, the system loses its write authority. Reads can continue from replicas (possibly stale), but no writes succeed until a new primary is appointed or the old one recovers. The failover process involves detecting the failure, choosing a replica to promote, reconfiguring clients and remaining replicas, and fencing the old primary if it returns.</p>
+      <p>The risks are:</p>
+      <ul>
+        <li><strong>Data loss under async replication:</strong> the promoted replica may be missing the last few committed writes. This is unavoidable without synchronous replication; the mitigation is to bound the lag and accept the RPO, or to use semi-sync.</li>
+        <li><strong>Split-brain:</strong> if the old primary comes back and still believes it is the primary, both nodes accept writes and the data diverges. Fencing (STONITH, network isolation, or a quorum-based leader election) is mandatory. This is the risk most candidates miss.</li>
+        <li><strong>False positives:</strong> a transient network partition or a slow node can be misdiagnosed as failure, triggering an unnecessary failover and its associated data loss. Detection should use multiple consecutive health-check failures and quorum agreement where possible.</li>
+        <li><strong>Cascading client errors:</strong> connection pools must re-resolve the new primary quickly, or clients keep hammering the dead node.</li>
+      </ul>
+      <div class="callout trap"><b>Senior signal:</b> Mention fencing and split-brain before the interviewer asks. Automatic failover without fencing is a data-corruption bug waiting to happen.</div>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">How would you design replication for a multi-region application?</span>
+      <span class="tags"><span class="tag design">Design</span></span>
+    </summary>
+    <div class="answer">
+      <p>The design depends on two questions: where must writes be fast, and how much data loss can you tolerate on a regional failure?</p>
+      <ul>
+        <li><strong>Read locality:</strong> deploy at least one replica in each region so reads are served locally. Users in Europe read from the European replica; latency drops from a cross-ocean round trip to single-digit milliseconds.</li>
+        <li><strong>Write strategy:</strong> the simplest model is a single primary region with asynchronous replication to other regions. Writes from other regions are routed to the primary, paying cross-region latency but keeping a simple consistency model. If write latency is unacceptable, use multi-primary per region with conflict resolution, or a consensus system (Spanner/CockroachDB) that provides strong consistency at the cost of higher write latency.</li>
+        <li><strong>Disaster recovery:</strong> maintain an asynchronous replica in a geographically separate region with a bounded lag. On a regional outage, promote it. Accept the RPO implied by the lag; monitor it continuously.</li>
+        <li><strong>Quorum across regions:</strong> with three regions (e.g., US, EU, APAC), a quorum of two regions can tolerate one regional failure while preserving consistency. Writes require acknowledgment from a majority, so latency is the round trip to the second region.</li>
+        <li><strong>Failover routing:</strong> use global DNS or a traffic manager with health checks to steer users to the surviving region, and ensure clients reconnect to the new primary automatically.</li>
+      </ul>
+      <p>The interview-winning move is to state the RPO/RTO targets first, then show that your topology meets them — rather than drawing regions and hoping the interviewer is satisfied.</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">How do you measure and monitor replication health?</span>
+      <span class="tags"><span class="tag core">Core</span></span>
+    </summary>
+    <div class="answer">
+      <p>Effective monitoring goes beyond "is the replica up?" to "is it keeping up, and can it serve consistent reads?" The key metrics are:</p>
+      <ul>
+        <li><strong>Replication lag:</strong> the gap between the primary's write position and the replica's applied position, measured in bytes (WAL segments) or seconds. In PostgreSQL, <code>pg_stat_replication</code> exposes <code>write_lag</code>, <code>flush_lag</code>, and <code>replay_lag</code>; in MySQL, <code>SHOW REPLICA STATUS</code> gives position and time behind.</li>
+        <li><strong>Replica apply rate:</strong> how fast the replica is applying changes relative to the primary's write rate. A shrinking rate indicates the replica is falling behind.</li>
+        <li><strong>Replication slot / connection status:</strong> is the replication connection alive? Is a slot retaining WAL excessively and risking disk exhaustion on the primary?</li>
+        <li><strong>Heartbeat latency:</strong> write a known timestamp to the primary and read it from the replica to measure true end-to-end lag.</li>
+      </ul>
+      <div class="callout trap"><b>Classic trap:</b> in MySQL, <code>Seconds_Behind_Master = 0</code> does not reliably mean zero lag. If the replica SQL thread is idle or stalled, the timestamp comparison can report zero while the replica is actually behind. Use an external heartbeat tool (e.g., <code>pt-heartbeat</code>) for accurate measurement.</div>
+      <p>Alert on sustained lag above a threshold, on replication connection drops, and on WAL/slot accumulation. Tie alerts to user impact: lag matters because it causes stale reads, so route monitoring thresholds to the consistency contract you've promised.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ================================================================
+     PART 2 — SHARDING
+================================================================= -->
+<section id="sha" class="sec-sha">
+  <div class="sec-head">
+    <div class="badge">2</div>
+    <div>
+      <h2>Database Sharding</h2>
+      <p>Partitioning strategies, shard-key selection, hot keys, and resharding.</p>
+    </div>
+  </div>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">What is database sharding, and what are the trade-offs between range, hash, and directory-based strategies?</span>
+      <span class="tags"><span class="tag sha">Sharding</span><span class="tag core">Core</span></span>
+    </summary>
+    <div class="answer">
+      <p><strong>Sharding</strong> horizontally partitions rows across independent database instances so that no single machine holds all the data. It scales write throughput and storage beyond a single node's ceiling, at the cost of cross-shard query complexity. The strategy determines the balance between even distribution, query flexibility, and operational overhead.</p>
+      <ul>
+        <li><strong>Range sharding</strong> assigns contiguous key ranges to each shard (e.g., user IDs 1–1M to shard A, 1M–2M to shard B). Range queries on the shard key are efficient, and data locality is natural. The danger is <strong>hot spots</strong>: if the key is monotonically increasing (timestamps, auto-increment IDs), every new write lands on the last shard while earlier shards idle.</li>
+        <li><strong>Hash sharding</strong> computes <code>hash(key) % N</code> and assigns to a shard. Writes spread evenly and hot spots are rare. The cost is that range queries become scatter-gather — a query for "orders in the last 24 hours" must query every shard and merge results.</li>
+        <li><strong>Directory-based sharding</strong> maintains a lookup service mapping keys to shards. It is the most flexible: you can move any key to any shard, and different keys can follow different strategies. The directory itself becomes a highly-available, low-latency dependency, and it must be cached aggressively.</li>
+      </ul>
+      <div class="callout"><b>Key constraint:</b> cross-shard joins do not work natively. The data model must be designed for <em>co-location</em> — everything you join together should share the same shard key. A common design puts a user and all their related records (orders, messages, settings) on the same shard so per-user operations are single-shard.</div>
+      <p>The choice is workload-driven: read-heavy with range scans favors range; write-heavy with point lookups favors hash; complex migration or multi-strategy needs favor directory. Many production systems combine them — range-shard tenants, then hash within each tenant.</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">When would you choose hash sharding over range sharding for a multi-tenant SaaS application?</span>
+      <span class="tags"><span class="tag sha">Sharding</span></span>
+    </summary>
+    <div class="answer">
+      <p>Choose hash sharding when <strong>uniform load distribution across shards matters more than range-query flexibility on the shard key</strong>. In a multi-tenant SaaS application, tenants vary enormously in activity: a handful of enterprise tenants can generate more writes than thousands of small accounts combined. If you range-shard by tenant ID, a newly onboarded enterprise tenant may land on one shard and overwhelm it, while other shards sit idle.</p>
+      <p>Hashing the tenant ID spreads tenants probabilistically across shards, so no single shard receives a disproportionate share. The trade-off is that you lose range queries on tenant ID — but in a typical SaaS app, the dominant query is "fetch data for tenant X," which is a point lookup and works perfectly with hashing. Cross-tenant range queries (e.g., "all tenants created last month") are rare operational queries and can be served by a separate analytics replica or data warehouse.</p>
+      <div class="callout trap"><b>Must-avoid mistake:</b> never shard on a timestamp or auto-increment ID in a write-heavy system. All writes funnel to the shard holding the latest range, defeating the purpose of sharding and creating a guaranteed hot spot.</div>
+      <p>A hybrid approach is common: range-shard large tenants onto dedicated shards (so their heavy load is isolated and their range queries are fast), and hash-shard the long tail of small tenants for even distribution. This gives you the best of both strategies where each matters.</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">Explain the difference between sharding and partitioning.</span>
+      <span class="tags"><span class="tag sha">Sharding</span><span class="tag core">Core</span></span>
+    </summary>
+    <div class="answer">
+      <p><strong>Partitioning</strong> splits data into smaller pieces within a single database instance. The database engine manages the partitions: queries are routed to the relevant partition, indexes are maintained per partition, and the whole thing behaves like one logical database. Partitioning improves manageability (drop an old partition instead of deleting rows), query performance (prune irrelevant partitions), and maintenance (vacuum/optimize one partition at a time). It does <em>not</em> scale write throughput beyond what one machine can handle.</p>
+      <p><strong>Sharding</strong> distributes data across multiple independent database instances. Each shard is a separate database with its own CPU, memory, disk, and connection limits. Sharding scales write throughput and storage horizontally, but introduces cross-shard query complexity, distributed transactions, resharding operations, and a routing layer. In practice, sharding is a form of horizontal partitioning across nodes.</p>
+      <p>The relationship: partitioning is a single-node concern; sharding is a distributed-systems concern. You can use both together — partition each shard's tables by time for manageability, while sharding by tenant for scale. A strong answer notes that you should exhaust partitioning, indexes, and read replicas before sharding, because sharding is a one-way complexity increase.</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">What does a good shard key look like?</span>
+      <span class="tags"><span class="tag sha">Sharding</span></span>
+    </summary>
+    <div class="answer">
+      <p>A good shard key has four properties:</p>
+      <ul>
+        <li><strong>High cardinality:</strong> many distinct values, so data can be spread finely. A boolean flag is a terrible shard key; a user ID is excellent.</li>
+        <li><strong>Even access distribution:</strong> no subset of keys receives disproportionate traffic. A "celebrity" user ID that receives millions of reads creates a hot shard even if data volume is balanced.</li>
+        <li><strong>Query alignment:</strong> the most common queries should hit a single shard. If 90% of queries are "get user X's data," sharding on user ID makes them single-shard point lookups.</li>
+        <li><strong>Stability:</strong> the key should not change over an entity's lifetime. A mutable key forces re-sharding when it changes.</li>
+      </ul>
+      <p>Common mistakes: sharding on a low-cardinality field (country, status), sharding on a timestamp or auto-increment ID (monotonic → write hot spot on the last shard), and sharding on a key that does not align with the access pattern (shard on order ID when every query fetches by user ID, forcing scatter-gather).</p>
+      <div class="callout good"><b>Design principle:</b> choose the shard key from the <em>access pattern</em>, not from the entity's primary key. The shard key should be whichever field appears in the WHERE clause of your most frequent and most latency-sensitive queries.</div>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">How do you handle a "celebrity" or hot-key problem where one shard receives disproportionate traffic?</span>
+      <span class="tags"><span class="tag sha">Sharding</span><span class="tag trap">Trap</span></span>
+    </summary>
+    <div class="answer">
+      <p>The celebrity problem: one shard key (a famous user, a viral post, a flash-sale SKU) receives orders of magnitude more traffic than its peers. Data volume may be balanced, but request volume is not — and the shard holding that key saturates while others idle.</p>
+      <p>Detection first: per-shard latency, QPS, and CPU metrics will show the imbalance. Slow-query logs identify the offending key.</p>
+      <p>Mitigations, in order of effort:</p>
+      <ul>
+        <li><strong>Cache aggressively:</strong> serve the hot key's reads from a distributed cache (Redis) or CDN so the shard sees a fraction of the traffic. This is usually the first and cheapest fix.</li>
+        <li><strong>Isolate the hot key:</strong> move it to a dedicated shard via a directory entry, so its load no longer affects other keys. This is a targeted fix for known celebrities.</li>
+        <li><strong>Split the hot shard:</strong> if the shard holds many hot keys, split it into smaller shards (range split) to spread load.</li>
+        <li><strong>Read replicas for the hot shard:</strong> if the problem is read-heavy, add replicas and load-balance reads across them.</li>
+        <li><strong>Salting:</strong> for write-heavy hot keys, append a random suffix to spread writes across multiple shard keys, then aggregate reads. This complicates read logic, so use it only when writes are the bottleneck.</li>
+        <li><strong>Rate limiting / load shedding:</strong> a short-term defensive measure at the API layer to protect the shard from cascading failure.</li>
+      </ul>
+      <p>The senior signal is naming detection before mitigation, and preferring cache isolation over structural resharding because it is reversible and fast.</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">How do you handle resharding — adding a new shard — without downtime?</span>
+      <span class="tags"><span class="tag sha">Sharding</span><span class="tag adv">Advanced</span></span>
+    </summary>
+    <div class="answer">
+      <p>Resharding difficulty depends on the strategy:</p>
+      <ul>
+        <li><strong>Hash sharding with modulo:</strong> the worst case. Changing N in <code>hash(key) % N</code> remaps almost every key, so nearly all data must move. Avoid naive modulo hashing if you expect to grow; use consistent hashing instead.</li>
+        <li><strong>Consistent hashing:</strong> maps keys and nodes onto a ring. Adding a node only remaps the keys between that node and its predecessor — a fraction of the total. This is why consistent hashing is the standard for distributed caches and sharded stores.</li>
+        <li><strong>Directory-based sharding:</strong> the most graceful. Update the lookup table entries for the keys to move, migrate data in the background, then flip the directory entry. The application follows the directory, so no code change is needed.</li>
+        <li><strong>Range sharding:</strong> split a range and migrate half the data. Use an online migration: enable dual-writes to both old and new shards, backfill historical data, verify consistency, then cut reads over to the new shard and disable dual-writes.</li>
+      </ul>
+      <p>The no-downtime pattern for any strategy is <strong>dual-write → backfill → verify → cutover → cleanup</strong>. During the migration window, writes go to both locations, a background job copies existing rows, a reconciliation job verifies checksums, and traffic is switched atomically (via the directory or a feature flag). Always keep the old shard readable until verification passes, and have a rollback path.</p>
+      <div class="callout good"><b>Senior signal:</b> Mention that resharding is an <em>operational</em> problem as much as a data problem — throttling migration throughput so you don't saturate the network or disk, and monitoring lag throughout.</div>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">Design the sharding strategy for an e-commerce order system that needs to support both "get orders for user X" and "get all orders in the last 24 hours."</span>
+      <span class="tags"><span class="tag sha">Sharding</span><span class="tag design">Design</span></span>
+    </summary>
+    <div class="answer">
+      <p>These two access patterns conflict directly. "Get orders for user X" is a point lookup scoped to one user — it wants the shard key to be user ID. "Get all orders in the last 24 hours" is a time-range scan across all users — it wants the shard key to be a timestamp. You cannot shard on both without a secondary structure.</p>
+      <p>Resolution: shard the primary operational table by <strong>user ID</strong>, because the per-user query is the high-frequency, latency-sensitive path (order history, checkout, support). Co-locate each user's orders on one shard so the lookup is single-shard. This handles the operational workload well.</p>
+      <p>For the time-range query, do not run it against the sharded primary. Instead, maintain a <strong>secondary copy</strong> in a time-ordered structure:</p>
+      <ul>
+        <li>Write an order event to a message queue (Kafka) on every order creation.</li>
+        <li>A stream processor consumes events and writes to a time-partitioned store — either a partitioned table in an analytics database (e.g., ClickHouse, BigQuery) or a time-partitioned table in a separate database instance.</li>
+        <li>The "last 24 hours" query runs against this time-ordered copy, which can prune to the relevant time partitions and scan efficiently.</li>
+      </ul>
+      <p>This is the classic <strong>CQRS</strong> pattern: the operational store is optimized for per-user transactions; a read-optimized projection serves analytics and time-range queries. The trade-off is eventual consistency on the analytics path (acceptable for reporting) and the operational cost of maintaining the secondary copy. A senior answer names this explicitly rather than pretending a single shard key can serve both patterns.</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">What is consistent hashing, and why is it used in sharding?</span>
+      <span class="tags"><span class="tag sha">Sharding</span></span>
+    </summary>
+    <div class="answer">
+      <p><strong>Consistent hashing</strong> maps both data keys and nodes onto a circular hash space (a "ring"). Each key is assigned to the first node encountered clockwise from its hash position. When a node is added or removed, only the keys between that node and its predecessor need to move — a fraction of the total, rather than nearly all keys as with <code>hash(key) % N</code>.</p>
+      <p>The problem it solves: with modulo hashing, changing N remaps almost every key, forcing a massive data migration and cache invalidation storm. With consistent hashing, adding a node moves only 1/(N+1) of the keys, and removing a node moves only that node's keys to its successor.</p>
+      <p><strong>Virtual nodes</strong> are the refinement that makes it practical. A single point per physical node on the ring produces uneven distribution — by chance, one node may own a large arc and receive disproportionate load. Virtual nodes represent each physical node as many points on the ring (e.g., 100–200 per node). This smooths the distribution statistically and also means that when a node fails, its load is spread across many other nodes rather than dumped on a single successor.</p>
+      <p>Consistent hashing is used in distributed caches (Memcached clients), distributed databases (Cassandra, DynamoDB), and load balancers with session affinity. The interview signal is explaining <em>why virtual nodes are necessary</em> — not just that they exist — and tying it to the load-distribution and failure-handling properties it provides.</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">How do you avoid hot partitions and skew?</span>
+      <span class="tags"><span class="tag sha">Sharding</span><span class="tag adv">Advanced</span></span>
+    </summary>
+    <div class="answer">
+      <p>Hot partitions arise from two distinct causes: <strong>data skew</strong> (one partition holds far more rows) and <strong>access skew</strong> (one partition receives far more requests). The fixes differ.</p>
+      <ul>
+        <li><strong>Choose a high-cardinality, evenly-distributed shard key</strong> that aligns with the access pattern. Avoid low-cardinality fields and monotonic keys.</li>
+        <li><strong>Composite keys:</strong> combine the natural key with a high-cardinality suffix — e.g., <code>user_id + bucket</code> where bucket is a random or hash-derived integer. This spreads a hot key across multiple partitions while keeping reads routable.</li>
+        <li><strong>Salting:</strong> append a random suffix to the shard key to spread writes. Reads must then fan out to all suffixes and aggregate — a write-scaling technique with a read cost.</li>
+        <li><strong>Directory-based routing:</strong> detect hot keys and move them to dedicated shards via the lookup table, isolating their load.</li>
+        <li><strong>Read replicas:</strong> if the skew is read-heavy, add replicas for the hot partition and load-balance reads across them.</li>
+        <li><strong>Continuous monitoring:</strong> per-partition QPS, latency, and CPU. Skew is often dynamic — a new viral item can create a hot partition overnight — so detection must be continuous, with automated alerts or auto-splitting.</li>
+      </ul>
+      <p>The wrong fix is easy to spot: increasing the shard count does not help if the skew comes from one key's access pattern. A senior answer distinguishes data skew from access skew and chooses the mechanism that addresses the actual cause.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ================================================================
+     PART 3 — SYSTEM DESIGN
+================================================================= -->
+<section id="sd" class="sec-sd">
+  <div class="sec-head">
+    <div class="badge">3</div>
+    <div>
+      <h2>System Design in Context</h2>
+      <p>Scalability, consistency, failure handling, and classic design problems.</p>
+    </div>
+  </div>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">How do I decide when to split a monolith into services?</span>
+      <span class="tags"><span class="tag design">Design</span></span>
+    </summary>
+    <div class="answer">
+      <p>Split when the <em>pain is real and measurable</em>, not because microservices are fashionable. The signals:</p>
+      <ul>
+        <li><strong>Independent scaling needs:</strong> one component (e.g., image processing) needs 10x the CPU of the rest. Scaling the whole monolith wastes resources; isolating that component lets you scale it independently.</li>
+        <li><strong>Different release cadences:</strong> one team needs to deploy daily while another ships quarterly. A monolith forces shared release trains; services give independent deployability.</li>
+        <li><strong>Team autonomy:</strong> when multiple teams contend on the same codebase and deployment pipeline, boundaries reduce coordination cost.</li>
+        <li><strong>Clear bounded contexts:</strong> domains with genuinely separable data and logic (billing vs. catalog vs. identity) are natural service boundaries.</li>
+        <li><strong>Technology constraints:</strong> a component needs a different language, database, or runtime.</li>
+      </ul>
+      <p>The counter-argument: microservices add network partitions, distributed transactions, service discovery, observability complexity, and operational overhead. A modular monolith with clear internal boundaries captures most of the maintainability benefit at a fraction of the operational cost. The pragmatic path is to <strong>start modular, extract services when the organizational or scaling pain is real</strong>, and always split along boundaries you can draw cleanly. A senior answer explains the trade-off rather than declaring one architecture superior.</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">What are the real trade-offs between vertical and horizontal scaling?</span>
+      <span class="tags"><span class="tag design">Design</span></span>
+    </summary>
+    <div class="answer">
+      <p><strong>Vertical scaling</strong> (bigger machine) is operationally simple: no code changes, no distributed coordination, no data partitioning. It is the right first move for most systems because it buys time cheaply. But it has a hard ceiling — there is a maximum machine size — and it creates a single point of failure and a maintenance window for upgrades. Cost grows super-linearly: a 2x machine often costs more than 2x.</p>
+      <p><strong>Horizontal scaling</strong> (more machines) is theoretically unbounded and improves availability through redundancy. It is the only way to scale beyond one machine's capacity. The cost is complexity: services must be stateless (or externalize state), data must be partitioned or replicated, and the system must tolerate partial failure and network partitions.</p>
+      <table>
+        <tr><th>Dimension</th><th>Vertical</th><th>Horizontal</th></tr>
+        <tr><td>Effort to implement</td><td>Low</td><td>High</td></tr>
+        <tr><td>Ceiling</td><td>Hard (max machine size)</td><td>Effectively unbounded</td></tr>
+        <tr><td>Availability</td><td>Single point of failure</td><td>Redundancy built in</td></tr>
+        <tr><td>Cost curve</td><td>Super-linear</td><td>Linear (with ops overhead)</td></tr>
+      </table>
+      <p>The pragmatic strategy is <strong>scale up first, then out</strong> — vertical scaling delays the complexity of distribution until you actually need it, and many systems never outgrow a large machine plus replicas. When you do scale out, design for statelessness and partitionable data from the beginning so the transition is possible.</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">How do I design for backpressure in a high-traffic system?</span>
+      <span class="tags"><span class="tag design">Design</span><span class="tag adv">Advanced</span></span>
+    </summary>
+    <div class="answer">
+      <p><strong>Backpressure</strong> is the mechanism by which a saturated downstream component signals upstream producers to slow down or stop. Without it, queues grow unbounded, memory exhausts, latency spikes catastrophically, and the system collapses — a classic cascading failure.</p>
+      <p>Design techniques:</p>
+      <ul>
+        <li><strong>Bounded queues:</strong> never use unbounded in-memory queues. A bounded queue forces a decision when full — block the producer, drop the request, or reject it with a clear error.</li>
+        <li><strong>Rate limiting:</strong> token-bucket or sliding-window limiters at the edge cap the arrival rate to what downstream can handle.</li>
+        <li><strong>Load shedding:</strong> when queue depth or latency exceeds a threshold, reject a fraction of requests early (HTTP 429/503) rather than accepting work that will time out. Shedding low-priority traffic first preserves the experience for critical requests.</li>
+        <li><strong>Circuit breakers:</strong> when a dependency fails repeatedly, open the circuit and fail fast instead of piling up requests that will never succeed. Periodically half-open to test recovery.</li>
+        <li><strong>Bulkheads:</strong> isolate resource pools (threads, connections) per dependency so a slow dependency cannot exhaust resources needed by healthy ones.</li>
+        <li><strong>Asynchronous processing with bounded queues:</strong> absorb bursts in a durable queue with a bounded consumer concurrency, and let the queue drain at the downstream's pace.</li>
+      </ul>
+      <p>The senior signal: explain <em>what happens when a queue fills</em> — the answer must be a deliberate policy (reject, shed, degrade), not "it grows." Backpressure without a rejection policy is just unbounded buffering in disguise.</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">How do I protect downstream services from traffic spikes?</span>
+      <span class="tags"><span class="tag design">Design</span></span>
+    </summary>
+    <div class="answer">
+      <p>Traffic spikes come from organic virality, flash sales, retries during an outage, or abuse. Protection is layered:</p>
+      <ul>
+        <li><strong>Edge rate limiting:</strong> cap requests per user/IP/API key at the CDN or API gateway. This absorbs the spike before it reaches application servers.</li>
+        <li><strong>Queue-based load leveling:</strong> put a durable queue between the ingress and the processing tier. The queue absorbs the burst; workers process at a controlled rate. This decouples arrival rate from processing rate.</li>
+        <li><strong>Autoscaling with buffers:</strong> scale out based on queue depth or request rate, with headroom so scaling completes before saturation. Predictive scaling for known events (sales, launches).</li>
+        <li><strong>Load shedding:</strong> when capacity is genuinely exhausted, reject excess requests with a fast 503 and a Retry-After header, rather than queueing them to time out.</li>
+        <li><strong>Circuit breakers and timeouts:</strong> prevent a slow dependency from turning a spike into a cascading failure. Set aggressive timeouts and retry budgets.</li>
+        <li><strong>Caching:</strong> serve hot data from a CDN or distributed cache to reduce origin load dramatically.</li>
+        <li><strong>Graceful degradation:</strong> disable non-essential features (recommendations, personalization) under load to preserve core functionality.</li>
+      </ul>
+      <p>The key insight: spikes are a <em>capacity mismatch</em> problem. The solution is either to reduce demand (rate limit, cache, shed) or increase supply (autoscale, queue), and usually both. A senior answer names the layer where each mechanism belongs.</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">How do I handle idempotency for write APIs?</span>
+      <span class="tags"><span class="tag design">Design</span><span class="tag adv">Advanced</span></span>
+    </summary>
+    <div class="answer">
+      <p>Idempotency means that repeating the same request produces the same result as executing it once. It is critical for payment, order, and provisioning APIs where a timeout-then-retry could otherwise charge twice or create duplicates.</p>
+      <p>The standard pattern:</p>
+      <ul>
+        <li>The client generates a unique <strong>idempotency key</strong> per logical operation (e.g., a UUID) and sends it in a header.</li>
+        <li>The server, before executing, checks a dedicated store (database table or Redis) for that key.</li>
+        <li>If the key exists and the operation completed, return the <em>stored response</em> — do not re-execute.</li>
+        <li>If the key exists but the operation is in progress, return a conflict or wait, depending on the API contract.</li>
+        <li>If the key does not exist, record it as "in progress" atomically, execute the operation, store the result alongside the key, and return.</li>
+      </ul>
+      <p>Implementation details that matter:</p>
+      <ul>
+        <li><strong>Atomicity:</strong> the check-and-insert must be atomic (unique constraint on the key, or a Redis <code>SET NX</code>) to prevent two concurrent requests from both executing.</li>
+        <li><strong>Scoping:</strong> keys should be scoped per user or API client to prevent cross-tenant collisions.</li>
+        <li><strong>Expiry:</strong> idempotency records should expire (e.g., 24 hours) to bound storage; the client must generate a new key for a genuinely new operation.</li>
+        <li><strong>Response replay:</strong> store the status code and body so retries receive the exact same response, not a re-executed one.</li>
+      </ul>
+      <div class="callout good"><b>Senior signal:</b> Mention that idempotency must survive crashes — the "in progress" record must be written <em>before</em> the side effect, so a crash mid-operation is detected on retry rather than silently re-executed.</div>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">Explain the CAP theorem and its practical implications.</span>
+      <span class="tags"><span class="tag design">Design</span><span class="tag adv">Advanced</span></span>
+    </summary>
+    <div class="answer">
+      <p><strong>CAP</strong> states that in a distributed system experiencing a network <em>partition</em> (P), you must choose between <em>consistency</em> (C) and <em>availability</em> (A). The common misreading is "pick two of three" — but partition tolerance is not optional in any real distributed system, because networks partition. The real choice is: <strong>when a partition occurs, do you sacrifice consistency or availability?</strong></p>
+      <ul>
+        <li><strong>CP systems</strong> (e.g., consensus-based databases) refuse writes or reads on the minority side of a partition to preserve consistency. Writes fail during the partition, but data is never wrong.</li>
+        <li><strong>AP systems</strong> (e.g., Dynamo-style stores) continue serving both sides, accepting that the two sides may diverge. Consistency is restored later via conflict resolution. Users get a response, but it may be stale or conflicting.</li>
+      </ul>
+      <p>Practical implications: the decision framework is to ask <em>"what does the user experience if they see stale or inconsistent data for a short period?"</em> If the answer is "nothing catastrophic," AP is acceptable. If the answer is "financial loss or legal liability," you need CP, and you must design for write unavailability during partitions.</p>
+      <div class="callout"><b>Nuance:</b> CAP is binary only during a partition. In normal operation you can tune consistency continuously — e.g., quorum reads/writes in Cassandra, or read-your-writes in a system that is otherwise eventually consistent. A senior answer explains that CAP is about failure-mode behaviour, and that PACELC extends it: even without partitions, there is a latency-vs-consistency trade-off.</div>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">When do I accept eventual consistency vs strict consistency?</span>
+      <span class="tags"><span class="tag design">Design</span></span>
+    </summary>
+    <div class="answer">
+      <p>Accept <strong>eventual consistency</strong> when temporary staleness is tolerable — the user experience does not break and no business rule is violated if a read returns slightly old data. Typical candidates: social feeds, view counts, recommendations, search indexes, analytics dashboards, and profile data in systems where the user is not immediately reading their own write.</p>
+      <p>Demand <strong>strict consistency</strong> when incorrect data causes direct harm or a violated invariant: account balances, inventory counts (overselling), payment status, permission checks, and anything with legal or financial liability. In these domains, serving a stale read is equivalent to serving a wrong answer, and the cost of the CP write-unavailability trade-off is justified.</p>
+      <p>The nuance most candidates miss: <strong>consistency is per-operation, not per-system</strong>. A single application can use eventual consistency for the newsfeed and strict consistency for the wallet. The design question is not "which database" but "which operations need which guarantee." A common pattern is <em>session consistency</em> — the user always sees their own writes (read-your-writes) while other users' views of their data converge eventually. This captures most of the user-perceived correctness at much lower cost than global strong consistency.</p>
+      <p>Interview-winning move: state the consistency contract explicitly for each data type, and show how the system enforces it (quorums, sticky sessions, LSN fallback, or synchronous replication for the critical path only).</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">How do I implement distributed transactions without 2PC pain?</span>
+      <span class="tags"><span class="tag design">Design</span><span class="tag adv">Advanced</span></span>
+    </summary>
+    <div class="answer">
+      <p>Two-phase commit (2PC) is blocking, fragile, and couples participant availability to a coordinator. The modern alternative is the <strong>Saga pattern</strong>: break the global transaction into a sequence of local transactions, each paired with a <em>compensating action</em> that undoes it if a later step fails. For example, an order flow: reserve inventory → charge payment → create shipment. If shipment creation fails, compensate by refunding payment and releasing inventory.</p>
+      <p>Reliability is the hard part. Two patterns make Sagas robust:</p>
+      <ul>
+        <li><strong>Outbox pattern:</strong> write the business change and the event to an outbox table in the <em>same local transaction</em>. A separate relay process publishes the outbox rows to the message broker. This guarantees "at least once" delivery without a distributed transaction, because the local transaction is atomic.</li>
+        <li><strong>Inbox pattern:</strong> consumers record processed message IDs in an inbox table within their local transaction, making consumption idempotent and preventing duplicate effects on retry.</li>
+      </ul>
+      <p>The trade-off: Sagas are eventually consistent and expose intermediate states to the outside world (a payment may be charged before the order is confirmed). Compensations are business-level undo operations, not database rollbacks — refunds have their own latency and failure modes. Design the state machine so intermediate states are visible and recoverable, and ensure every step is idempotent so retries are safe.</p>
+      <p>A senior answer names the failure mode: <em>"if the compensation itself fails, we need a dead-letter queue and manual reconciliation"</em> — rather than pretending Sagas are a complete replacement for transactions.</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">Explain the difference between 2PC, Saga, and TCC.</span>
+      <span class="tags"><span class="tag design">Design</span><span class="tag adv">Advanced</span></span>
+    </summary>
+    <div class="answer">
+      <p>All three coordinate multi-service transactions, but with different consistency and failure models.</p>
+      <ul>
+        <li><strong>2PC (Two-Phase Commit):</strong> a coordinator asks all participants to <em>prepare</em> (lock resources, verify feasibility), then <em>commit</em> if all prepare successfully. It provides atomicity — strong consistency — but is blocking: participants hold locks between phases, and coordinator failure can leave participants stuck. It does not scale well across many services or regions.</li>
+        <li><strong>Saga:</strong> a sequence of local transactions with compensating actions. Non-blocking, eventually consistent, and scalable. The application must design compensations and tolerate intermediate states. Failure handling is business logic, not protocol magic.</li>
+        <li><strong>TCC (Try-Confirm/Cancel):</strong> a structured Saga variant with explicit phases: <em>Try</em> reserves resources (e.g., hold inventory), <em>Confirm</em> finalizes, <em>Cancel</em> releases. It gives more control over intermediate state than a plain Saga — resources are reserved but not committed until Confirm — at the cost of implementing three operations per service instead of two.</li>
+      </ul>
+      <table>
+        <tr><th>Pattern</th><th>Consistency</th><th>Blocking</th><th>Complexity</th></tr>
+        <tr><td>2PC</td><td>Strong</td><td>Yes (locks)</td><td>Protocol-level, coordinator dependency</td></tr>
+        <tr><td>Saga</td><td>Eventual</td><td>No</td><td>Compensation logic per step</td></tr>
+        <tr><td>TCC</td><td>Eventual</td><td>No</td><td>Three-phase logic per service</td></tr>
+      </table>
+      <p>The interview signal: match the pattern to the business requirement. 2PC only for small, trusted, low-latency-critical scopes; Saga/TCC for cross-service flows at scale.</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">Design a distributed counter that can handle high write throughput.</span>
+      <span class="tags"><span class="tag design">Design</span><span class="tag adv">Advanced</span></span>
+    </summary>
+    <div class="answer">
+      <p>A single counter row in a database is a write bottleneck: every increment locks the row and serializes. At high throughput, this saturates the database. The solution is to shard the counter.</p>
+      <ul>
+        <li><strong>Sharded counters:</strong> maintain <code>N</code> counter instances, each storing a partial count. An increment writes to one shard, chosen by a random or hash-based distribution. Writes scale linearly with <code>N</code>.</li>
+        <li><strong>Reads aggregate:</strong> a read sums the partial counts across all <code>N</code> shards. This is eventually consistent and costs <code>N</code> reads, but reads are usually far less frequent than writes for counters (views, likes, metrics).</li>
+        <li><strong>Time-bucketed shards:</strong> for extremely hot counters, shard by time window (e.g., per minute) and aggregate over the windows for a range query. Old buckets can be compacted into hourly/daily totals, bounding the number of shards to aggregate.</li>
+        <li><strong>In-memory + periodic flush:</strong> accumulate counts in memory (Redis INCR) and flush to durable storage periodically. Redis INCR is atomic and fast; the trade-off is durability — a crash loses unflushed increments unless you use AOF persistence.</li>
+        <li><strong>CRDT counters:</strong> a G-Counter (grow-only counter) is a CRDT where each node maintains its own count and reads sum them. This is the principled version of sharded counters — merge is commutative, so nodes can reconcile without coordination.</li>
+      </ul>
+      <p>The trade-off to state explicitly: write scalability comes at the cost of read-time aggregation and eventual consistency. For a "likes" counter this is fine; for a financial counter, you would accept lower throughput and use a strongly-consistent design instead.</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">How do I model data differently for OLTP vs OLAP workloads?</span>
+      <span class="tags"><span class="tag design">Design</span></span>
+    </summary>
+    <div class="answer">
+      <p><strong>OLTP</strong> (online transaction processing) handles high-volume short transactions: insert an order, update a profile, fetch a record. The data model is <strong>normalized</strong> to eliminate redundancy and update anomalies. Storage is <strong>row-oriented</strong> (reading a row reads all its columns efficiently). Indexes are tuned for point lookups and short range scans. The priority is write throughput, low-latency reads, and strong consistency.</p>
+      <p><strong>OLAP</strong> (online analytical processing) handles large scans and aggregations: "revenue by region per month," "funnel conversion." The data model is <strong>denormalized</strong> (star schema with fact and dimension tables) to avoid expensive joins. Storage is <strong>column-oriented</strong> (reading a column reads only that column, and compression is highly effective). The priority is scan throughput and aggregation speed, not per-row write latency.</p>
+      <table>
+        <tr><th>Dimension</th><th>OLTP</th><th>OLAP</th></tr>
+        <tr><td>Schema</td><td>Normalized (3NF)</td><td>Denormalized (star/snowflake)</td></tr>
+        <tr><td>Storage</td><td>Row-oriented</td><td>Column-oriented</td></tr>
+        <tr><td>Access pattern</td><td>Point lookups, short transactions</td><td>Large scans, aggregations</td></tr>
+        <tr><td>Priority</td><td>Write throughput, low latency</td><td>Scan throughput, compression</td></tr>
+      </table>
+      <p>In practice, run them on separate systems: OLTP in PostgreSQL/MySQL, OLAP in ClickHouse/BigQuery/Snowflake, with data flowing via CDC (Change Data Capture) or batch ETL. Running analytics against the OLTP primary is a classic anti-pattern — a single large aggregation can saturate the database and degrade user-facing latency. A senior answer describes the separation and the pipeline that feeds it.</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">How do I decide between SQL, NoSQL, and search engines?</span>
+      <span class="tags"><span class="tag design">Design</span></span>
+    </summary>
+    <div class="answer">
+      <p>The choice follows from the access pattern and consistency requirement, not from a general ranking of technologies.</p>
+      <ul>
+        <li><strong>SQL (relational):</strong> strong consistency, ACID transactions, complex joins, mature tooling and ecosystem. It is the default for transactional data with clear relationships. It scales vertically very far and horizontally via read replicas and sharding. Choose SQL unless you have a specific reason not to — most systems are not large enough to outgrow it.</li>
+        <li><strong>NoSQL:</strong> a family, not a single thing. Key-value stores (Redis, DynamoDB) for simple high-throughput lookups; document stores (MongoDB) for flexible, evolving schemas and nested data; wide-column stores (Cassandra, HBase) for high write throughput and time-series patterns; graph databases (Neo4j) for highly connected data. Choose NoSQL when the schema is rapidly evolving, the scale exceeds a single SQL node, or the access pattern is a simple high-throughput key lookup.</li>
+        <li><strong>Search engines (Elasticsearch, OpenSearch):</strong> full-text search, relevance ranking, fuzzy matching, faceted aggregation. Choose when search is a primary product feature — not as a general-purpose database and not as a reporting afterthought. They are usually a secondary index fed from the primary data store.</li>
+      </ul>
+      <div class="callout"><b>Interview signal:</b> Name the access pattern and consistency requirement <em>first</em>, then the technology. "We need single-digit-millisecond lookups by session token at 100k QPS with no joins — that points to a key-value store" is far stronger than "I'd use NoSQL because it scales."</div>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">How do I shard data — by user, tenant, region, or something else?</span>
+      <span class="tags"><span class="tag sha">Sharding</span><span class="tag design">Design</span></span>
+    </summary>
+    <div class="answer">
+      <p>The shard key must come from the dominant access pattern. Three common choices:</p>
+      <ul>
+        <li><strong>By user:</strong> the right choice when most queries are scoped to a single user ("get my orders," "my messages," "my profile"). Co-locates everything belonging to a user on one shard, making per-user operations single-shard. Risk: celebrity/hot users create hot shards.</li>
+        <li><strong>By tenant:</strong> for multi-tenant SaaS, sharding on tenant ID isolates each customer's data. Small tenants can be hash-distributed for even load; large tenants can be range-isolated onto dedicated shards. Risk: a single massive tenant dominates one shard unless isolated.</li>
+        <li><strong>By region:</strong> when data is naturally geo-partitioned and latency requirements differ by region, sharding by region puts data close to its users and simplifies data-residency compliance (GDPR). Risk: cross-region queries become expensive, and regions can be unbalanced in size.</li>
+      </ul>
+      <p>For mixed workloads, combine strategies. A common pattern: <strong>range-shard by region or tenant tier, then hash within each range</strong> for even distribution. Another: use a <strong>directory</strong> that routes different query types to different shard sets — operational queries to a user-sharded store, analytics to a time-partitioned store (CQRS).</p>
+      <p>The senior signal: explain the trade-off in terms of the dominant query. "If every query is per-user, sharding by user makes them single-shard; sharding by region would force a scatter-gather for the common case, so region is the wrong key here even though it sounds operationally cleaner."</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">How do I design pagination for massive datasets efficiently?</span>
+      <span class="tags"><span class="tag design">Design</span><span class="tag adv">Advanced</span></span>
+    </summary>
+    <div class="answer">
+      <p><strong>Offset pagination</strong> (<code>OFFSET n LIMIT m</code>) is the intuitive approach and the wrong one at scale. The database must scan and discard <code>n</code> rows before returning <code>m</code>, so page 10,000 is dramatically slower than page 1. It also produces inconsistent results when rows are inserted or deleted between requests — rows can shift across pages, appearing twice or disappearing.</p>
+      <p><strong>Cursor-based (keyset) pagination</strong> solves both problems. Instead of an offset, the client passes the last seen sort key:</p>
+      <pre><code>-- First page
+SELECT * FROM orders ORDER BY created_at, id LIMIT 20;
+
+-- Next page (cursor = last row's created_at, id)
+SELECT * FROM orders
+WHERE (created_at, id) &gt; ('2024-05-01T12:00:00Z', 1042)
+ORDER BY created_at, id LIMIT 20;</code></pre>
+      <p>This uses an index on <code>(created_at, id)</code> and seeks directly to the cursor position — O(log n) rather than O(n). It is stable under inserts and deletes because the cursor is anchored to a row's value, not a position. The limitation is that you cannot jump to an arbitrary page number (no "page 50" link) — which is acceptable for infinite-scroll and feed UIs, the dominant use case.</p>
+      <p>Implementation details: the cursor should be <strong>opaque</strong> (base64-encoded, signed) so clients cannot manipulate it; the sort key must be unique or composite with a tiebreaker (e.g., <code>created_at, id</code>) to avoid skipping rows with equal timestamps; and the query must have an index matching the sort order, or it degrades to a full scan.</p>
+      <div class="callout good"><b>Senior signal:</b> Mention that offset pagination is also a security/performance concern — a scraper can request <code>OFFSET 100000000</code> and force the database to do enormous work, a cheap denial-of-service vector.</div>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">Design a URL Shortener (TinyURL).</span>
+      <span class="tags"><span class="tag design">Design</span></span>
+    </summary>
+    <div class="answer">
+      <p><strong>Requirements:</strong> given a long URL, return a short URL; given a short code, redirect to the original. Read-heavy (redirects vastly outnumber creations), low latency, high availability.</p>
+      <p><strong>Key challenge — unique ID generation at scale:</strong> you cannot use an auto-increment database sequence because it is a single bottleneck and leaks the creation order. Options:</p>
+      <ul>
+        <li><strong>Range-based key allocation:</strong> a central service allocates blocks of IDs to each application server (server A gets 1–10,000, server B gets 10,001–20,000). Each server generates short codes locally by base62-encoding its IDs, with no coordination per request. This is the classic scalable solution.</li>
+        <li><strong>Hash-based:</strong> hash the long URL and take the first 7 characters. Collisions must be detected and resolved (re-hash with a salt), which adds write-path complexity.</li>
+        <li><strong>Snowflake-style IDs:</strong> timestamp + machine ID + sequence, base62-encoded. Unique without coordination, but longer codes.</li>
+      </ul>
+      <p><strong>Storage:</strong> a key-value store mapping <code>short_code → long_url</code>, sharded by a hash of the short code for even distribution and horizontal scale. Replicate each shard for read availability.</p>
+      <p><strong>Read path:</strong> redirects are pure point lookups — cache hot codes in Redis (or a CDN edge cache with a short TTL) so the database sees a fraction of the traffic. A 301 (permanent) redirect lets browsers cache, reducing load further, at the cost of losing analytics; a 302 (temporary) preserves analytics.</p>
+      <p><strong>Scale estimates to state:</strong> if you shorten 100M URLs/day and serve 10B redirects/day, the read-to-write ratio is 100:1 — optimize and cache the read path aggressively. Sharding and replication make the storage tier horizontally scalable; the key-generation service removes the write bottleneck.</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">Design a Rate Limiter for APIs.</span>
+      <span class="tags"><span class="tag design">Design</span></span>
+    </summary>
+    <div class="answer">
+      <p><strong>Requirements:</strong> limit requests per user/IP/API key over a time window (e.g., 100 requests/minute), with low latency and correctness under concurrency.</p>
+      <p><strong>Algorithms:</strong></p>
+      <ul>
+        <li><strong>Fixed window:</strong> count requests per minute, reset at the boundary. Simple but allows a burst at the boundary (200 requests in a 2-second span across two windows).</li>
+        <li><strong>Sliding window log:</strong> store timestamps of each request and count those within the window. Accurate but memory-heavy at scale.</li>
+        <li><strong>Sliding window counter:</strong> interpolate between the current and previous fixed windows. Approximate but memory-efficient — the standard production choice.</li>
+        <li><strong>Token bucket:</strong> a bucket refills at a steady rate; each request consumes a token. Allows controlled bursts and is easy to implement atomically in Redis.</li>
+      </ul>
+      <p><strong>Storage and distribution:</strong> counters live in a distributed cache (Redis) with atomic operations — <code>INCR</code> plus <code>EXPIRE</code>, or a Lua script for token-bucket atomicity. Shard counters by user ID or API-key hash so no single Redis node is a bottleneck. Replicate for availability.</p>
+      <p><strong>Failure mode — the critical design decision:</strong> if the rate-limiter store is unavailable, do you <em>fail open</em> (allow traffic) or <em>fail closed</em> (reject)? Fail-open preserves availability but removes protection; fail-closed preserves protection but can take down the API. For most APIs, fail-open with aggressive alerting is the right choice — the limiter is a protection mechanism, not a correctness requirement.</p>
+      <p><strong>Placement:</strong> enforce at the API gateway or edge so abusive traffic never reaches application servers. Return <code>429 Too Many Requests</code> with <code>Retry-After</code> and rate-limit headers (<code>X-RateLimit-Remaining</code>) so clients can back off gracefully.</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">Design a social media news feed.</span>
+      <span class="tags"><span class="tag design">Design</span></span>
+    </summary>
+    <div class="answer">
+      <p><strong>Requirements:</strong> show a user the recent posts from accounts they follow, with low latency, at massive read scale.</p>
+      <p><strong>The core tension — fan-out on write vs fan-out on read:</strong></p>
+      <ul>
+        <li><strong>Fan-out on write (push):</strong> when a user posts, insert the post ID into the feed cache of every follower. Reads are trivial — fetch the precomputed feed. But a celebrity with 50M followers triggers 50M writes per post, which is infeasible.</li>
+        <li><strong>Fan-out on read (pull):</strong> when a user opens their feed, fetch recent posts from everyone they follow and merge. Writes are trivial, but reads are expensive and scale poorly for users who follow thousands of accounts.</li>
+      </ul>
+      <p><strong>The hybrid (standard solution):</strong> fan-out on write for normal users, fan-out on read for celebrities. When a normal user posts, push to followers' feed caches. When a celebrity posts, do not push — instead, merge their recent posts at read time. This bounds write amplification while keeping reads fast for the common case.</p>
+      <p><strong>Storage:</strong> feed caches are per-user, sharded by user ID, stored in Redis (as a list of post IDs) with a bounded length (e.g., last 500 entries) and a TTL. Post content is stored separately, sharded by post ID, and fetched on hydration. The social graph is its own sharded store, often cached.</p>
+      <p><strong>Read path:</strong> fetch the user's cached feed IDs → merge in celebrity posts from the read-time path → hydrate post content (cache-first) → rank/filter → return. <strong>Replication</strong> of feed and graph stores provides read availability. The senior signal is naming the celebrity case explicitly and explaining the hybrid fan-out trade-off rather than drawing a single pipeline.</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">Design a distributed queue like RabbitMQ/Kafka.</span>
+      <span class="tags"><span class="tag design">Design</span></span>
+    </summary>
+    <div class="answer">
+      <p><strong>Requirements:</strong> durable message storage, at-least-once delivery, horizontal scale, and consumer groups that process messages in parallel.</p>
+      <p><strong>Partitioning:</strong> a topic is split into partitions. Each message is assigned to a partition by its key (hash of the key, or round-robin if no key). Ordering is guaranteed <em>within</em> a partition, not across partitions — this is the fundamental constraint. To preserve per-user ordering, key by user ID so all of a user's messages land in the same partition.</p>
+      <p><strong>Consumer groups:</strong> each partition is assigned to exactly one consumer within a group, so consumers process partitions in parallel without duplicate consumption within the group. Rebalancing redistributes partitions when consumers join or leave.</p>
+      <p><strong>Replication:</strong> each partition is replicated across brokers (leader + followers). Producers write to the leader; followers replicate. A write is acknowledged when the configured quorum (e.g., <code>acks=all</code> for durability) has persisted it. If the leader fails, a follower is promoted — the same failover and split-brain concerns as database replication apply.</p>
+      <p><strong>Durability:</strong> messages are appended to a commit log on disk, which provides sequential-write throughput far higher than random writes. Retention is time- or size-based; consumers track their offset, enabling replay.</p>
+      <p><strong>Delivery semantics:</strong> at-least-once is the default — a consumer that crashes after processing but before committing its offset will re-consume. Exactly-once requires idempotent consumers (dedupe by message ID) or transactional offset commits. A senior answer states that <em>at-least-once plus idempotent consumers is the practical choice</em>; exactly-once is achievable but costly.</p>
+      <p><strong>Backpressure:</strong> if consumers lag, the queue grows. Monitor consumer lag and scale consumers or shed production rather than letting the log grow unbounded past retention.</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">Design a ride-sharing service (Uber/Lyft).</span>
+      <span class="tags"><span class="tag design">Design</span></span>
+    </summary>
+    <div class="answer">
+      <p><strong>Requirements:</strong> match riders to nearby drivers in real time, track driver locations, and compute pricing — all with low latency and high availability across a geographic area.</p>
+      <p><strong>Geo-sharding:</strong> the world is partitioned into cells using a spatial index — geohash, Google S2, or Uber's H3. Driver locations are stored in a geo-indexed store, sharded by cell. When a rider requests a ride, the system queries the rider's cell and neighboring cells for available drivers. This is the core design decision: <strong>proximity queries require spatial partitioning, not a hash of user ID</strong>.</p>
+      <p><strong>Location tracking:</strong> drivers send location updates every few seconds via a persistent connection (WebSocket). Updates are written to an in-memory store (Redis) keyed by cell, with a TTL so stale drivers drop out automatically. The write volume is enormous — millions of drivers updating every few seconds — so the in-memory store is sharded by cell and replicated for availability.</p>
+      <p><strong>Matching:</strong> the matcher scores nearby drivers by distance, rating, and availability, then sends a ride offer with a timeout. Drivers accept or decline; declined offers move to the next candidate. This is a distributed matching problem — concurrency control ensures a driver is not offered to two riders simultaneously (a lock or atomic claim on the driver).</p>
+      <p><strong>Pricing:</strong> a separate service computes surge multipliers from local supply/demand per cell. It reads aggregate counts, not individual trips, and is eventually consistent.</p>
+      <p><strong>Failure handling:</strong> if a cell's store is unavailable, fall back to neighboring cells or degrade to a wider search. Regional isolation means a failure in one city does not affect others. The senior signal is naming the spatial partitioning choice and the atomic driver-claim problem.</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">Design a video streaming service (Netflix/YouTube).</span>
+      <span class="tags"><span class="tag design">Design</span></span>
+    </summary>
+    <div class="answer">
+      <p><strong>Requirements:</strong> upload, transcode, store, and deliver video to millions of concurrent viewers with low startup latency and adaptive quality.</p>
+      <p><strong>Upload and transcoding:</strong> a raw upload is stored in object storage (S3). A transcode pipeline — a distributed task queue with worker fleet — converts it into multiple resolutions and bitrates (an adaptive bitrate ladder: 240p through 4K). Transcode jobs are sharded by video ID and run in parallel per segment (chunked encoding). The output is segmented into small chunks (2–10 seconds) with manifests (HLS/DASH) describing the available streams.</p>
+      <p><strong>Delivery — CDN is the core:</strong> video bytes are served from CDN edge nodes, never from origin. The origin (object storage) only serves cache misses. Popular videos are effectively served entirely from edge caches; long-tail videos fall back to origin. This is what makes streaming economically viable — the origin sees a tiny fraction of total bytes.</p>
+      <p><strong>Adaptive bitrate (ABR):</strong> the player measures bandwidth and buffer health and switches between bitrate chunks dynamically. This is why the manifest lists multiple renditions — the client chooses per-segment.</p>
+      <p><strong>Metadata and sharding:</strong> video metadata (title, description, view counts, recommendations) is stored separately in a sharded database, sharded by video ID or user ID. View counts are sharded counters (see the distributed counter design). Recommendations are computed offline and cached.</p>
+      <p><strong>Replication and availability:</strong> metadata replicated across regions; CDN provides geographic redundancy for video bytes. A regional origin failure is absorbed by CDN caches and multi-origin failover. The senior signal: emphasize that the CDN is the scaling mechanism, and that transcoding is an asynchronous, sharded batch pipeline rather than a synchronous path.</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">Design a notification system (push, email, in-app).</span>
+      <span class="tags"><span class="tag design">Design</span></span>
+    </summary>
+    <div class="answer">
+      <p><strong>Requirements:</strong> deliver notifications across multiple channels (push, email, SMS, in-app), at high volume, with retries, deduplication, and per-user preferences.</p>
+      <p><strong>Pipeline:</strong> producers (order service, social service) publish notification events to a message queue (Kafka). A notification service consumes events, applies user preferences and rate limits, renders the message per channel, and dispatches to channel-specific adapters (APNs/FCM for push, SES/SendGrid for email, an in-app store for the feed). This decouples producers from delivery — the order service does not block on email delivery.</p>
+      <p><strong>Sharding:</strong> the queue is partitioned by user ID so all of a user's notifications are ordered within a partition. The in-app notification store is sharded by user ID for per-user reads. Channel adapters scale independently — email throughput needs differ from push.</p>
+      <p><strong>Idempotency and deduplication:</strong> each notification carries a unique ID. Before sending, check a dedupe store (Redis with TTL) so a retried event does not send twice. This is critical — duplicate push notifications are a visible quality bug.</p>
+      <p><strong>Rate limiting and preferences:</strong> per-user rate limits (no more than N notifications per hour) and per-channel opt-outs are enforced before dispatch. This prevents notification fatigue, which drives uninstalls.</p>
+      <p><strong>Retries and failure:</strong> channel adapters retry with exponential backoff on transient failures; permanent failures (invalid device token) are dropped and the token marked stale. A dead-letter queue captures failures for inspection. Circuit breakers prevent a failing provider (e.g., APNs outage) from backing up the whole pipeline — the push adapter opens its circuit while email continues.</p>
+      <p><strong>Replication:</strong> the queue and in-app store are replicated for durability. The senior signal is separating the <em>decision</em> to notify (business logic, preferences) from the <em>delivery</em> (channel adapters), and designing dedupe and rate limiting as first-class concerns.</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">What separates a senior engineer's answer from a mid-level answer in a system design interview?</span>
+      <span class="tags"><span class="tag design">Design</span><span class="tag adv">Advanced</span></span>
+    </summary>
+    <div class="answer">
+      <p>A mid-level answer lists components: "we'd use Kafka for fan-out, Redis for caching, Cassandra for storage, and a load balancer in front." It describes a system that works when everything is healthy. A senior answer describes <strong>how the system behaves under failure</strong> and why each choice was made over its alternatives.</p>
+      <p>Concrete differences:</p>
+      <ul>
+        <li><strong>Trade-off reasoning:</strong> "We chose async replication because the RPO of a few seconds is acceptable for analytics, but the payment path uses synchronous replication because losing a committed charge is unacceptable." A mid-level answer picks a technology; a senior answer names the trade-off and the workload that justifies it.</li>
+        <li><strong>Failure modes:</strong> "If Kafka is down, producers fall back to synchronous writes behind a circuit breaker; if a shard is hot, we detect it via per-shard p99 and trigger an automated split." The senior answer pre-empts the question "what happens when X fails?"</li>
+        <li><strong>Operational reality:</strong> resharding plans, monitoring and alerting, deployment strategy (canary/blue-green), and rollback paths are part of the design, not an afterthought.</li>
+        <li><strong>Numbers:</strong> back-of-envelope estimates — QPS, storage, bandwidth — anchor the design in reality. "At 10k writes/sec and 1KB payloads, that's 10MB/s, which fits comfortably on one node" is a senior signal.</li>
+        <li><strong>Explicit consistency contracts:</strong> "reads are eventually consistent except for the user's own writes, which are served from the primary for 5 seconds" is far stronger than "we use eventual consistency."</li>
+      </ul>
+      <p>The meta-point: interviewers are evaluating <em>how you think</em>, not whether you can recite a reference architecture. State your assumptions, justify your choices, and name the trade-offs you accepted.</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">How do you design a system that can handle 10x more traffic with minimal changes?</span>
+      <span class="tags"><span class="tag design">Design</span><span class="tag adv">Advanced</span></span>
+    </summary>
+    <div class="answer">
+      <p>Identify the bottleneck first — 10x traffic does not mean 10x everything. Profile the current system: is the database CPU-bound, is the application tier saturated, is the network the limit? The design must address the actual constraint.</p>
+      <p>Design for elasticity from the start:</p>
+      <ul>
+        <li><strong>Stateless application tier:</strong> externalize sessions (Redis) and file uploads (object storage) so any instance can serve any request. Then horizontal scaling is just adding instances behind the load balancer.</li>
+        <li><strong>Read scaling:</strong> read replicas for the database, caching at every layer (CDN, Redis, local in-process cache). Most systems are read-heavy, and read scaling is far cheaper than write scaling.</li>
+        <li><strong>Asynchronous processing:</strong> move non-critical work (emails, image processing, analytics) off the request path into queues. This reduces request latency and decouples throughput from the application tier.</li>
+        <li><strong>Database sharding plan:</strong> design the schema with a shard key in mind even before sharding is needed, so horizontal partitioning is possible when the write ceiling is hit. Avoid features that block sharding (cross-shard joins, global sequences).</li>
+        <li><strong>Autoscaling with headroom:</strong> scale on the right metric (queue depth, request rate, CPU) with enough headroom that scaling completes before saturation. Predictive scaling for known events.</li>
+        <li><strong>Load shedding and rate limiting:</strong> protect the system from overload rather than letting it collapse. A system that degrades gracefully at 12x is better than one that fails completely at 10x.</li>
+      </ul>
+      <p>The senior signal: "10x with minimal changes" is achieved by <em>removing state and bottlenecks</em> ahead of time — statelessness, externalized sessions, and partitionable data make horizontal scaling a matter of adding instances. If the design requires re-architecting at 10x, the original design was not built for growth.</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">What is backpressure and why is it important? <span style="color:var(--muted);font-weight:400;">(cross-reference: see also the design question above)</span></span>
+      <span class="tags"><span class="tag design">Design</span></span>
+    </summary>
+    <div class="answer">
+      <p><strong>Backpressure</strong> is the mechanism by which a saturated downstream component signals upstream producers to slow down or stop. It is the difference between a system that degrades gracefully and one that collapses under load.</p>
+      <p>Without backpressure, a fast producer feeds a slow consumer: the queue grows unbounded, memory exhausts, latency for all requests spikes (because the consumer is working on stale work), and eventually the process is killed by the OOM killer or stops responding entirely. This is a classic cascading failure — one slow dependency takes down the whole request path.</p>
+      <p>Backpressure is implemented by making the boundary between components <em>explicit about its limits</em>:</p>
+      <ul>
+        <li><strong>Bounded queues:</strong> the queue has a maximum size; when full, the producer blocks, drops, or receives an error — a deliberate policy, not infinite buffering.</li>
+        <li><strong>Blocking writes:</strong> TCP's flow control is the canonical example — the receiver advertises a window size, and the sender stops when it is full.</li>
+        <li><strong>Rate limiting and load shedding:</strong> reject excess work at the edge with a clear status code, so the system stays within its capacity.</li>
+        <li><strong>Reactive streams / pull-based consumption:</strong> consumers request a bounded number of items, so the producer never outpaces them.</li>
+      </ul>
+      <p>The key insight for interviews: <strong>backpressure requires a rejection policy</strong>. A system that "handles" backpressure by buffering indefinitely is not applying backpressure — it is deferring the failure. The senior answer names the policy (block, drop, shed, degrade) and ties it to the user experience.</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">What is the circuit breaker pattern?</span>
+      <span class="tags"><span class="tag design">Design</span><span class="tag adv">Advanced</span></span>
+    </summary>
+    <div class="answer">
+      <p>The <strong>circuit breaker</strong> prevents a failing dependency from cascading into a system-wide outage. It wraps calls to a dependency and tracks failures. When the failure rate exceeds a threshold, the breaker <strong>opens</strong> — subsequent calls fail immediately (returning a fallback or error) without attempting the dependency. This stops the request pile-up that would otherwise exhaust threads, connections, and memory.</p>
+      <p>The three states:</p>
+      <ul>
+        <li><strong>Closed:</strong> normal operation; calls pass through. Failures are counted.</li>
+        <li><strong>Open:</strong> calls fail fast. After a timeout, the breaker transitions to half-open.</li>
+        <li><strong>Half-open:</strong> a limited number of test calls are allowed through. If they succeed, the breaker closes (recovery). If they fail, it reopens and the timeout resets.</li>
+      </ul>
+      <p>Why it matters: without a breaker, a slow or failing dependency causes every request to wait for a timeout, exhausting the thread pool and taking down the caller even though the caller itself is healthy. The breaker converts a slow failure into a fast one, preserving the caller's capacity and giving the dependency time to recover.</p>
+      <p>Implementation details that matter:</p>
+      <ul>
+        <li><strong>Per-dependency breakers:</strong> isolate failures — a failing email provider should not trip the breaker for the payment gateway.</li>
+        <li><strong>Fallbacks:</strong> define what happens when the circuit is open — cached data, a degraded response, or a queued retry.</li>
+        <li><strong>Tuning:</strong> thresholds, timeout, and half-open probe count must be tuned to the dependency's failure characteristics; too sensitive causes false trips, too lax defeats the purpose.</li>
+      </ul>
+      <p>The senior signal: pair the circuit breaker with <strong>timeouts and retry budgets</strong> — a breaker without timeouts still waits for slow calls, and unbounded retries amplify load during an outage.</p>
+    </div>
+  </details>
+
+  <details class="card">
+    <summary>
+      <span class="chev">▶</span>
+      <span class="qtext">How do you choose a shard key for a globally distributed database?</span>
+      <span class="tags"><span class="tag sha">Sharding</span><span class="tag design">Design</span></span>
+    </summary>
+    <div class="answer">
+      <p>The shard key must balance <strong>even distribution</strong>, <strong>query locality</strong>, and <strong>locality of access</strong> (data close to its users). These goals often conflict, so the choice is workload-specific.</p>
+      <ul>
+        <li><strong>Start from the dominant query:</strong> if most queries are per-user, shard on user ID so they are single-shard point lookups. If most queries are per-tenant, shard on tenant ID. The shard key should appear in the WHERE clause of your most frequent and latency-sensitive queries.</li>
+        <li><strong>Handle skew:</strong> if user activity is highly skewed (a few power users dominate), a plain user-ID key creates hot shards. Use a composite key (user ID + region or user ID + bucket) or a directory to isolate hot users onto dedicated shards.</li>
+        <li><strong>Avoid monotonic keys:</strong> timestamps and auto-increment IDs concentrate writes on the newest shard. If time-based partitioning is required, combine it with a high-cardinality component (e.g., <code>hash(user_id) + time_bucket</code>).</li>
+        <li><strong>Geo-locality:</strong> if data residency or latency requirements demand regional placement, shard by region as the top-level key, then by user within each region. This satisfies GDPR-style requirements and keeps reads local, at the cost of cross-region queries becoming expensive.</li>
+        <li><strong>Plan for growth:</strong> prefer consistent hashing or a directory-based scheme over modulo hashing, so adding shards does not require remapping nearly all keys.</li>
+      </ul>
+      <p>The senior answer states the trade-off explicitly: "Sharding by user ID makes per-user reads single-shard, but celebrity users create hot shards — I'd isolate those onto dedicated shards via a directory rather than compromising the common-case key."</p>
+    </div>
+  </details>
+</section>
+
+</div>
+
+<footer>
+  <b>Replication · Sharding · System Design — Complete Interview Q&amp;A</b><br>
+  Expand any card for the full answer. Pair this guide with hands-on practice: sketch each design on a whiteboard, state your assumptions, and explain the failure modes before the interviewer asks.
+</footer>
+
+</body>
+</html>
