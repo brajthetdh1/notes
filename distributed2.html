@@ -1,0 +1,1393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Distributed Systems — Volume 2: Infrastructure, Caching &amp; Communication</title>
+<style>
+  :root{
+    --ink:#0f172a;
+    --ink-soft:#334155;
+    --muted:#64748b;
+    --line:#e2e8f0;
+    --bg:#f5f8fc;
+    --card:#ffffff;
+    --teal:#0d9488;
+    --teal-soft:#ccfbf1;
+    --violet:#7c3aed;
+    --violet-soft:#ede9fe;
+    --amber:#d97706;
+    --rose:#e11d48;
+    --blue:#2563eb;
+    --blue-soft:#dbeafe;
+    --cyan:#0891b2;
+    --shadow:0 1px 2px rgba(15,23,42,.06), 0 8px 24px -8px rgba(15,23,42,.12);
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 8% -10%, #dbeafe 0%, transparent 60%),
+      radial-gradient(1000px 500px at 100% 0%, #e0f2fe 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:"Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    line-height:1.72;
+    font-size:16.5px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px 90px;}
+
+  header.hero{
+    background:linear-gradient(135deg,#020617 0%, #0f172a 40%, #164e63 100%);
+    color:#f8fafc;
+    padding:64px 22px 56px;
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::after{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      radial-gradient(600px 300px at 85% 15%, rgba(20,184,166,.38), transparent 70%),
+      radial-gradient(520px 280px at 12% 92%, rgba(59,130,246,.32), transparent 70%);
+    pointer-events:none;
+  }
+  .hero-inner{max-width:1080px;margin:0 auto;position:relative;z-index:2;}
+  .eyebrow{
+    display:inline-block;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;
+    font-weight:700;padding:7px 15px;border-radius:999px;
+    background:rgba(34,211,238,.16);border:1px solid rgba(34,211,238,.45);
+    color:#67e8f9;margin-bottom:20px;
+  }
+  header.hero h1{
+    font-size:clamp(1.9rem, 4.4vw, 3rem);line-height:1.15;margin:0 0 16px;
+    font-weight:800;letter-spacing:-.02em;
+  }
+  header.hero h1 span{
+    background:linear-gradient(90deg,#5eead4,#93c5fd);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  header.hero p.lede{font-size:1.06rem;color:#cbd5e1;max-width:780px;margin:0 0 26px;}
+  .meta-chips{display:flex;flex-wrap:wrap;gap:10px;}
+  .chip{
+    font-size:.78rem;font-weight:600;padding:7px 14px;border-radius:999px;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#e2e8f0;
+  }
+
+  .roadmap{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:26px 28px;margin-top:-34px;position:relative;z-index:5;
+  }
+  .roadmap h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 16px;font-weight:700;
+  }
+  .roadmap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;}
+  .roadmap-item{
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:.86rem;
+    background:#fbfcfe;opacity:.7;
+  }
+  .roadmap-item.done{
+    border-color:#99f6e4;background:linear-gradient(180deg,#f0fdfa,#ffffff);opacity:1;
+  }
+  .roadmap-item.current{
+    border-color:#5eead4;background:linear-gradient(180deg,#ecfeff,#ffffff);opacity:1;
+    box-shadow:0 0 0 3px rgba(13,148,136,.14);
+  }
+  .roadmap-item .tag{
+    display:inline-block;font-size:.64rem;font-weight:800;letter-spacing:.08em;
+    padding:2px 8px;border-radius:999px;margin-bottom:6px;
+  }
+  .tag-done{background:var(--blue-soft);color:#1d4ed8;}
+  .tag-now{background:var(--teal-soft);color:#0f766e;}
+  .tag-next{background:#e2e8f0;color:#475569;}
+  .roadmap-item strong{display:block;color:var(--ink);font-size:.89rem;}
+
+  nav.toc{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:22px 26px;margin:26px 0 44px;
+  }
+  nav.toc h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 14px;font-weight:700;
+  }
+  nav.toc ol{
+    margin:0;padding-left:0;list-style:none;counter-reset:toc;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:8px 26px;
+  }
+  nav.toc li{
+    counter-increment:toc;font-size:.93rem;padding:6px 0 6px 34px;
+    position:relative;border-bottom:1px dashed #eef2f7;
+  }
+  nav.toc li::before{
+    content:counter(toc);position:absolute;left:0;top:7px;width:22px;height:22px;
+    border-radius:7px;background:var(--teal-soft);color:var(--teal);
+    font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center;
+  }
+  nav.toc a{color:var(--ink-soft);text-decoration:none;font-weight:500;}
+  nav.toc a:hover{color:var(--teal);}
+
+  .part-band{display:flex;align-items:center;gap:16px;margin:56px 0 26px;}
+  .part-band .bar{
+    width:5px;height:44px;border-radius:99px;
+    background:linear-gradient(180deg,var(--teal),#22d3ee);
+  }
+  .part-band.blue .bar{background:linear-gradient(180deg,var(--blue),#38bdf8);}
+  .part-band h2{margin:0;font-size:1.5rem;letter-spacing:-.01em;font-weight:800;}
+  .part-band .sub{
+    display:block;font-size:.82rem;font-weight:600;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.12em;margin-top:2px;
+  }
+
+  article.q{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:0 0 26px;margin-bottom:28px;overflow:hidden;
+    scroll-margin-top:24px;
+  }
+  .q-head{
+    display:flex;gap:16px;align-items:flex-start;padding:22px 28px 18px;
+    border-bottom:1px solid #eef2f7;background:linear-gradient(180deg,#f7fdff,#ffffff);
+  }
+  .q-num{
+    flex:none;width:42px;height:42px;border-radius:12px;display:flex;
+    align-items:center;justify-content:center;font-weight:800;font-size:.92rem;color:#fff;
+    background:linear-gradient(135deg,#0d9488,#0891b2);
+    box-shadow:0 6px 14px -6px rgba(13,148,136,.7);
+  }
+  .blue .q-num{background:linear-gradient(135deg,#2563eb,#0891b2);box-shadow:0 6px 14px -6px rgba(37,99,235,.7);}
+  .q-head h3{margin:0;font-size:1.14rem;font-weight:700;line-height:1.4;letter-spacing:-.01em;}
+  .q-body{padding:22px 28px 0;}
+  .q-body p{margin:0 0 15px;color:var(--ink-soft);}
+  .q-body p:last-child{margin-bottom:0;}
+  .q-body h4{margin:24px 0 10px;font-size:.95rem;font-weight:800;color:var(--ink);}
+  .q-body h4::before{content:"▹";color:var(--teal);margin-right:8px;font-size:.85rem;}
+  .blue .q-body h4::before{color:var(--blue);}
+  .q-body ul,.q-body ol{margin:0 0 16px;padding-left:22px;color:var(--ink-soft);}
+  .q-body li{margin-bottom:8px;}
+  .q-body li::marker{color:var(--teal);}
+  .blue .q-body li::marker{color:var(--blue);}
+  strong{color:var(--ink);font-weight:700;}
+  code{
+    background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;padding:1px 6px;
+    font-size:.87em;font-family:"SFMono-Regular",Consolas,monospace;color:#0e7490;
+  }
+
+  .callout{border-radius:12px;padding:14px 18px;margin:18px 0 4px;font-size:.93rem;border-left:4px solid;}
+  .callout .label{
+    display:block;font-size:.68rem;font-weight:800;letter-spacing:.13em;
+    text-transform:uppercase;margin-bottom:5px;
+  }
+  .callout p{margin:0 0 8px;font-size:.93rem;}
+  .callout p:last-child{margin-bottom:0;}
+  .answer{background:linear-gradient(180deg,#f0fdfa,#ffffff);border-color:var(--teal);}
+  .answer .label{color:#0f766e;}
+  .tip{background:linear-gradient(180deg,#eff6ff,#ffffff);border-color:var(--blue);}
+  .tip .label{color:#1d4ed8;}
+  .tradeoff{background:linear-gradient(180deg,#fffbeb,#ffffff);border-color:var(--amber);}
+  .tradeoff .label{color:#b45309;}
+  .pitfall{background:linear-gradient(180deg,#fff1f2,#ffffff);border-color:var(--rose);}
+  .pitfall .label{color:#be123c;}
+
+  .table-scroll{overflow-x:auto;margin:18px 0;border-radius:12px;border:1px solid var(--line);}
+  table{width:100%;border-collapse:collapse;font-size:.87rem;background:#fff;}
+  thead th{
+    background:#f8fafc;text-align:left;padding:11px 14px;font-weight:800;
+    font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+    border-bottom:2px solid var(--line);white-space:nowrap;
+  }
+  tbody td{padding:11px 14px;border-bottom:1px solid #f1f5f9;color:var(--ink-soft);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:nth-child(even){background:#fcfdff;}
+  tbody td:first-child{font-weight:700;color:var(--ink);}
+
+  .next-part{
+    background:linear-gradient(135deg,#020617,#164e63);color:#e2e8f0;
+    border-radius:var(--radius);padding:32px 34px;margin-top:50px;box-shadow:var(--shadow);
+  }
+  .next-part h3{margin:0 0 12px;font-size:1.2rem;color:#fff;font-weight:800;}
+  .next-part p{margin:0 0 16px;color:#cbd5e1;font-size:.95rem;}
+  .next-list{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:10px;list-style:none;padding:0;margin:0;
+  }
+  .next-list li{
+    background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
+    border-radius:10px;padding:10px 14px;font-size:.86rem;color:#e2e8f0;
+  }
+
+  @media (max-width:640px){
+    .q-head{padding:18px 18px 15px;}
+    .q-body{padding:18px 18px 0;}
+    header.hero{padding:44px 18px 46px;}
+    .roadmap{padding:20px;}
+    nav.toc{padding:18px;}
+    nav.toc ol{grid-template-columns:1fr;}
+  }
+  @media print{
+    body{background:#fff;}
+    article.q, nav.toc, .roadmap{box-shadow:none;page-break-inside:avoid;}
+    header.hero{background:#020617 !important;-webkit-print-color-adjust:exact;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Volume 2 · Section 1 (completed)</span>
+    <h1>Distributed Systems for System Design<br><span>Infrastructure, Caching &amp; Communication</span></h1>
+    <p class="lede">
+      The components you draw between the client and the database — and the trade-offs that decide whether they help
+      or hurt. Distributed caches, load balancers, reverse proxies, API gateways, CDNs, queues, pub/sub, distributed
+      file systems and databases, shared-nothing architecture, sidecars, service meshes, and the architectural
+      decision between monolith, microservices, and serverless.
+    </p>
+    <div class="meta-chips">
+      <span class="chip">13 Questions</span>
+      <span class="chip">500+ words each</span>
+      <span class="chip">Component-by-component trade-offs</span>
+      <span class="chip">Section 1 complete</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ROADMAP -->
+  <section class="roadmap">
+    <h2>Answer-Series Roadmap</h2>
+    <div class="roadmap-grid">
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 1 — Complete</span>
+        <strong>Fundamentals &amp; Core Concepts</strong>
+        Definitions, fallacies, scaling, HA vs FT, statelessness
+      </div>
+      <div class="roadmap-item current">
+        <span class="tag tag-now">Volume 2 — You are here</span>
+        <strong>Infrastructure, Caching &amp; Communication</strong>
+        Caches, LBs, gateways, CDNs, queues, meshes, monolith vs microservices
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 3</span>
+        <strong>Consistency, CAP &amp; PACELC</strong>
+        Linearizability, quorums, session guarantees
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 4</span>
+        <strong>Replication</strong>
+        Leader/follower, multi-leader, CRDTs, read repair
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 5</span>
+        <strong>Partitioning &amp; Sharding</strong>
+        Consistent hashing, hot keys, resharding
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 6</span>
+        <strong>Consensus &amp; Leader Election</strong>
+        Paxos, Raft, ZAB, fencing tokens
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 7</span>
+        <strong>Distributed Transactions</strong>
+        2PC, Saga, Outbox, idempotency
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 8</span>
+        <strong>Time, Ordering &amp; Clocks</strong>
+        Lamport, vector clocks, TrueTime, watermarks
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 9</span>
+        <strong>Fault Tolerance &amp; Failure Detection</strong>
+        Circuit breakers, backpressure, chaos engineering
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 10</span>
+        <strong>Communication &amp; Messaging</strong>
+        gRPC, Kafka, delivery semantics, event sourcing
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 11+</span>
+        <strong>Data Structures, Coordination, Scale</strong>
+        Bloom filters, ZooKeeper, Amdahl's Law
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 13+</span>
+        <strong>Multi-Region, Observability, Security</strong>
+        TrueTime, tracing, mTLS, zero trust
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 16</span>
+        <strong>Classic Design Problems</strong>
+        40+ system design prompts solved end-to-end
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 17</span>
+        <strong>Senior &amp; Staff Trade-off Questions</strong>
+        Choosing between every pair of options
+      </div>
+    </div>
+  </section>
+
+  <!-- TOC -->
+  <nav class="toc">
+    <h2>Questions Answered in This Volume</h2>
+    <ol>
+      <li><a href="#q1">Distributed cache vs local cache</a></li>
+      <li><a href="#q2">What is the role of a load balancer?</a></li>
+      <li><a href="#q3">Reverse proxy vs load balancer</a></li>
+      <li><a href="#q4">What is an API gateway, and what problems does it solve?</a></li>
+      <li><a href="#q5">What is a CDN, and how does it fit?</a></li>
+      <li><a href="#q6">What is a message queue, and why use one?</a></li>
+      <li><a href="#q7">Message queue vs publish-subscribe</a></li>
+      <li><a href="#q8">What is a distributed file system?</a></li>
+      <li><a href="#q9">Distributed database vs traditional RDBMS</a></li>
+      <li><a href="#q10">Shared-memory vs shared-nothing architectures</a></li>
+      <li><a href="#q11">Sidecar proxy and service mesh</a></li>
+      <li><a href="#q12">What is a service mesh, and what does it solve?</a></li>
+      <li><a href="#q13">Monolith vs microservices vs serverless</a></li>
+    </ol>
+  </nav>
+
+  <!-- ================= PART A ================= -->
+  <div class="part-band">
+    <div class="bar"></div>
+    <h2>Part A — Caching &amp; the Request Edge
+      <span class="sub">Everything that happens before the request reaches your code</span>
+    </h2>
+  </div>
+
+  <!-- Q1 -->
+  <article class="q" id="q1">
+    <div class="q-head">
+      <div class="q-num">1</div>
+      <h3>What is a distributed cache, and how does it differ from a local cache?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A <strong>local cache</strong> lives inside the application process — nanoseconds to microseconds, but
+        invisible to other instances and lost on restart. A <strong>distributed cache</strong> is a separate
+        networked service (Redis, Memcached, Hazelcast) shared by all instances — sub-millisecond to a few
+        milliseconds, consistent across the fleet, but with a network hop, its own failure modes, and a much larger
+        operational surface. Most mature systems use both, in tiers.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>Dimension</th><th>Local (in-process) cache</th><th>Distributed cache</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Latency</td><td>~50–500 ns</td><td>~0.2–2 ms (network hop)</td></tr>
+            <tr><td>Capacity</td><td>Bounded by heap of one process</td><td>Bounded by cluster size — effectively unbounded</td></tr>
+            <tr><td>Consistency</td><td>Per-instance; instances diverge</td><td>Shared view, but still not transactional</td></tr>
+            <tr><td>Hit ratio</td><td>Lower (only this instance's traffic)</td><td>Higher (aggregated traffic warms the cache)</td></tr>
+            <tr><td>Failure mode</td><td>Lost on restart — harmless</td><td>A cache outage becomes an application outage if not degraded</td></tr>
+            <tr><td>Cost</td><td>Free (uses app memory)</td><td>Extra infrastructure, network, and ops</td></tr>
+            <tr><td>Invalidation</td><td>Hard — must broadcast to every instance</td><td>Easy — one delete affects everyone</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Why local caches still matter</h4>
+      <p>A local cache is the fastest possible cache because it avoids serialization and the network entirely.
+      For data that is tiny, extremely hot, and tolerant of a few seconds of staleness — feature flags,
+      configuration, currency exchange rates, a small reference table — an in-process cache refreshed every 30 seconds
+      eliminates millions of network calls. The JVM and Go ecosystems have mature libraries for this
+      (Caffeine, Ristretto, BigCache). The constraint is memory: an app instance with 2 GB of heap can only afford a
+      few hundred megabytes of cache before garbage-collection pressure and latency degrade.</p>
+
+      <h4>Why distributed caches are the default for shared data</h4>
+      <p>The decisive advantage is <strong>aggregate hit ratio</strong>. With ten app instances each caching
+      independently, a popular item needs to be fetched once per instance — ten database queries instead of one.
+      A shared cache is warmed by any instance and serves all of them, so the database sees one query. For a
+      high-cardinality working set this is the difference between 90% and 99% cache hit rate, and therefore between
+      a database at 10% load and one at 50% load. Invalidation is the second advantage: a single <code>DEL</code>
+      updates everyone, whereas a local cache requires a pub/sub broadcast or a version-key scheme.</p>
+
+      <h4>The two-tier pattern</h4>
+      <p>The standard production architecture combines both. An in-process L1 cache holds the hottest few thousand
+      keys with a short TTL (5–30 seconds); a distributed L2 cache holds the full working set with a longer TTL
+      (minutes to hours); the database is the source of truth. Reads check L1, then L2, then the DB, and populate
+      backwards. Writes invalidate L2 and publish an invalidation event to which every instance's L1 subscribes.
+      This gives microsecond latency for hot keys, high aggregate hit ratio for the long tail, and bounded staleness
+      of a few seconds.</p>
+
+      <h4>Failure modes you must design for</h4>
+      <ul>
+        <li><strong>Cache stampede / thundering herd.</strong> A popular key expires and hundreds of concurrent
+        requests all miss and hit the database simultaneously. Mitigations: request coalescing (single-flight),
+        probabilistic early expiry, and a mutex around recomputation.</li>
+        <li><strong>Hot key.</strong> One key (a celebrity's profile) receives a disproportionate share of traffic and
+        saturates a single cache node. Mitigation: replicate the key across nodes with a random suffix, or cache it
+        in L1 everywhere.</li>
+        <li><strong>Cache outage.</strong> If Redis goes away and the application has no fallback, the database
+        receives the full uncached load and collapses. The defence is deliberate: a local fallback cache, request
+        shedding, or accepting degraded (stale) responses.</li>
+        <li><strong>Inconsistency.</strong> Write to DB then invalidate cache is not atomic; the window between the
+        two allows a read to repopulate stale data. Mitigations: delete-after-commit, version-stamped keys, or a
+        short TTL as a safety net.</li>
+      </ul>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>A cache is a bet that stale data for a bounded window is acceptable. Write that window down explicitly
+        — “profile data may be up to 60 seconds stale” — and verify the product agrees. Caches silently change your
+        consistency model, and that change should be a decision, not a side effect.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q2 -->
+  <article class="q" id="q2">
+    <div class="q-head">
+      <div class="q-num">2</div>
+      <h3>What is the role of a load balancer in a distributed system?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A load balancer distributes incoming traffic across multiple backend instances so that no single instance
+        is overwhelmed, and it removes unhealthy instances from rotation so that failures are invisible to clients.
+        It is simultaneously a <strong>scalability device</strong> (spread the load), an
+        <strong>availability device</strong> (route around failure), and a <strong>flexibility device</strong>
+        (decouple the public address from the instance set).</p>
+      </div>
+
+      <h4>The four responsibilities</h4>
+      <ol>
+        <li><strong>Traffic distribution.</strong> Spread requests across healthy backends using an algorithm suited
+        to the workload.</li>
+        <li><strong>Health checking.</strong> Continuously probe backends and remove failures from rotation before
+        clients notice.</li>
+        <li><strong>Address abstraction.</strong> Clients connect to a stable virtual address; instances can be
+        added, removed, and replaced behind it without client changes.</li>
+        <li><strong>Connection management.</strong> Terminate TLS, pool backend connections, apply timeouts, and
+        absorb connection churn.</li>
+      </ol>
+
+      <h4>Layer 4 vs Layer 7</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Aspect</th><th>L4 (TCP/UDP)</th><th>L7 (HTTP/HTTPS)</th></tr></thead>
+          <tbody>
+            <tr><td>Operates on</td><td>IP + port, opaque byte stream</td><td>HTTP method, path, headers, cookies</td></tr>
+            <tr><td>Routing decisions</td><td>5-tuple only</td><td>Path, host, header, query, cookie</td></tr>
+            <tr><td>Performance</td><td>Very high throughput, low latency</td><td>Slower — must parse and buffer</td></tr>
+            <tr><td>TLS</td><td>Pass-through or terminate</td><td>Usually terminates, can re-encrypt to backend</td></tr>
+            <tr><td>Content awareness</td><td>None</td><td>Can rewrite headers, compress, retry</td></tr>
+            <tr><td>Use case</td><td>Databases, gRPC, WebSocket, extreme throughput</td><td>HTTP APIs, path routing, canary deploys</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>In practice you often chain them: an L4 balancer at the edge for raw throughput and DDoS absorption, then
+      an L7 balancer inside for path-based routing and per-route policies.</p>
+
+      <h4>Algorithms and when they matter</h4>
+      <ul>
+        <li><strong>Round robin</strong> — simple and fair when requests cost roughly the same. Fails when they do
+        not: one instance gets three slow requests and falls behind while others idle.</li>
+        <li><strong>Least connections</strong> — sends to the backend with the fewest in-flight requests. The right
+        default for variable-latency workloads.</li>
+        <li><strong>Least response time</strong> — weighs connection count by observed latency; adapts to slow
+        backends automatically.</li>
+        <li><strong>Consistent hashing / IP hash</strong> — sticky routing for cache locality or session affinity.
+        Reintroduces the problems statelessness solved; use only when the backend genuinely holds state.</li>
+        <li><strong>Weighted</strong> — used for canary deploys and heterogeneous instance sizes.</li>
+      </ul>
+
+      <h4>Health checks: the part teams get wrong</h4>
+      <p>A health check that only verifies the process is alive will happily route traffic to an instance whose
+      database pool is exhausted or whose dependency is timing out. The result is a slow, partially-broken fleet.
+      Good health checks verify the actual dependencies required to serve a request, run on a separate lightweight
+      endpoint, and use <strong>consecutive-failure thresholds</strong> to avoid flapping on a single timeout.
+      Crucially, the check must be fast — a health endpoint that takes 2 seconds under load will be marked down by
+      the balancer precisely when the instance is merely busy.</p>
+
+      <h4>Connection draining and zero-downtime deploys</h4>
+      <p>When an instance is removed — for deployment, scaling in, or a node failure — the balancer must stop sending
+      new requests but allow in-flight requests to complete. This is <strong>connection draining</strong>, and its
+      absence is the cause of most “deploy caused a spike in 502s” incidents. The sequence is: mark unhealthy,
+      stop new routing, wait for in-flight requests to finish (bounded by a timeout), then terminate.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>The load balancer itself becomes a single point of failure. Always deploy it as a redundant pair with a
+        floating virtual IP, or use a managed service that is inherently replicated — and remember that DNS in front
+        of it is another potential SPOF.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q3 -->
+  <article class="q" id="q3">
+    <div class="q-head">
+      <div class="q-num">3</div>
+      <h3>Explain the difference between a reverse proxy and a load balancer.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A <strong>reverse proxy</strong> sits in front of servers and forwards client requests to them — its job
+        is to <em>intermediate</em>: terminate TLS, cache, compress, filter, and hide the backend topology. A
+        <strong>load balancer</strong> distributes requests across several backends — its job is to
+        <em>distribute</em>. Every load balancer is a reverse proxy; not every reverse proxy balances load. Modern
+        products (NGINX, Envoy, HAProxy) do both, which is why the terms are used interchangeably in practice.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Capability</th><th>Reverse proxy</th><th>Load balancer</th></tr></thead>
+          <tbody>
+            <tr><td>Primary purpose</td><td>Intermediation and abstraction</td><td>Distribution and availability</td></tr>
+            <tr><td>Number of backends</td><td>Can be exactly one</td><td>By definition, many</td></tr>
+            <tr><td>TLS termination</td><td>Yes</td><td>Yes</td></tr>
+            <tr><td>Response caching</td><td>Yes, central feature</td><td>Sometimes</td></tr>
+            <tr><td>Compression</td><td>Yes</td><td>Sometimes</td></tr>
+            <tr><td>Request/response rewriting</td><td>Yes</td><td>Rarely</td></tr>
+            <tr><td>Health checks</td><td>Optional</td><td>Essential</td></tr>
+            <tr><td>Balancing algorithms</td><td>Not necessarily</td><td>Core feature</td></tr>
+            <tr><td>Security filtering / WAF</td><td>Yes</td><td>Sometimes</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Forward proxy vs reverse proxy</h4>
+      <p>The distinction that actually matters conceptually is <em>direction</em>. A <strong>forward proxy</strong>
+      sits in front of clients and makes requests on their behalf — corporate egress proxies, VPNs, and anonymising
+      services. The server does not know the proxy exists. A <strong>reverse proxy</strong> sits in front of servers
+      and receives requests on their behalf — clients think they are talking to the server directly. The reverse
+      proxy is invisible from the client's perspective; the forward proxy is invisible from the server's.</p>
+
+      <h4>What reverse proxies do that load balancers often do not</h4>
+      <ul>
+        <li><strong>Path-based routing to different origins.</strong> <code>/api/*</code> to the API service,
+        <code>/static/*</code> to object storage, <code>/admin/*</code> to an internal-only service — all under one
+        hostname.</li>
+        <li><strong>Response caching.</strong> A reverse proxy can serve a cached response without touching the
+        backend at all, which is a different mechanism from load balancing.</li>
+        <li><strong>Compression and protocol translation.</strong> HTTP/2 to HTTP/1.1, gzip/brotli encoding, request
+        and response header rewriting.</li>
+        <li><strong>Security filtering.</strong> WAF rules, IP allow/deny lists, request size limits, and bot
+        detection.</li>
+        <li><strong>Backend shielding.</strong> The backend never sees the public internet; it only accepts
+        connections from the proxy, which limits the attack surface dramatically.</li>
+      </ul>
+
+      <h4>How they compose in practice</h4>
+      <p>A typical production request path uses both roles at different layers. At the edge, a CDN acts as a caching
+      reverse proxy. Behind it, an L7 load balancer terminates TLS and distributes across the API fleet. Inside,
+      an API gateway (itself a specialised reverse proxy) routes by path to individual microservices, and each
+      service may sit behind a sidecar proxy that handles service-to-service mTLS and retries. Each layer is a
+      reverse proxy with a different primary job.</p>
+
+      <h4>Why the distinction still matters in interviews</h4>
+      <p>When a candidate says “I'll put a load balancer in front of the static assets”, the interviewer learns they
+      are thinking about distribution when caching and compression are the actual requirements. When they say
+      “I'll put a reverse proxy in front so I can cache and compress, and it will also load-balance across two
+      origins”, they demonstrate they understand the component's capabilities rather than just its name. The
+      distinction is a vocabulary test that reveals the depth of the mental model.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Use “reverse proxy” when describing the general position in the architecture and “load balancer” when
+        specifically discussing distribution and health checking. If you are unsure, “reverse proxy that also load
+        balances” is always defensible.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q4 -->
+  <article class="q" id="q4">
+    <div class="q-head">
+      <div class="q-num">4</div>
+      <h3>What is an API gateway, and what problems does it solve?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>An API gateway is a specialised reverse proxy that acts as the single entry point for all client traffic
+        into a microservices architecture. It handles the concerns that would otherwise be duplicated across every
+        service: authentication, rate limiting, routing, request aggregation, protocol translation, and response
+        shaping. Its value is <strong>centralising cross-cutting concerns</strong>; its cost is an extra hop and a
+        potential bottleneck.</p>
+      </div>
+
+      <h4>The problems it addresses</h4>
+      <ul>
+        <li><strong>Authentication and authorisation in one place.</strong> Validate the JWT, check the API key, and
+        forward the resolved identity to backends as a trusted header. Without a gateway, every service implements
+        token parsing and signature verification, and one team eventually does it wrong.</li>
+        <li><strong>Rate limiting and quotas.</strong> Centralised per-client, per-endpoint, or per-plan throttling.
+        Implementing this per service is both duplicated and inconsistent, because limits must be enforced
+        <em>before</em> the work is done.</li>
+        <li><strong>Routing and versioning.</strong> Map public <code>/v1/orders</code> to an internal service name,
+        and route <code>/v2/orders</code> to a different deployment. Clients see a stable surface while
+        services move underneath.</li>
+        <li><strong>Client-specific API shaping.</strong> A mobile client needs fewer fields and smaller payloads
+        than a web client. The gateway can aggregate several backend calls into one response (BFF pattern) or
+        project out fields the client does not need.</li>
+        <li><strong>Protocol translation.</strong> Public REST or GraphQL on the outside, gRPC between services on
+        the inside. The gateway converts, so services can use the most efficient internal protocol.</li>
+        <li><strong>Observability and traffic policy.</strong> One place to emit access logs, propagate trace IDs,
+        apply timeouts, and run canary routing by header or percentage.</li>
+        <li><strong>Backend shielding.</strong> Services are never exposed publicly. The gateway is the only ingress,
+        which sharply reduces the attack surface and allows per-route WAF policies.</li>
+      </ul>
+
+      <h4>How it differs from a load balancer</h4>
+      <p>A load balancer distributes traffic across <em>instances of the same service</em>. An API gateway routes
+      <em>between different services</em> and applies business-adjacent policy. In practice the gateway also
+      load-balances each downstream service, so the two roles overlap, but the mental model is different: the LB
+      is concerned with capacity and health, the gateway with policy and the client contract.</p>
+
+      <h4>The BFF variant</h4>
+      <p>A <strong>Backend for Frontend</strong> is an API gateway per client type — one for mobile, one for web,
+      one for third-party partners. Each exposes the shape that client needs and aggregates the appropriate
+      services. This avoids the classic problem of a single general-purpose gateway accumulating conditional logic
+      for every client, which turns it into a distributed monolith. The trade-off is more deployments to manage,
+      but the separation is usually worth it when clients have genuinely different needs.</p>
+
+      <h4>Why it can be an anti-pattern</h4>
+      <p>The gateway is on the critical path for every request. If it holds business logic — order validation,
+      pricing, promotion rules — it becomes a single point of both failure and coupling, and every team must
+      coordinate through it. The rule is that the gateway should only implement <strong>cross-cutting,
+      client-facing</strong> concerns and delegate all domain logic to services. When you see a gateway with a
+      branching tree of per-endpoint business rules, that is a distributed monolith forming.</p>
+
+      <h4>Performance implications</h4>
+      <p>Every hop adds latency: typically 0.5–2 ms per request through a well-tuned gateway. At 10,000 requests per
+      second that is also real CPU and connection cost, and the gateway must be horizontally scaled and given
+      headroom. It is worth measuring whether an extra hop through a gateway is cheaper than the duplicate
+      authentication work it removes — almost always it is, but the calculation should be made rather than
+      assumed.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Centralising concerns into a gateway reduces duplication and standardises policy, but it also centralises
+        failure and can centralise coupling. Keep the gateway thin, deploy it redundantly, and treat any business
+        logic in it as a design smell.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q5 -->
+  <article class="q" id="q5">
+    <div class="q-head">
+      <div class="q-num">5</div>
+      <h3>What is a CDN, and how does it fit into a distributed architecture?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A Content Delivery Network is a globally distributed set of caching reverse proxies placed physically
+        close to users. It reduces latency by serving content from an edge location instead of the origin, reduces
+        origin load by absorbing the majority of read traffic, and absorbs DDoS attacks at the network edge. It is
+        the single highest-leverage latency optimisation for any geographically distributed user base.</p>
+      </div>
+
+      <h4>Why physics forces this</h4>
+      <p>Light in fibre travels roughly 200 km per millisecond round trip. A user in Singapore fetching from
+      Virginia pays at least 80 ms of propagation delay before any server work happens, and realistically
+      150–250 ms with real routing. No amount of server optimisation removes that. A CDN puts a cache 5–20 ms from
+      the user, so the same request completes in tens of milliseconds. For static content the speedup is one to two
+      orders of magnitude, and it is fundamentally unavailable to origin-side optimisations.</p>
+
+      <h4>What a CDN caches, and how</h4>
+      <ul>
+        <li><strong>Static assets</strong> — images, CSS, JS, fonts, video segments. Long TTLs, content-addressed
+        filenames (a hash in the filename), immutable. Cache hit ratios above 95% are normal.</li>
+        <li><strong>Dynamic content with short TTLs</strong> — API responses that are the same for all users and
+        change slowly: product catalogues, public profiles, trending lists. TTLs of seconds to minutes.</li>
+        <li><strong>Personalised content via edge compute</strong> — modern CDNs (Cloudflare Workers, Lambda@Edge,
+        Fastly Compute) run code at the edge, allowing per-user responses assembled from cached fragments without a
+        trip to the origin.</li>
+        <li><strong>Streaming video</strong> — segmented with HLS/DASH and cached as individual chunks, which is what
+        makes adaptive bitrate streaming economically viable.</li>
+      </ul>
+
+      <h4>Cache keys and invalidation</h4>
+      <p>The cache key determines what counts as “the same request”. By default it is the URL plus the
+      <code>Host</code> header, but CDNs let you include or exclude specific headers, cookies, or query parameters.
+      Including too much fragments the cache and destroys the hit ratio; including too little serves the wrong
+      content to the wrong user — a security incident, not just a bug. The classic failure is caching a response
+      containing a <code>Set-Cookie</code> or an <code>Authorization</code>-specific body under a shared key.
+      Invalidation is via TTL expiry, explicit purge API, or versioned URLs. Purging globally takes seconds to
+      minutes and is not instantaneous, so versioned URLs are the preferred approach for anything that must change
+      immediately.</p>
+
+      <h4>Origin shielding</h4>
+      <p>With hundreds of edge locations, a cold or expired object can produce hundreds of simultaneous misses
+      against the origin — the CDN becomes a thundering herd. <strong>Origin shielding</strong> inserts a mid-tier
+      cache between the edges and the origin, so at most one request per region reaches the origin. It also gives
+      you request collapsing, where concurrent misses for the same object are coalesced into a single origin fetch.</p>
+
+      <h4>Where the CDN sits in the architecture</h4>
+      <p>The CDN is the outermost layer: client → DNS (often the CDN's own anycast DNS) → edge PoP → shield →
+      origin load balancer → application. This means the CDN absorbs DDoS traffic before it reaches your network,
+      terminates TLS close to the user, and can serve stale content during an origin outage — a genuine
+      availability win, not just a performance one. Configuring <code>stale-while-revalidate</code> and
+      <code>stale-if-error</code> means users keep seeing content even while the origin is down.</p>
+
+      <h4>Dynamic content acceleration</h4>
+      <p>Even for uncacheable responses, a CDN helps by optimising the path between the edge and the origin —
+      maintaining warm TCP and TLS connections, using optimised backbone routes rather than the public internet,
+      and applying compression. This “dynamic acceleration” typically saves 20–40% of origin latency and is the
+      reason CDNs are used even for fully personalised APIs.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Caching a response that varies by user identity without including identity in the cache key, or without
+        a <code>Vary</code> header. This is a data-leak class bug, not a performance bug — one user's private data
+        served to thousands. Any endpoint that sets cookies or reads authorisation must either be marked
+        non-cacheable or have identity explicitly in the key.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART B ================= -->
+  <div class="part-band blue">
+    <div class="bar"></div>
+    <h2>Part B — Asynchronous Communication &amp; Storage Fabric
+      <span class="sub">Queues, pub/sub, file systems, and shared-nothing</span>
+    </h2>
+  </div>
+
+  <!-- Q6 -->
+  <article class="q blue" id="q6">
+    <div class="q-head">
+      <div class="q-num">6</div>
+      <h3>What is a message queue, and why use one?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A message queue is a durable buffer between a producer and a consumer. The producer enqueues a message and
+        moves on; the consumer dequeues and processes it asynchronously, at its own pace. It decouples the two in
+        time and in failure, which buys you load levelling, retry, buffering during consumer outages, and the
+        ability to add consumers without touching producers.</p>
+      </div>
+
+      <h4>The problems it solves</h4>
+      <ul>
+        <li><strong>Temporal decoupling.</strong> The producer does not wait for the consumer. A checkout can return
+        <code>200 OK</code> in 40 ms while the email, invoice, and warehouse notification happen asynchronously over
+        the next few seconds.</li>
+        <li><strong>Load levelling / burst absorption.</strong> A flash sale produces 50,000 orders in a minute
+        against a system that can process 5,000 per minute. The queue absorbs the spike and the workers drain it over
+        ten minutes. Without a queue, the system either falls over or must be provisioned for a peak it hits twice
+        a year.</li>
+        <li><strong>Failure isolation.</strong> If the email service is down for an hour, messages accumulate in the
+        queue and are processed when it recovers. No orders are lost because of an unrelated dependency.</li>
+        <li><strong>Retry and dead-letter handling.</strong> Failed processing is retried with backoff, and
+        persistently failing messages go to a dead-letter queue for inspection rather than blocking the pipeline.</li>
+        <li><strong>Fan-out of work.</strong> Add ten more workers to increase throughput; no producer changes are
+        needed, because the queue is the boundary.</li>
+        <li><strong>Backpressure.</strong> Queue depth becomes an explicit, observable signal of overload, which is
+        far better than discovering it through thread-pool exhaustion.</li>
+      </ul>
+
+      <h4>The costs you accept</h4>
+      <ul>
+        <li><strong>Eventual consistency.</strong> The client sees success before the work is done. The UI must say
+        “processing” rather than “done”, or the system needs a way to notify completion.</li>
+        <li><strong>Duplicate delivery.</strong> Almost all queues guarantee at-least-once, not exactly-once, so
+        consumers must be idempotent. This is not optional — it is a design requirement.</li>
+        <li><strong>Ordering.</strong> Global ordering across a queue is expensive and usually unnecessary. Ordering is
+        guaranteed per partition, so you must choose the partition key carefully (per-user, per-order).</li>
+        <li><strong>Operational surface.</strong> A new stateful component to monitor, scale, back up, and reason
+        about during incidents. Consumer lag is now a metric you own.</li>
+        <li><strong>Debugging complexity.</strong> A request no longer follows a single stack trace; it becomes a
+        sequence of events across services, which requires distributed tracing to follow.</li>
+      </ul>
+
+      <h4>Queue vs direct call: the decision</h4>
+      <p>Use a queue when the caller does not need the result to respond, when the work is slow or bursty, when the
+      consumer may be temporarily unavailable, or when you want to add consumers over time. Use a synchronous call
+      when the client genuinely needs the answer — a login, a price lookup, a payment authorisation. A useful
+      heuristic is: if the response to the user would be the same whether or not the downstream work succeeded
+      immediately, it belongs in a queue.</p>
+
+      <h4>The outbox pattern</h4>
+      <p>Publishing to a queue and writing to a database in the same transaction is impossible — one of them will
+      fail, and you get either a lost message or a phantom one. The <strong>transactional outbox</strong> solves
+      this: write the message into an <code>outbox</code> table in the same database transaction as the business
+      change, then a separate relay process reads the outbox and publishes to the queue. This guarantees that a
+      committed business change always produces a message, at the cost of a small delay and a relay component.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>A queue converts a synchronous failure into a delayed failure. That is usually an improvement — but only
+        if someone is watching the dead-letter queue and the consumer lag. An unmonitored queue is a silent data-loss
+        mechanism: messages retry until they expire and vanish.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q7 -->
+  <article class="q blue" id="q7">
+    <div class="q-head">
+      <div class="q-num">7</div>
+      <h3>What is the difference between a message queue and a publish-subscribe system?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>In a <strong>queue</strong>, each message is delivered to exactly one consumer — it is a work-distribution
+        mechanism. In <strong>publish-subscribe</strong>, each message is delivered to every subscriber — it is a
+        notification mechanism. Queues scale work; pub/sub scales fan-out. They are different primitives, and the
+        choice changes your system's semantics.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Dimension</th><th>Message queue</th><th>Publish-subscribe</th></tr></thead>
+          <tbody>
+            <tr><td>Delivery</td><td>One consumer per message (competing consumers)</td><td>Every subscriber gets a copy</td></tr>
+            <tr><td>Purpose</td><td>Distribute work, level load</td><td>Broadcast events to interested parties</td></tr>
+            <tr><td>Adding a consumer</td><td>Increases throughput; competes for messages</td><td>Increases fan-out; receives all new messages</td></tr>
+            <tr><td>Coupling</td><td>Producer knows the queue, not the consumer</td><td>Producer knows the topic, not the subscribers</td></tr>
+            <tr><td>Ordering</td><td>Per queue, straightforward</td><td>Per topic/partition per subscriber</td></tr>
+            <tr><td>Example</td><td>SQS, RabbitMQ queue, Redis list</td><td>SNS, Kafka topics, Google Pub/Sub, RabbitMQ fanout exchange</td></tr>
+            <tr><td>Typical use</td><td>Image resizing, email sending, payment processing</td><td>Order events consumed by billing, analytics, notifications</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Why the distinction is not academic</h4>
+      <p>Consider an order-placed event that three systems care about: billing, inventory, and analytics. If you put
+      it on a <em>queue</em> with three consumers, each event goes to exactly one of them — billing might receive an
+      event that inventory never sees. That is almost certainly a bug, and a subtle one that only manifests as
+      missing data in one subsystem. Publishing to a <em>topic</em> delivers a copy to each subscriber, which is
+      the correct semantics. The primitive must match the intent.</p>
+
+      <h4>The hybrid: topics with competing consumer groups</h4>
+      <p>Real systems need both at once. Kafka provides this directly: a <strong>topic</strong> is divided into
+      partitions; each <strong>consumer group</strong> receives every message once, distributed across the members of
+      that group. So a topic can serve billing (group 1), inventory (group 2), and analytics (group 3) — each group
+      receives all events, while within a group the work is distributed across many instances. This is the dominant
+      model in modern event-driven architectures precisely because it composes the two primitives.</p>
+
+      <h4>Replay and retention</h4>
+      <p>A traditional queue deletes a message once it is acknowledged; there is no going back. A log-based
+      pub/sub system (Kafka, Kinesis, Pulsar) retains messages for a configured window and lets each consumer group
+      maintain its own offset. This enables <strong>replay</strong>: a new consumer can read history from the
+      beginning to bootstrap a projection, and a buggy consumer can be reset and reprocessed. Replay is enormously
+      valuable — it makes derived data rebuildable — but it requires storage proportional to retention × throughput,
+      and consumers must be idempotent because replay reprocesses everything.</p>
+
+      <h4>Delivery guarantees</h4>
+      <p>Both models offer at-most-once, at-least-once, or (approximately) exactly-once delivery. Exactly-once in a
+      distributed system requires either transactional consumers with idempotent writes or a broker that supports
+      transactional produce-and-consume (Kafka does, with some caveats). In most designs the pragmatic answer is
+      at-least-once delivery plus idempotent consumers, which produces exactly-once <em>effects</em> without the
+      cost of exactly-once infrastructure.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: “I'll publish the order-placed event to a topic so billing, inventory, and analytics each get a copy,
+        and each of those is its own consumer group that scales horizontally.” That sentence demonstrates you
+        understand both primitives and how they compose.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q8 -->
+  <article class="q blue" id="q8">
+    <div class="q-head">
+      <div class="q-num">8</div>
+      <h3>What is a distributed file system? Give examples and use cases.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A distributed file system stores files across many machines while presenting a single namespace and
+        POSIX-like (or object-like) access to clients. It provides capacity beyond one machine, durability through
+        replication or erasure coding, and throughput by reading from many disks in parallel. HDFS, GFS, Ceph, and
+        GlusterFS are the canonical examples; S3 is the object-store variant that has largely replaced them for
+        new workloads.</p>
+      </div>
+
+      <h4>The core design problem</h4>
+      <p>A local file system assumes the disk is present, so it can update metadata and data together. A distributed
+      file system cannot: disks fail constantly, nodes disappear mid-write, and the network partitions. Every
+      design therefore answers three questions: <strong>how is the namespace managed</strong> (a single metadata
+      server or a distributed directory), <strong>how is data chunked</strong> (fixed-size blocks distributed across
+      nodes), and <strong>how is durability achieved</strong> (replication or erasure coding).</p>
+
+      <h4>The GFS/HDFS model</h4>
+      <p>Files are split into large blocks — 64 MB in GFS, 128 MB in HDFS — and each block is replicated three times
+      across different racks. A single <strong>NameNode</strong> holds the entire namespace and block map in memory;
+      the <strong>DataNodes</strong> store the actual blocks and report their contents via heartbeats. Reads and
+      writes go directly between clients and DataNodes, so the NameNode is a control-plane component only and does
+      not become a throughput bottleneck.</p>
+      <p>The trade-off is intentional: this design is optimised for <strong>large sequential reads and appends</strong>,
+      not random writes. HDFS explicitly does not support efficient random writes or low-latency small-file access.
+      It exists to feed batch analytics engines (MapReduce, Spark) that stream enormous files, and it is very good at
+      exactly that.</p>
+
+      <h4>Why large blocks</h4>
+      <p>A 128 MB block means a terabyte file has only 8,000 blocks, so the NameNode's in-memory map is small and
+      the per-block overhead is amortised. It also means each read is a long sequential transfer that saturates disk
+      and network bandwidth instead of paying seek time. The downside is the <strong>small-file problem</strong>:
+      a directory of a million 1 KB files consumes a million NameNode entries and a million blocks, which crushes
+      the metadata server. The standard mitigation is archiving or compacting small files before ingestion.</p>
+
+      <h4>Replication vs erasure coding</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Strategy</th><th>Storage overhead</th><th>Durability</th><th>Read cost</th><th>Best for</th></tr></thead>
+          <tbody>
+            <tr><td>3× replication</td><td>300%</td><td>Tolerates 2 node failures</td><td>Read from any replica</td><td>Hot data, low-latency reads</td></tr>
+            <tr><td>Erasure coding (10+4)</td><td>140%</td><td>Tolerates 4 failures</td><td>Must read and decode multiple fragments</td><td>Cold/archival data</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Erasure coding cuts storage cost dramatically but increases read latency and CPU, so the common pattern is
+      triple replication for hot data and erasure coding for data that has aged out.</p>
+
+      <h4>Object storage has largely won</h4>
+      <p>Amazon S3, GCS, and Azure Blob replaced HDFS for most new workloads because they offer effectively unlimited
+      capacity, eleven-nines durability, HTTP-native access, and no operational burden. The trade-off is higher
+      per-request latency (tens of milliseconds, not microseconds), eventual consistency in some paths, and no
+      random-write or append semantics. For user-uploaded media, backups, data lakes, and static assets, object
+      storage is the default answer. Distributed file systems remain appropriate for HPC, on-premises analytics, and
+      workloads that genuinely need POSIX semantics across many nodes.</p>
+
+      <h4>Where you would use one in a design</h4>
+      <p>Any time the interview involves large binary payloads — videos, images, ML training sets, logs — the answer
+      is object storage with a CDN in front, not a database BLOB column. The database should store the
+      <em>metadata</em> (owner, size, content type, checksum, storage key) and the object store holds the bytes.
+      This keeps the database small, makes backups tractable, and lets the CDN serve the content directly without
+      the application in the path.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Storing large binaries in a relational database. It works at small scale, then row size limits, backup
+        windows, replication bandwidth, and buffer-pool pollution all become problems at once. The metadata/bytes
+        split is nearly always the right design.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q9 -->
+  <article class="q blue" id="q9">
+    <div class="q-head">
+      <div class="q-num">9</div>
+      <h3>What is a distributed database, and how does it differ from a traditional RDBMS?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A traditional RDBMS runs on one machine and offers full ACID transactions with a single serialisation
+        point. A distributed database spreads storage and query processing across many machines, gaining capacity and
+        availability but paying for it in coordination latency and consistency trade-offs. NewSQL systems
+        (Spanner, CockroachDB, YugabyteDB) attempt to keep ACID semantics while distributing, using consensus and
+        synchronized clocks.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>Dimension</th><th>Traditional RDBMS</th><th>Distributed database</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Capacity</td><td>Bounded by one machine</td><td>Scales with node count</td></tr>
+            <tr><td>Availability</td><td>Single point of failure unless replicated externally</td><td>Survives node/AZ failure natively</td></tr>
+            <tr><td>Transactions</td><td>Local, fast, strongly consistent</td><td>Cross-node — consensus, 2PC, or per-partition</td></tr>
+            <tr><td>Latency</td><td>Single-digit ms for indexed reads</td><td>Higher — quorum round trips, cross-region hops</td></tr>
+            <tr><td>Consistency</td><td>Always strong</td><td>Configurable (tunable, per-query)</td></tr>
+            <tr><td>Schema</td><td>Rigid, central</td><td>Often schema-less or per-partition flexible</td></tr>
+            <tr><td>Operational model</td><td>Mature, well understood</td><td>Complex — rebalancing, repair, topology</td></tr>
+            <tr><td>Examples</td><td>PostgreSQL, MySQL, Oracle</td><td>Cassandra, DynamoDB, Spanner, CockroachDB, TiDB</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The four families</h4>
+      <ul>
+        <li><strong>Key-value stores</strong> (DynamoDB, Redis, Riak) — partition by key, no cross-key transactions.
+        Extremely fast, extremely limited query model.</li>
+        <li><strong>Wide-column stores</strong> (Cassandra, HBase, Bigtable) — partition key plus clustering columns;
+        excellent write throughput and time-series access; no joins.</li>
+        <li><strong>Document stores</strong> (MongoDB, Couchbase) — JSON documents, secondary indexes, some
+        multi-document transactions in recent versions.</li>
+        <li><strong>NewSQL / distributed SQL</strong> (Spanner, CockroachDB, YugabyteDB, TiDB) — the familiar
+        relational model with SQL and ACID, but automatically sharded and replicated underneath.</li>
+      </ul>
+
+      <h4>How NewSQL recovers ACID across shards</h4>
+      <p>The core challenge is that a transaction touching rows on different shards cannot be serialised by a single
+      lock manager. Spanner and CockroachDB use a replicated, range-sharded key space where each range has a Raft
+      group; a cross-range transaction uses a two-phase protocol over those groups, with timestamps providing
+      global ordering. Spanner's key trick is <strong>TrueTime</strong> — GPS and atomic clocks give every node a
+      bounded uncertainty window, so it can wait out the uncertainty and assign globally meaningful commit
+      timestamps. CockroachDB uses a hybrid logical clock and a transaction-record mechanism to resolve conflicts
+      without dedicated hardware. The cost in both cases is commit latency: cross-shard transactions require
+      multiple round trips, typically 5–50 ms even in the same region.</p>
+
+      <h4>Choosing between them</h4>
+      <p>Use a traditional RDBMS when the data fits on one well-sized machine (modern servers handle terabytes),
+      when transactions and joins are central to correctness, and when operational simplicity matters. Use a
+      distributed database when the dataset genuinely exceeds a machine, when the workload must survive a
+      datacenter failure without manual intervention, or when writes come from multiple regions and a single
+      primary would impose unacceptable latency. The common error is choosing a distributed database for a
+      workload that one PostgreSQL instance would serve comfortably — you pay in latency, operational complexity,
+      and query expressiveness for capacity you do not need.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Distribution buys capacity and availability with latency and complexity. A single-node RDBMS with a
+        synchronous standby and a read replica covers a surprising amount of the real world; “we might grow”
+        is not sufficient justification for a sharded cluster.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q10 -->
+  <article class="q blue" id="q10">
+    <div class="q-head">
+      <div class="q-num">10</div>
+      <h3>Explain the difference between shared-memory, shared-disk, and shared-nothing architectures.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>The three architectures describe how processors access data. <strong>Shared memory</strong>: all processors
+        use one address space and one clock — tightly coupled, fast, limited to one machine.
+        <strong>Shared disk</strong>: separate processors and memory, but all attach to the same storage — easy
+        failover, but the disk is a bottleneck and a contention point. <strong>Shared nothing</strong>: each node has
+        its own CPU, memory, and disk, communicating only by messages — the architecture of every horizontally
+        scalable system, at the cost of cross-node coordination.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>Aspect</th><th>Shared memory</th><th>Shared disk</th><th>Shared nothing</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Processors</td><td>Many, one machine</td><td>Many, many machines</td><td>Many, many machines</td></tr>
+            <tr><td>Memory</td><td>Common</td><td>Private</td><td>Private</td></tr>
+            <tr><td>Disk</td><td>Common</td><td>Common</td><td>Private</td></tr>
+            <tr><td>Communication</td><td>Memory bus</td><td>Disk + interconnect</td><td>Network messages</td></tr>
+            <tr><td>Scaling ceiling</td><td>Machine size</td><td>Storage subsystem</td><td>Very high</td></tr>
+            <tr><td>Contention</td><td>Cache coherence, locks</td><td>Disk head / IO bandwidth</td><td>Coordination protocol</td></tr>
+            <tr><td>Failure impact</td><td>Total</td><td>Node fails, data intact</td><td>Partial, if replicated</td></tr>
+            <tr><td>Examples</td><td>Multi-core servers, Oracle RAC (partial)</td><td>Oracle RAC, some SAN clusters</td><td>Cassandra, Spark, Kafka, DynamoDB</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Shared memory</h4>
+      <p>All processors see the same RAM. Synchronisation uses hardware primitives — compare-and-swap, memory
+      barriers — and is measured in nanoseconds. This is the fastest possible model and is what a single
+      multi-core server gives you. Its ceiling is the largest machine you can buy, and its scaling behaviour is
+      governed by cache coherence traffic and lock contention, which is why adding cores past a point yields
+      diminishing and eventually negative returns.</p>
+
+      <h4>Shared disk</h4>
+      <p>Each node has its own CPU and memory but they all mount the same storage. Any node can serve any request
+      because the data is one copy, which makes failover trivial: another node picks up the same disk. Oracle RAC
+      is the canonical example. The problem is that the disk subsystem is a shared resource, so its bandwidth and
+      IOPS cap the whole cluster — you cannot scale past it. Worse, cache coherence across nodes requires a
+      distributed lock manager over the interconnect, which adds latency to every block access. Shared disk is
+      attractive for legacy workloads needing high availability without sharding, and largely obsolete for new
+      designs.</p>
+
+      <h4>Shared nothing</h4>
+      <p>Every node owns a disjoint subset of the data and no resource is shared. This scales nearly linearly
+      because there is no shared bottleneck, and it tolerates partial failure because losing a node loses only its
+      partition. The price is that any operation spanning partitions needs coordination: joins become distributed
+      joins, aggregations become two-phase (partial then merge), and transactions need 2PC or consensus. Shared
+      nothing is the foundation of MapReduce, Hadoop, Spark, Kafka, Cassandra, DynamoDB, and essentially every
+      modern horizontally scalable system.</p>
+
+      <h4>Why shared nothing is the default answer</h4>
+      <p>Only shared nothing removes the shared bottleneck, and only shared nothing lets you add capacity by adding
+      cheap commodity machines. The industry's whole cloud computing model — many small servers rather than a few
+      enormous ones — is a bet on shared nothing. The engineering cost is coordination, and the entire discipline
+      of distributed systems (consensus, replication, partitioning, consistency models) exists to manage that
+      cost.</p>
+
+      <h4>Where the model leaks</h4>
+      <p>In practice the boundaries blur. A shared-nothing cluster runs on a shared network switch, so there is a
+      shared resource one level up. A Kubernetes node is shared-memory internally but shared-nothing at the cluster
+      level. Modern analytical engines (Snowflake, BigQuery) use a shared-disk architecture for storage with
+      shared-nothing compute — decoupling storage and compute is arguably a fourth model, and it is where the
+      industry is converging because it lets each layer scale independently.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>When you justify sharding, name it: “I'll use a shared-nothing design so there's no shared bottleneck
+        and a node failure only loses one partition.” When you justify keeping a single database, name the
+        alternative cost: “shared nothing would force me into distributed transactions for queries that are trivially
+        local today.”</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART C ================= -->
+  <div class="part-band">
+    <div class="bar"></div>
+    <h2>Part C — Service Topology
+      <span class="sub">Sidecars, meshes, and the monolith question</span>
+    </h2>
+  </div>
+
+  <!-- Q11 -->
+  <article class="q" id="q11">
+    <div class="q-head">
+      <div class="q-num">11</div>
+      <h3>What is a sidecar proxy, and how is it used in service meshes?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A sidecar is a helper process deployed alongside each application instance, sharing its network namespace
+        and lifecycle. In a service mesh, the sidecar is a proxy that intercepts all of the application's inbound and
+        outbound traffic, giving the platform a uniform place to implement mTLS, retries, timeouts, circuit breaking,
+        load balancing, and telemetry — without the application knowing.</p>
+      </div>
+
+      <h4>The problem it solves</h4>
+      <p>In a microservices architecture with twenty services written in four languages, cross-cutting networking
+      concerns must be implemented everywhere. Each team writes its own retry logic with slightly different backoff,
+      its own TLS handling, its own metrics, and its own circuit breaker — or, more commonly, forgets to. The result
+      is inconsistent reliability behaviour and no uniform observability. A sidecar moves that logic out of the
+      application and into a proxy that every service gets automatically.</p>
+
+      <h4>How traffic flows</h4>
+      <ol>
+        <li>An iptables rule or eBPF program redirects the pod's outbound traffic through the sidecar.</li>
+        <li>The sidecar resolves the destination service via the control plane's registry.</li>
+        <li>It establishes an mTLS connection using a certificate issued by the mesh's CA, presenting the pod's
+        cryptographic identity (e.g., a SPIFFE ID).</li>
+        <li>It applies the configured policy — timeout, retry budget, circuit breaker, outlier detection — and
+        load-balances across healthy endpoints.</li>
+        <li>It emits metrics, access logs, and trace spans for the request.</li>
+      </ol>
+      <p>None of this requires the application to change a line of code. Envoy is the dominant sidecar
+      implementation; Istio, Linkerd, Consul Connect, and AWS App Mesh are control planes that configure it.</p>
+
+      <h4>Advantages</h4>
+      <ul>
+        <li><strong>Language-agnostic.</strong> A Java service and a Go service get identical networking behaviour.</li>
+        <li><strong>Uniform security.</strong> mTLS with automatic certificate rotation becomes the default, not an
+        opt-in — a large improvement over per-service TLS configuration.</li>
+        <li><strong>Consistent observability.</strong> Every request produces the same metrics and trace spans,
+        which makes cross-service debugging tractable.</li>
+        <li><strong>Policy changes without redeployment.</strong> Tighten a timeout or enable a circuit breaker via
+        control-plane config, not a code release.</li>
+      </ul>
+
+      <h4>Costs and criticisms</h4>
+      <ul>
+        <li><strong>Latency and resource overhead.</strong> Each request makes an extra hop through a proxy, adding
+        roughly 1–3 ms and doubling the pod's memory and CPU footprint.</li>
+        <li><strong>Operational complexity.</strong> A new distributed system to run: control plane, CA, proxies,
+        and their upgrade lifecycle. Debugging now involves proxy config as well as application config.</li>
+        <li><strong>Interception fragility.</strong> iptables-based interception breaks with certain protocols,
+        non-standard ports, or applications that manage their own sockets.</li>
+        <li><strong>The “it's not my code” problem.</strong> When a request fails, the first question is whether the
+        proxy or the app dropped it — a new debugging dimension that teams must learn.</li>
+      </ul>
+
+      <h4>The sidecar-less direction</h4>
+      <p>The overhead of one proxy per pod has driven two alternatives. <strong>Node-level proxies</strong> run one
+      proxy per node instead of per pod, reducing resource cost but reducing per-pod isolation.
+      <strong>eBPF-based meshes</strong> (Cilium Service Mesh) implement much of the data plane in the kernel,
+      avoiding the extra userspace hop entirely for L4 concerns, though L7 policy still needs a proxy somewhere.
+      <strong>Ambient mesh</strong> (Istio's newer mode) separates L4 handling — done by a per-node ztunnel — from
+      L7 handling, which is only spun up for workloads that need it. The direction is clear: keep the benefits of a
+      uniform data plane while eliminating the per-pod tax.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>A service mesh is worth it when you have many services, multiple languages, and a regulatory or security
+        requirement for universal mTLS. Below roughly ten services or a single language, a shared library plus a
+        well-configured ingress usually delivers most of the benefit at a fraction of the operational cost.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q12 -->
+  <article class="q" id="q12">
+    <div class="q-head">
+      <div class="q-num">12</div>
+      <h3>What is a service mesh, and what problems does it address?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A service mesh is an infrastructure layer that handles all service-to-service communication. It consists of
+        a <strong>data plane</strong> (the proxies that actually carry traffic) and a <strong>control plane</strong>
+        (which configures them, issues identities, and collects telemetry). It addresses four problems uniformly:
+        secure identity, reliable communication, fine-grained traffic control, and deep observability.</p>
+      </div>
+
+      <h4>The four problems, in detail</h4>
+      <ul>
+        <li><strong>Security and identity.</strong> Every service gets a cryptographic identity and mutual TLS is
+        automatic, with certificate rotation handled by the control plane. Authorisation policy can be expressed as
+        “service A may call <code>GET /orders</code> on service B” and enforced at the proxy, independent of the
+        application. This is the single strongest justification for adopting a mesh — it converts security from
+        something each team must remember into something the platform guarantees.</li>
+        <li><strong>Reliability.</strong> Uniform timeouts, retries with jitter and budgets, circuit breaking, outlier
+        detection, and connection pooling. Applied consistently, these prevent the cascading failures that
+        heterogeneous per-service implementations produce.</li>
+        <li><strong>Traffic management.</strong> Weighted routing for canary and blue-green deploys, header-based
+        routing for internal testing, fault injection for chaos experiments, traffic mirroring to a shadow version,
+        and per-route rate limiting. Changing a canary weight becomes a config change rather than a code release.</li>
+        <li><strong>Observability.</strong> Every proxy emits consistent request-level metrics (latency histograms,
+        status codes, retry counts) and trace spans, and generates uniform access logs. Because the instrumentation
+        is at the proxy, services that were never instrumented still produce telemetry.</li>
+      </ul>
+
+      <h4>Control plane vs data plane</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Layer</th><th>Responsibility</th><th>Examples</th></tr></thead>
+          <tbody>
+            <tr><td>Data plane</td><td>Carries request traffic; enforces policy; emits telemetry</td><td>Envoy, Linkerd2-proxy, ztunnel</td></tr>
+            <tr><td>Control plane</td><td>Service discovery, config distribution, certificate issuance, policy</td><td>Istiod, Linkerd control plane, Consul</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The separation matters operationally: if the control plane goes down, existing proxies keep serving with
+      their last known configuration — traffic does not stop, but new config and certificate renewals do. That
+      graceful degradation is a deliberate design property.</p>
+
+      <h4>What it does not solve</h4>
+      <p>A service mesh is a networking layer, not an architecture fix. It does not fix a badly partitioned domain
+      model, it does not provide distributed transactions, it does not make a chatty service decomposition efficient,
+      and it does not replace application-level idempotency. Teams sometimes adopt a mesh expecting reliability and
+      discover they still have cascading failures because their services have no timeouts <em>inside</em> the
+      application's own database calls. The mesh sees only the network boundary.</p>
+
+      <h4>The cost-benefit calculus</h4>
+      <p>Adopt when: many services, multiple languages, a compliance requirement for service-to-service encryption,
+      and a platform team able to operate it. Do not adopt when: a handful of services, one language, or a small
+      team without dedicated platform capacity — the operational cost will exceed the benefit. A reasonable middle
+      path is a mesh only for the security and mTLS use case, with L7 policy handled at the ingress and a shared
+      library for retries.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Adding a mesh and assuming retries are now handled. Retries at the proxy layer can multiply: three app
+        instances retrying three times each against a struggling dependency produces nine times the load. Always
+        combine proxy retries with a <strong>retry budget</strong> (a cap on retries as a fraction of total requests)
+        and jitter, or you will build a retry storm amplifier.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q13 -->
+  <article class="q" id="q13">
+    <div class="q-head">
+      <div class="q-num">13</div>
+      <h3>What is the difference between a monolith, microservices, and serverless in distributed contexts?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A <strong>monolith</strong> is one deployable unit — simplest to build, operate, and debug, but scales only
+        as a whole and couples teams. <strong>Microservices</strong> are independently deployable services owning
+        their own data — maximum team autonomy and independent scaling, at the cost of distributed systems
+        complexity. <strong>Serverless</strong> runs functions on demand with no server management — near-zero
+        idle cost and automatic scaling, but with cold starts, execution limits, and a harder local development
+        story. These are points on a spectrum of operational ownership, not a maturity ladder.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>Dimension</th><th>Monolith</th><th>Microservices</th><th>Serverless</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Deployment unit</td><td>One artifact</td><td>One per service</td><td>One per function</td></tr>
+            <tr><td>Scaling</td><td>Whole app only</td><td>Per service</td><td>Per function, automatic, to zero</td></tr>
+            <tr><td>Data</td><td>Single database, joins free</td><td>Database per service, no joins</td><td>Managed stores, stateless functions</td></tr>
+            <tr><td>Latency</td><td>In-process calls (ns)</td><td>Network calls (ms)</td><td>Network + cold start (ms to s)</td></tr>
+            <tr><td>Team autonomy</td><td>Low — shared codebase</td><td>High — independent releases</td><td>High</td></tr>
+            <tr><td>Operational cost</td><td>Low</td><td>High — orchestration, mesh, tracing</td><td>Low infra, high complexity in code</td></tr>
+            <tr><td>Debugging</td><td>Single stack trace</td><td>Distributed tracing required</td><td>Hardest — event-driven, ephemeral</td></tr>
+            <tr><td>Cost model</td><td>Fixed</td><td>Fixed per service</td><td>Pay per invocation</td></tr>
+            <tr><td>Best for</td><td>Early-stage, small teams, unknown domain</td><td>Large orgs, clear domain boundaries</td><td>Spiky/unpredictable traffic, glue code, event handlers</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The monolith deserves rehabilitation</h4>
+      <p>The industry spent a decade over-correcting. For most products under a certain scale, a
+      <strong>modular monolith</strong> — one deployable, but with strict internal module boundaries and no
+      cross-module database access — delivers almost all the productivity benefit with none of the distributed
+      systems tax. The key discipline is that module boundaries must be enforced (by build rules, package
+      visibility, or separate schemas), otherwise the modularity erodes and you get the “big ball of mud” that
+      motivated microservices in the first place. A well-modularised monolith is also the best possible starting
+      point for extracting services later, because the boundaries already exist.</p>
+
+      <h4>What microservices actually buy</h4>
+      <p>They buy <strong>independent deployability</strong> and <strong>independent scaling</strong>. Those are
+      organisational and capacity benefits, not correctness benefits. A team of eight with a single product does not
+      need independent deployability — they can coordinate. An organisation of two hundred engineers across fifteen
+      teams does, because the coordination cost of a shared release train becomes the dominant constraint. This is
+      why Conway's Law is the real driver: microservices make the organisation's communication structure explicit
+      in the architecture.</p>
+      <p>The scaling argument is narrower than it appears. Most services within a system have similar resource
+      profiles, so independent scaling rarely saves much unless one component is genuinely different — an image
+      transcoder next to a JSON API, or a search index next to a transactional ledger.</p>
+
+      <h4>What serverless changes</h4>
+      <p>Serverless removes capacity planning entirely and prices at zero when idle, which is transformative for
+      spiky or low-volume workloads. The constraints are real though: execution time limits (typically 15 minutes),
+      cold starts (100 ms to several seconds depending on runtime and package size), no persistent local state, and
+      a notoriously difficult local development and testing loop. Serverless is at its best for event handlers,
+      scheduled jobs, glue between managed services, and unpredictable APIs — and at its worst for long-running
+      processes, high-throughput steady-state workloads where per-invocation pricing exceeds server cost, and
+      latency-critical paths where a cold start would violate the SLO.</p>
+
+      <h4>The pragmatic answer</h4>
+      <p>Start with a modular monolith. Extract a service when a specific pain appears — a component that needs to
+      scale independently, a team that needs to release independently, or a boundary that must be enforced by a
+      network. Use serverless for well-bounded event handlers and operational glue. Most large systems end up
+      hybrid: a monolith core, several extracted services, a fleet of functions for asynchronous side-effects, and
+      managed infrastructure underneath. The mistake is choosing the topology first and the domain second.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: “Given this is an early product with an unclear domain, I'll start modular-monolith and extract
+        services along the boundaries that prove themselves — I'd extract the media-processing path first because it
+        has a different resource profile.” That signals you understand microservices are a response to specific
+        pressures, not a default.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- NEXT PART -->
+  <section class="next-part">
+    <h3>Coming in Volume 3 — Consistency, CAP &amp; PACELC</h3>
+    <p>Section 1 is complete. Volume 3 begins the consistency section: the CAP theorem and its real limits, PACELC
+    as the more useful framework, linearizability vs serializability, the full family of session guarantees,
+    quorum mathematics (R + W &gt; N), and how DynamoDB, Cassandra, and MongoDB actually behave.</p>
+    <ul class="next-list">
+      <li>CAP: what it does and does not say</li>
+      <li>PACELC and the latency dimension</li>
+      <li>Linearizability vs serializability</li>
+      <li>Sequential, causal, and session consistency</li>
+      <li>Read-your-writes in a real system</li>
+      <li>Quorums and R + W &gt; N</li>
+      <li>Consistency per database: DynamoDB, Cassandra, MongoDB</li>
+      <li>Eventual consistency and stale reads in the UI</li>
+      <li>CRDTs and strong eventual consistency</li>
+      <li>CAP across multi-region deployments</li>
+    </ul>
+  </section>
+
+</div>
+</body>
+</html>
