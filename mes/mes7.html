@@ -1,0 +1,1437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Messaging Systems — Section 7: Fan-Out &amp; Group Messaging</title>
+<style>
+  :root{
+    --ink:#0f172a;
+    --ink-soft:#334155;
+    --muted:#64748b;
+    --line:#e8dfc9;
+    --bg:#fdfbf3;
+    --card:#ffffff;
+    --gold:#a16207;
+    --gold-soft:#fef3c7;
+    --gold-deep:#713f12;
+    --plum:#7c2d5e;
+    --teal:#0d9488;
+    --amber:#b45309;
+    --rose:#e11d48;
+    --blue:#2563eb;
+    --shadow:0 1px 2px rgba(66,32,6,.06), 0 8px 24px -8px rgba(66,32,6,.14);
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 8% -10%, #fef3c7 0%, transparent 60%),
+      radial-gradient(1000px 500px at 100% 0%, #fde68a 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:"Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    line-height:1.72;
+    font-size:16.5px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px 90px;}
+
+  header.hero{
+    background:linear-gradient(135deg,#422006 0%, #713f12 45%, #854d0e 100%);
+    color:#fefce8;
+    padding:64px 22px 56px;
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::after{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      radial-gradient(600px 300px at 85% 15%, rgba(250,204,21,.4), transparent 70%),
+      radial-gradient(520px 280px at 12% 92%, rgba(234,179,8,.42), transparent 70%);
+    pointer-events:none;
+  }
+  .hero-inner{max-width:1080px;margin:0 auto;position:relative;z-index:2;}
+  .eyebrow{
+    display:inline-block;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;
+    font-weight:700;padding:7px 15px;border-radius:999px;
+    background:rgba(253,224,71,.18);border:1px solid rgba(253,224,71,.5);
+    color:#fde047;margin-bottom:20px;
+  }
+  header.hero h1{
+    font-size:clamp(1.9rem, 4.4vw, 3rem);line-height:1.15;margin:0 0 16px;
+    font-weight:800;letter-spacing:-.02em;
+  }
+  header.hero h1 span{
+    background:linear-gradient(90deg,#fde047,#fef08a);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  header.hero p.lede{font-size:1.06rem;color:#fef08a;max-width:790px;margin:0 0 26px;}
+  .meta-chips{display:flex;flex-wrap:wrap;gap:10px;}
+  .chip{
+    font-size:.78rem;font-weight:600;padding:7px 14px;border-radius:999px;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#fef3c7;
+  }
+
+  .roadmap{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:26px 28px;margin-top:-34px;position:relative;z-index:5;
+  }
+  .roadmap h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 16px;font-weight:700;
+  }
+  .roadmap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;}
+  .roadmap-item{
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:.86rem;
+    background:#fffef9;opacity:.7;
+  }
+  .roadmap-item.done{
+    border-color:#fde047;background:linear-gradient(180deg,#fefce8,#ffffff);opacity:1;
+  }
+  .roadmap-item.current{
+    border-color:#eab308;background:linear-gradient(180deg,#fef3c7,#ffffff);opacity:1;
+    box-shadow:0 0 0 3px rgba(161,98,7,.14);
+  }
+  .roadmap-item .tag{
+    display:inline-block;font-size:.64rem;font-weight:800;letter-spacing:.08em;
+    padding:2px 8px;border-radius:999px;margin-bottom:6px;
+  }
+  .tag-done{background:var(--gold-soft);color:var(--gold-deep);}
+  .tag-now{background:#fde68a;color:#713f12;}
+  .tag-next{background:#e2e8f0;color:#475569;}
+  .roadmap-item strong{display:block;color:var(--ink);font-size:.89rem;}
+
+  nav.toc{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:22px 26px;margin:26px 0 44px;
+  }
+  nav.toc h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 14px;font-weight:700;
+  }
+  nav.toc ol{
+    margin:0;padding-left:0;list-style:none;counter-reset:toc;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:8px 26px;
+  }
+  nav.toc li{
+    counter-increment:toc;font-size:.92rem;padding:6px 0 6px 34px;
+    position:relative;border-bottom:1px dashed #f6efd9;
+  }
+  nav.toc li::before{
+    content:counter(toc);position:absolute;left:0;top:7px;width:22px;height:22px;
+    border-radius:7px;background:var(--gold-soft);color:var(--gold);
+    font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center;
+  }
+  nav.toc a{color:var(--ink-soft);text-decoration:none;font-weight:500;}
+  nav.toc a:hover{color:var(--gold);}
+
+  .part-band{display:flex;align-items:center;gap:16px;margin:56px 0 26px;}
+  .part-band .bar{
+    width:5px;height:44px;border-radius:99px;
+    background:linear-gradient(180deg,var(--gold),#eab308);
+  }
+  .part-band.plum .bar{background:linear-gradient(180deg,var(--plum),#a855f7);}
+  .part-band.teal .bar{background:linear-gradient(180deg,var(--teal),#2dd4bf);}
+  .part-band h2{margin:0;font-size:1.5rem;letter-spacing:-.01em;font-weight:800;}
+  .part-band .sub{
+    display:block;font-size:.82rem;font-weight:600;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.12em;margin-top:2px;
+  }
+
+  article.q{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:0 0 26px;margin-bottom:28px;overflow:hidden;
+    scroll-margin-top:24px;
+  }
+  .q-head{
+    display:flex;gap:16px;align-items:flex-start;padding:22px 28px 18px;
+    border-bottom:1px solid #f6efd9;background:linear-gradient(180deg,#fffef9,#ffffff);
+  }
+  .q-num{
+    flex:none;width:42px;height:42px;border-radius:12px;display:flex;
+    align-items:center;justify-content:center;font-weight:800;font-size:.92rem;color:#fff;
+    background:linear-gradient(135deg,#a16207,#eab308);
+    box-shadow:0 6px 14px -6px rgba(161,98,7,.7);
+  }
+  .plum .q-num{background:linear-gradient(135deg,#7c2d5e,#a855f7);box-shadow:0 6px 14px -6px rgba(124,45,94,.7);}
+  .teal .q-num{background:linear-gradient(135deg,#0d9488,#14b8a6);box-shadow:0 6px 14px -6px rgba(13,148,136,.7);}
+  .q-head h3{margin:0;font-size:1.13rem;font-weight:700;line-height:1.4;letter-spacing:-.01em;}
+  .q-body{padding:22px 28px 0;}
+  .q-body p{margin:0 0 15px;color:var(--ink-soft);}
+  .q-body p:last-child{margin-bottom:0;}
+  .q-body h4{margin:24px 0 10px;font-size:.95rem;font-weight:800;color:var(--ink);}
+  .q-body h4::before{content:"▹";color:var(--gold);margin-right:8px;font-size:.85rem;}
+  .plum .q-body h4::before{color:var(--plum);}
+  .teal .q-body h4::before{color:var(--teal);}
+  .q-body ul,.q-body ol{margin:0 0 16px;padding-left:22px;color:var(--ink-soft);}
+  .q-body li{margin-bottom:8px;}
+  .q-body li::marker{color:var(--gold);}
+  .plum .q-body li::marker{color:var(--plum);}
+  .teal .q-body li::marker{color:var(--teal);}
+  strong{color:var(--ink);font-weight:700;}
+  code{
+    background:#fdfaf0;border:1px solid #e8dfc9;border-radius:6px;padding:1px 6px;
+    font-size:.87em;font-family:"SFMono-Regular",Consolas,monospace;color:#854d0e;
+  }
+
+  .callout{border-radius:12px;padding:14px 18px;margin:18px 0 4px;font-size:.93rem;border-left:4px solid;}
+  .callout .label{
+    display:block;font-size:.68rem;font-weight:800;letter-spacing:.13em;
+    text-transform:uppercase;margin-bottom:5px;
+  }
+  .callout p{margin:0 0 8px;font-size:.93rem;}
+  .callout p:last-child{margin-bottom:0;}
+  .answer{background:linear-gradient(180deg,#fefce8,#ffffff);border-color:var(--gold);}
+  .answer .label{color:var(--gold-deep);}
+  .tip{background:linear-gradient(180deg,#f0fdfa,#ffffff);border-color:var(--teal);}
+  .tip .label{color:#0f766e;}
+  .tradeoff{background:linear-gradient(180deg,#fffbeb,#ffffff);border-color:var(--amber);}
+  .tradeoff .label{color:#b45309;}
+  .pitfall{background:linear-gradient(180deg,#fff1f2,#ffffff);border-color:var(--rose);}
+  .pitfall .label{color:#be123c;}
+
+  .table-scroll{overflow-x:auto;margin:18px 0;border-radius:12px;border:1px solid var(--line);}
+  table{width:100%;border-collapse:collapse;font-size:.87rem;background:#fff;}
+  thead th{
+    background:#fdfaf0;text-align:left;padding:11px 14px;font-weight:800;
+    font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+    border-bottom:2px solid var(--line);white-space:nowrap;
+  }
+  tbody td{padding:11px 14px;border-bottom:1px solid #fdfaf0;color:var(--ink-soft);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:nth-child(even){background:#fffef9;}
+  tbody td:first-child{font-weight:700;color:var(--ink);}
+
+  .next-part{
+    background:linear-gradient(135deg,#422006,#854d0e);color:#fef3c7;
+    border-radius:var(--radius);padding:32px 34px;margin-top:50px;box-shadow:var(--shadow);
+  }
+  .next-part h3{margin:0 0 12px;font-size:1.2rem;color:#fff;font-weight:800;}
+  .next-part p{margin:0 0 16px;color:#fef08a;font-size:.95rem;}
+  .next-list{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:10px;list-style:none;padding:0;margin:0;
+  }
+  .next-list li{
+    background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
+    border-radius:10px;padding:10px 14px;font-size:.86rem;color:#fef3c7;
+  }
+
+  @media (max-width:640px){
+    .q-head{padding:18px 18px 15px;}
+    .q-body{padding:18px 18px 0;}
+    header.hero{padding:44px 18px 46px;}
+    .roadmap{padding:20px;}
+    nav.toc{padding:18px;}
+    nav.toc ol{grid-template-columns:1fr;}
+  }
+  @media print{
+    body{background:#fff;}
+    article.q, nav.toc, .roadmap{box-shadow:none;page-break-inside:avoid;}
+    header.hero{background:#422006 !important;-webkit-print-color-adjust:exact;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Messaging Series · Section 7 of 10</span>
+    <h1>Messaging Systems for System Design<br><span>Fan-Out &amp; Group Messaging</span></h1>
+    <p class="lede">
+      The scaling problem at the heart of messaging: one message, many recipients. Fan-out on write vs fan-out on
+      read, the group-size thresholds where the strategy must change, the celebrity problem in chat, storage and
+      history for groups ranging from 3 to 100,000 members, late joiners and access control, broadcast channels,
+      how chat fan-out differs from feed fan-out, receipts and presence in large groups, and the push notification
+      fan-out that wakes millions of devices.
+    </p>
+    <div class="meta-chips">
+      <span class="chip">10 Questions</span>
+      <span class="chip">500+ words each</span>
+      <span class="chip">Threshold analysis</span>
+      <span class="chip">Storage + delivery</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ROADMAP -->
+  <section class="roadmap">
+    <h2>Messaging Answer-Series Roadmap</h2>
+    <div class="roadmap-grid">
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 1 — Complete</span>
+        <strong>Chat Applications &amp; Real-Time Messaging</strong>
+        Protocols, ordering, presence, sync, E2E
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 2 — Complete</span>
+        <strong>Message Queues &amp; Distributed Brokers</strong>
+        Acks, offsets, DLQs, consumer groups, backpressure
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 3 — Complete</span>
+        <strong>Publish/Subscribe &amp; Event Streaming</strong>
+        Kafka internals, ISR, exactly-once, tiered storage
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 4 — Complete</span>
+        <strong>Push Notification Systems</strong>
+        Multi-channel, preferences, priority, retries, rate caps
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 5 — Complete</span>
+        <strong>Real-Time Protocols &amp; Connection Management</strong>
+        WebSocket, SSE, gateway fleets, draining, backpressure, TLS
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 6 — Complete</span>
+        <strong>Delivery Guarantees, Ordering &amp; Idempotency</strong>
+        At-least-once, exactly-once, dedup, per-key ordering, global ordering
+      </div>
+      <div class="roadmap-item current">
+        <span class="tag tag-now">Section 7 — You are here</span>
+        <strong>Fan-Out &amp; Group Messaging</strong>
+        Write vs read fan-out, hot groups, storage, late joiners, broadcast
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Section 8</span>
+        <strong>Event-Driven Architecture</strong>
+        Events vs commands, event sourcing, CQRS, outbox
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Section 9</span>
+        <strong>Operational Concerns &amp; Failure Modes</strong>
+        Monitoring, tracing, poison pills, multi-tenancy
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Section 10</span>
+        <strong>Classic System Design Problems</strong>
+        8 end-to-end messaging design prompts solved
+      </div>
+    </div>
+  </section>
+
+  <!-- TOC -->
+  <nav class="toc">
+    <h2>Questions Answered in This Section</h2>
+    <ol>
+      <li><a href="#q1">Compare fan-out-on-write vs fan-out-on-read</a></li>
+      <li><a href="#q2">A message to a 10,000-member channel without overwhelming a server</a></li>
+      <li><a href="#q3">Very hot groups (10,000+ concurrent): is per-user fan-out the wrong abstraction?</a></li>
+      <li><a href="#q4">How group size affects the fan-out design (3 vs 100,000)</a></li>
+      <li><a href="#q5">Where to store group messages and serve history efficiently</a></li>
+      <li><a href="#q6">Late joiners: do they get history, and how do you delimit what they see?</a></li>
+      <li><a href="#q7">Designing broadcast channels (100,000+ members)</a></li>
+      <li><a href="#q8">Fan-out for feeds vs fan-out for chat: what is different?</a></li>
+      <li><a href="#q9">Read receipts and presence in large groups</a></li>
+      <li><a href="#q10">Push notification fan-out for large groups</a></li>
+    </ol>
+  </nav>
+
+  <!-- ================= PART A ================= -->
+  <div class="part-band">
+    <div class="bar"></div>
+    <h2>Part A — The Strategy
+      <span class="sub">Write vs read fan-out, and the threshold between them</span>
+    </h2>
+  </div>
+
+  <!-- Q1 -->
+  <article class="q" id="q1">
+    <div class="q-head">
+      <div class="q-num">1</div>
+      <h3>Compare fan-out-on-write vs fan-out-on-read for a messaging system. When would you choose each? What are the latency and storage trade-offs?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Fan-out-on-write (push) copies the message to every recipient's inbox at send time — fast reads, expensive
+        writes, storage proportional to recipients × messages. Fan-out-on-read (pull) stores the message once and lets
+        each recipient read it from the shared log — cheap writes, slower reads, storage proportional to messages.
+        The choice is driven by the read-to-write ratio, the recipient count, and whether the recipient is online.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>Dimension</th><th>Fan-out on write</th><th>Fan-out on read</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>When the work happens</td><td>At send time</td><td>At read time</td></tr>
+            <tr><td>Storage</td><td>O(recipients × messages)</td><td>O(messages)</td></tr>
+            <tr><td>Write cost</td><td>O(recipients)</td><td>O(1)</td></tr>
+            <tr><td>Read cost</td><td>O(1) — read own inbox</td><td>O(recipient's subscriptions + merge)</td></tr>
+            <tr><td>Read latency</td><td>Low — one lookup</td><td>Higher — fan-in and merge</td></tr>
+            <tr><td>Offline delivery</td><td>Trivial — the message is already in the inbox</td><td>Reader fetches from log on reconnect</td></tr>
+            <tr><td>Best when</td><td>Many readers per message, high read rate, small recipient count</td><td>Few readers per message, large recipient count, or storage-constrained</td></tr>
+            <tr><td>Example</td><td>1-on-1 chat, small groups, direct messages</td><td>Large channels, broadcast, public feeds</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Fan-out on write in detail</h4>
+      <p>Alice sends a message to a 10-member group. The chat service writes the message to each member's inbox — 10
+      rows in a per-user inbox table, each pointing to the message. When Bob opens the group, he reads his own inbox
+      (one query, sorted by timestamp) and sees the message without any fan-in. This is fast for reads because the
+      work was done at write time.</p>
+      <p>The cost is storage and write amplification. A 100-member group generates 100 inbox rows per message. At
+      100 messages per second, that is 10,000 rows/s — manageable. At 10,000 members, it is 1M rows/s — not
+      manageable. The write cost scales linearly with group size, which is the fundamental limitation.</p>
+
+      <h4>Fan-out on read in detail</h4>
+      <p>Alice sends a message to the same group. The chat service writes it once, to the group's message log. When
+      Bob opens the group, he queries the group's log directly — no per-user inbox. The read is a range query on
+      the group's conversation, which is fast if the log is partitioned by group. This is cheap for writes because
+      the work is done once, regardless of group size.</p>
+      <p>The cost is on the read path. Bob must know which groups to read, and for a feed he must merge across many
+      groups. A user in 500 groups must query 500 logs (or one fan-in query) to build their timeline. This is the
+      "fan-in" problem — the mirror of write fan-out. It is manageable if the user reads one group at a time (chat)
+      but expensive if the user reads across all groups (a unified inbox or feed).</p>
+
+      <h4>Why chat usually uses write fan-out for small groups</h4>
+      <p>Chat is read-heavy and read-latency-sensitive. The user opens a conversation and expects the messages
+      instantly. A write fan-out makes the read a single lookup. The write cost is acceptable because chat groups are
+      small (median group size is 3–10). The 10-member group with 100 messages/day generates 1,000 inbox rows per day
+      per member, which is trivial.</p>
+
+      <h4>Why large channels must use read fan-out</h4>
+      <p>A 10,000-member channel generates 10,000 inbox rows per message. At 10 messages per second (a busy channel),
+      that is 100,000 rows/s — approaching the limit of a single database shard, and growing. At 100,000 members, it
+      is 1M rows/s, which is not achievable on any single-node database. The write fan-out cost dominates, and the
+      only scalable option is read fan-out: store the message once, let each of the 100,000 members read it from the
+      shared log when they open the channel.</p>
+
+      <h4>The threshold</h4>
+      <p>The transition point depends on the system's write capacity and the read-to-write ratio, but the practical
+      guidance is:</p>
+      <ul>
+        <li><strong>≤ 1,000 members:</strong> write fan-out. The write cost is manageable, and the read latency is
+        best.</li>
+        <li><strong>1,000–10,000 members:</strong> hybrid. Fan-out to online members (they get the message instantly);
+        read fan-out for offline members (they fetch on reconnect). This is the chat industry's standard
+        compromise.</li>
+        <li><strong>10,000+ members:</strong> read fan-out. The write cost of per-member fan-out exceeds any
+        reasonable capacity, and the reads can be served from the log.</li>
+      </ul>
+
+      <h4>The offline interaction</h4>
+      <p>Write fan-out has a significant advantage for offline users: the message is already in their inbox, so when
+      they come online they read their inbox and see everything. Read fan-out requires them to fetch from the log on
+      reconnect, which is more work but equivalent from the user's perspective if the fetch is fast. The offline
+      case does not fundamentally change the trade-off, but it does affect the implementation complexity: write
+      fan-out needs a per-user inbox (storage), read fan-out needs a per-user last-seen cursor (cheap).</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Write fan-out moves the cost from read time to write time, and from storage to latency. Read fan-out moves
+        it the other way. The right answer is per-group: small groups write fan-out, large groups read fan-out, and
+        a threshold (or a hybrid) in between. A system that uses one strategy for all groups either wastes storage on
+        small groups or collapses on large ones.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Fan-out on write for groups under 1,000, fan-out on read for larger. The threshold is where the
+        per-message write cost exceeds the read cost of fetching from the log. I'll use a hybrid in the middle:
+        write fan-out to online members, read fan-out for offline." That names the strategy, the threshold, and the
+        hybrid.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q2 -->
+  <article class="q" id="q2">
+    <div class="q-head">
+      <div class="q-num">2</div>
+      <h3>A message sent to a 10,000-member channel generates 10,000 delivery events. How do you design this without overwhelming any single server?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Don't fan out at all — use read fan-out. Store the message once in the channel's log, and let members
+        fetch it when they open the channel. For real-time members, send a lightweight notification signal (not the
+        message) to their gateway, and they fetch the message from the log. The per-message work is O(1), not
+        O(members).</p>
+      </div>
+
+      <h4>Why per-user fan-out fails at 10,000</h4>
+      <p>If the chat service tries to deliver the message to every member individually, it must do 10,000 lookups
+      (registry + gateway) and 10,000 sends. At 1 message/second, that is 10,000 sends/s. At 100 messages/second, it
+      is 1M sends/s. No single chat-service instance can do this; the fan-out worker fleet must scale with the
+      channel's message rate × member count, which is unbounded. The work is fundamentally O(members), and no amount
+      of horizontal scaling makes O(10,000 × 100/s) manageable for every channel.</p>
+      <p>The second problem is duplicate delivery. If the message is delivered to all 10,000 members, and a member
+      is connected on 2 devices, that is 20,000 deliveries. If the fan-out retries (because a gateway is slow), it
+      is 20,000 more. The system's work is proportional to delivery attempts, not to the message, which is the wrong
+      scaling axis.</p>
+
+      <h4>The read fan-out design</h4>
+      <ol>
+        <li><strong>Store once.</strong> The message is written to the channel's log: <code>(channel_id, seq)</code>
+        keyed, sharded by <code>channel_id</code>. One write, one storage location.</li>
+        <li><strong>Broadcast a signal, not the message.</strong> The chat service publishes a lightweight event to
+        the channel's subscribers: "channel X has a new message at seq Y". This is a fan-out of the signal, not the
+        message — the signal is small (a few bytes) and does not need to be stored per-member.</li>
+        <li><strong>Online members fetch.</strong> A member's gateway receives the signal and knows the member's
+        <code>last_seen_seq</code> for that channel. If <code>last_seen_seq &lt; seq</code>, it fetches the message
+        from the log and delivers it to the member. If the member is already up to date, the signal is a no-op.</li>
+        <li><strong>Offline members fetch on reconnect.</strong> A member who was offline does not receive the
+        signal (or receives it as a push notification). On reconnect, they send <code>last_seen_seq</code> and
+        fetch everything after it.</li>
+      </ol>
+
+      <h4>How the signal fan-out scales</h4>
+      <p>The signal fan-out is still O(members) in the naive design — the chat service must notify 10,000 members
+      that there is a new message. But the signal is much cheaper than the message: it is a few bytes, not a full
+      message; it can be coalesced (one signal per member per second, not per message); and it can be delivered
+      via a pub/sub channel that the gateway subscribes to per-member.</p>
+      <p>Better still: the signal can be a <strong>sequence number</strong> rather than a per-member delivery. The
+      channel's current seq is a single value that changes on every message. The gateway can poll or subscribe to
+      the channel's "current seq" and compare it with each connected member's <code>last_seen_seq</code>. Members
+      who are behind fetch; members who are caught up do nothing. The per-message fan-out is O(1) (update the
+      channel's seq), and the per-member work is only for members who are actually behind.</p>
+
+      <h4>The gateway's role</h4>
+      <p>Each gateway holds connections for members. When the channel's seq advances, the gateway needs to know
+      which of its connected members are subscribed to the channel. This is a per-gateway subscription table:
+      <code>channel_id → set of user_ids</code>. When the seq advances, the gateway iterates its subscribers,
+      checks each member's <code>last_seen_seq</code>, and fetches for the ones who are behind. The gateway's work
+      is proportional to its own connected members who subscribe to the channel, not to the channel's total members.
+      Across the fleet, the work is O(members × fraction online), which is much smaller than O(members).</p>
+
+      <h4>The batching optimization</h4>
+      <p>If 10,000 members are online and all are caught up, the channel receives 100 messages per second, and the
+      gateway processes 100 signals per second per member — 1M signal checks per second. This is a lot of CPU. The
+      optimization: coalesce the signals. Instead of one signal per message, the gateway checks the channel's seq
+      periodically (e.g., every 100 ms) and fetches the delta for each behind member. The per-member fetch is one
+      batch, not 100 individual fetches. The signal rate drops from 100/s to 10/s, and the fetch is more efficient.</p>
+
+      <h4>The push fallback</h4>
+      <p>For offline members, the signal is a push notification ("New message in channel X"). The push is coalesced
+      (one push per channel per hour, not per message) and the client fetches on open. This is the same pattern as
+      Section 4 (notifications) — the push is a hint, not the message.</p>
+
+      <h4>What the design actually costs</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Operation</th><th>Cost</th><th>Scaling</th></tr></thead>
+          <tbody>
+            <tr><td>Write the message</td><td>One row in the channel log</td><td>O(1) per message</td></tr>
+            <tr><td>Update channel seq</td><td>One counter increment</td><td>O(1) per message</td></tr>
+            <tr><td>Signal online members</td><td>Per-gateway subscription check</td><td>O(online subscribers) per gateway</td></tr>
+            <tr><td>Fetch for behind members</td><td>One batch fetch per member</td><td>O(behind members)</td></tr>
+            <tr><td>Push offline members</td><td>Coalesced push per channel per hour</td><td>O(offline subscribers / coalescing window)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The per-message cost is O(1) plus O(online subscribers per gateway), which is bounded by the gateway's
+      connection count. A gateway with 500k connections has at most 500k members to check, not 10,000 per channel
+      per message. The total work scales with the fleet's connection count, not with the sum of all channel
+      memberships.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Trying to fan out the full message to 10,000 members. The per-message work is O(members), and no
+        horizontal scaling makes it manageable. The fix is not more workers — it is a different strategy: store once,
+        signal, fetch on demand.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q3 -->
+  <article class="q" id="q3">
+    <div class="q-head">
+      <div class="q-num">3</div>
+      <h3>For very hot groups (10,000+ concurrent users), is per-user fan-out the wrong abstraction? What alternative would you propose?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Yes — per-user fan-out is the wrong abstraction above a few thousand members. The right abstraction is a
+        <strong>broadcast channel</strong>: the message is written once to a shared log, and clients subscribe to the
+        channel and pull from it. The gateway's job is to serve the channel's log to its connected subscribers, not
+        to deliver individual messages. This is how IRC, Discord's largest servers, and live-streaming chat work.</p>
+      </div>
+
+      <h4>The abstraction shift</h4>
+      <p>Per-user fan-out models the channel as a set of inboxes, each receiving a copy. The model works for small
+      groups because the inbox count is bounded. For 10,000+ members, the inbox count is the problem: the channel
+      becomes a fan-out engine whose cost is O(members) per message, and the total cost is O(sum of members across
+      all channels) — which is unbounded as the product grows.</p>
+      <p>Broadcast models the channel as a single log, and members as readers of that log. The cost of a message is
+      O(1) — one write — regardless of member count. The read cost is per-member, but it happens on demand (when the
+      member opens the channel) rather than on every message. This is the same shift as fan-out-on-read, but taken
+      further: the channel itself becomes the unit of delivery, not the member.</p>
+
+      <h4>The broadcast channel design</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Component</th><th>Role</th></tr></thead>
+          <tbody>
+            <tr><td>Channel log</td><td>Append-only log keyed by <code>(channel_id, seq)</code>, sharded by <code>channel_id</code>. One copy of the message.</td></tr>
+            <tr><td>Channel seq</td><td>A monotonic counter per channel, incremented on every message. The head of the log.</td></tr>
+            <tr><td>Subscription registry</td><td>Which members are subscribed to which channels. Per-member, per-channel.</td></tr>
+            <tr><td>Gateway subscription table</td><td>Per-gateway: which of its connected members subscribe to which channels.</td></tr>
+            <tr><td>Channel broadcast topic</td><td>A pub/sub topic per channel (or per shard of channels) that the gateways subscribe to for "new message" signals.</td></tr>
+            <tr><td>Client cursor</td><td>Per-member, per-channel <code>last_seen_seq</code>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The flow for a new message</h4>
+      <ol>
+        <li>The sender's message is written to the channel log (seq N).</li>
+        <li>The channel's seq is incremented to N.</li>
+        <li>A signal is published to the channel's broadcast topic: "channel X is at seq N".</li>
+        <li>Every gateway subscribes to the broadcast topics for channels its members are in. On receiving the
+        signal, the gateway iterates its subscribers to channel X, checks each one's <code>last_seen_seq</code>,
+        and for those behind, fetches the delta from the log and sends it over the socket.</li>
+        <li>The gateway updates the member's <code>last_seen_seq</code> (or lets the client update it).</li>
+      </ol>
+
+      <h4>Why this is not the same as per-user fan-out</h4>
+      <p>The gateway does not "deliver the message to each member". It serves the channel's log to its subscribers.
+      The distinction matters in three ways:</p>
+      <ul>
+        <li><strong>Multiple members share the fetch.</strong> If 100 of the gateway's members are in channel X, the
+        gateway fetches the delta once and sends it to all 100. The log read is shared, not per-member.</li>
+        <li><strong>Members who are behind get the whole delta.</strong> A member who has been offline for 5 minutes
+        receives all messages since their cursor, not just the newest. The gateway fetches the range once and
+        sends it to the member.</li>
+        <li><strong>The gateway's work scales with its own connections, not the channel's total members.</strong> A
+        gateway with 500k connections and 10k of them in channel X does 10k sends, not 10,000,000 sends. The other
+        990k members are on other gateways (or offline).</li>
+      </ul>
+
+      <h4>The subscription registry</h4>
+      <p>The registry tracks which members are subscribed to which channels. For a 10k-member channel, this is 10k
+      entries. For a user in 100 channels, it is 100 entries. The registry is sharded by <code>user_id</code> for
+      "what channels am I in?" queries and by <code>channel_id</code> for "who is in this channel?" queries. Both
+      are needed: the first for the client's channel list, the second for the gateway's subscription table.</p>
+
+      <h4>Broadcast topic scaling</h4>
+      <p>If every channel has its own broadcast topic, the number of topics equals the number of channels, which is
+      unbounded. Instead, use a sharded broadcast topic: hash <code>channel_id</code> to a topic partition, and the
+      gateway subscribes to the partitions it needs. The signal is a small message (channel_id, seq), and the
+      gateway's consumer processes it in batches. This is the standard pattern for "notify many subscribers of a
+      change" at scale.</p>
+
+      <h4>Where per-user fan-out is still right</h4>
+      <p>Small groups — 1-on-1, family groups, project channels — benefit from per-user fan-out because the inbox
+      model is simpler and the read is a single lookup. The threshold is where the per-message write cost exceeds
+      the per-read fetch cost, and it depends on the message rate and member count. For a 10-person group at 10
+      messages/day, per-user fan-out is 100 writes/day, which is nothing. For a 10,000-person channel at 10
+      messages/second, per-user fan-out is 100,000 writes/s, which is a different problem entirely.</p>
+
+      <h4>Discord's and Slack's approach</h4>
+      <p>Discord uses a hybrid: small servers get per-user fan-out (each member has an inbox), and large servers use
+      read fan-out (members fetch from the channel log). The threshold is around a few thousand members. Slack uses
+      read fan-out for all channels and a per-user read model (the "channel list" with unread counts) that is
+      maintained separately. Both systems converge on the same principle: the channel log is the source of truth, and
+      the delivery strategy is chosen per channel based on size.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Broadcast channels are cheaper per message but more complex per read (the client must fetch and merge, and
+        the gateway must serve ranges, not single messages). Small groups are simpler per read but more expensive per
+        message. The right answer is per-channel: small groups use per-user fan-out, large channels use broadcast.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART B ================= -->
+  <div class="part-band plum">
+    <div class="bar"></div>
+    <h2>Part B — Group Scale, Storage &amp; History
+      <span class="sub">From 3 members to 100,000, and how the history is kept</span>
+    </h2>
+  </div>
+
+  <!-- Q4 -->
+  <article class="q plum" id="q4">
+    <div class="q-head">
+      <div class="q-num">4</div>
+      <h3>How does group size affect the fan-out design? Contrast a 3-person chat with a 100,000-member broadcast channel.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Every order of magnitude changes the design. A 3-person chat is a per-user inbox with push delivery; a
+        100,000-member channel is a shared log with pull delivery and a broadcast signal. The fan-out strategy, the
+        storage model, the read path, the presence model, and the notification model all change as the group grows.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>Dimension</th><th>3-person chat</th><th>100-person group</th><th>10k channel</th><th>100k broadcast</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Fan-out</td><td>Write</td><td>Write</td><td>Hybrid</td><td>Read</td></tr>
+            <tr><td>Storage</td><td>Per-user inbox</td><td>Per-user inbox</td><td>Shared log + per-user cursor</td><td>Shared log only</td></tr>
+            <tr><td>Read path</td><td>Read own inbox</td><td>Read own inbox</td><td>Fetch from channel log</td><td>Fetch from channel log</td></tr>
+            <tr><td>Write cost per message</td><td>3</td><td>100</td><td>~10k (but batched/coalesced)</td><td>1</td></tr>
+            <tr><td>Real-time</td><td>WebSocket push</td><td>WebSocket push</td><td>Signal + fetch</td><td>Signal + fetch</td></tr>
+            <tr><td>Offline</td><td>Inbox already has it</td><td>Inbox already has it</td><td>Fetch on reconnect</td><td>Fetch on reconnect</td></tr>
+            <tr><td>Presence</td><td>Live per-user</td><td>Live per-user</td><td>Aggregate / scoped</td><td>Aggregate only</td></tr>
+            <tr><td>Read receipts</td><td>Exact per member</td><td>Aggregate ("read by many")</td><td>None or "N read"</td><td>None</td></tr>
+            <tr><td>Notifications</td><td>Per message</td><td>Per message (batched)</td><td>Coalesced</td><td>Broadcast push</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>3-person chat — the simplest case</h4>
+      <p>Two people talking, or a small family group. The chat is a per-user inbox: each message is written to all
+      participants' inboxes. The inbox is small, the read is a single lookup, and the real-time delivery is a
+      WebSocket push. The presence is live (each participant sees the other's online status). Read receipts are
+      exact ("Alice read at 10:42"). The system can be a single database with no sharding, and it will scale to
+      millions of such conversations because each is independent.</p>
+
+      <h4>100-person group — the transition begins</h4>
+      <p>A work channel, a large family, a community group. The per-user inbox is still feasible (100 copies per
+      message), but the storage and write cost are noticeable. Presence is still live but expensive (100 users ×
+      presence updates). Read receipts become aggregate ("read by 40") because tracking 100 exact receipts per
+      message is too much. Notifications are batched (one push per group per hour, not per message). The design is
+      still write fan-out, but with optimizations for the larger scale.</p>
+
+      <h4>10,000-member channel — the hybrid threshold</h4>
+      <p>A large community, a public channel, a support forum. Per-user fan-out is now the dominant cost: 10,000
+      copies per message at any meaningful message rate is infeasible. The design switches to read fan-out for
+      offline members and a signal-plus-fetch for online members. The gateway subscribes to the channel's broadcast
+      topic, and members fetch from the log. Presence is aggregate ("12,000 online") or scoped (only for the user's
+      friends). Read receipts are dropped or aggregate. Notifications are coalesced or dropped entirely for
+      non-mentions.</p>
+
+      <h4>100,000-member broadcast — the broadcast model</h4>
+      <p>An announcement channel, a live event, a news feed. There is no per-user inbox — the channel's log is the
+      only storage. Members read the log when they open the channel, and the push notification is a single broadcast
+      to all subscribers (via APNs/FCM topic, not per-device). The write is O(1). The read is per-member on demand.
+      Presence is "N watching" or nothing at all. Read receipts are not tracked. The system is essentially a
+      publish-subscribe system with a durable log, not a chat system.</p>
+
+      <h4>What changes at each transition</h4>
+      <ul>
+        <li><strong>3 → 100:</strong> batching, aggregate receipts, presence scoping. Storage and write cost
+        become noticeable but are still manageable with a single database.</li>
+        <li><strong>100 → 10k:</strong> the fan-out strategy changes from write to hybrid. The storage model changes
+        from per-user inbox to shared log. Presence becomes aggregate. This is the biggest architectural change.</li>
+        <li><strong>10k → 100k:</strong> the hybrid becomes pure read fan-out. Notifications become broadcast rather
+        than per-member. Presence and receipts are dropped. The system is a broadcast log, not a chat.</li>
+      </ul>
+
+      <h4>The threshold is not just size — it is activity</h4>
+      <p>A 100,000-member channel with 1 message/day is cheap even with per-user fan-out (100,000 writes/day is
+      manageable). A 1,000-member channel with 100 messages/second is expensive (100,000 writes/s is not). The
+      threshold depends on the product of size and activity, not size alone. The design must measure the actual
+      write rate, not just the member count, and choose the strategy based on the total cost.</p>
+
+      <h4>Mixed systems</h4>
+      <p>A real product has all four sizes simultaneously. The system must support per-user inboxes for small
+      groups and shared logs for large channels, with a routing layer that picks the strategy based on the channel's
+      size. This is more complex than a single strategy, but it is the only way to serve both ends of the spectrum
+      efficiently. The design decision is where to put the threshold and how the two systems share the message
+      store.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "The strategy changes with group size. Small groups get per-user inboxes with write fan-out; large
+        channels get a shared log with read fan-out. The threshold is where the per-message write cost of fan-out
+        exceeds the per-read fetch cost, typically around 1,000–10,000 members depending on activity." That names the
+        spectrum and the decision criterion.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q5 -->
+  <article class="q plum" id="q5">
+    <div class="q-head">
+      <div class="q-num">5</div>
+      <h3>Where do you store group messages? How do you serve history for a large group efficiently?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Store messages in a sharded, time-ordered log keyed by <code>(group_id, seq)</code>, partitioned by
+        <code>group_id</code>. Reads are range scans on <code>seq</code>, which is efficient for "last N messages" and
+        "messages after seq X". For a large group, the log is on a wide-column store (Cassandra, ScyllaDB) or a
+        partitioned PostgreSQL table, and the history is served by paginating on <code>seq</code>, not offset. Old
+        history is tiered to cold storage.</p>
+      </div>
+
+      <h4>The storage model</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Store</th><th>Key</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td>Message log</td><td><code>(group_id, seq)</code></td><td>The message content, sender, timestamp, media references</td></tr>
+            <tr><td>Group metadata</td><td><code>group_id</code></td><td>Name, created_at, last_message_at, member count</td></tr>
+            <tr><td>Membership</td><td><code>(group_id, user_id)</code></td><td>Who is in the group, role, joined_at</td></tr>
+            <tr><td>Per-user cursor</td><td><code>(user_id, group_id)</code></td><td>last_seen_seq, last_read_seq</td></tr>
+            <tr><td>Per-user group list</td><td><code>(user_id, group_id)</code></td><td>Last message preview, unread count</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The message log is the primary store, sharded by <code>group_id</code> so all messages for one group are on
+      one shard. The seq is monotonic per group, assigned by a per-group counter (or a distributed sequence). The
+      key order (group_id, seq) means a range scan on seq returns the messages in order, which is exactly what the
+      read path needs.</p>
+
+      <h4>The read paths</h4>
+      <ul>
+        <li><strong>Last N messages (open channel):</strong> a reverse range scan on <code>seq</code>, limit N. O(log
+        n + N) where n is the total messages in the group. Fast regardless of group size.</li>
+        <li><strong>Messages after seq X (catch-up):</strong> a forward range scan from X. O(log n + delta). Fast if
+        delta is small; for a large delta, paginate in batches.</li>
+        <li><strong>Messages before seq X (scroll back):</strong> a reverse range scan ending at X. Paginated.</li>
+        <li><strong>Search (find a message):</strong> not on the log — the log is ordered, not indexed. Search uses a
+        separate index (Elasticsearch) fed by CDC.</li>
+      </ul>
+
+      <h4>Pagination</h4>
+      <p>The standard is keyset pagination on <code>seq</code>, not offset pagination. The client sends
+      <code>last_seq</code> and the server returns the next N messages after (or before) it. This is O(N) regardless
+      of how deep into the history the user scrolls, and it is stable (new messages do not shift the page). Offset
+      pagination (<code>LIMIT N OFFSET K</code>) requires scanning K rows, which becomes unusable at deep offsets in
+      a large group.</p>
+
+      <h4>Sharding a large group's history</h4>
+      <p>A group with millions of messages is a large partition. In a wide-column store, the partition is per group,
+      and a very large group can exceed a single node's capacity. The solutions:</p>
+      <ul>
+        <li><strong>Time-based sub-partitions:</strong> split the group's log into monthly (or weekly) partitions:
+        <code>(group_id, year_month, seq)</code>. The read for "recent messages" touches only the current partition;
+        the read for "old messages" touches the archive partition.</li>
+        <li><strong>Seq-range sub-partitions:</strong> split at fixed seq boundaries (e.g., every 1M messages). The
+        read for a specific range touches only the relevant sub-partition.</li>
+        <li><strong>Offload cold history:</strong> messages older than 90 days are moved to object storage (Parquet
+        files), and the log retains only recent messages. The read for old history is a different, slower path.</li>
+      </ul>
+
+      <h4>The cold-history path</h4>
+      <p>For very large groups with long history, keeping all messages on the hot store is expensive. The design is
+      tiered:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Tier</th><th>Storage</th><th>Access</th><th>Retention</th></tr></thead>
+          <tbody>
+            <tr><td>Hot</td><td>Wide-column store (Cassandra)</td><td>Recent messages, fast</td><td>0–90 days</td></tr>
+            <tr><td>Warm</td><td>Object store (S3), columnar format</td><td>Older messages, slower</td><td>90 days – 2 years</td></tr>
+            <tr><td>Cold</td><td>Glacier / archive</td><td>Very old, on demand</td><td>2+ years</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The client's scroll-back reads from hot first, then warm, then cold. The transition is transparent (the
+      server routes by seq range). The cost is the cold-read latency (seconds for Glacier), which is acceptable for
+      very old history that the user rarely accesses.</p>
+
+      <h4>Media storage</h4>
+      <p>Media (images, videos, files) is not stored in the message log. The message holds a reference (object key,
+      thumbnail URL, dimensions), and the media is in object storage (S3) served through a CDN. The log is small and
+      fast; the media is large and cached. This separation is essential — a message with a 10 MB video would make
+      the log unusable if the video were stored inline.</p>
+
+      <h4>Deletion and retention</h4>
+      <p>"Delete for me" removes the message from the user's local store and adds a tombstone in the user's cursor;
+      the message remains in the log for other users. "Delete for everyone" writes a tombstone message into the log
+      (replacing the body with a deletion marker), and all clients apply it. Retention (auto-delete after N days) is
+      enforced by dropping old partitions or by a background job that writes tombstones. The log remains append-only;
+      deletes are soft.</p>
+
+      <h4>What the read path optimizes for</h4>
+      <p>The read path is optimized for the most common query: "the last N messages in this group." This is the
+      query the UI issues when the user opens the channel, and it must be fast regardless of the group's size or
+      history. The (group_id, seq) key and a reverse scan on seq deliver exactly this. Everything else — catch-up,
+      scroll-back, search — is secondary and can be slower.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Storing media inline with the message. A group with millions of messages and media inline becomes
+        gigabytes of log data that cannot be cached or efficiently scanned. The media belongs in object storage, and
+        the message holds a reference. This is the single most important storage decision for a messaging system.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q6 -->
+  <article class="q plum" id="q6">
+    <div class="q-head">
+      <div class="q-num">6</div>
+      <h3>How do you handle a group member who joins late? Do they get history, and how do you delimit what they should see?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>It is a product policy, not a technical limitation. The three common policies are: no history (the joiner
+        sees only messages after joining), full history (they see everything), and bounded history (the last N
+        messages or the last N days). The policy is enforced by the joiner's <code>first_visible_seq</code>, which is
+        set at join time and used to filter all their reads. The log contains everything; the policy determines
+        what each member can see.</p>
+      </div>
+
+      <h4>The three policies</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Policy</th><th>Behaviour</th><th>Use case</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>No history</td>
+              <td>The joiner sees only messages after their join. Their <code>first_visible_seq</code> is the current seq at join.</td>
+              <td>Slack channels, Discord servers (default), work chat</td>
+            </tr>
+            <tr>
+              <td>Full history</td>
+              <td>The joiner sees everything from the beginning. Their <code>first_visible_seq</code> is 0.</td>
+              <td>WhatsApp groups, family chat, small groups where history is expected</td>
+            </tr>
+            <tr>
+              <td>Bounded history</td>
+              <td>The joiner sees the last N messages (or the last N days). Their <code>first_visible_seq</code> is the seq at the boundary.</td>
+              <td>Telegram (last N messages for new members), some community platforms</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Implementation: first_visible_seq</h4>
+      <p>The membership table records, per member, a <code>first_visible_seq</code> — the lowest seq the member can
+      see. When the member joins, the value is set based on the policy:</p>
+      <ul>
+        <li>No history: <code>first_visible_seq = current_seq</code>.</li>
+        <li>Full history: <code>first_visible_seq = 0</code>.</li>
+        <li>Bounded history: <code>first_visible_seq = current_seq - N</code> (or the seq at the day boundary).</li>
+      </ul>
+      <p>Every read is filtered by <code>seq &gt;= first_visible_seq</code>. The query is still a range scan on the
+      log; the filter is applied at the query or the client. This is O(log n + N) regardless of the policy, so there
+      is no performance difference between policies — only a correctness difference.</p>
+
+      <h4>What "no history" really means</h4>
+      <p>The joiner does not see messages before their join, but they can still see messages after. If the group had
+      100 messages before they joined and 5 after, they see 5 — the conversation appears to start mid-thread. In
+      practice, the client often shows a "You joined the group" marker at the join seq, so the user understands why
+      the history begins there. The marker is a system message in the log, and the joiner's
+      <code>first_visible_seq</code> is the seq of the marker.</p>
+
+      <h4>What "full history" requires</h4>
+      <p>The joiner must fetch the group's history from the beginning. For a small group, this is a few hundred
+      messages — fine. For a large group with years of history, the fetch is enormous. The client fetches the most
+      recent N messages (the current screen) and lazily loads older messages as the user scrolls back. The
+      <code>first_visible_seq</code> is 0, so the scroll-back can reach the beginning, but the client does not load
+      it all at once.</p>
+
+      <h4>The access-control interaction</h4>
+      <p>The <code>first_visible_seq</code> is not just a product policy — it is an access control mechanism. The
+      server must enforce it: a read request with <code>seq &lt; first_visible_seq</code> is rejected or filtered.
+      A client that tries to bypass the policy (by directly querying the log) must be blocked at the server, not
+      just in the UI. This means the read path checks the membership and the <code>first_visible_seq</code> for every
+      request, which is the same check as membership authorization (a member is authorized only for their visible
+      range).</p>
+
+      <h4>Rejoining and history changes</h4>
+      <p>A member who leaves and rejoins — what do they see? The policy must define this:</p>
+      <ul>
+        <li><strong>No history on rejoin:</strong> <code>first_visible_seq</code> is reset to the current seq. The
+        member loses their prior history (they cannot see the messages from their first membership).</li>
+        <li><strong>Full history on rejoin:</strong> <code>first_visible_seq</code> is reset to 0. The member regains
+        all history, including the messages from before their first join.</li>
+        <li><strong>Preserve prior history:</strong> the <code>first_visible_seq</code> is not reset; the member
+        keeps whatever they could see before, plus new messages. This is the most common policy for chat apps —
+        rejoining does not lose history, and does not gain the messages from the gap.</li>
+      </ul>
+      <p>The rejoin policy is a product decision, and it must be specified in the system's contract. The technical
+      implementation is the same: update the <code>first_visible_seq</code> on rejoin according to the policy.</p>
+
+      <h4>Admin and moderation</h4>
+      <p>Admins and moderators may have different visibility rules: they can see messages that were deleted by users
+      (for moderation), or they can see the full history even in a "no history" group (for compliance). This is a
+      per-role override of <code>first_visible_seq</code>, and it must be audited — every admin view of a restricted
+      message is a privileged access that should be logged.</p>
+
+      <h4>The deletion interaction</h4>
+      <p>If a message is deleted after a member joins, the member sees the tombstone (the message is replaced with a
+      "deleted" marker), not the original content. The <code>first_visible_seq</code> does not override deletion;
+      deleted messages are not visible to anyone (except admins, if the deletion is soft). This is a separate
+      filter (per-message deletion marker) applied in addition to the seq filter.</p>
+
+      <h4>What the design must specify</h4>
+      <ol>
+        <li>The history policy per group type (no history, full, bounded).</li>
+        <li>The rejoin policy (reset, preserve, or full).</li>
+        <li>The admin override policy (what can admins see).</li>
+        <li>The deletion policy (hard delete, soft delete, tombstone).</li>
+        <li>The enforcement point (server-side, not client-side).</li>
+      </ol>
+      <p>Each is a product decision, and the technical implementation is the same mechanism (the
+      <code>first_visible_seq</code> filter plus the membership check). The design must specify all five, or the
+      system's behavior is undefined for the cases the product cares about.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Enforcing history access only in the UI. A client that directly queries the log bypasses the UI and sees
+        messages it should not. The enforcement must be server-side: the read API filters by
+        <code>first_visible_seq</code>, and there is no API that returns messages outside the visible range for
+        non-admin members.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART C ================= -->
+  <div class="part-band teal">
+    <div class="bar"></div>
+    <h2>Part C — Broadcast, Feeds &amp; Cross-Cutting Concerns
+      <span class="sub">Broadcast channels, feed fan-out, receipts, presence, and push at scale</span>
+    </h2>
+  </div>
+
+  <!-- Q7 -->
+  <article class="q teal" id="q7">
+    <div class="q-head">
+      <div class="q-num">7</div>
+      <h3>How do you design a broadcast channel with 100,000+ members, where a single message reaches everyone?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A broadcast channel is a shared log plus a fan-out signal. The message is written once to the channel's
+        log; the channel's seq is incremented; a single signal is published to the channel's broadcast topic; every
+        gateway that has subscribers to the channel fetches the delta for its connected members; offline members
+        receive a coalesced push and fetch on open. The per-message server cost is O(1) plus O(online subscribers per
+        gateway), never O(total members).</p>
+      </div>
+
+      <h4>The architecture</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Component</th><th>Role</th></tr></thead>
+          <tbody>
+            <tr><td>Channel log</td><td>Single append-only log keyed by <code>(channel_id, seq)</code>. One copy of the message.</td></tr>
+            <tr><td>Channel seq</td><td>Monotonic counter; incremented on every message.</td></tr>
+            <tr><td>Broadcast topic</td><td>Pub/sub topic per channel (or sharded); the gateway subscribes to the topics for channels its members are in.</td></tr>
+            <tr><td>Gateway subscription table</td><td>Per-gateway: which connected members subscribe to which channels.</td></tr>
+            <tr><td>Per-member cursor</td><td><code>last_seen_seq</code> per member per channel.</td></tr>
+            <tr><td>Push service</td><td>Coalesced push notifications to offline members, per channel per window.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The write path</h4>
+      <ol>
+        <li>The sender's message is appended to the channel log; the broker assigns seq N.</li>
+        <li>The channel's current seq is updated to N (atomic increment).</li>
+        <li>A single signal is published to the broadcast topic: <code>{channel_id, seq: N}</code>.</li>
+        <li>The sender receives an ack with seq N.</li>
+      </ol>
+      <p>The write is O(1) plus one signal publish. It is the same cost as a 3-person message, which is the key
+      property: the write cost does not depend on the member count.</p>
+
+      <h4>The read path (online members)</h4>
+      <p>Every gateway subscribes to the broadcast topic for channels its members are in. On receiving the signal,
+      the gateway:</p>
+      <ol>
+        <li>Looks up its local subscription table for members in <code>channel_id</code>.</li>
+        <li>For each member, compares their <code>last_seen_seq</code> to the signal's seq.</li>
+        <li>For members who are behind, fetches the range <code>(last_seen_seq, N]</code> from the log in one batch.</li>
+        <li>Sends the batch to each behind member over their socket.</li>
+        <li>Updates the member's <code>last_seen_seq</code> (or lets the client update it on the next request).</li>
+      </ol>
+      <p>The gateway's cost is O(members in this channel who are connected to this gateway and are behind). Across
+      the fleet, the total cost is O(members who are connected and behind), which is bounded by the fleet's total
+      connection count, not by the channel's member count.</p>
+
+      <h4>The read path (offline members)</h4>
+      <p>Members who are not connected do not receive the signal. The push service sends a coalesced notification
+      ("New in channel X") at a throttled rate (e.g., one push per channel per hour). When the member opens the
+      app, they connect and fetch their delta from the log, using their <code>last_seen_seq</code>. The push is a
+      hint, not the message.</p>
+
+      <h4>The batching of signals</h4>
+      <p>If the channel receives 100 messages/s, the broadcast topic receives 100 signals/s. Each gateway processes
+      each signal, which is 100 × (subscriptions) work per second. At 100k subscriptions across the fleet, that is
+      10M subscription checks per second — heavy but manageable with batching. The optimization is to coalesce
+      signals: instead of one signal per message, the channel publishes its current seq periodically (e.g., every
+      100 ms) and the gateway fetches the delta once per period. The signal rate drops to 10/s, and the fetch is one
+      batch per member per period.</p>
+
+      <h4>The push broadcast</h4>
+      <p>For 100k offline members, sending 100k individual push notifications is expensive. APNs and FCM both support
+      topic-based push: the device subscribes to a topic (the channel ID), and a single publish to the topic reaches
+      all subscribed devices. The backend sends one request to APNs/FCM, and the provider fans out to the devices.
+      This is dramatically cheaper than per-device push and is the standard for broadcast channels. The limitation
+      is that the topic subscription is managed by the provider (the device must subscribe/unsubscribe), and the
+      payload is the same for all members (no personalization).</p>
+
+      <h4>The presence and receipts</h4>
+      <p>In a 100k-member channel, live presence is infeasible: 100k presence updates per heartbeat is millions of
+      operations per second. The design shows "N online" as an aggregate (counted by the registry, updated
+      periodically) or nothing at all. Read receipts are dropped entirely — tracking 100k read positions per message
+      is infeasible and not useful (nobody cares if 47,231 people read the message). The channel's UI shows the
+      message, not who read it.</p>
+
+      <h4>The moderation problem</h4>
+      <p>In a 100k-member channel, moderation is a bottleneck. The messages are visible to everyone, and a bad message
+      reaches 100k people before a moderator can remove it. The design must support: pre-publication review (only
+      approved senders can post), post-publication removal (the message is deleted from the log, and clients see a
+      tombstone), and rate limiting on senders (one message per N seconds). The moderation tools are a first-class
+      part of the design, not an afterthought.</p>
+
+      <h4>What breaks at 100k</h4>
+      <ul>
+        <li><strong>The log's shard capacity:</strong> a channel with 100k members and years of history is a large
+        partition. It must be sub-partitioned by time, with cold history tiered.</li>
+        <li><strong>The broadcast topic's throughput:</strong> one signal per message is 100/s at 100 messages/s,
+        which is fine; 100 signals per second to 100k subscribers (if not sharded) is not. The topic is sharded by
+        channel_id, and the gateway subscribes only to its channels.</li>
+        <li><strong>The gateway's subscription table:</strong> a gateway with 500k connections and 100k subscribed to
+        one channel has 100k entries for that channel. The table must be indexed by channel_id for the signal
+        processing, and the iteration must be efficient.</li>
+        <li><strong>The push provider's quota:</strong> even topic-based push has limits; a channel with 100k
+        subscribers sending 10 pushes/hour is 1M device deliveries/hour, which is within APNs/FCM's capacity but
+        must be monitored.</li>
+      </ul>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Broadcast channels are cheap per message but expensive per read (each member must fetch and merge) and
+        expensive to moderate. Small groups are the opposite. A product that supports both must have two architectures
+        and a routing layer that picks one per channel — the complexity is real, but the alternative (one architecture
+        for all sizes) either wastes resources on small groups or collapses on large ones.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q8 -->
+  <article class="q teal" id="q8">
+    <div class="q-head">
+      <div class="q-num">8</div>
+      <h3>What is the difference between fan-out for feeds and fan-out for chat? Why do they use different strategies?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Chat fan-out is per-conversation: a message goes to one group's members, and the fan-out is bounded by the
+        group size. Feed fan-out is per-user: a post goes to everyone who follows the author, and the fan-out is
+        bounded by the follower count, which can be millions. Chat is usually write fan-out for small groups and read
+        fan-out for large channels; feeds are usually write fan-out for normal users and read fan-out (with a merge)
+        for celebrities.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Dimension</th><th>Chat fan-out</th><th>Feed fan-out</th></tr></thead>
+          <tbody>
+            <tr><td>Unit of fan-out</td><td>Conversation (group)</td><td>Author's follower set</td></tr>
+            <tr><td>Bounded by</td><td>Group size</td><td>Follower count (can be 100M+)</td></tr>
+            <tr><td>Who reads</td><td>Group members</td><td>Followers of the author</td></tr>
+            <tr><td>Ordering</td><td>Per group (seq)</td><td>Global timeline (reverse chronological or ranked)</td></tr>
+            <tr><td>Read path</td><td>One group's log</td><td>Merge across all followed authors</td></tr>
+            <tr><td>Write fan-out cost</td><td>O(group members)</td><td>O(followers)</td></tr>
+            <tr><td>Read fan-out cost</td><td>O(1) per group</td><td>O(followed authors) per timeline</td></tr>
+            <tr><td>Standard strategy</td><td>Write for small groups, read for large channels</td><td>Write for normal users, read for celebrities</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Chat fan-out</h4>
+      <p>Chat is conversation-centric. The user opens a conversation and reads its messages. The fan-out unit is the
+      conversation: a message goes to the members of one group. The number of recipients is the group size, which is
+      typically small (3–100) and bounded by the product's group limit. The read is a single conversation's log, which
+      is a range scan on seq. The system's total fan-out is the sum over all messages × group sizes, which is
+      manageable because the group sizes are small.</p>
+
+      <h4>Feed fan-out</h4>
+      <p>Feeds are user-centric. The user opens their timeline and sees posts from everyone they follow. The fan-out
+      unit is the author's follower set: a post goes to all followers. The number of recipients is the author's
+      follower count, which is unbounded (a celebrity has 100M followers). The read is a merge across all followed
+      authors' posts, sorted by time (or ranked). The system's total fan-out is the sum over all posts × follower
+      counts, which is enormous for a social network with celebrities.</p>
+
+      <h4>Why the strategies diverge</h4>
+      <p>Chat's bounded group size makes write fan-out feasible: 100 writes per message is fine. Feed's unbounded
+      follower count makes write fan-out infeasible: 100M writes per post from a celebrity is not. The feed system
+      handles this with a hybrid:</p>
+      <ul>
+        <li><strong>Normal users (few followers):</strong> write fan-out. The post is copied to each follower's
+        timeline cache. The read is a single lookup.</li>
+        <li><strong>Celebrities (many followers):</strong> read fan-out. The post is stored once, and each follower's
+        timeline is built by merging the celebrity's posts with the other authors' posts at read time. The merge is
+        expensive but bounded by the number of celebrities the user follows (usually a few).</li>
+        <li><strong>The hybrid:</strong> the user's timeline is precomputed for the non-celebrities (write fan-out)
+        and merged with the celebrities' posts (read fan-out) at request time. This is the standard "push-pull" feed
+        design (Twitter's original design, Instagram's design).</li>
+      </ul>
+
+      <h4>The ordering difference</h4>
+      <p>Chat is per-conversation ordered: messages within a group are in seq order, and the user sees them in that
+      order. The order across groups is not meaningful. Feed is globally ordered: the user's timeline is a single
+      sequence of posts from many authors, ordered by time (or by a ranking). The merge at read time must impose
+      this order, which is why the read fan-out is more expensive for feeds.</p>
+
+      <h4>The read latency difference</h4>
+      <p>Chat read latency is low: one range scan on one group's log. Feed read latency is higher: merge N authors'
+      posts, sort, paginate. The write fan-out precomputes the timeline, which makes the read a single lookup — but
+      only for non-celebrities. The celebrity posts are merged at read time, adding latency. The design must balance
+      the two: precompute as much as possible, merge only the unavoidable (celebrities, real-time posts).</p>
+
+      <h4>Why chat does not have a "celebrity problem" in the same way</h4>
+      <p>Chat has groups, not followers. A celebrity's group has the same size as anyone else's group (the product
+      limits it). A celebrity is not a fan-out problem in chat; they are a content problem (their messages are more
+      read). The "celebrity problem" in chat is a hot group (a group with many members), not a hot author. The design
+      for hot groups is read fan-out (Question 3), which is different from the feed's celebrity handling but follows
+      the same principle: above a threshold, switch to read fan-out.</p>
+
+      <h4>The unified principle</h4>
+      <p>Both chat and feed choose the fan-out strategy based on the <strong>fan-out factor</strong>: how many
+      recipients per message. Below a threshold, write fan-out; above, read fan-out. The threshold is different (chat
+      is 1,000 members, feed is maybe 10,000 followers) because the write cost per recipient is different, but the
+      principle is the same. The systems look different because the fan-out factors are different by orders of
+      magnitude, but the design decision is the same.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Chat fan-out is per-conversation and bounded by group size, so write fan-out works for most groups.
+        Feed fan-out is per-follower and unbounded, so it uses a hybrid: write fan-out for normal users, read fan-out
+        for celebrities. The principle is the same — switch to read fan-out above the fan-out threshold — but the
+        thresholds differ because the recipient counts differ." That names the principle and its two applications.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q9 -->
+  <article class="q teal" id="q9">
+    <div class="q-head">
+      <div class="q-num">9</div>
+      <h3>How do you handle read receipts and presence in large groups? Where does the per-user approach stop working?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Read receipts and presence are both per-user state that must be aggregated for display. In small groups,
+        exact per-user tracking is feasible. Above a few hundred members, the per-user state is too expensive to
+        maintain and too noisy to display, and the design switches to aggregate counts ("read by 40", "12,000 online")
+        or drops the feature entirely.</p>
+      </div>
+
+      <h4>Read receipts at each scale</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Group size</th><th>Receipt model</th><th>Storage</th><th>Display</th></tr></thead>
+          <tbody>
+            <tr><td>≤ 50</td><td>Exact per-user</td><td><code>read_seq</code> per (user, group)</td><td>"Alice and Bob read"</td></tr>
+            <tr><td>50–500</td><td>Aggregate count</td><td><code>read_count</code> per (message, group)</td><td>"Read by 47"</td></tr>
+            <tr><td>500–10k</td><td>Approximate count</td><td>Sampled or periodic rollup</td><td>"Read by many"</td></tr>
+            <tr><td>10k+</td><td>None</td><td>—</td><td>Not displayed</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The per-user receipt is a <code>read_seq</code> watermark: the highest seq each member has read. The exact
+      receipt requires storing this per member per group, which is O(members × groups) storage. For a 50-person group
+      it is 50 values; for a 10k-member channel it is 10k values — manageable, but the display ("read by 10,000") is
+      meaningless, and the update rate (10k reads per message) is expensive. The aggregate count avoids the per-member
+      storage: a counter per (message, group) incremented when a member reads. But the counter is a hot row, and
+      incrementing it 10k times per message is a write bottleneck.</p>
+
+      <h4>The aggregate counter's problem</h4>
+      <p>An aggregate counter per message is a hot row. At 10k reads per message, the counter receives 10k increments
+      per message, which serializes on the row. The standard mitigation is to shard the counter (N sub-counters, each
+      receiving 1/N of the increments) and sum at read time, or to batch the increments (a background job that
+      aggregates the per-user read seqs into a count every minute). The batch approach is more scalable but shows
+      stale counts ("read by 47" may be 30 seconds old), which is acceptable for a receipt.</p>
+
+      <h4>Where receipts stop being useful</h4>
+      <p>The display of "read by 10,000" is not useful — no user cares about the exact count in a large channel. The
+      feature becomes a waste of resources and a source of noise. The design should drop it above the threshold where
+      it stops being useful, which is usually a few hundred to a few thousand members. The threshold is a product
+      decision, not a technical one, but the technical cost grows linearly with group size, so the drop is also
+      economically motivated.</p>
+
+      <h4>Presence at each scale</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Group size</th><th>Presence model</th><th>Update rate</th><th>Display</th></tr></thead>
+          <tbody>
+            <tr><td>≤ 50</td><td>Live per-user</td><td>Heartbeat per member</td><td>Green dot per member</td></tr>
+            <tr><td>50–500</td><td>Live, scoped</td><td>Heartbeat per member, but only for open group</td><td>Green dot for visible members</td></tr>
+            <tr><td>500–10k</td><td>Aggregate</td><td>Periodic count</td><td>"47 online"</td></tr>
+            <tr><td>10k+</td><td>Aggregate or none</td><td>Periodic count</td><td>"12,000 online" or nothing</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Presence is more expensive than receipts because it updates continuously (heartbeats), not once (read). A
+      50-person group with 30-second heartbeats generates 100 presence updates per minute — trivial. A 10k-member
+      channel generates 20,000 updates per minute — 333/s — which is manageable for a single channel but not for
+      many large channels simultaneously. The aggregate model counts online members periodically (e.g., every 30
+      seconds) and updates a single number, which is O(1) per update instead of O(members).</p>
+
+      <h4>The scoping technique</h4>
+      <p>For medium groups (50–500), the presence can be scoped to the visible members: only the members currently
+      displayed in the UI have their presence tracked. If the user is looking at the first 20 members, only those 20
+      are tracked; scrolling reveals more, and presence is fetched for the newly visible ones. This reduces the
+      presence load from O(all members) to O(visible members), which is bounded by the screen size (tens, not
+      hundreds).</p>
+
+      <h4>The combined cost</h4>
+      <p>Receipts and presence are both per-user state, and their combined cost at scale is significant. A 10k-member
+      channel with live presence and exact receipts would need 10k presence entries (updated every 30s) plus 10k
+      read_seq values (updated per message) — 20k writes per 30s and 10k writes per message. At 100 messages/s, that
+      is 1M reads/s just for receipts, which is a whole database. The aggregate model reduces this to a periodic
+      count and a batched receipt rollup, which is O(1) per update and O(messages) per minute, a 1000× reduction.</p>
+
+      <h4>What to drop first</h4>
+      <p>When the group grows, drop receipts first. Presence is more valuable (users like knowing who is online) and
+      cheaper to aggregate (a count). Receipts are less valuable at scale (nobody cares if 8,412 people read the
+      message) and more expensive to maintain per-message. The order is: exact receipts → aggregate receipts → drop
+      receipts; live presence → aggregate presence → drop presence.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Maintaining exact per-user receipts in a 10k-member channel because "the product asked for it". The cost
+        is 10k writes per message, which is a database bottleneck, and the display is not useful. The product
+        requirement should be challenged: "do you really need to show read by 10,000?" — usually the answer is no,
+        and the aggregate count is what they actually want.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q10 -->
+  <article class="q teal" id="q10">
+    <div class="q-head">
+      <div class="q-num">10</div>
+      <h3>How do you design push notification fan-out for a large group? How is it different from per-user push?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Per-user push sends one request per device to APNs/FCM. Group push uses <strong>topic-based push</strong>:
+        the device subscribes to a provider topic (the group ID), and the backend sends one request to the topic;
+        the provider fans out to all subscribed devices. This is dramatically cheaper for large groups, at the cost of
+        no per-user personalization and limited delivery tracking.</p>
+      </div>
+
+      <h4>Per-user push vs topic-based push</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Dimension</th><th>Per-user push</th><th>Topic-based push</th></tr></thead>
+          <tbody>
+            <tr><td>Request to provider</td><td>One per device</td><td>One per topic</td></tr>
+            <tr><td>Backend cost</td><td>O(recipients)</td><td>O(1)</td></tr>
+            <tr><td>Personalization</td><td>Yes (per-user payload)</td><td>No (same payload for all)</td></tr>
+            <tr><td>Delivery tracking</td><td>Per-device (APNs/FCM returns acceptance)</td><td>Limited (provider handles fan-out)</td></tr>
+            <tr><td>Subscription management</td><td>Backend tracks device tokens</td><td>Device subscribes to topic; backend does not track</td></tr>
+            <tr><td>Best for</td><td>Individual notifications</td><td>Broadcast messages (channels, announcements)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>How topic-based push works</h4>
+      <ol>
+        <li>The app, on the device, subscribes to a topic when the user joins a group: <code>FCM.subscribeToTopic("group_123")</code>
+        or the APNs equivalent.</li>
+        <li>When the group has a new message, the backend sends one request to APNs/FCM with the topic name.</li>
+        <li>The provider looks up all subscribed devices and delivers the notification to each.</li>
+        <li>The device receives the notification, opens the app, and fetches the message from the log.</li>
+      </ol>
+      <p>The backend's cost is one API call, regardless of the group size. The provider's fan-out is their problem,
+      and they are built for it. This is the only way to push a message to a 100,000-member channel without sending
+      100,000 requests.</p>
+
+      <h4>The limitations</h4>
+      <ul>
+        <li><strong>No personalization:</strong> the payload is the same for all subscribers. If the notification
+        should say "Alice mentioned you" for one user and "New message" for others, topic-based push cannot do it.
+        The workaround is to send a generic push to the topic ("New in channel X") and let the app personalize on
+        open, or to use per-user push for the personalized recipients (the mentioned users) and topic-based push for
+        the rest.</li>
+        <li><strong>No delivery tracking:</strong> the provider does not tell the backend which devices received the
+        notification. The backend can track opens (via the app) but not deliveries. This is acceptable for
+        broadcast channels, where delivery is best-effort and the message is in the log regardless.</li>
+        <li><strong>Subscription management is on the device:</strong> the device must subscribe and unsubscribe,
+        and the backend does not track the subscription. If the device is reinstalled or the token changes, the
+        subscription is lost. The app must re-subscribe on startup, and the backend must handle a user who is not
+        subscribed (they do not receive the push).</li>
+        <li><strong>Provider topic limits:</strong> APNs and FCM have limits on the number of topics per app (usually
+        thousands to tens of thousands). A product with millions of groups cannot subscribe each device to every
+        group it is in; it must limit the number of topic subscriptions per device or use per-user push for small
+        groups.</li>
+      </ul>
+
+      <h4>The hybrid strategy</h4>
+      <p>Most products use both:</p>
+      <ul>
+        <li><strong>Large groups (10k+):</strong> topic-based push, generic payload ("New in channel X"). The user
+        taps and fetches the message.</li>
+        <li><strong>Small groups (≤ 1k):</strong> per-user push, personalized payload ("Alice: hey!"). The cost is
+        O(members), but the group is small, so it is fine.</li>
+        <li><strong>Mentions:</strong> per-user push, even in large groups, because the mention is personal. The
+        mentioned user gets a personalized push; the other members get the topic-based generic push.</li>
+      </ul>
+
+      <h4>The coalescing of pushes</h4>
+      <p>A 100k-member channel at 100 messages/s generates 100 pushes/s to the topic. If the provider allows it, that
+      is a lot of notifications to the device. The coalescing is the app's job: the device receives many
+      notifications for the same channel and groups them ("5 new messages in channel X"), or the backend throttles
+      the pushes (one per channel per minute). The throttling must be careful — it delays the notification, which
+      defeats the purpose of push. The standard is to send the first message immediately, then coalesce subsequent
+      ones within a window (e.g., a summary after 60 seconds).</p>
+
+      <h4>The push as a hint, not the message</h4>
+      <p>As in Section 4, the push is a hint to wake the app and fetch. The message is in the log, and the app fetches
+      it on open. The push payload can carry the message content (for the lock-screen preview) or just a summary
+      ("New message"). The content is limited (APNs payload is 4 KB, FCM is 4 KB), so media and long messages are
+      always fetched.</p>
+
+      <h4>What breaks at 100k</h4>
+      <ul>
+        <li><strong>The push provider's rate limits:</strong> FCM has per-project limits (e.g., 600k requests/minute).
+        A 100k-member channel with one push per message at 100 messages/s is 10M pushes/minute, which exceeds the
+        limit. The coalescing reduces this, but the design must account for it.</li>
+        <li><strong>The device's notification limit:</strong> iOS and Android limit the number of notifications per
+        app; a channel that pushes every message will be muted by the user. The product must coalesce and rate-limit
+        the pushes to avoid being muted.</li>
+        <li><strong>The topic subscription limit:</strong> the device cannot subscribe to 1000s of topics; the app
+        must limit the subscriptions and fall back to per-user push for the groups it is not subscribed to.</li>
+      </ul>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Topic-based push is cheap but generic and untracked. Per-user push is personalized and tracked but
+        expensive. The right answer is per-group size: small groups per-user, large groups topic-based, mentions
+        per-user regardless. The threshold is where the per-user cost exceeds the topic-based cost, typically a few
+        thousand members.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "For large groups I'll use topic-based push — one request to APNs/FCM, the provider fans out. For
+        small groups and mentions, per-user push with personalized payloads. The threshold is a few thousand members,
+        and the push is always a hint; the app fetches the message from the log on open." That covers the mechanism,
+        the hybrid, and the source-of-truth principle.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- NEXT PART -->
+  <section class="next-part">
+    <h3>Coming in Section 8 — Event-Driven Architecture</h3>
+    <p>Section 8 is about the architecture that messaging enables: events vs commands, the three coupling problems
+    EDA solves, event sourcing, CQRS with separate read and write models, the transactional outbox at the
+    architecture level, schema evolution with a registry, and how to choose between synchronous RPC and asynchronous
+    events for a given boundary.</p>
+    <ul class="next-list">
+      <li>Events vs commands at the architecture level</li>
+      <li>EDA advantages and drawbacks</li>
+      <li>Event sourcing vs state-based persistence</li>
+      <li>CQRS and read models</li>
+      <li>The outbox pattern as an architectural primitive</li>
+      <li>Schema evolution and the schema registry</li>
+      <li>Choreography vs orchestration for sagas</li>
+      <li>Synchronous vs asynchronous integration decisions</li>
+    </ul>
+  </section>
+
+</div>
+</body>
+</html>
