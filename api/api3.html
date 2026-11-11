@@ -1,0 +1,1427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API Design — Volume 3: Contracts, Versioning &amp; Evolution</title>
+<style>
+  :root{
+    --ink:#0f172a;
+    --ink-soft:#334155;
+    --muted:#64748b;
+    --line:#e2ddf0;
+    --bg:#f8f6fd;
+    --card:#ffffff;
+    --plum:#6d28d9;
+    --plum-soft:#ede9fe;
+    --plum-deep:#4c1d95;
+    --fuchsia:#a21caf;
+    --fuchsia-soft:#fae8ff;
+    --rose:#e11d48;
+    --amber:#b45309;
+    --teal:#0d9488;
+    --blue:#2563eb;
+    --shadow:0 1px 2px rgba(50,25,90,.06), 0 8px 24px -8px rgba(50,25,90,.14);
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 8% -10%, #ede9fe 0%, transparent 60%),
+      radial-gradient(1000px 500px at 100% 0%, #fae8ff 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:"Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    line-height:1.72;
+    font-size:16.5px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px 90px;}
+
+  header.hero{
+    background:linear-gradient(135deg,#2e1065 0%, #4c1d95 45%, #701a75 100%);
+    color:#faf5ff;
+    padding:64px 22px 56px;
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::after{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      radial-gradient(600px 300px at 85% 15%, rgba(192,38,211,.4), transparent 70%),
+      radial-gradient(520px 280px at 12% 92%, rgba(124,58,237,.42), transparent 70%);
+    pointer-events:none;
+  }
+  .hero-inner{max-width:1080px;margin:0 auto;position:relative;z-index:2;}
+  .eyebrow{
+    display:inline-block;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;
+    font-weight:700;padding:7px 15px;border-radius:999px;
+    background:rgba(232,121,249,.18);border:1px solid rgba(232,121,249,.5);
+    color:#f0abfc;margin-bottom:20px;
+  }
+  header.hero h1{
+    font-size:clamp(1.9rem, 4.4vw, 3rem);line-height:1.15;margin:0 0 16px;
+    font-weight:800;letter-spacing:-.02em;
+  }
+  header.hero h1 span{
+    background:linear-gradient(90deg,#f0abfc,#c4b5fd);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  header.hero p.lede{font-size:1.06rem;color:#e9d5ff;max-width:780px;margin:0 0 26px;}
+  .meta-chips{display:flex;flex-wrap:wrap;gap:10px;}
+  .chip{
+    font-size:.78rem;font-weight:600;padding:7px 14px;border-radius:999px;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#f3e8ff;
+  }
+
+  .roadmap{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:26px 28px;margin-top:-34px;position:relative;z-index:5;
+  }
+  .roadmap h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 16px;font-weight:700;
+  }
+  .roadmap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;}
+  .roadmap-item{
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:.86rem;
+    background:#fdfcff;opacity:.7;
+  }
+  .roadmap-item.done{
+    border-color:#c4b5fd;background:linear-gradient(180deg,#f5f3ff,#ffffff);opacity:1;
+  }
+  .roadmap-item.current{
+    border-color:#d8b4fe;background:linear-gradient(180deg,#fae8ff,#ffffff);opacity:1;
+    box-shadow:0 0 0 3px rgba(162,28,175,.14);
+  }
+  .roadmap-item .tag{
+    display:inline-block;font-size:.64rem;font-weight:800;letter-spacing:.08em;
+    padding:2px 8px;border-radius:999px;margin-bottom:6px;
+  }
+  .tag-done{background:var(--plum-soft);color:var(--plum-deep);}
+  .tag-now{background:var(--fuchsia-soft);color:#86198f;}
+  .tag-next{background:#e2e8f0;color:#475569;}
+  .roadmap-item strong{display:block;color:var(--ink);font-size:.89rem;}
+
+  nav.toc{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:22px 26px;margin:26px 0 44px;
+  }
+  nav.toc h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 14px;font-weight:700;
+  }
+  nav.toc ol{
+    margin:0;padding-left:0;list-style:none;counter-reset:toc;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:8px 26px;
+  }
+  nav.toc li{
+    counter-increment:toc;font-size:.93rem;padding:6px 0 6px 34px;
+    position:relative;border-bottom:1px dashed #f1edfb;
+  }
+  nav.toc li::before{
+    content:counter(toc);position:absolute;left:0;top:7px;width:22px;height:22px;
+    border-radius:7px;background:var(--fuchsia-soft);color:var(--fuchsia);
+    font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center;
+  }
+  nav.toc a{color:var(--ink-soft);text-decoration:none;font-weight:500;}
+  nav.toc a:hover{color:var(--fuchsia);}
+
+  .part-band{display:flex;align-items:center;gap:16px;margin:56px 0 26px;}
+  .part-band .bar{
+    width:5px;height:44px;border-radius:99px;
+    background:linear-gradient(180deg,var(--fuchsia),#e879f9);
+  }
+  .part-band.plum .bar{background:linear-gradient(180deg,var(--plum),#a78bfa);}
+  .part-band.teal .bar{background:linear-gradient(180deg,var(--teal),#2dd4bf);}
+  .part-band h2{margin:0;font-size:1.5rem;letter-spacing:-.01em;font-weight:800;}
+  .part-band .sub{
+    display:block;font-size:.82rem;font-weight:600;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.12em;margin-top:2px;
+  }
+
+  article.q{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:0 0 26px;margin-bottom:28px;overflow:hidden;
+    scroll-margin-top:24px;
+  }
+  .q-head{
+    display:flex;gap:16px;align-items:flex-start;padding:22px 28px 18px;
+    border-bottom:1px solid #f3eefa;background:linear-gradient(180deg,#fdfaff,#ffffff);
+  }
+  .q-num{
+    flex:none;width:42px;height:42px;border-radius:12px;display:flex;
+    align-items:center;justify-content:center;font-weight:800;font-size:.92rem;color:#fff;
+    background:linear-gradient(135deg,#6d28d9,#a21caf);
+    box-shadow:0 6px 14px -6px rgba(109,40,217,.7);
+  }
+  .plum .q-num{background:linear-gradient(135deg,#6d28d9,#8b5cf6);box-shadow:0 6px 14px -6px rgba(109,40,217,.7);}
+  .teal .q-num{background:linear-gradient(135deg,#0d9488,#14b8a6);box-shadow:0 6px 14px -6px rgba(13,148,136,.7);}
+  .q-head h3{margin:0;font-size:1.14rem;font-weight:700;line-height:1.4;letter-spacing:-.01em;}
+  .q-body{padding:22px 28px 0;}
+  .q-body p{margin:0 0 15px;color:var(--ink-soft);}
+  .q-body p:last-child{margin-bottom:0;}
+  .q-body h4{margin:24px 0 10px;font-size:.95rem;font-weight:800;color:var(--ink);}
+  .q-body h4::before{content:"▹";color:var(--fuchsia);margin-right:8px;font-size:.85rem;}
+  .plum .q-body h4::before{color:var(--plum);}
+  .teal .q-body h4::before{color:var(--teal);}
+  .q-body ul,.q-body ol{margin:0 0 16px;padding-left:22px;color:var(--ink-soft);}
+  .q-body li{margin-bottom:8px;}
+  .q-body li::marker{color:var(--fuchsia);}
+  .plum .q-body li::marker{color:var(--plum);}
+  .teal .q-body li::marker{color:var(--teal);}
+  strong{color:var(--ink);font-weight:700;}
+  code{
+    background:#f7f3ff;border:1px solid #e2ddf0;border-radius:6px;padding:1px 6px;
+    font-size:.87em;font-family:"SFMono-Regular",Consolas,monospace;color:#86198f;
+  }
+
+  .callout{border-radius:12px;padding:14px 18px;margin:18px 0 4px;font-size:.93rem;border-left:4px solid;}
+  .callout .label{
+    display:block;font-size:.68rem;font-weight:800;letter-spacing:.13em;
+    text-transform:uppercase;margin-bottom:5px;
+  }
+  .callout p{margin:0 0 8px;font-size:.93rem;}
+  .callout p:last-child{margin-bottom:0;}
+  .answer{background:linear-gradient(180deg,#faf5ff,#ffffff);border-color:var(--plum);}
+  .answer .label{color:var(--plum-deep);}
+  .tip{background:linear-gradient(180deg,#eff6ff,#ffffff);border-color:var(--blue);}
+  .tip .label{color:#1d4ed8;}
+  .tradeoff{background:linear-gradient(180deg,#fffbeb,#ffffff);border-color:var(--amber);}
+  .tradeoff .label{color:#b45309;}
+  .pitfall{background:linear-gradient(180deg,#fff1f2,#ffffff);border-color:var(--rose);}
+  .pitfall .label{color:#be123c;}
+
+  .table-scroll{overflow-x:auto;margin:18px 0;border-radius:12px;border:1px solid var(--line);}
+  table{width:100%;border-collapse:collapse;font-size:.87rem;background:#fff;}
+  thead th{
+    background:#faf7ff;text-align:left;padding:11px 14px;font-weight:800;
+    font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+    border-bottom:2px solid var(--line);white-space:nowrap;
+  }
+  tbody td{padding:11px 14px;border-bottom:1px solid #f5f1fc;color:var(--ink-soft);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:nth-child(even){background:#fdfbff;}
+  tbody td:first-child{font-weight:700;color:var(--ink);}
+
+  .next-part{
+    background:linear-gradient(135deg,#2e1065,#701a75);color:#f3e8ff;
+    border-radius:var(--radius);padding:32px 34px;margin-top:50px;box-shadow:var(--shadow);
+  }
+  .next-part h3{margin:0 0 12px;font-size:1.2rem;color:#fff;font-weight:800;}
+  .next-part p{margin:0 0 16px;color:#e9d5ff;font-size:.95rem;}
+  .next-list{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:10px;list-style:none;padding:0;margin:0;
+  }
+  .next-list li{
+    background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
+    border-radius:10px;padding:10px 14px;font-size:.86rem;color:#f3e8ff;
+  }
+
+  @media (max-width:640px){
+    .q-head{padding:18px 18px 15px;}
+    .q-body{padding:18px 18px 0;}
+    header.hero{padding:44px 18px 46px;}
+    .roadmap{padding:20px;}
+    nav.toc{padding:18px;}
+    nav.toc ol{grid-template-columns:1fr;}
+  }
+  @media print{
+    body{background:#fff;}
+    article.q, nav.toc, .roadmap{box-shadow:none;page-break-inside:avoid;}
+    header.hero{background:#2e1065 !important;-webkit-print-color-adjust:exact;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Volume 3 · Section 3 of 18</span>
+    <h1>API Design for System Interviews<br><span>Contracts, Versioning &amp; Evolution</span></h1>
+    <p class="lede">
+      How an API survives contact with time. What actually counts as a breaking change, the four versioning
+      strategies and their real trade-offs, how to deprecate without breaking the world, and how to add, remove,
+      and rename fields so that no client ever wakes up to a 500.
+    </p>
+    <div class="meta-chips">
+      <span class="chip">10 Questions</span>
+      <span class="chip">500+ words each</span>
+      <span class="chip">Compatibility-focused</span>
+      <span class="chip">Contract testing included</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ROADMAP -->
+  <section class="roadmap">
+    <h2>Answer-Series Roadmap</h2>
+    <div class="roadmap-grid">
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 1 — Complete</span>
+        <strong>Fundamentals &amp; Style Selection</strong>
+        API vs protocol vs service, contracts, styles, paradigms
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 2 — Complete</span>
+        <strong>Resource Modeling &amp; REST Design</strong>
+        Resources, URLs, nesting, HTTP methods, representations
+      </div>
+      <div class="roadmap-item current">
+        <span class="tag tag-now">Volume 3 — You are here</span>
+        <strong>Contracts, Versioning &amp; Evolution</strong>
+        Breaking changes, versioning, deprecation, schema evolution
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 4</span>
+        <strong>Request/Response Design</strong>
+        Pagination, filtering, batching, envelopes
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 5</span>
+        <strong>Idempotency &amp; Correctness</strong>
+        Idempotency keys, conditional requests, retries
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 6</span>
+        <strong>Authentication &amp; Authorization</strong>
+        OAuth, JWT, RBAC, ABAC, IDOR
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 7</span>
+        <strong>Rate Limiting &amp; Quotas</strong>
+        Algorithms, distributed enforcement, headers
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 8</span>
+        <strong>Error Handling &amp; Status Codes</strong>
+        RFC 7807, retryability, partial failures
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 9</span>
+        <strong>API Gateways &amp; Management</strong>
+        Routing, BFF, canary, gateway vs mesh
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 10</span>
+        <strong>Performance &amp; Caching</strong>
+        HTTP caching, compression, HTTP/2 and HTTP/3
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 11</span>
+        <strong>Async APIs &amp; Webhooks</strong>
+        202 Accepted, callbacks, signatures, SSE
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 12–13</span>
+        <strong>GraphQL &amp; gRPC Deep Dives</strong>
+        N+1, DataLoader, streaming RPCs, gRPC-Web
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 14</span>
+        <strong>Security &amp; Abuse Prevention</strong>
+        OWASP API Top 10, injection, SSRF, enumeration
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 15</span>
+        <strong>Observability &amp; Operations</strong>
+        Metrics, tracing, deployment, incidents
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 16–17</span>
+        <strong>Lifecycle, Governance &amp; 17 Problems</strong>
+        Design reviews, DX, classic API prompts
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 18</span>
+        <strong>Senior &amp; Staff Trade-offs</strong>
+        Choosing between every pair of options
+      </div>
+    </div>
+  </section>
+
+  <!-- TOC -->
+  <nav class="toc">
+    <h2>Questions Answered in This Volume</h2>
+    <ol>
+      <li><a href="#q1">What is a breaking change vs a non-breaking change?</a></li>
+      <li><a href="#q2">The four versioning strategies and their trade-offs</a></li>
+      <li><a href="#q3">How do you deprecate an API gracefully?</a></li>
+      <li><a href="#q4">How do you add a required field to an existing API?</a></li>
+      <li><a href="#q5">How do you remove or rename a field safely?</a></li>
+      <li><a href="#q6">What is the tolerant reader pattern?</a></li>
+      <li><a href="#q7">How do you handle enum evolution?</a></li>
+      <li><a href="#q8">How do you version GraphQL and gRPC APIs?</a></li>
+      <li><a href="#q9">What is contract testing, and how do Pact and Schemathesis work?</a></li>
+      <li><a href="#q10">How long should you support an old version, and how do you communicate?</a></li>
+    </ol>
+  </nav>
+
+  <!-- ================= PART A ================= -->
+  <div class="part-band">
+    <div class="bar"></div>
+    <h2>Part A — Compatibility
+      <span class="sub">What breaks, what doesn't, and why it is rarely obvious</span>
+    </h2>
+  </div>
+
+  <!-- Q1 -->
+  <article class="q" id="q1">
+    <div class="q-head">
+      <div class="q-num">1</div>
+      <h3>What is a breaking change vs a non-breaking change?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A <strong>breaking change</strong> is any change that can cause an existing, correctly-written client to
+        fail or to misinterpret data. A <strong>non-breaking change</strong> is one that a tolerant client can
+        survive without modification. The critical insight is that "breaking" is defined by the client's tolerance,
+        not by the server's intent — and the same change can be breaking for one client and non-breaking for
+        another.</p>
+      </div>
+
+      <h4>The definitive list</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Change</th><th>Breaking?</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr><td>Adding a new endpoint</td><td>No</td><td>Existing clients do not call it</td></tr>
+            <tr><td>Adding an optional request field</td><td>No</td><td>Existing clients omit it; server applies default</td></tr>
+            <tr><td>Adding a required request field</td><td>Yes</td><td>Existing clients omit it; validation fails</td></tr>
+            <tr><td>Adding a response field</td><td>No — if clients are tolerant</td><td>Strict clients may reject unknown fields</td></tr>
+            <tr><td>Removing a response field</td><td>Yes</td><td>Clients read it; now it is undefined</td></tr>
+            <tr><td>Renaming a field</td><td>Yes</td><td>Equivalent to remove + add</td></tr>
+            <tr><td>Changing a field's type</td><td>Yes</td><td><code>42</code> → <code>"42"</code> breaks parsers</td></tr>
+            <tr><td>Narrowing a type (string → enum)</td><td>Yes</td><td>Existing values may be rejected</td></tr>
+            <tr><td>Widening a type (int32 → int64)</td><td>Usually no</td><td>Clients can parse the larger value — but not always</td></tr>
+            <tr><td>Adding a new enum value</td><td>Conditional</td><td>Safe if clients handle unknown values</td></tr>
+            <tr><td>Removing an enum value</td><td>Yes</td><td>Clients may still send it</td></tr>
+            <tr><td>Tightening validation (max length reduced)</td><td>Yes</td><td>Previously valid requests now fail</td></tr>
+            <tr><td>Loosening validation</td><td>No</td><td>Previously rejected requests now succeed</td></tr>
+            <tr><td>Changing a default value</td><td>Yes</td><td>Clients that omit the field see different behaviour</td></tr>
+            <tr><td>Changing a status code (200 → 201)</td><td>Usually yes</td><td>Clients may switch on the code</td></tr>
+            <tr><td>Changing error format</td><td>Yes</td><td>Clients parse error bodies</td></tr>
+            <tr><td>Changing URL structure</td><td>Yes</td><td>Clients hardcode URLs</td></tr>
+            <tr><td>Removing an endpoint</td><td>Yes</td><td>Obvious</td></tr>
+            <tr><td>Changing authentication scheme</td><td>Yes</td><td>Existing tokens become invalid</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Why "adding a response field" is conditional</h4>
+      <p>In JSON, most parsers ignore fields they do not recognise — so adding a field is non-breaking in practice
+      for most clients. But not all:</p>
+      <ul>
+        <li><strong>Strict deserialisers.</strong> Some typed languages (Java with certain Jackson configurations,
+        Go with <code>DisallowUnknownFields</code>, Rust with <code>deny_unknown_fields</code>) fail on unknown
+        fields. If a client was built strictly, adding a field breaks it.</li>
+        <li><strong>Schema validators.</strong> A client that validates the response against a JSON Schema with
+        <code>additionalProperties: false</code> will reject any new field.</li>
+        <li><strong>Database schemas.</strong> A client that inserts the response directly into a table with a fixed
+        schema will fail on the new column.</li>
+        <li><strong>Contract tests.</strong> A client with a strict contract test that asserts the exact response shape
+        will fail — though this is a test failure, not a runtime failure.</li>
+      </ul>
+      <p>The practical rule: adding a field is non-breaking <em>if you have documented the tolerant reader pattern
+      and your clients follow it</em>. If you have not, assume it breaks some clients and communicate accordingly.</p>
+
+      <h4>Why changing a default is breaking</h4>
+      <p>Defaults are invisible contracts. If a field has a default of <code>10</code>, and a client omits it, the
+      client expects <code>10</code>. Change the default to <code>20</code> and the client silently gets different
+      behaviour — no error, just wrong results. This is the most insidious class of breaking change because it is
+      silent. The mitigation is to treat defaults as part of the contract and version them like any other field.</p>
+
+      <h4>Semantic breaking changes</h4>
+      <p>The hardest class: the schema does not change but the meaning does. Examples:</p>
+      <ul>
+        <li>A <code>price</code> field that used to be in cents and is now in dollars — same type, different
+        semantics.</li>
+        <li>A <code>status</code> field whose meaning shifts (formerly "active" meant "logged in"; now it means
+        "not deleted").</li>
+        <li>A field that used to be nullable that is now always set — clients that handled null may not handle
+        non-null correctly.</li>
+        <li>Response timing: a field that was eventually consistent becomes strongly consistent (or vice versa).</li>
+      </ul>
+      <p>These are the changes that no schema validator catches. The only defence is a written contract that
+      specifies semantics, and a design review process that asks "does this change what the field means?"</p>
+
+      <h4>The compatibility taxonomy</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Type</th><th>Meaning</th><th>Who is affected</th></tr></thead>
+          <tbody>
+            <tr><td>Backward compatible</td><td>New server works with old clients</td><td>No one — the standard goal</td></tr>
+            <tr><td>Forward compatible</td><td>Old server works with new clients</td><td>Rarely required, but valuable for rolling deployments</td></tr>
+            <tr><td>Full compatible</td><td>Both directions work</td><td>The gold standard — requires tolerant readers on both sides</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Most APIs aim for backward compatibility: new versions of the server work with existing clients. Forward
+      compatibility — old servers working with new clients — matters during rolling deployments, where a new client
+      may reach an old server. Tolerant readers on both sides are what make this possible.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Assuming that "adding a field is safe". It is safe only if every consumer ignores unknown fields. In a
+        polyglot ecosystem with at least one strict deserialiser, it is a breaking change that will surface as a
+        production incident. Document the tolerant reader requirement explicitly, and test for it.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q2 -->
+  <article class="q" id="q2">
+    <div class="q-head">
+      <div class="q-num">2</div>
+      <h3>What are the versioning strategies, and what are their trade-offs?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Four strategies: <strong>URL versioning</strong> (<code>/v1/users</code>) — the most common and most
+        visible. <strong>Header versioning</strong> (<code>API-Version: 1</code>) — clean URLs but hidden from view.
+        <strong>Media-type versioning</strong> (<code>Accept: application/vnd.api+json;version=1</code>) — the most
+        RESTful but the least usable. <strong>Query-parameter versioning</strong>
+        (<code>/users?version=1</code>) — easy but pollutes the resource identity. Each trades visibility for
+        cleanliness in a different way.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Strategy</th><th>Example</th><th>Pros</th><th>Cons</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>URL</td>
+              <td><code>/v1/users</code></td>
+              <td>Visible, bookmarkable, easy to route at the gateway, simple to cache, obvious in logs</td>
+              <td>Pollutes the URL with a non-resource concept; changing versions changes URLs (breaks bookmarks
+              unless old is kept); ugly for purists</td>
+            </tr>
+            <tr>
+              <td>Header</td>
+              <td><code>API-Version: 1</code></td>
+              <td>Clean URLs; version is orthogonal to identity</td>
+              <td>Invisible in a browser; hard to test with curl; easy to forget; proxies and CDNs may not vary
+              on custom headers correctly</td>
+            </tr>
+            <tr>
+              <td>Media type</td>
+              <td><code>Accept: application/vnd.api+json;version=1</code></td>
+              <td>Theoretically purest — the representation is versioned, not the URL; supports content negotiation</td>
+              <td>Painful in practice — verbose, awkward in tooling, rarely used, confuses developers</td>
+            </tr>
+            <tr>
+              <td>Query parameter</td>
+              <td><code>/users?version=1</code></td>
+              <td>Easy to add; no routing changes</td>
+              <td>Mixes version with resource identity; caching may vary incorrectly; not standard</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>URL versioning — the pragmatic default</h4>
+      <p>Despite the purity arguments, URL versioning is what most public APIs use — Stripe, GitHub, Twilio, Slack
+      all version in the URL (or via a header, but the URL is dominant). The reasons:</p>
+      <ul>
+        <li><strong>It is visible everywhere.</strong> In logs, in browser history, in the dev tools, in a support
+        ticket. The version is not hidden state.</li>
+        <li><strong>It routes trivially.</strong> An API gateway can send <code>/v1/*</code> to one service cluster
+        and <code>/v2/*</code> to another. No header parsing, no content negotiation logic.</li>
+        <li><strong>It caches correctly.</strong> <code>/v1/users</code> and <code>/v2/users</code> are distinct
+        URLs, so CDN caching works without custom <code>Vary</code> headers.</li>
+        <li><strong>It is easy for clients.</strong> Change the base URL and everything works.</li>
+        <li><strong>It is honest.</strong> A version change is a big deal, and the URL makes it look like a big
+        deal.</li>
+      </ul>
+      <p>The purity objection — that a version is not a resource — is real but academic. The usability advantage
+      dominates in practice.</p>
+
+      <h4>Header versioning — when URLs must stay pristine</h4>
+      <p>Some APIs adopt header versioning so that the URL is stable and semantic. This is useful when URLs are
+      meaningful identifiers (HATEOAS links, or URLs that appear in permanent documents). The cost is that the
+      version is invisible — a curl command in a bug report does not show which version was used, and developers
+      forget to send the header. If you use header versioning, make it required and fail loudly when it is
+      missing (rather than defaulting silently).</p>
+
+      <h4>Media-type versioning — the purist's choice</h4>
+      <p>Media-type versioning is technically the most RESTful: the representation's format is negotiated via
+      <code>Accept</code>, so the resource identity (the URL) is stable. This is how the original REST papers
+      imagined evolution working. In practice, it is painful: <code>Accept</code> headers are opaque, tooling
+      support is poor, and developers struggle to remember the syntax. Almost no one uses it for new APIs.</p>
+
+      <h4>Query-parameter versioning — the quick hack</h4>
+      <p>Adding <code>?version=1</code> is the easiest to implement and the worst to design. It muddles the URL's
+      meaning — is <code>/users?version=1</code> a different resource from <code>/users?version=2</code> or the
+      same resource with a different format? Caching can vary incorrectly. It is generally a sign that the API
+      was not designed for versioning and is being retrofitted.</p>
+
+      <h4>Semantic versioning vs API versioning</h4>
+      <p>API versions are typically simple integers (<code>v1</code>, <code>v2</code>), not semver
+      (<code>2.4.1</code>). This is because API versions mark breaking changes, and there is no useful meaning to
+      "minor" and "patch" in a server API — non-breaking changes do not require a version bump. Some APIs use
+      date-based versions (<code>2024-01-15</code>) to allow clients to pin to a behaviour, which is more
+      granular but harder to reason about. Stripe famously uses date-based versions with pinned behaviour per
+      API key.</p>
+
+      <h4>The version-everything anti-pattern</h4>
+      <p>Some teams bump the version on every change, producing <code>/v47/users</code>. This is a symptom of not
+      distinguishing breaking from non-breaking changes. Version bumps should be rare — the whole point of
+      designing for compatibility is that most changes do not require a new version. If you are bumping versions
+      weekly, the real problem is that the API is not stable, not that the versioning scheme is wrong.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "I'll use URL versioning — it's visible in logs, routes trivially at the gateway, and caches
+        correctly. I'll only bump the major version for breaking changes, so most evolution happens without a
+        new version." That demonstrates you understand the trade-off and the discipline it requires.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q3 -->
+  <article class="q" id="q3">
+    <div class="q-head">
+      <div class="q-num">3</div>
+      <h3>How do you deprecate an API gracefully?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Deprecation is a multi-month process, not an email. The steps: <strong>announce</strong> well in advance,
+        <strong>mark</strong> the API as deprecated in the response (<code>Deprecation</code> and
+        <code>Sunset</code> headers), <strong>instrument</strong> usage per client so you know who is affected,
+        <strong>migrate</strong> clients with tooling and support, and only then <strong>remove</strong>. Removing
+        without this process is how companies lose customers.</p>
+      </div>
+
+      <h4>The RFC 8594 Sunset header</h4>
+      <p>The standard mechanism for announcing deprecation is HTTP headers, defined in RFC 8594:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Header</th><th>Purpose</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr><td><code>Deprecation</code></td><td>Marks the resource as deprecated (RFC 9745)</td><td><code>Deprecation: @1743465600</code></td></tr>
+            <tr><td><code>Sunset</code></td><td>The date after which the resource will stop working</td><td><code>Sunset: Wed, 01 Apr 2026 00:00:00 GMT</code></td></tr>
+            <tr><td><code>Link</code></td><td>Points to a migration guide</td><td><code>Link: &lt;https://docs.example.com/migrate-v2&gt;; rel="deprecation"</code></td></tr>
+            <tr><td><code>Warning</code></td><td>Optional human-readable warning</td><td><code>Warning: 299 - "Deprecated, use /v2/users"</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>These headers are machine-readable — an automated client can detect them and alert its maintainers. They are
+      also visible in dev tools and logs, which means a developer investigating "why is this slow?" sees "this is
+      deprecated" without needing to check the docs.</p>
+
+      <h4>The five-phase deprecation process</h4>
+      <ol>
+        <li><strong>Announce.</strong> Publish the deprecation in the changelog, docs, developer newsletter, and
+        any direct communication channel per client. Give a date.</li>
+        <li><strong>Mark.</strong> Add the headers. Update the docs to mark the endpoint as deprecated. Add a
+        prominent warning banner on the reference page.</li>
+        <li><strong>Instrument.</strong> Track usage per API key, per client version, per endpoint. Build a dashboard
+        showing "who is still using <code>/v1/users</code>?" — you cannot migrate clients you cannot identify.</li>
+        <li><strong>Migrate.</strong> Provide migration tooling (a compatibility shim, a code generator, a
+        side-by-side test harness). Contact the top users directly with engineering support.</li>
+        <li><strong>Remove.</strong> Only when usage is below a threshold (ideally zero), and after the announced
+        date. Return <code>410 Gone</code> — not 404 — so clients know it was removed intentionally.</li>
+      </ol>
+
+      <h4>The instrumentation problem</h4>
+      <p>The hardest part of deprecation is not the announcement — it is knowing who is affected. A consumer that
+      authenticates with an API key is identifiable; one that uses the API anonymously is not. This is a design
+      argument for requiring authentication even on "public" APIs: it gives you a channel to communicate
+      deprecation and a way to measure impact.</p>
+      <p>The instrumentation should track: number of requests per client per deprecated endpoint, distinct API keys
+      using it, and the trend over time. If usage is not declining, the deprecation will not succeed, and the
+      scheduled date should be moved.</p>
+
+      <h4>The migration guide</h4>
+      <p>A deprecation without a migration guide is an ultimatum. The guide should include:</p>
+      <ul>
+        <li><strong>The diff.</strong> What changed, with before/after code samples for each affected endpoint.</li>
+        <li><strong>The mapping table.</strong> Every old field → new field, every old endpoint → new endpoint.</li>
+        <li><strong>The behaviour changes.</strong> Semantic differences that no schema diff captures.</li>
+        <li><strong>A test plan.</strong> How to verify that a migrated client behaves the same way.</li>
+        <li><strong>A timeline.</strong> The announced sunset date and the schedule for reminders.</li>
+      </ul>
+
+      <h4>Timelines, by audience</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Audience</th><th>Typical window</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr><td>Internal services</td><td>1–4 weeks</td><td>You control the deployment; one PR per consumer</td></tr>
+            <tr><td>Partner APIs</td><td>3–6 months</td><td>Coordinated release cycles, integration testing</td></tr>
+            <tr><td>Public APIs</td><td>12–24 months</td><td>Unknown clients, long-lived integrations, SDK versioning lag</td></tr>
+            <tr><td>Enterprise contracts</td><td>Per contract</td><td>Often specify a support window — the contract wins</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>What not to do</h4>
+      <ul>
+        <li><strong>Removing without warning.</strong> This is the fastest way to lose enterprise customers, and
+        occasionally to face legal action if a contract specified a support window.</li>
+        <li><strong>Deprecating everything at once.</strong> If every endpoint in v1 is deprecated on the same day,
+        clients cannot stagger their migration. Deprecate one path at a time.</li>
+        <li><strong>Silently changing behaviour.</strong> A "deprecation" that quietly changes the response before
+        the sunset date is worse than an abrupt removal — clients cannot tell whether their integration broke
+        because of the change or their own code.</li>
+        <li><strong>Setting an unrealistic date.</strong> A 30-day sunset for a public API breaks every enterprise
+        customer who integrated in good faith. The date must be achievable by the slowest consumer, not the
+        fastest.</li>
+        <li><strong>Not following through.</strong> A deprecation with a date that passes with no removal trains
+        clients to ignore all future deprecations.</li>
+      </ul>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Deprecating in the documentation but not in the response headers. Developers do not read docs — they read
+        logs and dev tools. The <code>Sunset</code> header is the only way a developer investigating a slow or
+        failing request discovers the deprecation without reading a changelog they did not know existed.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART B ================= -->
+  <div class="part-band plum">
+    <div class="bar"></div>
+    <h2>Part B — Schema Evolution
+      <span class="sub">Adding, removing, renaming, and tolerating change</span>
+    </h2>
+  </div>
+
+  <!-- Q4 -->
+  <article class="q plum" id="q4">
+    <div class="q-head">
+      <div class="q-num">4</div>
+      <h3>How do you add a required field to an existing API?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>You cannot add a required field directly — existing clients do not send it, and validation will break
+        them. The correct process is the <strong>expand-contract migration</strong>: add the field as optional with
+        a server-side default, migrate clients to send it, then tighten validation. This takes weeks or months, but
+        it is the only way to add a required field without an outage.</p>
+      </div>
+
+      <h4>The four-phase process</h4>
+      <ol>
+        <li><strong>Expand — add as optional.</strong> Deploy the server accepting the field as optional. If the
+        client omits it, the server applies a default. Document the field, add it to the request schema, and log
+        when it is absent.</li>
+        <li><strong>Migrate — get clients to send it.</strong> Update SDKs, announce the change, provide a code
+        sample. Monitor the percentage of requests that include it. This is where the time goes.</li>
+        <li><strong>Tighten — require it.</strong> Once all known clients send it (or the remaining usage is
+        below a threshold), change the server to reject requests without it. This is the breaking change, and it
+        requires the previous phases to have completed.</li>
+        <li><strong>Contract — clean up.</strong> Remove the default-handling code, update the docs to say the field
+        is required, and remove any "optional" compatibility shims.</li>
+      </ol>
+
+      <h4>The "default is a contract" problem</h4>
+      <p>During phase 1, the server needs a default. But the default is now part of the contract — a client that
+      omits the field gets the default, and that behaviour must not change until the field is made required. This
+      is a subtle trap: a developer sees an unused default and "cleans it up" by changing the value, silently
+      changing behaviour for every client that has not migrated yet. The mitigation is to mark the default as part
+      of the compatibility shim, with a comment and a test.</p>
+
+      <h4>What about a required field on a new endpoint?</h4>
+      <p>New endpoints have no existing clients, so the field can be required from day one. This is why adding a new
+      endpoint is a non-breaking change, and why new endpoints are the easiest place to add requirements. The
+      expand-contract dance is only necessary for changes to existing endpoints.</p>
+
+      <h4>Response fields — the easier case</h4>
+      <p>Adding a required response field is easier because the server controls it entirely. A new field in a
+      response is backward-compatible as long as clients tolerate unknown fields (the tolerant reader pattern,
+      Question 6). The caveat is that if a client has a strict schema validator or a strict deserialiser, adding
+      a field can break it — which is an argument for documenting tolerant-reader expectations and for making
+      clients tolerant from the start.</p>
+
+      <h4>The alternative: a new endpoint</h4>
+      <p>If the migration is too disruptive, the alternative is a new endpoint that requires the field, with the old
+      endpoint frozen. <code>POST /v2/orders</code> requires <code>customer_id</code>, while
+      <code>POST /v1/orders</code> still accepts it as optional. This duplicates endpoint logic but avoids the
+      migration. It is the right choice when the field is fundamental (the resource is meaningless without it) and
+      the existing clients cannot be migrated.</p>
+
+      <h4>Adding a required field to a request in GraphQL</h4>
+      <p>GraphQL makes this harder, because a non-null argument is enforced at the schema level — a query that
+      omits it fails validation before reaching the resolver. The expand-contract approach works, but it requires
+      the schema to declare the argument as nullable, and the resolver to enforce its presence, until all clients
+      have migrated. Then the schema can be tightened. This is awkward but doable, and it demonstrates why GraphQL
+      versioning is subtle (Question 8).</p>
+
+      <h4>Adding a required field in gRPC</h4>
+      <p>Protobuf has no concept of a required field (since proto3). Every field has a default value (0, "", false),
+      and the server cannot distinguish "client sent 0" from "client omitted the field". This means gRPC does not
+      really support required fields — the server must validate explicitly. For adding a field, the pattern is to
+      add it with a default, validate that it is non-zero, and treat zero as absent. This is a known limitation of
+      proto3 and a reason some teams use proto2 (which has required) or validation annotations
+      (<code>buf validate</code>).</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>The expand-contract migration is slow and requires coordination, but it is the only safe way to add a
+        required field to an existing API. A new endpoint is faster but duplicates logic. The choice depends on
+        how fundamental the field is — if the resource cannot exist without it, a new endpoint may be cleaner; if it
+        is an additional constraint, expand-contract is the standard.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q5 -->
+  <article class="q plum" id="q5">
+    <div class="q-head">
+      <div class="q-num">5</div>
+      <h3>How do you remove or rename a field safely?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Removing and renaming are both breaking changes, so both require deprecation. The pattern is the same as
+        for adding a required field, but in reverse: <strong>stop documenting</strong> the field, <strong>mark it
+        as deprecated</strong> in the response, <strong>monitor</strong> which clients still read it, and only
+        <strong>remove</strong> it after a deprecation window. Renaming is remove + add, done in two phases so
+        clients have time to switch.</p>
+      </div>
+
+      <h4>Removing a field — the phased approach</h4>
+      <ol>
+        <li><strong>Announce.</strong> Document the field as deprecated, add the <code>Deprecation</code> and
+        <code>Sunset</code> headers to responses that include it, and notify known consumers.</li>
+        <li><strong>Monitor.</strong> Track which clients read the field — hard unless the client is instrumented,
+        but you can at least track which clients receive responses containing it and correlate with their activity.
+        Some APIs provide a "field access log" in developer portals for this purpose.</li>
+        <li><strong>Stop populating (optional).</strong> Some teams transition through a phase where the field is
+        present but always null. This forces clients that read it to notice the change before removal, and it makes
+        the deprecation visible in dev tools.</li>
+        <li><strong>Remove.</strong> After the deprecation window, stop returning the field. Clients that read it
+        will get <code>undefined</code> or <code>null</code> and may fail — which is why monitoring and communication
+        matter.</li>
+      </ol>
+
+      <h4>Renaming a field — remove + add</h4>
+      <p>Renaming is not a single operation; it is remove + add, and it must be done in two phases:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Phase</th><th>Response contains</th><th>Client behaviour</th></tr></thead>
+          <tbody>
+            <tr><td>1 — Add new name</td><td>Both <code>old_name</code> and <code>new_name</code></td><td>Clients can migrate at their pace</td></tr>
+            <tr><td>2 — Deprecate old name</td><td>Both, old marked deprecated</td><td>Clients see the deprecation signal</td></tr>
+            <tr><td>3 — Remove old name</td><td>Only <code>new_name</code></td><td>Any client still reading old fails</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The two-field phase is the key. A client that reads <code>old_name</code> continues to work, a client that
+      reads <code>new_name</code> also works, and both can coexist. During this window, the server has the cost of
+      returning both (a small bandwidth cost) and the obligation to keep them in sync. Once every known client
+      has migrated, the old field is removed and the response shrinks.</p>
+
+      <h4>What about request fields?</h4>
+      <p>Renaming a request field is harder because the server cannot tell whether a client meant the old or the
+      new name. The pattern:</p>
+      <ul>
+        <li><strong>Accept both for a transition period.</strong> Document <code>old_name</code> as deprecated, but
+        keep accepting it. If both are sent, prefer the new one or return 400 — document the policy.</li>
+        <li><strong>Announce and monitor.</strong> Log requests that use the old name. Notify clients still using
+        it.</li>
+        <li><strong>Reject the old name after the sunset date.</strong> Return 400 with a clear message pointing at
+        the new name.</li>
+      </ul>
+
+      <h4>The "silently ignore" anti-pattern</h4>
+      <p>A common mistake: when a client sends a field the server no longer recognises, silently ignore it. This
+      seems friendly, but it is harmful — the client thinks its request succeeded with the field set, but it was
+      dropped. The client then reads the resource back and sees the old value, leading to a confusing "why did my
+      update not stick?" bug. The correct behaviour is to reject unknown fields in requests with a 400 and a
+      message that names the offending field. This is strict, but honest.</p>
+      <p>For responses, the equivalent is the opposite: clients must ignore unknown fields (tolerant reader). The
+      asymmetry is deliberate — servers should be strict about what they accept and liberal about what they send
+      (Postel's law), and clients should be liberal about what they receive.</p>
+
+      <h4>Removing a field from a strict client's schema</h4>
+      <p>If a client validates responses against a schema with <code>additionalProperties: false</code>, removing a
+      field is a breaking change regardless of how long the deprecation window was. The client's validator will fail
+      because the field it expects is missing. There is no server-side fix for this — the client must be updated.
+      This is why documenting the tolerant reader requirement is critical, and why adding <code>
+      additionalProperties: false</code> to a client is usually a mistake.</p>
+
+      <h4>Removing entire endpoints or versions</h4>
+      <p>The same process applies at the endpoint level: deprecate the endpoint, add the <code>Sunset</code> header,
+      monitor usage, and return <code>410 Gone</code> after the sunset date. For entire versions, the process is
+      identical but the stakes are higher — a version deprecation affects every endpoint in that version, so the
+      communication and migration support must be correspondingly thorough.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Removing a field and returning the same response shape with a null value. A client that expects a string
+        will crash on <code>null</code>. If a field is deprecated but not yet removed, either keep populating it or
+        return it as <code>null</code> only if the client has been told to expect null. Silently changing the type
+        to null is worse than removing the field, because it looks like the field is still there.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q6 -->
+  <article class="q plum" id="q6">
+    <div class="q-head">
+      <div class="q-num">6</div>
+      <h3>What is the tolerant reader pattern?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>The tolerant reader pattern says: a client must ignore fields it does not recognise, and must handle
+        missing optional fields and unknown enum values gracefully. It is the client-side discipline that makes
+        non-breaking changes actually non-breaking. Without tolerant readers, every addition is a breaking change,
+        and the only safe evolution is to add a version.</p>
+      </div>
+
+      <h4>Why it matters</h4>
+      <p>The server's ability to evolve depends entirely on the client's tolerance. If every client breaks when a
+      field is added, the server can never add a field without a version bump. If every client handles unknown
+      values, the server can evolve continuously, and versions only happen for genuine breaking changes.</p>
+      <p>This is the mechanism by which large APIs (Stripe, GitHub) evolve without versioning everything. Their
+      clients are tolerant — their SDKs, their clients, and their documentation all state that unknown fields must
+      be ignored. Stripe's API has been evolving since 2011 with only a handful of version bumps, because every
+      change is designed to be additive and tolerated.</p>
+
+      <h4>What tolerance requires</h4>
+      <ul>
+        <li><strong>Ignore unknown fields in responses.</strong> When a client deserialises a response, it must
+        discard fields it does not recognise, not fail. This is the default in most JSON parsers, but strict
+        deserialisers (<code>DisallowUnknownFields</code> in Go, <code>FAIL_ON_UNKNOWN_PROPERTIES</code> in
+        Jackson, <code>deny_unknown_fields</code> in Rust's serde) must be turned off.</li>
+        <li><strong>Handle missing optional fields.</strong> A field that was present may be absent — the client
+        must handle <code>undefined</code> or a missing key without crashing. This is especially important when the
+        server stops populating a deprecated field.</li>
+        <li><strong>Handle unknown enum values.</strong> An enum that had <code>[active, inactive]</code> may now
+        have <code>[active, inactive, pending]</code>. A client that switches on the value must handle
+        <code>pending</code> gracefully — typically by treating it as "unknown" rather than crashing.</li>
+        <li><strong>Handle new response types.</strong> A polymorphic response may now return a variant the client
+        does not recognise. The client must handle it gracefully, not crash.</li>
+        <li><strong>Handle new status codes.</strong> A server may return a status code the client did not expect
+        (e.g., 429 for rate limiting, 409 for conflict). The client should handle unexpected 4xx codes by logging
+        and failing gracefully, not by crashing.</li>
+      </ul>
+
+      <h4>The documentation obligation</h4>
+      <p>The tolerant reader pattern only works if clients know to be tolerant. This means every API must document,
+      prominently, that:</p>
+      <ul>
+        <li>Clients must ignore unknown fields.</li>
+        <li>Clients must handle unknown enum values.</li>
+        <li>Clients must handle missing optional fields.</li>
+        <li>Clients must handle unexpected status codes.</li>
+      </ul>
+      <p>This documentation should be in the getting-started guide, not buried in a footnote — clients that read it
+      on day one are the ones that will not break when the API evolves.</p>
+
+      <h4>The server's obligation</h4>
+      <p>The server must honour its side of the bargain:</p>
+      <ul>
+        <li><strong>Never repurpose a field.</strong> A field named <code>status</code> that used to mean one thing
+        must not mean something else. If the semantics change, add a new field.</li>
+        <li><strong>Never change a field's type.</strong> <code>int</code> → <code>string</code> is a breaking change
+        even if the client is tolerant, because the client's type system will reject it.</li>
+        <li><strong>Never remove a field without deprecation.</strong> Tolerant readers can handle absence only if
+        they expected it — which is what the deprecation window is for.</li>
+        <li><strong>Never add a required field to an existing endpoint.</strong> Tolerant readers cannot handle a
+        required field they do not know about.</li>
+      </ul>
+
+      <h4>The Postel's Law framing</h4>
+      <p>The tolerant reader pattern is the client-side of Postel's Law (the robustness principle): "be conservative
+      in what you send, be liberal in what you accept". Servers should be conservative in what they send (well-typed,
+      well-documented, no experimental fields leaked), and clients should be liberal in what they accept (ignore
+      unknown, handle missing). This asymmetry is what allows evolution.</p>
+
+      <h4>The anti-pattern: strict clients</h4>
+      <p>A strict client that validates responses against a fixed schema is a client that will break on every
+      server change. The most common culprits are typed language clients using strict deserialisers, JSON Schema
+      validators with <code>additionalProperties: false</code>, and hand-written parsers that assume a fixed
+      structure. These are all fixable — but they require the client team to understand the tolerant reader
+      requirement and to have configured their tooling accordingly. The API team's job is to make that
+      requirement impossible to miss.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "I'll document the tolerant reader requirement in the getting-started guide — clients must ignore
+        unknown fields and handle unknown enum values. That lets the API evolve additively without a version bump
+        for every change." That shows you understand the client-side discipline and why it matters.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q7 -->
+  <article class="q plum" id="q7">
+    <div class="q-head">
+      <div class="q-num">7</div>
+      <h3>How do you handle enum evolution?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Enums grow, and clients must tolerate values they do not recognise. The rules: <strong>adding a value is
+        usually safe</strong> if clients handle unknown values; <strong>removing a value is breaking</strong>;
+        <strong>renaming a value is remove + add</strong>. Document the enum as open (can grow) rather than closed
+        (fixed set), and design clients to fall back to an "unknown" case.</p>
+      </div>
+
+      <h4>The three cases</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Change</th><th>Breaking?</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr><td>Add a value</td><td>Usually no</td><td>A tolerant client treats it as unknown; a strict client crashes</td></tr>
+            <tr><td>Remove a value</td><td>Yes</td><td>A client may still send it, and the server will reject it</td></tr>
+            <tr><td>Rename a value</td><td>Yes</td><td>Equivalent to remove + add; any persisted client data breaks</td></tr>
+            <tr><td>Change the meaning of a value</td><td>Yes — and silent</td><td>No schema change, but behaviour changes</td></tr>
+            <tr><td>Change from string to integer</td><td>Yes</td><td>Type change</td></tr>
+            <tr><td>Add a new enum field</td><td>No</td><td>New field, existing clients ignore it</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Why adding a value is only "usually" safe</h4>
+      <p>A client that switches on the enum without a default case will crash on an unknown value. This is
+      surprisingly common — <code>switch (status) { case "active": ...; case "inactive": ...; }</code> with no
+      default. When the server adds <code>"pending"</code>, the client either crashes or, worse, silently falls
+      through to whatever the language does by default (which might be nothing, or might be the first case).</p>
+      <p>The fix is on the client side: every enum handling must have a default/unknown case. This is the tolerant
+      reader pattern applied to enums (Question 6). The server's job is to document that enums are open, so clients
+      know to handle unknown values.</p>
+
+      <h4>The closed vs open enum distinction</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Type</th><th>Meaning</th><th>Client behaviour</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Closed enum</td>
+              <td>The set of values is fixed and will never grow</td>
+              <td>Safe to exhaustively switch; unknown value is a bug</td>
+              <td>ISO 3166 country codes, ISO 4217 currency codes</td>
+            </tr>
+            <tr>
+              <td>Open enum</td>
+              <td>The set may grow in future</td>
+              <td>Must handle unknown values gracefully</td>
+              <td>Order status, payment state, job state</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Most enums in a domain API are open — statuses, states, types that will gain new values as the product
+      evolves. Standards-body enums (country codes, currencies, MIME types) are effectively closed. Document which
+      is which, because it changes how clients should be written.</p>
+
+      <h4>The fallback pattern</h4>
+      <p>The client's enum handling should look like:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Language</th><th>Pattern</th></tr></thead>
+          <tbody>
+            <tr><td>TypeScript</td><td><code>default: handleUnknown(status)</code></td></tr>
+            <tr><td>Java</td><td>A custom <code>@JsonCreator</code> that maps unknown to <code>UNKNOWN</code></td></tr>
+            <tr><td>Python</td><td>An <code>Enum</code> with a <code>_missing_</code> class method</td></tr>
+            <tr><td>Go</td><td>An <code>Unknown</code> constant plus a switch with a <code>default</code></td></tr>
+            <tr><td>Rust</td><td>An <code>#[serde(other)]</code> variant</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>In every case, the client's model has an <code>UNKNOWN</code> variant that it can reason about. The client
+      can then display "unknown status" or treat it as an opaque value, rather than crashing or silently
+      mis-handling it.</p>
+
+      <h4>Enum evolution in persisted data</h4>
+      <p>If the client persists the enum value (in a cache, a local database, a URL), the persisted data may contain
+      a value that a newer server no longer recognises. This is the mirror image of the problem — the server must
+      handle receiving an old value. The mitigations:</p>
+      <ul>
+        <li><strong>Never remove an enum value</strong> from the server's accepted set, even if it is no longer
+        produced. Keep accepting it, map it to a legacy state, or return a 410.</li>
+        <li><strong>Migrate persisted data</strong> when values are removed — a background job that rewrites old
+        values to their successors.</li>
+        <li><strong>Use a lookup table</strong> instead of a hardcoded enum, so the set can grow without a schema
+        change.</li>
+      </ul>
+
+      <h4>Enums vs strings vs lookup tables</h4>
+      <p>An alternative to enums is to use a string with a documented set of valid values, or a lookup table with
+      a foreign key. Both allow adding values without a schema change:</p>
+      <ul>
+        <li><strong>Enums</strong> — validated at parse time, self-documenting, but every change requires a code
+        deploy on both sides.</li>
+        <li><strong>Strings with a documented set</strong> — flexible, but no compile-time check.</li>
+        <li><strong>Lookup tables</strong> — the set is data, not schema, so it can grow without a deploy. The API
+        returns the value as a string, and clients look it up if they need labels.</li>
+      </ul>
+      <p>For rapidly evolving value sets (feature flags, tags, categories), a lookup table is the right answer. For
+      stable, finite sets (order status with 5 values), an enum is fine — and the tolerant reader pattern handles
+      the rare additions.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Using a language's built-in enum type for an open enum. TypeScript string unions, Rust <code>enum</code>,
+        Java <code>enum</code>, and Python <code>Enum</code> all fail on unknown values by default. They are the
+        right tool for closed enums, the wrong tool for open ones. Use a string-typed field with an
+        <code>UNKNOWN</code> fallback instead.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q8 -->
+  <article class="q plum" id="q8">
+    <div class="q-head">
+      <div class="q-num">8</div>
+      <h3>How do you version GraphQL and gRPC APIs?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p><strong>GraphQL</strong> prefers continuous evolution over versioning: add fields and types, never remove
+        them, mark deprecated with <code>@deprecated</code>, and let the schema grow. <strong>gRPC</strong> uses
+        <code>.proto</code> field numbers for compatibility: add fields with new numbers, never reuse or change a
+        number, and mark fields <code>reserved</code> when removing them. Neither style uses URL-style versioning;
+        both rely on the schema's own mechanisms.</p>
+      </div>
+
+      <h4>GraphQL versioning</h4>
+      <p>GraphQL has no built-in versioning mechanism, and the community consensus is that it should not have one.
+      Instead, the schema evolves continuously:</p>
+      <ul>
+        <li><strong>Add new fields and types.</strong> Clients that do not query them are unaffected.</li>
+        <li><strong>Mark deprecated fields</strong> with <code>@deprecated(reason: "...")</code>. The field still
+        works, but tools (GraphiQL, Apollo Studio) show it as deprecated, and a deprecation is a signal for
+        clients to migrate.</li>
+        <li><strong>Never remove a field</strong> — or only after a long deprecation period and confirmation that no
+        client queries it. The schema can be instrumented to track field usage per client, which is the
+        GraphQL-specific version of "instrument before removing".</li>
+        <li><strong>Never change a field's type</strong> — that is a breaking change. If a type must change, add a
+        new field with the new type, deprecate the old one, and migrate.</li>
+        <li><strong>Adding a required argument</strong> is breaking — clients that do not supply it will fail
+        validation. Use a nullable argument with server-side default, then tighten.</li>
+      </ul>
+      <p>The advantage is that clients query only what they need, so adding fields to a type does not increase the
+      payload for clients that do not query them. This means GraphQL can evolve additively more aggressively than
+      REST — a new field on the <code>User</code> type costs nothing to clients that do not request it.</p>
+      <p>The risk is that the schema can grow unboundedly, with dozens of deprecated fields accumulating. The
+      mitigation is field usage instrumentation: Apollo Studio, for example, tracks which fields are actually
+      queried, so you know when a deprecated field is truly unused and can be removed.</p>
+
+      <h4>gRPC versioning</h4>
+      <p>Protocol Buffers have a well-defined compatibility model based on field numbers:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Change</th><th>Breaking?</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr><td>Add a field with a new number</td><td>No</td><td>Old clients ignore unknown fields</td></tr>
+            <tr><td>Change a field's number</td><td>Yes</td><td>The wire format depends on the number</td></tr>
+            <tr><td>Change a field's type</td><td>Yes (usually)</td><td>Wire encoding differs; int32 ↔ int64 is the exception</td></tr>
+            <tr><td>Remove a field</td><td>Usually no — but reserve the number</td><td>Old clients may still send it; the field is silently ignored</td></tr>
+            <tr><td>Reuse a field number</td><td>Yes — catastrophic</td><td>Old data is misinterpreted as the new field</td></tr>
+            <tr><td>Rename a field</td><td>No</td><td>The wire uses numbers, not names</td></tr>
+            <tr><td>Change a field from optional to repeated</td><td>Yes</td><td>Wire format differs</td></tr>
+            <tr><td>Add a new service</td><td>No</td><td>Existing clients do not call it</td></tr>
+            <tr><td>Remove a service</td><td>Yes</td><td>Existing clients call it</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The critical rule: <strong>never reuse a field number</strong>. When a field is removed, its number is
+      <code>reserved</code>, so a future developer cannot accidentally reuse it:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Syntax</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>reserved 3, 5, 7;</code></td><td>Reserve specific numbers</td></tr>
+            <tr><td><code>reserved 9 to 11;</code></td><td>Reserve a range</td></tr>
+            <tr><td><code>reserved "old_field_name";</code></td><td>Reserve a name (less critical, but good hygiene)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Renaming a field is safe in the wire format (numbers are what matter), but it breaks generated code — the
+      client's field name changes. In practice, treat renames as breaking for the codegen layer even though the wire
+      is compatible.</p>
+
+      <h4>The gRPC versioning question</h4>
+      <p>Should you version a gRPC service (<code>users.v1.UsersService</code> → <code>users.v2.UsersService</code>)?
+      Two schools:</p>
+      <ul>
+        <li><strong>Version the package.</strong> <code>users.v1</code> and <code>users.v2</code> coexist as
+        separate packages, each with its own service. This is the Google convention and allows a clean break when
+        the schema needs a major change.</li>
+        <li><strong>Evolve in place.</strong> Keep one version, add fields with new numbers, reserve removed ones.
+        This is the protobuf-native approach and works for most changes.</li>
+      </ul>
+      <p>The pragmatic answer: version the package only for genuine breaking changes that cannot be expressed
+      additively. Most changes can be additive, and a new package for every change fragments the codebase.</p>
+
+      <h4>The difference from REST</h4>
+      <p>Both GraphQL and gRPC avoid URL versioning because they have schema-level mechanisms for compatibility.
+      A REST API without a schema (JSON with no enforced types) has no such mechanism, which is why URL versioning
+      is the pragmatic default there. This is a genuine advantage of schema-first styles: the schema is the
+      versioning mechanism, and compatibility is checked by tooling (<code>buf breaking</code> for protobuf,
+      schema diffing for GraphQL) rather than by convention.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "For GraphQL I'll evolve the schema additively — add fields, deprecate old ones with
+        <code>@deprecated</code>, and instrument field usage so I know when removal is safe. For gRPC I'll add
+        fields with new numbers and reserve removed ones. Neither needs URL versioning; the schema is the versioning
+        mechanism." That demonstrates you understand both ecosystems.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART C ================= -->
+  <div class="part-band teal">
+    <div class="bar"></div>
+    <h2>Part C — Enforcement &amp; Lifecycle
+      <span class="sub">Contract testing, support windows, and communication</span>
+    </h2>
+  </div>
+
+  <!-- Q9 -->
+  <article class="q teal" id="q9">
+    <div class="q-head">
+      <div class="q-num">9</div>
+      <h3>What is contract testing, and how do Pact and Schemathesis work?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Contract testing verifies that a provider (server) and a consumer (client) agree on the API contract,
+        without requiring them to be running together. <strong>Consumer-driven</strong> contract testing (Pact) has
+        each consumer publish its expectations, and the provider verifies it satisfies them.
+        <strong>Provider-side</strong> testing (Schemathesis, Dredd) generates requests from the contract and
+        verifies the responses match. Both catch breaking changes in CI, before they reach production.</p>
+      </div>
+
+      <h4>The problem contract testing solves</h4>
+      <p>Traditional integration testing requires both services to be deployed together, which is impractical in a
+      microservices architecture where dozens of services deploy independently. Unit tests do not catch contract
+      violations — a unit test of the server's serialiser does not check that the client can parse the output. End-to-end
+      tests are slow, flaky, and cover only a few paths.</p>
+      <p>Contract testing sits between unit and integration: it verifies the <em>agreement</em> without running
+      the full stack. The consumer's expectations are encoded as a contract, and the provider verifies it satisfies
+      that contract — either by running against the contract (consumer-driven) or by validating its responses against
+      the schema (provider-side).</p>
+
+      <h4>Pact — consumer-driven contract testing</h4>
+      <p>Pact inverts the usual relationship: the <em>consumer</em> defines what it expects, and the
+      <em>provider</em> verifies it. The flow:</p>
+      <ol>
+        <li><strong>Consumer test.</strong> The consumer's test suite runs against a Pact mock server. Each time the
+        consumer calls the mock, Pact records the request and the expected response — these are the
+        <strong>interactions</strong>.</li>
+        <li><strong>Pact file.</strong> The recorded interactions are written to a JSON pact file — the contract.</li>
+        <li><strong>Pact broker.</strong> The pact file is published to a broker (PactFlow or a self-hosted one),
+        with a version tag.</li>
+        <li><strong>Provider verification.</strong> The provider runs its own tests, replaying each interaction
+        against its real implementation and checking that the response matches the expected response.</li>
+        <li><strong>Can-I-deploy.</strong> Before deploying either side, a CI check queries the broker: "has this
+        version of the provider passed verification against all pacts for this version of the consumer?" If not, the
+        deploy is blocked.</li>
+      </ol>
+      <p>The advantage is that the contract is <em>consumer-driven</em> — it captures exactly what consumers need, not
+      what the provider happens to expose. The provider cannot accidentally remove a field that a consumer uses,
+      because the provider's verification would fail.</p>
+      <p>The disadvantage is that the contract is only as complete as the consumer's tests — if a consumer does not
+      test a field, the contract does not cover it. This is manageable with good consumer test discipline, but it is
+      a real limitation.</p>
+
+      <h4>Schemathesis — provider-side, schema-based testing</h4>
+      <p>Schemathesis takes a different approach: it takes the OpenAPI (or GraphQL) schema and generates requests
+      from it, then validates that the provider's responses match the schema. It is property-based testing for
+      APIs:</p>
+      <ul>
+        <li><strong>Generates</strong> requests from the schema — every endpoint, every parameter, every body
+        shape, with valid and invalid values.</li>
+        <li><strong>Sends</strong> them to the running server.</li>
+        <li><strong>Validates</strong> the response against the schema — status codes, headers, body shape.</li>
+        <li><strong>Reports</strong> any request that produces a response the schema does not allow.</li>
+      </ul>
+      <p>Schemathesis catches a different class of bug than Pact: it finds cases where the server's actual behaviour
+      diverges from its documented schema. Pact catches cases where the server's behaviour breaks a specific
+      consumer's expectation. They are complementary.</p>
+
+      <h4>The two approaches compared</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Aspect</th><th>Pact (consumer-driven)</th><th>Schemathesis (provider-side)</th></tr></thead>
+          <tbody>
+            <tr><td>Source of truth</td><td>Consumer tests</td><td>OpenAPI / GraphQL schema</td></tr>
+            <tr><td>Catches</td><td>Breaking changes for specific consumers</td><td>Schema violations in the implementation</td></tr>
+            <tr><td>Requires</td><td>Both consumer and provider test suites</td><td>Only the provider</td></tr>
+            <tr><td>Catches over-fetching</td><td>Yes — the contract names the fields</td><td>Only if the schema says</td></tr>
+            <tr><td>Catches under-fetching</td><td>Yes — the consumer expects fields</td><td>Only if the schema says</td></tr>
+            <tr><td>Catches unknown fields</td><td>Not typically</td><td>Yes, if schema forbids additional properties</td></tr>
+            <tr><td>Setup cost</td><td>High — broker, both sides</td><td>Low — schema and a running server</td></tr>
+            <tr><td>Best for</td><td>Microservices with a known consumer set</td><td>Public APIs, single-team APIs</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The CI integration</h4>
+      <p>The value of contract testing comes from the CI enforcement, not from the test itself. The pattern:</p>
+      <ol>
+        <li>Consumer tests run on every PR; if a consumer's expectation changes, the new pact is published.</li>
+        <li>Provider tests run on every PR; if the provider breaks a pact, the build fails.</li>
+        <li>Before deploy, a "can I deploy?" check queries the broker; if the pact is not verified, deploy is
+        blocked.</li>
+        <li>The schema is validated (Spectral, Schemathesis) on every provider build; a schema violation fails
+        the build.</li>
+      </ol>
+      <p>This is what makes "non-breaking changes" enforceable rather than aspirational. Without it, every change is
+      a bet that no one is relying on the field you are removing.</p>
+
+      <h4>The limitation</h4>
+      <p>Contract testing verifies the <em>format</em>, not the <em>semantics</em>. A contract test cannot tell you
+      that <code>price</code> changed from cents to dollars, because both are integers. It cannot tell you that a
+      status code now means something different. Those are semantic changes, and they require human review and
+      documentation. Contract testing catches the mechanical breaking changes; semantic ones still need a design
+      review process.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Publishing the pact from a test that does not actually call the fields the consumer uses. The contract
+        is only as complete as the consumer's test, so a consumer that queries a subset of fields in tests but all
+        of them in production has a false sense of safety. Consumer tests must exercise every field the consumer
+        actually reads.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q10 -->
+  <article class="q teal" id="q10">
+    <div class="q-head">
+      <div class="q-num">10</div>
+      <h3>How long should you support an old API version, and how do you communicate the lifecycle?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>There is no universal answer, but there are defensible defaults: <strong>internal APIs 1–4 weeks</strong>,
+        <strong>partner APIs 3–6 months</strong>, <strong>public APIs 12–24 months</strong>. The number should be
+        driven by how long the slowest consumer takes to migrate, not how long the API team wants. The lifecycle
+        should be published as a policy, with clear dates and multiple reminders, and the removal should be enforced
+        with <code>410 Gone</code> rather than silently turning off.</p>
+      </div>
+
+      <h4>The support window as a function of the audience</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Audience</th><th>Typical window</th><th>Driven by</th></tr></thead>
+          <tbody>
+            <tr><td>Internal services (same org, same deployment pipeline)</td><td>1–4 weeks</td><td>One PR per consumer; the API team controls the schedule</td></tr>
+            <tr><td>Internal services (different org, coordinated)</td><td>1–3 months</td><td>Quarterly planning cycles</td></tr>
+            <tr><td>Partner APIs (named organisations, under contract)</td><td>3–6 months</td><td>Partner's release cadence; contract terms</td></tr>
+            <tr><td>Public APIs (unknown consumers)</td><td>12–24 months</td><td>Unknown client lifecycles, SDK versioning lag, enterprise integration cycles</td></tr>
+            <tr><td>Enterprise contract APIs</td><td>Per contract</td><td>The contract wins — read it before announcing a sunset date</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The "nobody uses it" trap</h4>
+      <p>The most common mistake is to believe that a deprecated endpoint is unused because the API team does not
+      know of any users. In reality, long-tail usage is the norm: a single internal service, a partner's integration
+      built three years ago, a script someone runs quarterly, a mobile app version that still has 2% of users. The
+      only reliable way to know is instrumentation — track usage per API key, per endpoint, per version, and look at
+      the trend, not the point-in-time.</p>
+      <p>The rule: do not remove a version until the usage graph is flat at zero, or until you have contacted every
+      consumer you can identify and confirmed they have migrated. "We haven't heard from anyone" is not a plan.</p>
+
+      <h4>The communication calendar</h4>
+      <p>A deprecation is a campaign, not a notice. A defensible schedule for a public API:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>When</th><th>What</th><th>Channel</th></tr></thead>
+          <tbody>
+            <tr><td>T−12 months</td><td>Initial announcement; sunset date published</td><td>Changelog, developer newsletter, docs banner, direct email to known consumers</td></tr>
+            <tr><td>T−9 months</td><td>Reminder; migration guide published</td><td>Same channels, plus a status page notice</td></tr>
+            <tr><td>T−6 months</td><td>Responses start carrying <code>Deprecation</code> and <code>Sunset</code> headers</td><td>In-band — every client sees it</td></tr>
+            <tr><td>T−3 months</td><td>Final reminder; top consumers contacted directly</td><td>Email, support tickets, account manager</td></tr>
+            <tr><td>T−1 month</td><td>Last call; support is escalated</td><td>Email, status page, developer newsletter</td></tr>
+            <tr><td>T</td><td>Removal; responses return <code>410 Gone</code></td><td>Changelog, status page</td></tr>
+            <tr><td>T+forever</td><td><code>410 Gone</code> with a link to the migration guide</td><td>In-band</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Why 410 Gone, not 404</h4>
+      <p>Returning <code>404 Not Found</code> for a removed endpoint is misleading — the client cannot tell whether
+      the URL was never valid or was removed. <code>410 Gone</code> is explicit: "this resource existed and is
+      gone". The response should include a <code>Link</code> header pointing at the migration guide, so a developer
+      hitting the error in production can find the fix without searching.</p>
+
+      <h4>The published lifecycle policy</h4>
+      <p>Every public API should have a written lifecycle policy that states:</p>
+      <ul>
+        <li>How long each version is supported after a successor is announced.</li>
+        <li>How deprecation is communicated (channels, cadence).</li>
+        <li>What counts as a breaking change (so a version bump is predictable).</li>
+        <li>How long old versions remain available after the sunset date (usually zero — but some APIs keep a
+        read-only mode for a grace period).</li>
+        <li>What the support policy is for enterprise customers with contractual exceptions.</li>
+      </ul>
+      <p>Publishing this policy is not just good hygiene — it is a signal of maturity. Developers choose APIs that
+      they can rely on for years, and a stated policy is evidence that the API will not be pulled out from under
+      them.</p>
+
+      <h4>The internal API lifecycle</h4>
+      <p>Internal APIs have a different calculus. The consumers are known, the deployment is coordinated, and the
+      support window can be short. But the mistake of using "internal" as an excuse to break things without
+      notice is common and costly — the internal consumers are often teams that did not know the API was being
+      changed, and their production breaks. The internal API should have the same discipline, scaled down: a
+      deprecation announcement to the consuming teams, a migration guide, a week or two of support, then removal.</p>
+
+      <h4>The "never remove anything" alternative</h4>
+      <p>Some APIs (notably internal ones) adopt the policy of never removing anything — every old endpoint stays
+      alive forever, so no consumer ever breaks. This is tempting but has costs: the codebase accumulates dead
+      endpoints, the security surface grows, and every new developer must understand the legacy. The pragmatic
+      middle ground is to never remove a version that has active usage, but to aggressively deprecate endpoints
+      with zero usage. This keeps the surface from growing unboundedly without breaking anyone.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>A long support window protects consumers but imposes a maintenance burden (bug fixes, security patches,
+        monitoring) on the API team. A short window reduces the burden but risks breaking consumers. The right
+        balance depends on the audience and the contract — public APIs must err on the side of the consumer,
+        internal APIs can err on the side of the team. Either way, publish the policy so consumers know what to
+        expect.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- NEXT PART -->
+  <section class="next-part">
+    <h3>Coming in Volume 4 — Request/Response Design</h3>
+    <p>Volume 4 turns to the shape of individual requests and responses: pagination (offset vs cursor vs keyset),
+    filtering and sorting syntax, field selection and partial responses, batch and bulk operations, response
+    envelopes, metadata, and the design decisions that make a list endpoint usable at scale.</p>
+    <ul class="next-list">
+      <li>Offset vs cursor vs keyset pagination</li>
+      <li>Pagination across shards</li>
+      <li>Filtering syntax and query safety</li>
+      <li>Multi-field sorting</li>
+      <li>Field selection and partial responses</li>
+      <li>Batch vs bulk operations</li>
+      <li>Partial success handling</li>
+      <li>Response envelopes and metadata</li>
+      <li>Link headers and HATEOAS pagination</li>
+      <li>Search endpoint design</li>
+    </ul>
+  </section>
+
+</div>
+</body>
+</html>
