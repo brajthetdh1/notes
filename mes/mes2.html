@@ -1,0 +1,1660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Messaging Systems — Section 2: Message Queues &amp; Distributed Brokers</title>
+<style>
+  :root{
+    --ink:#0f172a;
+    --ink-soft:#334155;
+    --muted:#64748b;
+    --line:#dfe3f0;
+    --bg:#f5f6fc;
+    --card:#ffffff;
+    --indigo:#4338ca;
+    --indigo-soft:#e0e7ff;
+    --indigo-deep:#312e81;
+    --violet:#6d28d9;
+    --teal:#0d9488;
+    --amber:#b45309;
+    --rose:#e11d48;
+    --blue:#2563eb;
+    --shadow:0 1px 2px rgba(30,27,75,.06), 0 8px 24px -8px rgba(30,27,75,.14);
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 8% -10%, #e0e7ff 0%, transparent 60%),
+      radial-gradient(1000px 500px at 100% 0%, #c7d2fe 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:"Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    line-height:1.72;
+    font-size:16.5px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px 90px;}
+
+  header.hero{
+    background:linear-gradient(135deg,#1e1b4b 0%, #312e81 45%, #3730a3 100%);
+    color:#eef2ff;
+    padding:64px 22px 56px;
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::after{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      radial-gradient(600px 300px at 85% 15%, rgba(129,140,248,.4), transparent 70%),
+      radial-gradient(520px 280px at 12% 92%, rgba(99,102,241,.42), transparent 70%);
+    pointer-events:none;
+  }
+  .hero-inner{max-width:1080px;margin:0 auto;position:relative;z-index:2;}
+  .eyebrow{
+    display:inline-block;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;
+    font-weight:700;padding:7px 15px;border-radius:999px;
+    background:rgba(165,180,252,.16);border:1px solid rgba(165,180,252,.45);
+    color:#a5b4fc;margin-bottom:20px;
+  }
+  header.hero h1{
+    font-size:clamp(1.9rem, 4.4vw, 3rem);line-height:1.15;margin:0 0 16px;
+    font-weight:800;letter-spacing:-.02em;
+  }
+  header.hero h1 span{
+    background:linear-gradient(90deg,#a5b4fc,#c7d2fe);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  header.hero p.lede{font-size:1.06rem;color:#c7d2fe;max-width:790px;margin:0 0 26px;}
+  .meta-chips{display:flex;flex-wrap:wrap;gap:10px;}
+  .chip{
+    font-size:.78rem;font-weight:600;padding:7px 14px;border-radius:999px;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#e0e7ff;
+  }
+
+  .roadmap{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:26px 28px;margin-top:-34px;position:relative;z-index:5;
+  }
+  .roadmap h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 16px;font-weight:700;
+  }
+  .roadmap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;}
+  .roadmap-item{
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:.86rem;
+    background:#fbfbff;opacity:.7;
+  }
+  .roadmap-item.done{
+    border-color:#a5b4fc;background:linear-gradient(180deg,#eef2ff,#ffffff);opacity:1;
+  }
+  .roadmap-item.current{
+    border-color:#818cf8;background:linear-gradient(180deg,#e0e7ff,#ffffff);opacity:1;
+    box-shadow:0 0 0 3px rgba(67,56,202,.14);
+  }
+  .roadmap-item .tag{
+    display:inline-block;font-size:.64rem;font-weight:800;letter-spacing:.08em;
+    padding:2px 8px;border-radius:999px;margin-bottom:6px;
+  }
+  .tag-done{background:var(--indigo-soft);color:var(--indigo-deep);}
+  .tag-now{background:#c7d2fe;color:#312e81;}
+  .tag-next{background:#e2e8f0;color:#475569;}
+  .roadmap-item strong{display:block;color:var(--ink);font-size:.89rem;}
+
+  nav.toc{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:22px 26px;margin:26px 0 44px;
+  }
+  nav.toc h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 14px;font-weight:700;
+  }
+  nav.toc ol{
+    margin:0;padding-left:0;list-style:none;counter-reset:toc;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:8px 26px;
+  }
+  nav.toc li{
+    counter-increment:toc;font-size:.92rem;padding:6px 0 6px 34px;
+    position:relative;border-bottom:1px dashed #eceefb;
+  }
+  nav.toc li::before{
+    content:counter(toc);position:absolute;left:0;top:7px;width:22px;height:22px;
+    border-radius:7px;background:var(--indigo-soft);color:var(--indigo);
+    font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center;
+  }
+  nav.toc a{color:var(--ink-soft);text-decoration:none;font-weight:500;}
+  nav.toc a:hover{color:var(--indigo);}
+
+  .part-band{display:flex;align-items:center;gap:16px;margin:56px 0 26px;}
+  .part-band .bar{
+    width:5px;height:44px;border-radius:99px;
+    background:linear-gradient(180deg,var(--indigo),#818cf8);
+  }
+  .part-band.violet .bar{background:linear-gradient(180deg,var(--violet),#a78bfa);}
+  .part-band.teal .bar{background:linear-gradient(180deg,var(--teal),#2dd4bf);}
+  .part-band.amber .bar{background:linear-gradient(180deg,var(--amber),#f59e0b);}
+  .part-band h2{margin:0;font-size:1.5rem;letter-spacing:-.01em;font-weight:800;}
+  .part-band .sub{
+    display:block;font-size:.82rem;font-weight:600;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.12em;margin-top:2px;
+  }
+
+  article.q{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:0 0 26px;margin-bottom:28px;overflow:hidden;
+    scroll-margin-top:24px;
+  }
+  .q-head{
+    display:flex;gap:16px;align-items:flex-start;padding:22px 28px 18px;
+    border-bottom:1px solid #f0f1fb;background:linear-gradient(180deg,#f8f8ff,#ffffff);
+  }
+  .q-num{
+    flex:none;width:42px;height:42px;border-radius:12px;display:flex;
+    align-items:center;justify-content:center;font-weight:800;font-size:.92rem;color:#fff;
+    background:linear-gradient(135deg,#4338ca,#6366f1);
+    box-shadow:0 6px 14px -6px rgba(67,56,202,.7);
+  }
+  .violet .q-num{background:linear-gradient(135deg,#6d28d9,#8b5cf6);box-shadow:0 6px 14px -6px rgba(109,40,217,.7);}
+  .teal .q-num{background:linear-gradient(135deg,#0d9488,#14b8a6);box-shadow:0 6px 14px -6px rgba(13,148,136,.7);}
+  .amber .q-num{background:linear-gradient(135deg,#b45309,#f59e0b);box-shadow:0 6px 14px -6px rgba(180,83,9,.7);}
+  .q-head h3{margin:0;font-size:1.13rem;font-weight:700;line-height:1.4;letter-spacing:-.01em;}
+  .q-body{padding:22px 28px 0;}
+  .q-body p{margin:0 0 15px;color:var(--ink-soft);}
+  .q-body p:last-child{margin-bottom:0;}
+  .q-body h4{margin:24px 0 10px;font-size:.95rem;font-weight:800;color:var(--ink);}
+  .q-body h4::before{content:"▹";color:var(--indigo);margin-right:8px;font-size:.85rem;}
+  .violet .q-body h4::before{color:var(--violet);}
+  .teal .q-body h4::before{color:var(--teal);}
+  .amber .q-body h4::before{color:var(--amber);}
+  .q-body ul,.q-body ol{margin:0 0 16px;padding-left:22px;color:var(--ink-soft);}
+  .q-body li{margin-bottom:8px;}
+  .q-body li::marker{color:var(--indigo);}
+  .violet .q-body li::marker{color:var(--violet);}
+  .teal .q-body li::marker{color:var(--teal);}
+  .amber .q-body li::marker{color:var(--amber);}
+  strong{color:var(--ink);font-weight:700;}
+  code{
+    background:#f2f3fc;border:1px solid #dfe3f0;border-radius:6px;padding:1px 6px;
+    font-size:.87em;font-family:"SFMono-Regular",Consolas,monospace;color:#3730a3;
+  }
+
+  .callout{border-radius:12px;padding:14px 18px;margin:18px 0 4px;font-size:.93rem;border-left:4px solid;}
+  .callout .label{
+    display:block;font-size:.68rem;font-weight:800;letter-spacing:.13em;
+    text-transform:uppercase;margin-bottom:5px;
+  }
+  .callout p{margin:0 0 8px;font-size:.93rem;}
+  .callout p:last-child{margin-bottom:0;}
+  .answer{background:linear-gradient(180deg,#eef2ff,#ffffff);border-color:var(--indigo);}
+  .answer .label{color:var(--indigo-deep);}
+  .tip{background:linear-gradient(180deg,#f0fdfa,#ffffff);border-color:var(--teal);}
+  .tip .label{color:#0f766e;}
+  .tradeoff{background:linear-gradient(180deg,#fffbeb,#ffffff);border-color:var(--amber);}
+  .tradeoff .label{color:#b45309;}
+  .pitfall{background:linear-gradient(180deg,#fff1f2,#ffffff);border-color:var(--rose);}
+  .pitfall .label{color:#be123c;}
+
+  .table-scroll{overflow-x:auto;margin:18px 0;border-radius:12px;border:1px solid var(--line);}
+  table{width:100%;border-collapse:collapse;font-size:.87rem;background:#fff;}
+  thead th{
+    background:#f7f8fe;text-align:left;padding:11px 14px;font-weight:800;
+    font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+    border-bottom:2px solid var(--line);white-space:nowrap;
+  }
+  tbody td{padding:11px 14px;border-bottom:1px solid #f2f3fc;color:var(--ink-soft);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:nth-child(even){background:#fcfcff;}
+  tbody td:first-child{font-weight:700;color:var(--ink);}
+
+  .next-part{
+    background:linear-gradient(135deg,#1e1b4b,#3730a3);color:#e0e7ff;
+    border-radius:var(--radius);padding:32px 34px;margin-top:50px;box-shadow:var(--shadow);
+  }
+  .next-part h3{margin:0 0 12px;font-size:1.2rem;color:#fff;font-weight:800;}
+  .next-part p{margin:0 0 16px;color:#c7d2fe;font-size:.95rem;}
+  .next-list{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:10px;list-style:none;padding:0;margin:0;
+  }
+  .next-list li{
+    background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
+    border-radius:10px;padding:10px 14px;font-size:.86rem;color:#e0e7ff;
+  }
+
+  @media (max-width:640px){
+    .q-head{padding:18px 18px 15px;}
+    .q-body{padding:18px 18px 0;}
+    header.hero{padding:44px 18px 46px;}
+    .roadmap{padding:20px;}
+    nav.toc{padding:18px;}
+    nav.toc ol{grid-template-columns:1fr;}
+  }
+  @media print{
+    body{background:#fff;}
+    article.q, nav.toc, .roadmap{box-shadow:none;page-break-inside:avoid;}
+    header.hero{background:#1e1b4b !important;-webkit-print-color-adjust:exact;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Messaging Series · Section 2 of 10</span>
+    <h1>Messaging Systems for System Design<br><span>Message Queues &amp; Distributed Brokers</span></h1>
+    <p class="lede">
+      How a queue actually works: publish, store, deliver, acknowledge. What happens when a consumer crashes, when a
+      broker dies mid-write, when a message poisons the pipeline, and when you need a million messages per second.
+      Then the comparisons — queue vs pub/sub, message vs event, Kafka vs RabbitMQ vs Redis — that decide which
+      primitive to reach for.
+    </p>
+    <div class="meta-chips">
+      <span class="chip">14 Questions</span>
+      <span class="chip">500+ words each</span>
+      <span class="chip">Broker internals</span>
+      <span class="chip">Failure modes included</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ROADMAP -->
+  <section class="roadmap">
+    <h2>Messaging Answer-Series Roadmap</h2>
+    <div class="roadmap-grid">
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 1 — Complete</span>
+        <strong>Chat Applications &amp; Real-Time Messaging</strong>
+        1-on-1, groups, protocols, ordering, delivery, presence, sync, E2E
+      </div>
+      <div class="roadmap-item current">
+        <span class="tag tag-now">Section 2 — You are here</span>
+        <strong>Message Queues &amp; Distributed Brokers</strong>
+        Queue design, acks, offsets, DLQs, persistence, consumer groups, backpressure
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Section 3</span>
+        <strong>Publish/Subscribe &amp; Event Streaming</strong>
+        Kafka internals, partitions, ISR, exactly-once, tiered storage
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Section 4</span>
+        <strong>Push Notification Systems</strong>
+        Multi-channel, preferences, retries, provider outages
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Section 5</span>
+        <strong>Real-Time Protocols &amp; Connection Management</strong>
+        WebSocket, SSE, polling, gateway fleets, connection draining
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Section 6</span>
+        <strong>Delivery Guarantees, Ordering &amp; Idempotency</strong>
+        At-least-once, exactly-once, per-key ordering, idempotency keys
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Section 7</span>
+        <strong>Fan-Out &amp; Group Messaging</strong>
+        Write vs read fan-out, hot groups, broadcast channels
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Section 8</span>
+        <strong>Event-Driven Architecture</strong>
+        Events vs commands, event sourcing, CQRS, outbox, schemas
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Section 9</span>
+        <strong>Operational Concerns &amp; Failure Modes</strong>
+        Monitoring, tracing, poison pills, broker outages, multi-tenancy
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Section 10</span>
+        <strong>Classic System Design Problems</strong>
+        8 end-to-end messaging design prompts solved
+      </div>
+    </div>
+  </section>
+
+  <!-- TOC -->
+  <nav class="toc">
+    <h2>Questions Answered in This Section</h2>
+    <ol>
+      <li><a href="#q1">Design a distributed message queue from scratch</a></li>
+      <li><a href="#q2">Message queue vs pub/sub: when to choose each</a></li>
+      <li><a href="#q3">Point-to-point vs publish-subscribe routing</a></li>
+      <li><a href="#q4">Message vs event: why the distinction matters</a></li>
+      <li><a href="#q5">Queue vs Redis Pub/Sub: durability and delivery</a></li>
+      <li><a href="#q6">Consumer crash before processing: acks and redelivery</a></li>
+      <li><a href="#q7">How consumers know where to read next: offsets</a></li>
+      <li><a href="#q8">Dead-letter queues: design and operation</a></li>
+      <li><a href="#q9">Designing a queue for 1M messages/sec without loss</a></li>
+      <li><a href="#q10">Message persistence across brokers</a></li>
+      <li><a href="#q11">Broker crash mid-write: replication and recovery</a></li>
+      <li><a href="#q12">Consumer groups, partitions, and rebalancing</a></li>
+      <li><a href="#q13">Backpressure and slow consumers</a></li>
+      <li><a href="#q14">RabbitMQ vs Kafka vs Redis Pub/Sub</a></li>
+    </ol>
+  </nav>
+
+  <!-- ================= PART A ================= -->
+  <div class="part-band">
+    <div class="bar"></div>
+    <h2>Part A — Queue Fundamentals
+      <span class="sub">What a queue is, what it is not, and how it differs from related primitives</span>
+    </h2>
+  </div>
+
+  <!-- Q1 -->
+  <article class="q" id="q1">
+    <div class="q-head">
+      <div class="q-num">1</div>
+      <h3>Design a distributed message queue from scratch. What are the core components and APIs?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A distributed queue is a partitioned, replicated append-only log with a consumer-coordination layer on
+        top. Producers append to a partition; consumers read from a partition and commit their position; a broker
+        fleet stores and replicates partitions; a coordinator assigns partitions to consumers and tracks offsets.
+        The API is four operations: <code>produce</code>, <code>consume</code>, <code>ack/commit</code>, and
+        <code>subscribe</code>.</p>
+      </div>
+
+      <h4>The core abstraction: a partitioned log</h4>
+      <p>The fundamental choice that determines everything else is whether the queue is a <em>log</em> (messages
+      stay until retention expires, and consumers track their own position) or a <em>destructive queue</em>
+      (messages are removed on acknowledgement). Log-based queues (Kafka, Pulsar, Kinesis) support replay, multiple
+      independent consumer groups, and high throughput; destructive queues (SQS, RabbitMQ classic queues) are
+      simpler and have bounded storage. The design below assumes the log-based model because it is the one that
+      scales to the workloads interviewers care about.</p>
+
+      <h4>Components</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Component</th><th>Responsibility</th></tr></thead>
+          <tbody>
+            <tr><td>Producers</td><td>Append messages to a topic, choosing a partition via a key hash or round robin</td></tr>
+            <tr><td>Brokers</td><td>Store partition log segments, serve reads and writes, replicate to followers</td></tr>
+            <tr><td>Controller / metadata service</td><td>Partition assignment to brokers, leader election, cluster state (ZooKeeper or KRaft)</td></tr>
+            <tr><td>Consumers</td><td>Read from assigned partitions, process messages, commit offsets</td></tr>
+            <tr><td>Group coordinator</td><td>Assigns partitions to consumers within a group, handles rebalances, stores committed offsets</td></tr>
+            <tr><td>Offset store</td><td>Durable record of each group's committed position per partition</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The API</h4>
+      <ul>
+        <li><code>produce(topic, key, value) → (partition, offset)</code> — the broker returns the assigned partition
+        and offset, which the producer can use for acknowledgement tracking.</li>
+        <li><code>subscribe(group, topic, listener)</code> — the consumer joins a group; the coordinator assigns
+        partitions.</li>
+        <li><code>consume(partition, from_offset, max_records) → [records]</code> — pull-based read; the consumer
+        advances its position locally after processing.</li>
+        <li><code>commit(group, partition, offset)</code> — durably record the consumer's position.</li>
+        <li><code>seek(partition, offset)</code> — reposition for replay or recovery.</li>
+      </ul>
+
+      <h4>Storage model</h4>
+      <p>Each partition is a sequence of immutable segments on disk. A segment is a file of messages plus an index
+      (offset → file position) and a time index. Appends are sequential — the fastest possible disk pattern — and
+      reads are either sequential scans or indexed lookups. Old segments are deleted or compacted according to the
+      retention policy. The sequential write pattern is why a single broker can sustain hundreds of megabytes per
+      second on commodity hardware.</p>
+
+      <h4>Replication</h4>
+      <p>Each partition has one leader and N-1 followers. The leader accepts writes; followers replicate from the
+      leader's log. A write is acknowledged based on the producer's <code>acks</code> setting: <code>acks=0</code>
+      means fire-and-forget; <code>acks=1</code> means the leader wrote it; <code>acks=all</code> means all in-sync
+      replicas wrote it. The ISR (in-sync replica) list defines which followers are caught up enough to be counted.
+      On leader failure, a follower from the ISR is promoted, preserving committed messages.</p>
+
+      <h4>Consumer coordination</h4>
+      <p>Consumers join a group by sending a join request to the group coordinator. The coordinator assigns each
+      partition to exactly one consumer in the group (for competing consumers) and triggers a rebalance when
+      membership changes. The assignment strategy (range, round-robin, sticky, cooperative-sticky) determines how
+      partitions are distributed and how much shuffling happens on rebalance. Committed offsets are stored in a
+      compacted internal topic (Kafka's <code>__consumer_offsets</code>) so that they survive broker failures and
+      are visible to all consumers in the group.</p>
+
+      <h4>What makes it distributed</h4>
+      <p>Three things: (1) partitions spread across brokers, so no single broker is a bottleneck; (2) replication
+      across brokers, so a broker failure does not lose data; (3) consumer groups spread across consumers, so
+      processing throughput scales horizontally. The coordinator and the metadata service are the only centralized
+      components, and both are replicated for availability.</p>
+
+      <h4>The design decisions that matter</h4>
+      <ul>
+        <li><strong>Partition count</strong> — the unit of parallelism, and it can only be increased, never decreased
+        (in Kafka). Too few limits throughput; too many increases overhead and rebalance time.</li>
+        <li><strong>Retention</strong> — how long messages stay. Long retention enables replay and multiple consumer
+        groups; it costs disk. Tiered storage (hot on brokers, cold in object storage) is the modern answer.</li>
+        <li><strong>Ack semantics</strong> — durability vs latency. <code>acks=all</code> is the default for anything
+        that matters.</li>
+        <li><strong>Compaction vs delete</strong> — delete is for event streams; compaction is for changelogs where
+        only the latest value per key matters.</li>
+      </ul>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>A log-based queue gives replay, multiple consumer groups, and high throughput, at the cost of storage
+        (messages are not deleted on consumption) and operational complexity (partitions, replication, rebalances).
+        A destructive queue is simpler and cheaper for small volumes, but cannot replay and cannot support more than
+        one consumer group without duplicating messages. Most systems that need to scale choose the log.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Open with: “I'll model this as a partitioned, replicated log. Producers append, consumers read from
+        partitions and commit offsets, and a coordinator assigns partitions to consumers.” That defines the
+        abstraction before the components, which is the order interviewers want.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q2 -->
+  <article class="q" id="q2">
+    <div class="q-head">
+      <div class="q-num">2</div>
+      <h3>What is the difference between a message queue and a pub/sub system? When would you choose each?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A <strong>message queue</strong> delivers each message to exactly one consumer — it distributes work.
+        A <strong>pub/sub system</strong> delivers each message to every subscriber — it broadcasts notifications.
+        Queues scale processing; pub/sub scales fan-out. The choice determines whether adding a consumer increases
+        throughput (queue) or adds a new recipient of every message (pub/sub).</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Aspect</th><th>Message queue</th><th>Pub/sub</th></tr></thead>
+          <tbody>
+            <tr><td>Delivery</td><td>One consumer per message</td><td>Every subscriber gets a copy</td></tr>
+            <tr><td>Purpose</td><td>Work distribution, load levelling</td><td>Event notification, fan-out</td></tr>
+            <tr><td>Adding a consumer</td><td>Increases throughput; competes for messages</td><td>Increases fan-out; receives all future messages</td></tr>
+            <tr><td>Coupling</td><td>Producer knows the queue, not the consumer</td><td>Producer knows the topic, not the subscribers</td></tr>
+            <tr><td>Replay</td><td>Usually no (destructive)</td><td>Yes in log-based systems; no in classic pub/sub</td></tr>
+            <tr><td>Example</td><td>SQS, RabbitMQ queue, Redis list</td><td>SNS, Kafka topics, Google Pub/Sub</td></tr>
+            <tr><td>Typical use</td><td>Image resizing, email sending, payment processing</td><td>Order events to billing, inventory, analytics</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Why the distinction is not academic</h4>
+      <p>Consider an order-placed event that three systems care about: billing, inventory, and analytics. If you put
+      it on a queue with three consumers, each event goes to exactly one of them — billing might receive an event
+      that inventory never sees. That is a data-loss bug, and a subtle one that only manifests as missing data in
+      one subsystem. Publishing to a topic delivers a copy to each subscriber, which is the correct semantics. The
+      primitive must match the intent.</p>
+
+      <h4>The hybrid: topics with competing consumer groups</h4>
+      <p>Modern systems need both at once. Kafka provides this directly: a topic is divided into partitions; each
+      consumer group receives every message once, distributed across the members of that group. So a topic can serve
+      billing (group 1), inventory (group 2), and analytics (group 3) — each group receives all events, while within
+      a group the work is distributed across many instances. This composition is why Kafka is the dominant model
+      for event-driven architectures: it is a pub/sub system that supports competing consumers within each
+      subscription.</p>
+
+      <h4>What each is good for</h4>
+      <p>Queues are right when: the work is a task that needs to be done once (send this email, resize this image),
+      the producer does not care who does it, and adding consumers should increase throughput. Pub/sub is right
+      when: an event has multiple independent consumers with different purposes, each needs its own copy, and the
+      producer should not know or care who is listening.</p>
+
+      <h4>The failure modes</h4>
+      <ul>
+        <li><strong>Queue misused for broadcast:</strong> a new consumer is added and receives only a fraction of the
+        events, because the others are being consumed by the existing consumers. The fix is a topic, not a queue.</li>
+        <li><strong>Pub/sub misused for work distribution:</strong> multiple instances of the same service subscribe
+        to the same topic, and each message is processed N times. The fix is a consumer group, where the instances
+        compete for messages instead of each receiving all of them.</li>
+      </ul>
+
+      <h4>What to say in an interview</h4>
+      <p>Name the intent before the technology: “This is a work-distribution problem, so I'll use a queue with
+      competing consumers” or “This is a notification problem, so I'll use a topic with independent consumer
+      groups.” The technology choice follows from the intent, and demonstrating that you know the difference is
+      what the interviewer is listening for.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Using SQS and expecting all consumers to receive every message. SQS is a queue — each message is delivered
+        to one consumer. To fan out, you need SNS in front of SQS (one SNS topic, one SQS queue per subscriber), which
+        is the standard AWS pattern. Choosing SQS alone for a broadcast use case loses messages silently.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q3 -->
+  <article class="q" id="q3">
+    <div class="q-head">
+      <div class="q-num">3</div>
+      <h3>Explain point-to-point vs publish-subscribe routing models. How do they map to different business use cases?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p><strong>Point-to-point</strong> has one sender and one receiver per message — a message is delivered to
+        exactly one consumer, and consumers compete for messages. <strong>Publish-subscribe</strong> has one sender
+        and many receivers — each subscriber gets its own copy of every message. Point-to-point is a work queue;
+        pub/sub is an event bus.</p>
+      </div>
+
+      <h4>Point-to-point in depth</h4>
+      <p>A producer sends a message to a queue. One consumer picks it up, processes it, and acknowledges. If the
+      consumer crashes before acknowledging, the message is returned to the queue and picked up by another consumer.
+      The queue guarantees that each message is processed exactly once (by one consumer), at least once in delivery
+      terms. Consumers are interchangeable — adding one increases throughput because they compete for messages.</p>
+      <p>Business use cases: order processing where each order is handled by one worker; email sending where each
+      email is sent once; image transcoding where each image is processed once; payment capture where each
+      transaction is charged once. The common thread is that the work is <em>idempotent per unit</em> and the
+      business does not want it done twice.</p>
+
+      <h4>Publish-subscribe in depth</h4>
+      <p>A producer publishes a message to a topic. Every subscriber of that topic receives its own copy. The
+      producer does not know or care how many subscribers there are. Subscribers can be added without changing the
+      producer, and removing one does not affect the others. The topic is a broadcast channel.</p>
+      <p>Business use cases: an order-placed event that must reach billing, inventory, analytics, and notifications;
+      a user-registered event that triggers welcome email, onboarding checklist, and CRM record; a payment-completed
+      event that updates the ledger, sends a receipt, and updates the fraud model. The common thread is that
+      multiple independent systems need to react to the same event, each for its own purpose.</p>
+
+      <h4>The combination in practice</h4>
+      <p>Most real systems use both. An order-placed event is published to a topic; each downstream service
+      subscribes with its own consumer group. Within each service, the group has multiple instances competing for
+      messages. This gives the fan-out of pub/sub at the top level and the throughput scaling of point-to-point at
+      the consumer level. It is the pattern that Kafka was designed for, and it is what most event-driven
+      architectures converge on.</p>
+
+      <h4>The routing decisions</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Question</th><th>Point-to-point</th><th>Pub/sub</th></tr></thead>
+          <tbody>
+            <tr><td>Who processes the message?</td><td>Exactly one consumer</td><td>Every subscriber</td></tr>
+            <tr><td>What happens when a consumer is added?</td><td>More throughput, same messages split</td><td>A new recipient of every message</td></tr>
+            <tr><td>What happens when a consumer is removed?</td><td>Others pick up the messages</td><td>That subscriber stops receiving</td></tr>
+            <tr><td>Is replay possible?</td><td>Usually no</td><td>Yes in log-based systems</td></tr>
+            <tr><td>Is the producer coupled to consumers?</td><td>No — just the queue</td><td>No — just the topic</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The mistake that costs money</h4>
+      <p>The most common routing mistake is using a queue for a pub/sub use case. A team puts an order-placed event
+      on a queue, then adds a second consumer for analytics. Half the events go to billing and half to analytics,
+      and both are wrong. The fix is a topic with two subscriptions, or a topic with two consumer groups. The
+      signal in an interview is whether the candidate asks “does every consumer need to see every message?” before
+      choosing the primitive.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: “This is a fan-out problem — billing, inventory, and analytics all need the event — so it's pub/sub
+        with a consumer group per subscriber. The image-resize work is point-to-point, so it's a queue with competing
+        workers.” Naming both primitives and both use cases in one sentence shows the distinction is internalized.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q4 -->
+  <article class="q" id="q4">
+    <div class="q-head">
+      <div class="q-num">4</div>
+      <h3>What is the difference between a message and an event? Why does the distinction matter in system design?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A <strong>message</strong> (or command) is an instruction to do something — “send this email”, “charge this
+        card”. It is addressed to a specific handler and expects the work to be done. An <strong>event</strong> is a
+        statement of fact — “order 123 was placed”. It is broadcast, has no expected handler, and may be consumed by
+        zero or many systems. The distinction determines coupling: commands couple the sender to the handler's
+        behaviour; events decouple the producer from everyone who reacts.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Aspect</th><th>Command / message</th><th>Event</th></tr></thead>
+          <tbody>
+            <tr><td>Semantics</td><td>“Do this”</td><td>“This happened”</td></tr>
+            <tr><td>Tense</td><td>Imperative</td><td>Past tense</td></tr>
+            <tr><td>Recipients</td><td>One handler (or one service)</td><td>Zero or many consumers</td></tr>
+            <tr><td>Coupling</td><td>Sender knows what should happen</td><td>Sender knows only that it happened</td></tr>
+            <tr><td>Failure handling</td><td>If unhandled, the command is lost — a problem</td><td>If unhandled, that is fine — it was informational</td></tr>
+            <tr><td>Naming</td><td><code>SendEmail</code>, <code>ChargeCard</code></td><td><code>OrderPlaced</code>, <code>PaymentCaptured</code></td></tr>
+            <tr><td>Routing</td><td>Queue (point-to-point)</td><td>Topic (pub/sub)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Why the distinction matters</h4>
+      <p>Commands create coupling. If a checkout service sends a <code>SendWelcomeEmail</code> command to an email
+      service, the checkout service now knows that welcome emails exist, and adding a second welcome channel means
+      changing the checkout code. If instead the checkout service publishes <code>UserRegistered</code>, the email
+      service can react without checkout knowing it exists, and a new onboarding service can be added without
+      touching checkout. Events decouple; commands couple.</p>
+      <p>This has a direct design consequence: a system built on events can add consumers over time without changing
+      producers, which is exactly what makes event-driven architecture scalable organisationally. A system built on
+      commands requires every new reaction to be wired in by the producer, which becomes a bottleneck as the number
+      of consumers grows.</p>
+
+      <h4>The naming test</h4>
+      <p>The easiest way to tell them apart is grammatical. If the name is imperative (“SendEmail”, “ResizeImage”,
+      “ChargeCard”), it is a command. If it is past tense and describes a fact (“OrderPlaced”, “ImageUploaded”,
+      “PaymentCaptured”), it is an event. This is not pedantry — the name reflects the contract, and a mixed-up name
+      usually indicates a mixed-up design.</p>
+
+      <h4>When commands are correct</h4>
+      <p>Commands are not always wrong. When the sender genuinely needs the work done by a specific service, and the
+      contract is intentional, a command is the right primitive. “ChargeCard” is a command to a specific payment
+      service; it should not be broadcast to everyone. The rule is: use commands when the sender owns the decision
+      and the recipient is known; use events when the sender is announcing a fact and the reactions are open-ended.</p>
+
+      <h4>The failure-handling difference</h4>
+      <p>A command that is not handled is a bug — the email was never sent, the image was never resized. The system
+      must guarantee delivery and retry until it succeeds (or dead-letter). An event that is not consumed is fine —
+      no one was listening, no harm done. This means commands need stronger delivery guarantees and monitoring
+      than events, which changes the queue configuration: commands typically use a queue with a DLQ and alerting on
+      failures; events typically use a topic with retention and consumer lag monitoring.</p>
+
+      <h4>The design principle</h4>
+      <p>Prefer events at the boundaries between services, and commands within a service. A service should announce
+      what happened in its domain and let other services decide how to react. This reduces coupling, makes adding
+      new consumers trivial, and is the foundation of event-driven architecture. But not every message should be an
+      event — a direct request for work that the sender owns is a command, and pretending otherwise creates
+      confusion about who is responsible.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Calling a command an event to sound modern. <code>SendWelcomeEmail</code> is not an event, no matter what
+        topic it is on. The sender still expects the email to be sent, and the system still needs to guarantee that.
+        The naming confusion leads to the wrong delivery guarantees and the wrong failure handling.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q5 -->
+  <article class="q" id="q5">
+    <div class="q-head">
+      <div class="q-num">5</div>
+      <h3>How is a message queue different from Redis Pub/Sub? What are the durability and delivery implications?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Redis Pub/Sub is a fire-and-forget broadcast with no persistence, no acknowledgement, and no delivery
+        guarantee — if no subscriber is connected when a message is published, the message is gone. A message
+        queue persists messages, tracks acknowledgement, and redelivers on failure. Redis Pub/Sub is for ephemeral
+        real-time signals; a queue is for durable work.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Aspect</th><th>Redis Pub/Sub</th><th>Message queue (SQS, RabbitMQ, Kafka)</th></tr></thead>
+          <tbody>
+            <tr><td>Persistence</td><td>None — in memory only</td><td>Durable on disk (or replicated)</td></tr>
+            <tr><td>Delivery guarantee</td><td>At-most-once (and often zero)</td><td>At-least-once</td></tr>
+            <tr><td>Offline subscribers</td><td>Messages lost</td><td>Messages retained until consumed or expired</td></tr>
+            <tr><td>Acknowledgement</td><td>None</td><td>Explicit ack; redelivery on failure</td></tr>
+            <tr><td>Replay</td><td>No</td><td>Yes (Kafka, Kinesis)</td></tr>
+            <tr><td>Consumer groups</td><td>No</td><td>Yes</td></tr>
+            <tr><td>Backpressure</td><td>No — subscribers buffer or drop</td><td>Yes — queue depth grows</td></tr>
+            <tr><td>Use case</td><td>Real-time signals, cache invalidation, presence</td><td>Work queues, event streams, task processing</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>How Redis Pub/Sub works</h4>
+      <p>A publisher sends a message to a channel. Redis immediately forwards it to all currently connected
+      subscribers. There is no storage — the message exists only for the duration of the publish call. If a
+      subscriber is slow, the message is dropped from its buffer. If a subscriber disconnects, it misses everything
+      published while it was gone. This is fine for cache invalidation (the next read will fetch fresh data) and for
+      presence (the next heartbeat will correct it), but catastrophic for work that must not be lost.</p>
+
+      <h4>Redis Streams as the durable alternative</h4>
+      <p>Redis also offers Streams (XADD, XREAD, XACK, consumer groups), which are a persistent, append-only log
+      with consumer groups and acknowledgement. Streams close much of the durability gap: messages are stored in
+      memory but can be persisted to disk, and consumers can acknowledge and replay. However, Redis Streams are still
+      memory-bound (the dataset must fit in RAM, or you accept eviction), and the durability guarantees are weaker
+      than a disk-based log because Redis persistence (RDB, AOF) has its own trade-offs. For small-to-medium durable
+      queues, Streams are a reasonable choice; for high-volume durable messaging, Kafka or RabbitMQ is better.</p>
+
+      <h4>The failure scenarios</h4>
+      <ul>
+        <li><strong>Subscriber offline:</strong> Pub/Sub loses the message; a queue retains it.</li>
+        <li><strong>Subscriber slow:</strong> Pub/Sub drops from the buffer; a queue grows and applies backpressure.</li>
+        <li><strong>Redis restart:</strong> Pub/Sub loses everything in memory; a queue survives (if persisted).</li>
+        <li><strong>Consumer crash:</strong> Pub/Sub has no redelivery; a queue redelivers after the visibility
+        timeout.</li>
+      </ul>
+
+      <h4>When Redis Pub/Sub is the right tool</h4>
+      <p>When the message is a hint, not a fact that must be processed. “Cache key X changed” — if a subscriber
+      misses it, the next request recomputes or the cache expires. “User Y is online” — if a subscriber misses it,
+      the next heartbeat corrects it. “A new message arrived on socket Z” — if the socket is disconnected, the client
+      fetches from the log on reconnect. In all these cases, the system has another source of truth and the
+      Pub/Sub message is an optimization. That is exactly when fire-and-forget is acceptable.</p>
+
+      <h4>The hybrid pattern</h4>
+      <p>Many systems use both: a durable queue for the work that must not be lost, and Redis Pub/Sub for the
+      real-time notification that work has happened. The queue guarantees processing; the Pub/Sub tells connected
+      clients to refresh. This is the standard pattern for chat (Section 1) and for any system with a real-time
+      UI backed by durable storage.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Using Redis Pub/Sub as a job queue. The job is published, no worker is connected, and the job is silently
+        lost. This works in development (the worker is always running) and fails in production (during a deploy or
+        a restart). The fix is Redis Streams, or a real queue.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART B ================= -->
+  <div class="part-band violet">
+    <div class="bar"></div>
+    <h2>Part B — Delivery, Acknowledgement &amp; Failure
+      <span class="sub">What happens when things go wrong, and how the system recovers</span>
+    </h2>
+  </div>
+
+  <!-- Q6 -->
+  <article class="q violet" id="q6">
+    <div class="q-head">
+      <div class="q-num">6</div>
+      <h3>What happens if a consumer crashes before processing a message? Explain acknowledgements, manual vs auto-ack modes, and redelivery.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>If a consumer crashes before acknowledging, the message is not marked as processed, and the broker
+        redelivers it — either to the same consumer when it restarts or to another consumer in the group. The
+        guarantee is at-least-once: the message will be processed eventually, possibly more than once, so consumers
+        must be idempotent. Auto-ack removes the safety net by acknowledging before processing, which trades
+        duplicates for potential loss.</p>
+      </div>
+
+      <h4>The lifecycle of a message</h4>
+      <ol>
+        <li>Producer publishes; broker stores the message and makes it available.</li>
+        <li>Consumer fetches the message; broker marks it "in flight" (invisible to other consumers).</li>
+        <li>Consumer processes the message.</li>
+        <li>Consumer acknowledges; broker marks it "processed" and removes or advances past it.</li>
+      </ol>
+      <p>The failure point is between steps 2 and 4. If the consumer crashes after fetching but before acking, the
+      broker does not know the message was processed — it only knows it was delivered. The message returns to the
+      queue when the in-flight timeout expires (SQS visibility timeout, RabbitMQ unacked message return, Kafka's
+      consumer group rebalance), and is delivered again.</p>
+
+      <h4>Auto-ack vs manual ack</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Mode</th><th>When the ack is sent</th><th>Failure on crash</th><th>Use case</th></tr></thead>
+          <tbody>
+            <tr><td>Auto-ack</td><td>On delivery, before processing</td><td>Message lost</td><td>Loss-tolerant work (metrics, logs)</td></tr>
+            <tr><td>Manual ack (after process)</td><td>After the consumer finishes</td><td>Message redelivered</td><td>All business-critical work</td></tr>
+            <tr><td>Manual ack (before process)</td><td>Before the consumer starts work</td><td>Message lost on crash</td><td>Avoid — same as auto-ack with extra code</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The rule is simple: acknowledge <em>after</em> the work is done and durable. If the consumer writes to a
+      database and then acks, a crash between the write and the ack causes a redelivery and a duplicate write — which
+      is why the write must be idempotent. If the consumer acks before writing, a crash loses the message entirely,
+      which is never acceptable for business work.</p>
+
+      <h4>The visibility timeout</h4>
+      <p>When a consumer fetches a message (SQS, RabbitMQ), the broker hides it from other consumers for a timeout
+      period (SQS default 30 seconds, up to 12 hours). If the consumer acks within the timeout, the message is
+      removed. If it does not, the message becomes visible again and is redelivered. The consumer can extend the
+      timeout with a heartbeat if the work takes longer than expected — but if it forgets, the message is redelivered
+      and processed twice.</p>
+      <p>The timeout is a trade-off: too short and slow workers cause spurious redeliveries; too long and a crashed
+      consumer holds the message invisibly, delaying recovery. The right value is the p99 processing time plus a
+      margin, and the consumer should extend it for genuinely long jobs.</p>
+
+      <h4>Idempotency is mandatory</h4>
+      <p>Because redelivery is possible, the consumer must produce the same result whether a message is processed
+      once or five times. Three common patterns:</p>
+      <ul>
+        <li><strong>Idempotency key:</strong> the message carries a unique ID; the consumer stores processed IDs in
+        a dedup table and skips duplicates.</li>
+        <li><strong>Upsert semantics:</strong> writing the same row twice is safe because the write is an upsert,
+        not an insert.</li>
+        <li><strong>Natural idempotency:</strong> the operation is inherently repeatable — setting a status to
+        "shipped" is idempotent; incrementing a counter is not.</li>
+      </ul>
+
+      <h4>What redelivery does not solve</h4>
+      <p>Redelivery does not fix a <strong>poison message</strong> — a message that crashes the consumer every time
+      it is processed. It is redelivered, crashes the consumer again, and loops forever. This is why dead-letter
+      queues exist (Question 8): after N failed deliveries, the message is moved aside so the pipeline can
+      continue.</p>
+
+      <h4>The ordering interaction</h4>
+      <p>Redelivery can break ordering if a later message is processed while an earlier one is being redelivered. A
+      FIFO queue (SQS FIFO, Kafka partition, RabbitMQ single consumer) avoids this by blocking the partition on the
+      in-flight message — no later message is delivered until the earlier one is acked or times out. The cost is
+      head-of-line blocking: one slow message stalls the partition. This is the fundamental trade-off between
+      ordering and throughput.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Acking before the work is durable. The consumer acks, then writes to the database, then crashes before the
+        write commits — the message is gone and the work was never done. The ack must come after the durable write,
+        and the write must be idempotent to handle the redelivery that follows a crash between the write and the ack.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q7 -->
+  <article class="q violet" id="q7">
+    <div class="q-head">
+      <div class="q-num">7</div>
+      <h3>How do consumers know where to read next? Explain offset management, who advances offsets, and what happens if a consumer crashes between processing and committing an offset.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>In a log-based queue, each consumer group maintains a committed offset per partition — the position up to
+        which messages have been processed and acknowledged. The consumer advances its local position as it reads,
+        but the committed offset is only updated when it explicitly commits. On crash, the consumer resumes from the
+        last committed offset, which may reprocess messages read but not committed. This is the source of
+        at-least-once delivery in Kafka.</p>
+      </div>
+
+      <h4>Local position vs committed offset</h4>
+      <p>These are two different things, and the distinction is the key to understanding Kafka's delivery
+      semantics:</p>
+      <ul>
+        <li><strong>Local position:</strong> the next offset the consumer will read. It advances as the consumer
+        fetches records. It is in memory, per consumer instance.</li>
+        <li><strong>Committed offset:</strong> the durable record of what the consumer group has processed. It is
+        stored on the broker (Kafka's <code>__consumer_offsets</code> topic) and is used on restart or rebalance to
+        decide where to resume.</li>
+      </ul>
+      <p>The consumer can read far ahead of its committed offset — that is how batching works. But if it crashes
+      before committing, the next instance resumes from the committed offset and reprocesses everything after it.</p>
+
+      <h4>When offsets are committed</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Strategy</th><th>When</th><th>Failure consequence</th></tr></thead>
+          <tbody>
+            <tr><td>Auto-commit (interval)</td><td>Every N seconds, automatically</td><td>Messages processed since the last commit are reprocessed</td></tr>
+            <tr><td>Commit after each record</td><td>After processing one message</td><td>At-least-once; slow (a commit per message)</td></tr>
+            <tr><td>Commit after a batch</td><td>After processing N messages</td><td>At-least-once for the whole batch; faster</td></tr>
+            <tr><td>Commit before processing</td><td>After fetch, before work</td><td>At-most-once — messages lost on crash</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Auto-commit is the default in many clients and is a common source of surprises: a crash can cause the last
+      few seconds of messages to be reprocessed, or — worse — committed before they were processed if the commit
+      interval fires between fetch and processing. Disabling auto-commit and committing manually after processing
+      is the standard recommendation for any consumer that must not lose messages.</p>
+
+      <h4>The crash-between-process-and-commit window</h4>
+      <p>The consumer processes message 42, writes the result to the database, then crashes before committing offset
+      42. When another consumer takes over the partition, it resumes from the last committed offset (41) and
+      reprocesses 42. The database now has the result of 42 twice — unless the write was idempotent. This is why
+      idempotency is not optional: the window between processing and committing is unavoidable in any
+      at-least-once system, and the consumer must be designed for it.</p>
+
+      <h4>Rebalance interaction</h4>
+      <p>When a consumer joins or leaves a group, a rebalance reassigns partitions. The departing consumer's
+      uncommitted offsets are lost (they were never committed); the new consumer resumes from the last committed
+      offset. If the departing consumer had processed a batch but not committed it, that batch is reprocessed. This
+      is another source of duplicates, and another reason commits should happen promptly after processing.</p>
+
+      <h4>Offset retention</h4>
+      <p>Committed offsets are stored in a compacted topic with a retention window (Kafka default 7 days). If a
+      consumer group is inactive for longer than the retention, its committed offsets expire and it must reset to
+      earliest or latest. This is usually fine — a group inactive for a week is effectively new — but it is a
+      surprise when a paused consumer resumes and reprocesses everything or skips everything depending on the
+      reset policy.</p>
+
+      <h4>Seeking and replay</h4>
+      <p>The consumer can seek to any offset, not just forward. This enables replay: reprocessing from a known good
+      offset after a bug fix, or bootstrapping a new consumer group from the beginning. The log retention policy
+      determines how far back the seek can go. Replay is one of the main advantages of a log-based queue over a
+      destructive queue, and it is why the offset is a first-class concept.</p>
+
+      <h4>Offsets and exactly-once</h4>
+      <p>Kafka's transactional producer and consumer can atomically commit offsets with the output of processing,
+      giving exactly-once semantics within Kafka. Outside Kafka (e.g., writing to an external database), exactly-once
+      requires idempotent writes or a transactional outbox. The offset is the anchor: the commit and the write must
+      be atomic, or the consumer must be idempotent. There is no third option.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: “The committed offset is the source of truth for restart. The consumer reads ahead, processes, then
+        commits; a crash between processing and commit causes reprocessing, so the consumer must be idempotent.”
+        That names the mechanism, the failure, and the mitigation in one sentence.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q8 -->
+  <article class="q violet" id="q8">
+    <div class="q-head">
+      <div class="q-num">8</div>
+      <h3>What is a dead-letter queue (DLQ)? What kinds of messages end up there, and how do you process them?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A DLQ is a separate queue that receives messages that could not be processed after a configured number of
+        retries. It isolates poison messages so they do not block the main pipeline, and it preserves them for
+        inspection and reprocessing. A DLQ without monitoring and a reprocessing plan is just a graveyard — the
+        design is incomplete without those.</p>
+      </div>
+
+      <h4>What ends up in a DLQ</h4>
+      <ul>
+        <li><strong>Poison messages:</strong> a malformed payload that crashes the consumer every time it is
+        processed. The canonical case — a missing field, an invalid enum, a payload that fails schema validation.</li>
+        <li><strong>Transient failures exhausted:</strong> a downstream dependency was down for the entire retry
+        window, and the message was never processed successfully. By the time the dependency recovers, the message
+        is in the DLQ.</li>
+        <li><strong>Business rule rejections:</strong> the message references an order that does not exist, or a user
+        who has been deleted. Retrying will never succeed; it belongs in the DLQ for human review.</li>
+        <li><strong>Unprocessable by design:</strong> a message type the consumer version does not support, or a
+        schema version it cannot handle. This is a deployment bug, but the message still needs to be preserved.</li>
+        <li><strong>Expired messages:</strong> a message whose TTL elapsed before it could be delivered (SQS
+        max retention 14 days, for example). The DLQ captures what would otherwise be silently dropped.</li>
+      </ul>
+
+      <h4>How the DLQ is triggered</h4>
+      <p>The standard mechanism is a retry counter with a maximum. Each delivery attempt increments the counter; after
+      N attempts (typically 3–5), the message is moved to the DLQ instead of being redelivered. In SQS, this is the
+      redrive policy: <code>maxReceiveCount</code> plus a dead-letter queue ARN. In RabbitMQ, it is the
+      <code>x-dead-letter-exchange</code> and <code>x-dead-letter-routing-key</code> arguments on the queue, triggered
+      after N rejections. In Kafka, there is no native DLQ — the consumer must implement it by catching failures and
+      producing to a DLQ topic, or by using a framework that does.</p>
+
+      <h4>The retry policy</h4>
+      <p>Retries should use exponential backoff with jitter to avoid a retry storm. A typical policy: 3 attempts at
+      1 second, 10 seconds, and 1 minute. If the failure is transient (a network blip), one of these succeeds. If the
+      failure is permanent (a malformed message), all three fail and the message goes to the DLQ. The policy must
+      distinguish between these cases where possible — a validation error should not be retried at all; a timeout
+      should. Some systems use two queues: a retry queue with a delay and a DLQ for the final failure.</p>
+
+      <h4>The DLQ is not the end</h4>
+      <p>A DLQ is only useful if someone looks at it. The operational design must include:</p>
+      <ul>
+        <li><strong>Alerting:</strong> a non-zero DLQ depth is an alert. A growing DLQ depth is a page. The metric is
+        the queue depth over time, not just a threshold.</li>
+        <li><strong>Inspection:</strong> a way to look at the messages — a console, a query API, or an export to a
+        table. The messages must carry enough context (original payload, error, attempt count, timestamp) to
+        diagnose the failure.</li>
+        <li><strong>Reprocessing:</strong> a mechanism to move messages from the DLQ back to the main queue after a
+        fix. This is a redrive operation: read from DLQ, validate, publish to the original queue (or a repair
+        queue), remove from DLQ. It must be idempotent, because a redrive can be retried.</li>
+        <li><strong>Discarding:</strong> a way to permanently delete messages that are truly unprocessable, with an
+        audit record. Not every DLQ message needs to be recovered; some are genuinely garbage.</li>
+      </ul>
+
+      <h4>The ordering interaction</h4>
+      <p>Moving a poison message to a DLQ unblocks the partition, but the messages that were queued behind it have
+      been waiting. In a FIFO queue, this is a head-of-line block that the DLQ resolves — at the cost of delivering
+      the messages out of their original order relative to the removed one. Most systems accept this: a message
+      that cannot be processed is effectively skipped, and the following messages proceed. If the order matters,
+      the DLQ recovery must reinsert the message at the correct position, which is complex and usually not worth
+      it.</p>
+
+      <h4>What goes in the DLQ message</h4>
+      <p>The original payload, the error message and stack trace, the consumer identity, the attempt count, and the
+      first and last attempt timestamps. Without the error, the DLQ is undebuggable; without the attempt count, you
+      cannot tell whether it failed transiently or permanently. Enriching the message on the way to the DLQ is
+      cheap and pays off during the incident when someone has to look at it.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Configuring a DLQ and never monitoring it. Messages accumulate silently, the DLQ grows to millions of
+        entries, and the first sign of trouble is a storage bill or a missed business process. The DLQ depth must be
+        an alert from day one, and someone must own the runbook for inspecting and redriving it.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q9 -->
+  <article class="q violet" id="q9">
+    <div class="q-head">
+      <div class="q-num">9</div>
+      <h3>How do you design a message queue that handles 1 million messages per second while guaranteeing no message loss once acknowledged?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Partition aggressively, batch writes, replicate with <code>acks=all</code>, and exploit sequential disk
+        writes. The throughput comes from parallelism across partitions and brokers; the no-loss guarantee comes from
+        replication and from acknowledging only after the write is durable on the required number of replicas.
+        Getting both at once is what makes the design interesting — batching raises throughput but increases the
+        loss window unless combined with replication.</p>
+      </div>
+
+      <h4>The throughput budget</h4>
+      <p>1M messages/second at 1 KB each is 1 GB/s of raw data before replication. That is far beyond a single
+      broker's disk — a typical NVMe drive sustains 3–7 GB/s write for sequential I/O, but the replication factor
+      multiplies the write. With replication factor 3, the cluster writes 3 GB/s. The design must spread this across
+      many brokers: 1M messages/s on 10 brokers is 100k messages/s per broker, which is achievable; on 3 brokers it
+      is 333k per broker, which is at the edge of what commodity hardware can do.</p>
+
+      <h4>Partitioning</h4>
+      <p>Partitions are the unit of parallelism. Each partition is a sequential log with one leader; throughput per
+      partition is bounded by the leader's disk and network. To reach 1M/s, you need enough partitions that the
+      per-partition rate is within its budget. A common rule of thumb is 10–50 MB/s per partition, which at 1 KB
+      messages is 10k–50k messages/s per partition — so 20–100 partitions for 1M/s. In practice, systems over-provision
+      partitions (e.g., 200–500) to allow for consumer scaling and uneven load, at the cost of more open files,
+      more replication traffic, and longer rebalance times.</p>
+
+      <h4>Batching and compression</h4>
+      <p>Per-message overhead (framing, checksums, network round trips) dominates at high message rates. Batching
+      amortizes it: the producer accumulates messages and sends them as one batch (Kafka's <code>batch.size</code>
+      and <code>linger.ms</code>). Compression (LZ4, zstd) on the batch reduces bytes on the wire and bytes on disk
+      — often 2–5× for typical payloads. The trade-off is latency: a larger batch means waiting longer to fill it,
+      which adds milliseconds to each message's latency. Tuning <code>linger.ms</code> is the lever: 0–5 ms for
+      latency-sensitive, 10–50 ms for throughput-sensitive.</p>
+
+      <h4>The write path</h4>
+      <ol>
+        <li>Producer picks a partition by key hash or round-robin and sends a batch to the partition leader.</li>
+        <li>Leader appends the batch to its log — a sequential write to the page cache, then flushed to disk.</li>
+        <li>Followers fetch from the leader and append to their own logs.</li>
+        <li>When the required number of replicas have acknowledged (ISR size), the leader returns the ack to the
+        producer.</li>
+      </ol>
+      <p>The no-loss guarantee is at step 4: the producer gets an ack only after <code>acks=all</code> replicas have
+      written the batch. If the leader crashes after acking but before followers replicate, the message is lost — so
+      the ack must wait for the replication. This is the durability/latency trade-off in its purest form.</p>
+
+      <h4>Sequential writes and the page cache</h4>
+      <p>The reason a single broker can handle tens of thousands of messages per second is that appends are
+      sequential. Sequential writes to an SSD (or even an HDD) are 10–100× faster than random writes. The OS page
+      cache absorbs the writes and flushes them in order, which is the kernel's best-case scenario. Kafka's design
+      deliberately avoids random I/O: no per-message index updates on the write path, no B-tree rebalancing, just an
+      append and a periodic index flush. This is what allows a broker to sustain high throughput on commodity
+      hardware.</p>
+
+      <h4>Replication cost</h4>
+      <p>Replication factor 3 triples the write bandwidth and storage. The follower fetch is a sequential read from
+      the leader's log and a sequential write to the follower's log, so it is also cheap per byte. But the network
+      between brokers must carry 3× the data, and the leader's egress is the bottleneck at high replication factors.
+      The standard topology is replication factor 2 or 3 within a region, with cross-region replication (if needed)
+      as a separate async stream that does not affect the write ack path.</p>
+
+      <h4>What breaks first</h4>
+      <p>At 1M/s, the likely bottlenecks, in order:</p>
+      <ul>
+        <li><strong>Producer-side batching and network:</strong> too many small batches, or the producer's network
+        interface saturates.</li>
+        <li><strong>Leader network egress:</strong> the leader must send to all followers and to all consumers; this
+        is often the real limit.</li>
+        <li><strong>Disk write bandwidth on the leader:</strong> if the appends are not absorbed by the page cache
+        fast enough.</li>
+        <li><strong>Consumer fetch throughput:</strong> consumers must be able to keep up; consumer lag grows if
+        they cannot, and the queue depth grows until retention expires.</li>
+        <li><strong>Metadata overhead:</strong> with hundreds of partitions, the controller and coordinator become
+        hot; this is usually manageable but is a known scaling limit.</li>
+      </ul>
+
+      <h4>Consumer side</h4>
+      <p>At 1M/s, consumers must also be scaled: consumer groups with enough instances to keep up with the partition
+      count. Each partition is consumed by one consumer in the group, so the consumer count cannot exceed the
+      partition count. This is why partition count is chosen for the consumer parallelism you will need, not just
+      the producer throughput. The rule of thumb: partitions = max(producer parallelism, consumer parallelism).</p>
+
+      <h4>The no-loss guarantee in practice</h4>
+      <p>No loss once acknowledged requires: <code>acks=all</code> with <code>min.insync.replicas</code> set to at
+      least 2; a producer that retries on failure with idempotence enabled (to avoid duplicates from retries); a
+      consumer that commits offsets only after processing and is idempotent; and an unclean leader election policy
+      set to <code>false</code> so a lagging replica is never promoted. Each of these is a setting, but the design
+      must choose them deliberately rather than accepting defaults.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>1M/s with no loss is achievable, but not with default settings. The throughput comes from batching and
+        parallelism; the no-loss guarantee comes from replication and waiting for acks. Tuning for one usually
+        costs the other: larger batches raise throughput and latency; stronger acks raise durability and latency.
+        The design must decide, per topic, which matters more.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART C ================= -->
+  <div class="part-band teal">
+    <div class="bar"></div>
+    <h2>Part C — Persistence, Replication &amp; Consumer Coordination
+      <span class="sub">The internals that keep the queue correct under failure</span>
+    </h2>
+  </div>
+
+  <!-- Q10 -->
+  <article class="q teal" id="q10">
+    <div class="q-head">
+      <div class="q-num">10</div>
+      <h3>How does message persistence work in different brokers (RabbitMQ, Kafka, RocketMQ)? What are the trade-offs of each approach?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Kafka persists to a partitioned append-only log on disk, with sequential writes and periodic index flushes
+        — the fastest pattern for high throughput. RabbitMQ traditionally keeps messages in memory and spills to disk
+        under pressure, optimized for low-latency routing and per-message acknowledgements. RocketMQ uses a single
+        commit log for all topics, with per-queue indexes — a hybrid that trades some write simplicity for more
+        efficient storage sharing.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Broker</th><th>Persistence model</th><th>Strengths</th><th>Weaknesses</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Kafka</td>
+              <td>Per-partition append-only log segments; sequential writes; sparse offset index</td>
+              <td>Highest throughput; replay; tiered storage</td>
+              <td>No per-message priority; partition count fixed once chosen; operational complexity</td>
+            </tr>
+            <tr>
+              <td>RabbitMQ</td>
+              <td>In-memory queues with disk-backed message store; messages can be persistent or transient</td>
+              <td>Low latency; flexible routing (exchanges, bindings); per-message ack</td>
+              <td>Throughput lower than Kafka; memory pressure at scale; classic queues limit</td>
+            </tr>
+            <tr>
+              <td>RocketMQ</td>
+              <td>Single commit log for all topics; per-queue consume-queue indexes</td>
+              <td>Good throughput; ordered messages; transactional messages</td>
+              <td>Less mature ecosystem; operational complexity; fewer managed offerings</td>
+            </tr>
+            <tr>
+              <td>SQS</td>
+              <td>Fully managed distributed storage; no user-visible disk</td>
+              <td>Zero operations; scales automatically</td>
+              <td>No replay; limited ordering (FIFO queues only); max message size</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Kafka: log segments</h4>
+      <p>Each partition is a directory of segment files. A segment is a <code>.log</code> file of messages, a
+      <code>.index</code> file mapping offset to file position, and a <code>.timeindex</code> mapping timestamp to
+      offset. Appends go to the active segment; when it reaches a size threshold (typically 1 GB), it is closed and a
+      new one is opened. Old segments are deleted or compacted per the retention policy.</p>
+      <p>Reads are served from the page cache: the OS keeps recently written segments in memory, so consumers read at
+      memory speed until they fall behind. The index is sparse — one entry per ~4 KB of log — so a lookup is a binary
+      search in the index plus a short sequential scan. This is why Kafka's read throughput is close to disk
+      throughput for sequential access.</p>
+
+      <h4>RabbitMQ: message store and queues</h4>
+      <p>RabbitMQ's model is a message store plus per-queue indexes. A message is written to the store once and
+      referenced by the queues it is routed to. Persistent messages are written to disk; transient messages are kept
+      in memory. Under memory pressure, RabbitMQ pages messages to disk, which is why it can handle bursts that exceed
+      RAM — but the paging is a performance cliff, not a smooth degradation.</p>
+      <p>The advantage is flexible routing: exchanges (direct, topic, fanout, headers) route messages to queues by
+      binding rules, so a single publish can fan out to many queues with different routing. The cost is that the
+      per-queue index and the in-memory representation limit throughput per queue, and very large queues
+      (millions of messages) degrade performance. RabbitMQ is optimized for many small queues with low latency, not
+      for a few enormous ones.</p>
+
+      <h4>RocketMQ: commit log plus consume queues</h4>
+      <p>RocketMQ writes all messages to a single commit log — a sequential append across all topics — and maintains
+      per-queue consume indexes that point into the commit log. This is a middle ground: the write path is as fast as
+      Kafka's (single sequential file), but messages from different topics share storage, which is more efficient
+      when there are many small topics. The read path is an index lookup plus a commit-log read, similar to Kafka's
+      segment read but with an extra indirection.</p>
+      <p>RocketMQ's design also supports features Kafka historically lacked: transactional messages, scheduled
+      messages, and message priorities — which is why it is popular in Chinese e-commerce.</p>
+
+      <h4>SQS: managed abstraction</h4>
+      <p>SQS hides the storage entirely. Messages are durable (replicated across availability zones), but the
+      user has no visibility into the disk layout, no replay, and no partition control. The trade-off is that
+      operational burden is zero — you get a URL and an API — at the cost of flexibility. For workloads that fit the
+      SQS model (standard queue with at-least-once, or FIFO queue with ordering), it is often the right choice
+      because the operations are someone else's problem.</p>
+
+      <h4>The common thread</h4>
+      <p>All persistence models optimize for sequential writes, because random writes are the bottleneck at scale.
+      The differences are in how much routing flexibility, per-message control, and replay they expose. Kafka and
+      RocketMQ optimize for throughput and replay; RabbitMQ optimizes for routing and low latency; SQS optimizes for
+      operational simplicity. The right choice depends on which of those matters most for the workload.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Kafka's throughput comes from its rigid model — one log per partition, no per-message priority, no
+        flexible routing. RabbitMQ's flexibility comes from its message store and exchanges, at the cost of
+        throughput and memory pressure. Choosing a broker is choosing which constraint you can live with.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q11 -->
+  <article class="q teal" id="q11">
+    <div class="q-head">
+      <div class="q-num">11</div>
+      <h3>What happens when a broker crashes mid-write? How does replication and leader election recover the message?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>The producer's ack has not been sent (if <code>acks=all</code>), so the producer does not consider the
+        write complete. The controller detects the broker failure via heartbeat timeout, promotes an in-sync
+        follower to leader, and the producer retries against the new leader. If the failed broker had acked but not
+        replicated, the message is lost — which is why the ack must wait for replication, and why unclean leader
+        election must be disabled.</p>
+      </div>
+
+      <h4>The write path and the crash window</h4>
+      <p>A producer sends a batch to the partition leader. The leader appends to its local log, then waits for
+      followers to fetch and acknowledge. The ack to the producer is sent only after the required number of replicas
+      have written (with <code>acks=all</code> and <code>min.insync.replicas=2</code>, at least two). The crash
+      window is between the leader's local write and the follower's acknowledgment:</p>
+      <ul>
+        <li><strong>Crash before local write:</strong> nothing was persisted. The producer retries; no message is
+        lost or duplicated.</li>
+        <li><strong>Crash after local write, before follower ack:</strong> the leader has the message, followers do
+        not. The producer has not received an ack, so it retries. The new leader (a follower) does not have the
+        message, so the retry writes it again — a duplicate if the original write had somehow been visible, but it
+        was not acknowledged, so the producer's retry is the first "successful" write from its perspective.</li>
+        <li><strong>Crash after follower ack, before ack to producer:</strong> the message is on the follower, but
+        the producer does not know. The producer retries; the new leader (the follower) already has the message. If
+        the producer is idempotent (Kafka's idempotent producer with sequence numbers), the retry is deduplicated;
+        otherwise, the message is written twice.</li>
+      </ul>
+      <p>The no-loss guarantee depends on the ack being sent only after replication. The no-duplicate guarantee
+      depends on the producer being idempotent. Both must be configured deliberately.</p>
+
+      <h4>Leader election</h4>
+      <p>The controller (Kafka's KRaft controller, or ZooKeeper in older versions) monitors broker liveness via
+      heartbeats. When a broker misses heartbeats for the session timeout, the controller marks it dead and reassigns
+      its partitions: each partition's leader is moved to a follower from the ISR. The new leader is the first ISR
+      member in a deterministic order, and it starts accepting producer and consumer requests.</p>
+      <p>The ISR is the key: it is the set of replicas that are caught up to the leader's high-water mark. A replica
+      falls out of the ISR if it falls behind by <code>replica.lag.time.max.ms</code>. Only ISR members are eligible
+      to become leader (unless unclean leader election is enabled), which is what guarantees that no committed
+      message is lost.</p>
+
+      <h4>Unclean leader election</h4>
+      <p>If all ISR members are unavailable — for example, a rack failure took out the leader and its in-sync
+      follower — the partition has no eligible leader. Kafka can either become unavailable for that partition
+      (the default: <code>unclean.leader.election.enable=false</code>) or promote an out-of-sync replica
+      (<code>true</code>). Promoting an out-of-sync replica makes the partition available but loses the messages that
+      the out-of-sync replica did not have — a data-loss event. For any system with a no-loss requirement, this must
+      be disabled. The trade-off is availability: the partition is unavailable until an ISR member returns.</p>
+
+      <h4>The producer retry</h4>
+      <p>The producer's retry is what closes the loop. With <code>retries</code> set high (or
+      <code>delivery.timeout.ms</code> governing the total window), the producer keeps retrying until it gets an ack
+      or the timeout expires. The retry goes to the new leader, which may or may not already have the message. The
+      idempotent producer uses sequence numbers per partition to deduplicate: if the new leader has sequence 42 but
+      the producer is retrying 42, the leader recognizes the duplicate and returns the existing offset instead of
+      appending again.</p>
+
+      <h4>Consumer-side impact</h4>
+      <p>Consumers fetching from the old leader get an error and must refresh metadata to find the new leader. The
+      client library handles this transparently, with a brief pause during the election (typically a few seconds).
+      Consumers that had committed offsets are unaffected — the offsets are stored on the broker and replicated, so
+      the new leader knows the group's position. The consumer resumes from the committed offset; messages between
+      the committed offset and the high-water mark may be reprocessed if they were not committed.</p>
+
+      <h4>The recovery timeline</h4>
+      <ol>
+        <li>Broker crashes; producer's in-flight batch fails.</li>
+        <li>Heartbeat timeout (typically 10–30 seconds) triggers the controller.</li>
+        <li>Controller promotes a new leader from the ISR (sub-second).</li>
+        <li>Producers and consumers refresh metadata and reconnect to the new leader (a few seconds).</li>
+        <li>Producer retries the unacked batch; the new leader accepts it.</li>
+        <li>Consumers resume from their committed offsets.</li>
+      </ol>
+      <p>The total disruption is typically 10–60 seconds, dominated by the heartbeat timeout. This is why the
+      session timeout and heartbeat interval must be tuned: too short and a busy but healthy broker is falsely
+      declared dead; too long and failover takes minutes.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Setting <code>acks=1</code> for "performance" and then being surprised when a broker crash loses the last
+        few seconds of messages. The producer was acked before replication, so the ack meant nothing. For any message
+        that matters, <code>acks=all</code> with <code>min.insync.replicas=2</code> and an idempotent producer is the
+        only configuration that delivers the no-loss guarantee.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q12 -->
+  <article class="q teal" id="q12">
+    <div class="q-head">
+      <div class="q-num">12</div>
+      <h3>How does a consumer group work? How are partitions assigned, and what happens during a rebalance?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A consumer group is a set of consumers that jointly consume a topic, with each partition assigned to
+        exactly one consumer in the group. The group coordinator tracks membership and offsets, assigns partitions,
+        and triggers a rebalance when consumers join or leave. A rebalance pauses consumption, revokes and reassigns
+        partitions, and resumes — which is why minimizing rebalances and using cooperative protocols matters at
+        scale.</p>
+      </div>
+
+      <h4>The group model</h4>
+      <p>Each consumer in a group subscribes to the same topic(s) and is assigned a subset of partitions. If there
+      are 12 partitions and 4 consumers, each gets 3. If a 5th consumer joins, the group rebalances to 3, 3, 2, 2, 2
+      — or whatever the assignment strategy produces. The guarantee is that each partition is consumed by exactly one
+      consumer in the group at any time, which preserves per-partition ordering.</p>
+      <p>Different groups are independent: group A and group B both consume all partitions of the same topic,
+      each with its own assignments and offsets. This is how one topic serves multiple downstream services.</p>
+
+      <h4>The coordinator</h4>
+      <p>One broker in the cluster is elected as the group coordinator for a given group. It handles join requests,
+      heartbeats, rebalance coordination, and offset commits. The coordinator is chosen by hashing the group ID, so
+      all consumers of a group talk to the same broker. If that broker fails, the group elects a new coordinator and
+      rebalances.</p>
+
+      <h4>Assignment strategies</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Strategy</th><th>How it assigns</th><th>Rebalance cost</th></tr></thead>
+          <tbody>
+            <tr><td>Range</td><td>Contiguous ranges per consumer per topic</td><td>High — can shuffle all partitions</td></tr>
+            <tr><td>Round-robin</td><td>Partitions distributed one by one</td><td>High — can shuffle</td></tr>
+            <tr><td>Sticky</td><td>Keeps existing assignments where possible; moves minimum</td><td>Medium — fewer moves but still eager</td></tr>
+            <tr><td>Cooperative sticky</td><td>Incremental: only reassigns partitions that must move</td><td>Low — other partitions keep consuming</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Cooperative sticky is the modern default in Kafka clients. The eager protocols (range, round-robin, sticky)
+      revoke all partitions at the start of a rebalance and reassign them at the end — a stop-the-world pause that
+      grows with the number of partitions. Cooperative sticky rebalances incrementally: it computes the target
+      assignment, identifies the partitions that need to move, and revokes only those. The result is shorter pauses
+      and less disruption for large groups.</p>
+
+      <h4>The rebalance protocol</h4>
+      <ol>
+        <li>A consumer joins or leaves, or the coordinator detects a missed heartbeat.</li>
+        <li>The coordinator bumps the generation number and starts a rebalance.</li>
+        <li>All consumers pause consumption and rejoin the group (eager) or continue consuming unaffected partitions
+        (cooperative).</li>
+        <li>The group leader (one consumer, elected by the coordinator) computes the assignment.</li>
+        <li>The assignment is sent to the coordinator, which distributes it to all consumers.</li>
+        <li>Consumers start consuming their new partitions from their committed offsets.</li>
+      </ol>
+
+      <h4>The rebalance storm</h4>
+      <p>A rebalance storm happens when rebalances cascade: a consumer takes too long to process a batch, misses its
+      heartbeat, is declared dead, triggers a rebalance; the rebalance redistributes its partitions, the new
+      consumers take longer to catch up, miss their heartbeats, and the cycle repeats. The group makes no progress,
+      and consumer lag grows while the rebalance loop runs. This is a classic production incident.</p>
+      <p>The mitigations: increase <code>max.poll.interval.ms</code> so a slow batch does not trigger a rebalance;
+      reduce <code>max.poll.records</code> so each batch is smaller; use cooperative sticky to reduce the blast
+      radius; and use static group membership (a <code>group.instance.id</code> per consumer) so a restarting
+      consumer does not trigger a rebalance if it comes back within the session timeout.</p>
+
+      <h4>Static membership</h4>
+      <p>Introduced in Kafka 2.3, static membership lets a consumer register a stable <code>group.instance.id</code>.
+      When it restarts, the coordinator recognizes it and keeps its partition assignment — no rebalance, as long as
+      the restart completes within the session timeout. This is essential for Kubernetes deployments, where pod
+      restarts are frequent and every rolling update would otherwise cause a rebalance storm.</p>
+
+      <h4>What consumers see during a rebalance</h4>
+      <p>During an eager rebalance, consumers receive a <code>RevokedPartitions</code> callback, then a
+      <code>LostPartitions</code> if they missed a commit window, then an <code>AssignedPartitions</code> callback
+      when the new assignment arrives. The consumer should commit offsets in the revoke callback (before losing the
+      partitions) so the next owner resumes from the right place. Missing this step causes reprocessing of the
+      in-flight batch.</p>
+
+      <h4>Scaling and partition count</h4>
+      <p>A consumer group cannot have more active consumers than partitions — extra consumers sit idle. This is why
+      partition count is chosen for the maximum expected consumer parallelism. Adding partitions later increases
+      parallelism but changes key-to-partition mapping, which breaks ordering for keys that move; the standard
+      workaround is to over-provision partitions at creation or to use a partitioner that preserves key ordering
+      across partition additions (e.g., by key, not by hash mod N).</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: “One consumer per partition, a coordinator that assigns partitions and tracks offsets, and a
+        cooperative sticky protocol so a rebalance doesn't pause every consumer. I'll use static membership for
+        rolling deploys so pod restarts don't trigger a rebalance storm.” That covers assignment, coordination, and
+        the operational failure mode in one answer.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q13 -->
+  <article class="q teal" id="q13">
+    <div class="q-head">
+      <div class="q-num">13</div>
+      <h3>How do you design backpressure in a message queue? What happens when consumers cannot keep up with producers?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Backpressure is the mechanism that prevents a producer from overwhelming a consumer. In a pull-based
+        queue, it emerges naturally: the consumer fetches only what it can process, and the queue depth grows. In a
+        push-based queue, the broker must limit its delivery rate. Either way, the queue depth (consumer lag) is the
+        signal, and the response is to add consumers, rate-limit producers, or shed load — not to buffer forever.</p>
+      </div>
+
+      <h4>The three backpressure models</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Model</th><th>How it works</th><th>Backpressure signal</th><th>Examples</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Pull</td>
+              <td>Consumer fetches N records when ready; broker never pushes unprompted</td>
+              <td>Consumer lag (offset gap)</td>
+              <td>Kafka, Kinesis, SQS (long-poll)</td>
+            </tr>
+            <tr>
+              <td>Push with credits</td>
+              <td>Consumer grants the broker a credit (max in-flight); broker sends up to that many</td>
+              <td>Credit exhaustion</td>
+              <td>RabbitMQ consumer prefetch, AMQP flow control</td>
+            </tr>
+            <tr>
+              <td>Push (no backpressure)</td>
+              <td>Broker sends as fast as it can; consumer buffers or drops</td>
+              <td>None — buffer overflow</td>
+              <td>Redis Pub/Sub, naive webhooks</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Pull-based backpressure</h4>
+      <p>In Kafka, the consumer explicitly fetches records in batches. If it is slow, it simply fetches less often,
+      and the lag grows. The producer is never blocked — it can keep writing until the retention window expires or
+      the disk fills. The system's signal is consumer lag: the difference between the producer's offset and the
+      consumer's committed offset. A growing lag means consumers are not keeping up; a stable lag means the system
+      is in steady state.</p>
+      <p>The advantage of pull is that the consumer controls its own pace. A slow consumer does not slow down the
+      producer or the other consumers. The disadvantage is that a consumer that is too slow accumulates lag, and if
+      the lag exceeds retention, the messages are deleted before they are processed — a data loss that the system
+      cannot detect unless it monitors lag against retention.</p>
+
+      <h4>Push with credits</h4>
+      <p>RabbitMQ's consumer prefetch (<code>basic.qos</code>) sets a limit on unacknowledged messages per consumer.
+      The broker sends up to that many and then stops until the consumer acks one. This is credit-based
+      backpressure: the consumer's ack is the credit that allows the next message. A slow consumer simply receives
+      fewer messages, and the queue depth grows on the broker.</p>
+      <p>The trade-off is that a low prefetch limits throughput even when the consumer is fast, and a high prefetch
+      lets a slow consumer hold many unacked messages, delaying redelivery on crash. The right value depends on the
+      processing time per message and the ack latency.</p>
+
+      <h4>Queue depth as a signal</h4>
+      <p>Whatever the model, the queue depth is the primary metric. For a queue, it is the number of messages waiting;
+      for a log, it is the consumer lag in messages or time. The metric should be monitored against a threshold:
+      a depth that exceeds the maximum processing capacity within the retention window is a data-loss risk, not just
+      a performance issue. Alerting on the trend (depth growing for N minutes) catches the problem before the
+      threshold is hit.</p>
+
+      <h4>The three responses</h4>
+      <ol>
+        <li><strong>Scale consumers.</strong> Add consumer instances to the group, up to the partition count. This is
+        the first response and works if the bottleneck is consumer CPU and the partitions allow more parallelism.</li>
+        <li><strong>Rate-limit producers.</strong> If consumers cannot be scaled (partition limit, downstream
+        bottleneck), slow the producers. This is application-level backpressure: the producer checks a
+        queue-depth signal and blocks or rejects new work when the depth is high. It moves the problem upstream,
+        where it is visible to the producer rather than silently accumulating in the queue.</li>
+        <li><strong>Shed load.</strong> If neither scaling nor rate-limiting is possible, drop messages — the oldest,
+        the newest, or the lowest priority. This is the last resort and must be a deliberate policy, not an accident.
+        A queue that silently drops messages is worse than one that refuses new work.</li>
+      </ol>
+
+      <h4>The downstream bottleneck</h4>
+      <p>The most common reason consumers cannot keep up is that the consumer's downstream dependency (database,
+      API, third-party service) is the bottleneck, not the consumer itself. Adding consumer instances then makes the
+      problem worse: more consumers hammer the same database, increasing contention and latency, and throughput
+      does not improve. The correct response is to identify the downstream bottleneck and either scale it, batch
+      writes to it, or apply backpressure at the consumer level (process less, not more).</p>
+
+      <h4>The retention interaction</h4>
+      <p>In a log-based queue, backpressure is bounded by retention. If the consumer lag exceeds the retention window,
+      the messages are deleted and the consumer cannot catch up — it has lost data. The retention window must be
+      longer than the maximum expected lag (e.g., a weekend outage). For systems where outages can be long, tiered
+      storage (keeping old messages in object storage) extends the effective retention without paying for broker
+      disk.</p>
+
+      <h4>The design principle</h4>
+      <p>Backpressure is not a bug to be eliminated; it is a signal that the system is overloaded. The design
+      should make the signal visible (queue depth, lag), respond to it automatically (autoscaling), and have an
+      explicit policy for when the response is insufficient (rate-limit or shed). A system without backpressure is a
+      system that will eventually drop messages without warning.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Scaling consumers to fix lag when the bottleneck is the downstream database. More consumers means more
+        concurrent database queries, which increases contention and can reduce throughput. The fix is to batch
+        writes or add backpressure at the consumer, not to add consumers.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q14 -->
+  <article class="q teal" id="q14">
+    <div class="q-head">
+      <div class="q-num">14</div>
+      <h3>Compare Kafka and RabbitMQ. When would you choose one over the other for an internal eventing platform?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Kafka is a partitioned, replayable log optimized for high-throughput event streaming, multiple consumer
+        groups, and long retention. RabbitMQ is a flexible message broker optimized for low-latency routing, complex
+        routing topologies, and per-message acknowledgement. Choose Kafka for event streams and analytics pipelines;
+        choose RabbitMQ for task queues and complex routing.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Dimension</th><th>Kafka</th><th>RabbitMQ</th></tr></thead>
+          <tbody>
+            <tr><td>Model</td><td>Partitioned log; consumers pull</td><td>Message broker; broker pushes (with prefetch)</td></tr>
+            <tr><td>Throughput</td><td>Very high (100k–1M+ msg/s per cluster)</td><td>High but lower (tens of thousands per node)</td></tr>
+            <tr><td>Latency</td><td>Low (ms) but not ultra-low</td><td>Very low (sub-ms routing)</td></tr>
+            <tr><td>Retention</td><td>Configurable, long (days to forever with tiered storage)</td><td>Until consumed (or TTL); no replay</td></tr>
+            <tr><td>Replay</td><td>Yes — seek to any offset</td><td>No</td></tr>
+            <tr><td>Ordering</td><td>Per partition</td><td>Per queue (with single consumer) or per routing key</td></tr>
+            <tr><td>Routing</td><td>Topic + partition key; no exchanges</td><td>Direct, topic, fanout, headers exchanges</td></tr>
+            <tr><td>Consumer groups</td><td>Native, competing consumers within a group</td><td>Competing consumers on a queue</td></tr>
+            <tr><td>Priority</td><td>No per-message priority</td><td>Priority queues</td></tr>
+            <tr><td>Delayed messages</td><td>Not native (needs workarounds)</td><td>Not native (needs plugin)</td></tr>
+            <tr><td>Operations</td><td>Complex (brokers, controllers, partitions, rebalances)</td><td>Moderate (brokers, queues, exchanges, HA)</td></tr>
+            <tr><td>Ecosystem</td><td>Kafka Connect, Streams, ksqlDB, huge ecosystem</td><td>Mature plugins, management UI</td></tr>
+            <tr><td>Best for</td><td>Event streams, CDC, analytics, log aggregation</td><td>Task queues, RPC-style messaging, routing</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>When Kafka is the right choice</h4>
+      <ul>
+        <li><strong>Event streaming:</strong> a stream of events that multiple services consume independently, each
+        at its own pace, with its own offset. The order-placed event feeding billing, inventory, and analytics is
+        the canonical case.</li>
+        <li><strong>Replay requirement:</strong> bootstrapping a new service from history, or reprocessing after a
+        bug fix. Kafka's log retention makes this trivial; RabbitMQ cannot do it at all.</li>
+        <li><strong>High throughput:</strong> hundreds of thousands or millions of messages per second. Kafka's
+        sequential writes and batching handle this; RabbitMQ's in-memory model hits a ceiling.</li>
+        <li><strong>Analytics and CDC:</strong> Kafka Connect and the ecosystem make it the default sink for change
+        data capture and stream processing.</li>
+        <li><strong>Log aggregation:</strong> collecting logs from many services into a central store.</li>
+      </ul>
+
+      <h4>When RabbitMQ is the right choice</h4>
+      <ul>
+        <li><strong>Complex routing:</strong> messages need to be routed based on headers, patterns, or fan-out to
+        many queues with different bindings. Kafka's topic/partition model is too rigid for this.</li>
+        <li><strong>Task queues:</strong> work items that are consumed once, processed, and forgotten. RabbitMQ's
+        per-message ack and prefetch are a natural fit.</li>
+        <li><strong>Low latency:</strong> sub-millisecond routing for RPC-style request/reply or low-latency
+        notifications.</li>
+        <li><strong>Priority and per-message control:</strong> messages need different priorities, TTLs, or
+        per-message acknowledgement granularity.</li>
+        <li><strong>Simpler operations:</strong> a smaller team without dedicated Kafka expertise may find RabbitMQ
+        easier to run.</li>
+      </ul>
+
+      <h4>The overlap</h4>
+      <p>For moderate volumes and simple topologies, both work. A task queue at 5,000 messages per second fits either
+      system; the choice then comes down to operational familiarity, ecosystem, and long-term direction. Kafka's
+      ecosystem advantage is significant if the platform will grow into streaming analytics or CDC; RabbitMQ's
+      routing flexibility is significant if the topology is complex.</p>
+
+      <h4>What about managed services?</h4>
+      <p>Confluent Cloud (Kafka), Amazon MSK, and CloudAMQP (RabbitMQ) remove the operational burden. For a team
+      without a dedicated platform group, a managed Kafka is often the better choice even if RabbitMQ's model fits
+      slightly better, because the operational cost of self-managed Kafka is high. This is a legitimate
+      consideration in a design interview: the answer is not always the technically optimal broker, but the one the
+      team can run reliably.</p>
+
+      <h4>The hybrid pattern</h4>
+      <p>Many organisations run both: Kafka for the event backbone (streaming, CDC, analytics) and RabbitMQ for task
+      queues and request/reply. This is not redundancy — the two systems serve different primitives, and using the
+      right one for each avoids the awkward workarounds that come from forcing one system to do both. The cost is
+      two systems to operate, which is acceptable when both have clear, distinct roles.</p>
+
+      <h4>What the interviewer is listening for</h4>
+      <p>The answer should name the specific properties that drive the choice — replay, routing, throughput,
+      ordering — and map them to the use case. “Kafka because it's popular” is a red flag; “Kafka because we need
+      replay and multiple independent consumer groups, and RabbitMQ can't provide either” is the answer that
+      demonstrates understanding.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: “For the event backbone I'll use Kafka — replay, multiple consumer groups, and high throughput. For
+        the email and image-processing task queues I'll use RabbitMQ — simple work distribution with per-message ack
+        and routing. If the team can only operate one system, I'd consolidate on Kafka with workarounds, and accept
+        the extra complexity for routing.” That names the trade-off and the constraint.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- NEXT PART -->
+  <section class="next-part">
+    <h3>Coming in Section 3 — Publish/Subscribe &amp; Event Streaming</h3>
+    <p>Section 3 goes deep on Kafka-style event streaming: topics, partitions, replicas, ISR, the controller, exactly-once
+    semantics with idempotent producers and transactions, log compaction, tiered storage, Kafka Streams, and the
+    operational metrics that tell you a cluster is in trouble.</p>
+    <ul class="next-list">
+      <li>Designing a pub/sub system like Kafka</li>
+      <li>Brokers, topics, partitions, replicas, controllers</li>
+      <li>Partition count selection and trade-offs</li>
+      <li>ISR, high-water mark, and durability</li>
+      <li>Exactly-once with idempotent producers and transactions</li>
+      <li>Log compaction and changelogs</li>
+      <li>Tiered storage for petabyte-scale retention</li>
+      <li>Kafka Streams and stream processing</li>
+      <li>Monitoring: consumer lag, ISR shrink, under-replicated partitions</li>
+      <li>Kafka vs Pulsar vs Kinesis</li>
+    </ul>
+  </section>
+
+</div>
+</body>
+</html>
