@@ -1,0 +1,1561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Messaging Systems — Section 8: Event-Driven Architecture</title>
+<style>
+  :root{
+    --ink:#0f172a;
+    --ink-soft:#334155;
+    --muted:#64748b;
+    --line:#d5e6d8;
+    --bg:#f5faf6;
+    --card:#ffffff;
+    --green:#15803d;
+    --green-soft:#dcfce7;
+    --green-deep:#052e16;
+    --forest:#166534;
+    --teal:#0d9488;
+    --amber:#b45309;
+    --rose:#e11d48;
+    --blue:#2563eb;
+    --shadow:0 1px 2px rgba(5,46,22,.06), 0 8px 24px -8px rgba(5,46,22,.14);
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 8% -10%, #dcfce7 0%, transparent 60%),
+      radial-gradient(1000px 500px at 100% 0%, #bbf7d0 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:"Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    line-height:1.72;
+    font-size:16.5px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px 90px;}
+
+  header.hero{
+    background:linear-gradient(135deg,#052e16 0%, #14532d 45%, #166534 100%);
+    color:#f0fdf4;
+    padding:64px 22px 56px;
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::after{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      radial-gradient(600px 300px at 85% 15%, rgba(34,197,94,.4), transparent 70%),
+      radial-gradient(520px 280px at 12% 92%, rgba(22,163,74,.42), transparent 70%);
+    pointer-events:none;
+  }
+  .hero-inner{max-width:1080px;margin:0 auto;position:relative;z-index:2;}
+  .eyebrow{
+    display:inline-block;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;
+    font-weight:700;padding:7px 15px;border-radius:999px;
+    background:rgba(134,239,172,.18);border:1px solid rgba(134,239,172,.45);
+    color:#86efac;margin-bottom:20px;
+  }
+  header.hero h1{
+    font-size:clamp(1.9rem, 4.4vw, 3rem);line-height:1.15;margin:0 0 16px;
+    font-weight:800;letter-spacing:-.02em;
+  }
+  header.hero h1 span{
+    background:linear-gradient(90deg,#86efac,#bbf7d0);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  header.hero p.lede{font-size:1.06rem;color:#bbf7d0;max-width:790px;margin:0 0 26px;}
+  .meta-chips{display:flex;flex-wrap:wrap;gap:10px;}
+  .chip{
+    font-size:.78rem;font-weight:600;padding:7px 14px;border-radius:999px;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#dcfce7;
+  }
+
+  .roadmap{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:26px 28px;margin-top:-34px;position:relative;z-index:5;
+  }
+  .roadmap h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 16px;font-weight:700;
+  }
+  .roadmap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;}
+  .roadmap-item{
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:.86rem;
+    background:#fafffb;opacity:.7;
+  }
+  .roadmap-item.done{
+    border-color:#86efac;background:linear-gradient(180deg,#f0fdf4,#ffffff);opacity:1;
+  }
+  .roadmap-item.current{
+    border-color:#22c55e;background:linear-gradient(180deg,#dcfce7,#ffffff);opacity:1;
+    box-shadow:0 0 0 3px rgba(21,128,61,.14);
+  }
+  .roadmap-item .tag{
+    display:inline-block;font-size:.64rem;font-weight:800;letter-spacing:.08em;
+    padding:2px 8px;border-radius:999px;margin-bottom:6px;
+  }
+  .tag-done{background:var(--green-soft);color:var(--green-deep);}
+  .tag-now{background:#bbf7d0;color:#14532d;}
+  .tag-next{background:#e2e8f0;color:#475569;}
+  .roadmap-item strong{display:block;color:var(--ink);font-size:.89rem;}
+
+  nav.toc{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:22px 26px;margin:26px 0 44px;
+  }
+  nav.toc h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 14px;font-weight:700;
+  }
+  nav.toc ol{
+    margin:0;padding-left:0;list-style:none;counter-reset:toc;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:8px 26px;
+  }
+  nav.toc li{
+    counter-increment:toc;font-size:.92rem;padding:6px 0 6px 34px;
+    position:relative;border-bottom:1px dashed #e8f5ec;
+  }
+  nav.toc li::before{
+    content:counter(toc);position:absolute;left:0;top:7px;width:22px;height:22px;
+    border-radius:7px;background:var(--green-soft);color:var(--green);
+    font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center;
+  }
+  nav.toc a{color:var(--ink-soft);text-decoration:none;font-weight:500;}
+  nav.toc a:hover{color:var(--green);}
+
+  .part-band{display:flex;align-items:center;gap:16px;margin:56px 0 26px;}
+  .part-band .bar{
+    width:5px;height:44px;border-radius:99px;
+    background:linear-gradient(180deg,var(--green),#22c55e);
+  }
+  .part-band.teal .bar{background:linear-gradient(180deg,var(--teal),#2dd4bf);}
+  .part-band.blue .bar{background:linear-gradient(180deg,var(--blue),#60a5fa);}
+  .part-band h2{margin:0;font-size:1.5rem;letter-spacing:-.01em;font-weight:800;}
+  .part-band .sub{
+    display:block;font-size:.82rem;font-weight:600;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.12em;margin-top:2px;
+  }
+
+  article.q{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:0 0 26px;margin-bottom:28px;overflow:hidden;
+    scroll-margin-top:24px;
+  }
+  .q-head{
+    display:flex;gap:16px;align-items:flex-start;padding:22px 28px 18px;
+    border-bottom:1px solid #e8f5ec;background:linear-gradient(180deg,#fafffb,#ffffff);
+  }
+  .q-num{
+    flex:none;width:42px;height:42px;border-radius:12px;display:flex;
+    align-items:center;justify-content:center;font-weight:800;font-size:.92rem;color:#fff;
+    background:linear-gradient(135deg,#15803d,#22c55e);
+    box-shadow:0 6px 14px -6px rgba(21,128,61,.7);
+  }
+  .teal .q-num{background:linear-gradient(135deg,#0d9488,#14b8a6);box-shadow:0 6px 14px -6px rgba(13,148,136,.7);}
+  .blue .q-num{background:linear-gradient(135deg,#2563eb,#3b82f6);box-shadow:0 6px 14px -6px rgba(37,99,235,.7);}
+  .q-head h3{margin:0;font-size:1.13rem;font-weight:700;line-height:1.4;letter-spacing:-.01em;}
+  .q-body{padding:22px 28px 0;}
+  .q-body p{margin:0 0 15px;color:var(--ink-soft);}
+  .q-body p:last-child{margin-bottom:0;}
+  .q-body h4{margin:24px 0 10px;font-size:.95rem;font-weight:800;color:var(--ink);}
+  .q-body h4::before{content:"▹";color:var(--green);margin-right:8px;font-size:.85rem;}
+  .teal .q-body h4::before{color:var(--teal);}
+  .blue .q-body h4::before{color:var(--blue);}
+  .q-body ul,.q-body ol{margin:0 0 16px;padding-left:22px;color:var(--ink-soft);}
+  .q-body li{margin-bottom:8px;}
+  .q-body li::marker{color:var(--green);}
+  .teal .q-body li::marker{color:var(--teal);}
+  .blue .q-body li::marker{color:var(--blue);}
+  strong{color:var(--ink);font-weight:700;}
+  code{
+    background:#f0fdf4;border:1px solid #d5e6d8;border-radius:6px;padding:1px 6px;
+    font-size:.87em;font-family:"SFMono-Regular",Consolas,monospace;color:#15803d;
+  }
+
+  .callout{border-radius:12px;padding:14px 18px;margin:18px 0 4px;font-size:.93rem;border-left:4px solid;}
+  .callout .label{
+    display:block;font-size:.68rem;font-weight:800;letter-spacing:.13em;
+    text-transform:uppercase;margin-bottom:5px;
+  }
+  .callout p{margin:0 0 8px;font-size:.93rem;}
+  .callout p:last-child{margin-bottom:0;}
+  .answer{background:linear-gradient(180deg,#f0fdf4,#ffffff);border-color:var(--green);}
+  .answer .label{color:var(--green-deep);}
+  .tip{background:linear-gradient(180deg,#eff6ff,#ffffff);border-color:var(--blue);}
+  .tip .label{color:#1d4ed8;}
+  .tradeoff{background:linear-gradient(180deg,#fffbeb,#ffffff);border-color:var(--amber);}
+  .tradeoff .label{color:#b45309;}
+  .pitfall{background:linear-gradient(180deg,#fff1f2,#ffffff);border-color:var(--rose);}
+  .pitfall .label{color:#be123c;}
+
+  .table-scroll{overflow-x:auto;margin:18px 0;border-radius:12px;border:1px solid var(--line);}
+  table{width:100%;border-collapse:collapse;font-size:.87rem;background:#fff;}
+  thead th{
+    background:#f7fdf9;text-align:left;padding:11px 14px;font-weight:800;
+    font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+    border-bottom:2px solid var(--line);white-space:nowrap;
+  }
+  tbody td{padding:11px 14px;border-bottom:1px solid #f0fdf4;color:var(--ink-soft);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:nth-child(even){background:#fbfefc;}
+  tbody td:first-child{font-weight:700;color:var(--ink);}
+
+  .next-part{
+    background:linear-gradient(135deg,#052e16,#166534);color:#dcfce7;
+    border-radius:var(--radius);padding:32px 34px;margin-top:50px;box-shadow:var(--shadow);
+  }
+  .next-part h3{margin:0 0 12px;font-size:1.2rem;color:#fff;font-weight:800;}
+  .next-part p{margin:0 0 16px;color:#bbf7d0;font-size:.95rem;}
+  .next-list{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:10px;list-style:none;padding:0;margin:0;
+  }
+  .next-list li{
+    background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
+    border-radius:10px;padding:10px 14px;font-size:.86rem;color:#dcfce7;
+  }
+
+  @media (max-width:640px){
+    .q-head{padding:18px 18px 15px;}
+    .q-body{padding:18px 18px 0;}
+    header.hero{padding:44px 18px 46px;}
+    .roadmap{padding:20px;}
+    nav.toc{padding:18px;}
+    nav.toc ol{grid-template-columns:1fr;}
+  }
+  @media print{
+    body{background:#fff;}
+    article.q, nav.toc, .roadmap{box-shadow:none;page-break-inside:avoid;}
+    header.hero{background:#052e16 !important;-webkit-print-color-adjust:exact;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Messaging Series · Section 8 of 10</span>
+    <h1>Messaging Systems for System Design<br><span>Event-Driven Architecture</span></h1>
+    <p class="lede">
+      The architecture that messaging makes possible — and the discipline it demands. Events vs commands, the real
+      advantages and the under-discussed drawbacks of EDA, event sourcing, CQRS with separate read and write models,
+      the transactional outbox as an architectural primitive, schema evolution and compatibility, choreography vs
+      orchestration, the sync-vs-async decision, the failure modes of mixing RPC with messaging, and a capstone
+      order pipeline that pulls it together.
+    </p>
+    <div class="meta-chips">
+      <span class="chip">10 Questions</span>
+      <span class="chip">500+ words each</span>
+      <span class="chip">Architecture patterns</span>
+      <span class="chip">Trade-off focused</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ROADMAP -->
+  <section class="roadmap">
+    <h2>Messaging Answer-Series Roadmap</h2>
+    <div class="roadmap-grid">
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 1 — Complete</span>
+        <strong>Chat Applications &amp; Real-Time Messaging</strong>
+        Protocols, ordering, presence, sync, E2E
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 2 — Complete</span>
+        <strong>Message Queues &amp; Distributed Brokers</strong>
+        Acks, offsets, DLQs, consumer groups, backpressure
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 3 — Complete</span>
+        <strong>Publish/Subscribe &amp; Event Streaming</strong>
+        Kafka internals, ISR, exactly-once, tiered storage
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 4 — Complete</span>
+        <strong>Push Notification Systems</strong>
+        Multi-channel, preferences, priority, retries, rate caps
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 5 — Complete</span>
+        <strong>Real-Time Protocols &amp; Connection Management</strong>
+        WebSocket, SSE, gateway fleets, draining, backpressure, TLS
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 6 — Complete</span>
+        <strong>Delivery Guarantees, Ordering &amp; Idempotency</strong>
+        At-least-once, exactly-once, dedup, per-key ordering
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Section 7 — Complete</span>
+        <strong>Fan-Out &amp; Group Messaging</strong>
+        Write vs read fan-out, hot groups, storage, broadcast
+      </div>
+      <div class="roadmap-item current">
+        <span class="tag tag-now">Section 8 — You are here</span>
+        <strong>Event-Driven Architecture</strong>
+        Events vs commands, event sourcing, CQRS, outbox, schemas, sagas
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Section 9</span>
+        <strong>Operational Concerns &amp; Failure Modes</strong>
+        Monitoring, tracing, poison pills, multi-tenancy
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Section 10</span>
+        <strong>Classic System Design Problems</strong>
+        8 end-to-end messaging design prompts solved
+      </div>
+    </div>
+  </section>
+
+  <!-- TOC -->
+  <nav class="toc">
+    <h2>Questions Answered in This Section</h2>
+    <ol>
+      <li><a href="#q1">What is event-driven architecture? Three advantages, three drawbacks</a></li>
+      <li><a href="#q2">Events vs commands: why the distinction matters</a></li>
+      <li><a href="#q3">What is event sourcing, and how does it differ from state-based persistence?</a></li>
+      <li><a href="#q4">What is CQRS, and how does messaging enable it?</a></li>
+      <li><a href="#q5">The transactional outbox as an architectural primitive</a></li>
+      <li><a href="#q6">Schema evolution and the schema registry</a></li>
+      <li><a href="#q7">Choreography vs orchestration for sagas</a></li>
+      <li><a href="#q8">Mixing synchronous RPC with asynchronous messaging</a></li>
+      <li><a href="#q9">Choosing synchronous vs asynchronous for a boundary</a></li>
+      <li><a href="#q10">Capstone: an event-driven order processing system</a></li>
+    </ol>
+  </nav>
+
+  <!-- ================= PART A ================= -->
+  <div class="part-band">
+    <div class="bar"></div>
+    <h2>Part A — Foundations
+      <span class="sub">What EDA is, what it costs, and the vocabulary it requires</span>
+    </h2>
+  </div>
+
+  <!-- Q1 -->
+  <article class="q" id="q1">
+    <div class="q-head">
+      <div class="q-num">1</div>
+      <h3>What is event-driven architecture (EDA)? What are its three biggest advantages and three biggest drawbacks compared to synchronous orchestration?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>EDA is an architecture where services communicate by producing and consuming events rather than calling each
+        other directly. The advantages are decoupling, resilience, and extensibility. The drawbacks are eventual
+        consistency, debugging complexity, and the operational cost of running a messaging backbone. EDA is not
+        better than RPC — it trades one set of problems for another, and the right choice depends on which problems
+        the system can tolerate.</p>
+      </div>
+
+      <h4>What EDA actually is</h4>
+      <p>In a synchronous orchestration, service A calls service B, which calls service C, and so on — a chain of RPCs
+      that blocks on each other. The caller knows who the callee is, the callee must be available, and the response
+      flows back through the chain. In EDA, service A publishes an event ("OrderPlaced") to a broker. Service B, C,
+      and D subscribe independently, each processing the event asynchronously. A does not know B, C, or D exist.
+      The event is the contract, and the broker is the channel.</p>
+
+      <h4>Advantage 1 — Decoupling</h4>
+      <p>A producer does not know its consumers. Adding a new consumer — an analytics service, a fraud detector, a
+      notification service — requires no change to the producer. Removing a consumer likewise. The producer's
+      contract is the event schema, not the set of consumers. This is the biggest organisational advantage: teams can
+      add new reactions to existing events without coordinating with the producer's team. It is also the
+      architectural advantage: the producer's availability does not depend on the consumers', and vice versa.</p>
+
+      <h4>Advantage 2 — Resilience and load levelling</h4>
+      <p>If a consumer is down, the events accumulate in the broker, and the consumer catches up when it recovers. The
+      producer is not blocked, and the system does not fail because one consumer is slow. This is a direct
+      consequence of the broker's buffering. In a synchronous chain, a slow consumer propagates backpressure to the
+      producer, and a failed consumer fails the whole request. EDA isolates these failures, at the cost of eventual
+      consistency (the consumer's effect is delayed).</p>
+
+      <h4>Advantage 3 — Extensibility</h4>
+      <p>New business capabilities can be added as new consumers of existing events. A "reward points" service
+      subscribes to "OrderPlaced" and does its thing without touching the order service. This is how organisations
+      scale their architecture with their team structure — a new team adds a new service, not a new integration
+      point in the producer. The event log is the integration surface, and it is additive.</p>
+
+      <h4>Drawback 1 — Eventual consistency</h4>
+      <p>After "OrderPlaced" is published, the order is created but the inventory is not yet decremented, the email
+      is not yet sent, and the analytics is not yet updated. There is a window where different views of the system
+      disagree. The business must accept this window, and the UI must communicate it ("Order is processing").
+      In a synchronous chain, the caller waits for all downstream steps, and the response reflects the full state.
+      EDA gives up this immediacy for decoupling and resilience.</p>
+      <p>The consistency window is not theoretical. It is the sum of the broker's delivery latency, the consumer's
+      processing time, and any retries. Under load, it grows. If a consumer is down for an hour, the window is an
+      hour. The business must design for this — reconciliation jobs, explicit pending states, and user-facing
+      messaging that distinguishes "done" from "in progress".</p>
+
+      <h4>Drawback 2 — Debugging and reasoning complexity</h4>
+      <p>In a synchronous request, a stack trace shows the full path. In EDA, a business action is a sequence of
+      events across services, with no single call stack. Debugging requires distributed tracing, correlation IDs,
+      and event replay to reconstruct what happened. The system's behaviour is emergent — the outcome of many
+      consumers, each reacting to events in its own way — and reasoning about it requires understanding the whole
+      event graph, not just one service.</p>
+      <p>This complexity is real and often under-estimated. A team that has only built synchronous systems will
+      find EDA debugging unfamiliar and slower. The tools (tracing, event logging, replay) must be in place before
+      the first incident, not after.</p>
+
+      <h4>Drawback 3 — Operational cost</h4>
+      <p>The broker is a new distributed system to run: Kafka or RabbitMQ clusters, schema registry, monitoring,
+      retention, replication, upgrades. The consumers are more services to deploy and monitor. The event schemas are
+      contracts that must be versioned. The operational surface grows with the number of producers and consumers, and
+      the on-call rotation must cover the broker as well as the services. For a small team, this cost can exceed the
+      benefits.</p>
+
+      <h4>The comparison</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Dimension</th><th>Synchronous orchestration</th><th>Event-driven architecture</th></tr></thead>
+          <tbody>
+            <tr><td>Coupling</td><td>Caller knows callee</td><td>Producer knows only the event</td></tr>
+            <tr><td>Availability</td><td>Chain fails if any link fails</td><td>Broker buffers; consumers catch up</td></tr>
+            <tr><td>Consistency</td><td>Strong (caller sees all effects)</td><td>Eventual (window between publish and effect)</td></tr>
+            <tr><td>Latency</td><td>Sum of all downstream calls</td><td>Publish latency + async processing</td></tr>
+            <tr><td>Debugging</td><td>Single stack trace</td><td>Distributed tracing + replay</td></tr>
+            <tr><td>Adding a capability</td><td>Modify the caller</td><td>Add a consumer</td></tr>
+            <tr><td>Operational cost</td><td>Services only</td><td>Services + broker + schema registry</td></tr>
+            <tr><td>Best for</td><td>User-facing request/response, simple flows</td><td>Cross-team integrations, fan-out, long workflows</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>When EDA is the wrong choice</h4>
+      <ul>
+        <li><strong>Small teams:</strong> the operational cost of the broker exceeds the decoupling benefit when
+        there are three services and one team.</li>
+        <li><strong>Simple request/response:</strong> a login or a price lookup does not benefit from async
+        messaging; the synchronous call is simpler and faster.</li>
+        <li><strong>Strong consistency requirements:</strong> if the caller must see all effects before responding,
+        EDA's eventual consistency is unacceptable.</li>
+        <li><strong>Low event volume:</strong> a workflow that runs a few times a day does not justify a Kafka
+        cluster; a database queue or a scheduled job is simpler.</li>
+      </ul>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>EDA trades immediacy and simplicity for decoupling and resilience. The trade is worth it when the system
+        has multiple consumers per event, when the consumers have different availability requirements, or when the
+        organisation needs independent team velocity. It is not worth it when the system is simple, the team is
+        small, or the consistency requirement is strict.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "EDA's advantages are decoupling, resilience, and extensibility. Its drawbacks are eventual
+        consistency, debugging complexity, and operational cost. I'll use it where multiple consumers need the same
+        event, and keep synchronous RPC for request/response paths that need immediacy." That names both sides and
+        the decision rule.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q2 -->
+  <article class="q" id="q2">
+    <div class="q-head">
+      <div class="q-num">2</div>
+      <h3>What is the difference between events and commands? Why does the distinction matter for coupling and failure handling?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A <strong>command</strong> is an instruction to do something — "charge this card", "send this email". It is
+        addressed to a specific handler and expects the work to be done. An <strong>event</strong> is a statement of
+        fact — "order 123 was placed". It is broadcast, has no expected handler, and may be consumed by zero or many
+        services. Commands couple the sender to the handler's behaviour; events decouple the producer from everyone
+        who reacts.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Aspect</th><th>Command</th><th>Event</th></tr></thead>
+          <tbody>
+            <tr><td>Semantics</td><td>"Do this"</td><td>"This happened"</td></tr>
+            <tr><td>Tense</td><td>Imperative</td><td>Past tense</td></tr>
+            <tr><td>Recipients</td><td>One handler (or one service)</td><td>Zero or many consumers</td></tr>
+            <tr><td>Coupling</td><td>Sender knows what should happen</td><td>Sender knows only that it happened</td></tr>
+            <tr><td>Failure if unhandled</td><td>Command lost — a problem</td><td>No harm — it was informational</td></tr>
+            <tr><td>Naming</td><td><code>SendEmail</code>, <code>ChargeCard</code></td><td><code>OrderPlaced</code>, <code>PaymentCaptured</code></td></tr>
+            <tr><td>Routing</td><td>Queue (point-to-point)</td><td>Topic (pub/sub)</td></tr>
+            <tr><td>Delivery guarantee</td><td>At-least-once, with retries until success or DLQ</td><td>At-least-once, drop if no consumer</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Why the distinction matters for coupling</h4>
+      <p>Commands create coupling. If a checkout service sends a <code>SendWelcomeEmail</code> command to an email
+      service, the checkout service now knows that welcome emails exist, and adding a second welcome channel means
+      changing the checkout code. The sender owns the decision that the work should happen, and the recipient is the
+      executor.</p>
+      <p>Events decouple. If the checkout service publishes <code>UserRegistered</code>, the email service can react
+      without checkout knowing it exists. A new onboarding service can be added without touching checkout. The sender
+      announces a fact and lets the consequences be discovered by the consumers. This is the foundation of
+      extensibility — new reactions do not require changes to the producer.</p>
+
+      <h4>Why the distinction matters for failure handling</h4>
+      <p>A command that is not handled is a bug. The email was never sent, the payment was never charged. The system
+      must guarantee delivery and retry until it succeeds (or dead-letter). The command's lifecycle is "sent →
+      processed → acknowledged", and the sender tracks the outcome.</p>
+      <p>An event that is not consumed is fine. No one was listening, no harm done. The event's lifecycle is
+      "published → retained → consumed by whoever cares". There is no sender-side tracking of consumption, because
+      the sender does not know who consumes. The event is a fact; the reactions are the consumers' business.</p>
+
+      <h4>The naming test</h4>
+      <p>The easiest way to tell them apart is grammatical. If the name is imperative ("SendEmail", "ResizeImage",
+      "ChargeCard"), it is a command. If it is past tense and describes a fact ("OrderPlaced", "ImageUploaded",
+      "PaymentCaptured"), it is an event. The name reflects the contract: a command implies a handler and an
+      expected effect; an event implies an announcement and open-ended reactions.</p>
+
+      <h4>When commands are correct</h4>
+      <p>Commands are not always wrong. When the sender genuinely needs the work done by a specific service, and the
+      contract is intentional, a command is the right primitive. "ChargeCard" is a command to a specific payment
+      service; it should not be broadcast to everyone. The rule is: use commands when the sender owns the decision
+      and the recipient is known; use events when the sender is announcing a fact and the reactions are open-ended.</p>
+      <p>The two can coexist in one system. The order service issues a "ReserveInventory" command to the inventory
+      service (because the order cannot be placed without the reservation), and then publishes "OrderPlaced" (a fact
+      that many services can react to). The command is the synchronous part of the workflow; the event is the
+      broadcast that allows other services to react asynchronously.</p>
+
+      <h4>The outbox interaction</h4>
+      <p>Both commands and events need the same delivery guarantee: no loss. The transactional outbox (Question 5)
+      is the mechanism for both — the command or event is written to the outbox in the same transaction as the
+      business change, and a relay publishes it. The distinction is in the consumer's contract, not in the delivery
+      mechanism. The outbox is agnostic to whether the message is a command or an event.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Calling a command an event to sound modern. <code>SendWelcomeEmail</code> is not an event, no matter what
+        topic it is on. The sender still expects the email to be sent, and the system still needs to guarantee that.
+        The naming confusion leads to the wrong delivery guarantees and the wrong failure handling — the "event" is
+        dropped when no consumer is listening, but the sender assumed it was a command.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Commands are imperative and addressed; events are past tense and broadcast. Commands couple the
+        sender to a handler and require delivery guarantees; events decouple and can be dropped if no one listens.
+        I'll use commands for the synchronous parts of the workflow and events for the broadcast reactions." That
+        names the distinction and the design choice.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q3 -->
+  <article class="q" id="q3">
+    <div class="q-head">
+      <div class="q-num">3</div>
+      <h3>What is event sourcing? How does it differ from state-based persistence, and what role does a message log play?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Event sourcing stores the sequence of events that produced an entity's state, rather than the current
+        state itself. The state is derived by replaying the events. A message log (Kafka, an event store) is the
+        natural storage for the event sequence — append-only, ordered, and replayable. The trade-off is
+        reconstructing state on every read versus storing it directly, and the benefits are a full audit trail, the
+        ability to rebuild any past state, and a natural fit with event-driven consumers.</p>
+      </div>
+
+      <h4>State-based persistence (the default)</h4>
+      <p>Most systems store the current state of an entity. An <code>orders</code> table holds one row per order with
+      its current status, total, and timestamps. When the order is placed, the row is inserted; when it ships, the
+      status is updated; when it is refunded, another update. The history of changes is overwritten — the row shows
+      the current state, not how it got there.</p>
+      <p>This is simple and fast: reading an order is a single row lookup. The history is lost unless a separate audit
+      table is maintained. The state is the source of truth, and any derived view (a report, a search index) is built
+      from it.</p>
+
+      <h4>Event sourcing</h4>
+      <p>Event sourcing stores the events, not the state. An <code>order_events</code> log holds every event for every
+      order: <code>OrderPlaced</code>, <code>PaymentReceived</code>, <code>OrderShipped</code>,
+      <code>OrderDelivered</code>. The current state of an order is computed by replaying its events in order. The
+      event log is the source of truth; the state is a derived view.</p>
+      <p>To get the current state, you replay the events. To get the state at a past time, you replay up to that
+      time. To audit how the state changed, you read the events. To add a new derived view (a search index, a
+      dashboard, a recommendation), you replay the events into the new view. The event log is immutable and
+      append-only; nothing is ever updated or deleted.</p>
+
+      <h4>The comparison</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Dimension</th><th>State-based</th><th>Event-sourced</th></tr></thead>
+          <tbody>
+            <tr><td>Source of truth</td><td>Current state row</td><td>Event sequence</td></tr>
+            <tr><td>Read</td><td>Single row lookup</td><td>Replay (or a materialized view)</td></tr>
+            <tr><td>Write</td><td>INSERT/UPDATE</td><td>Append event</td></tr>
+            <tr><td>History</td><td>Lost unless separately audited</td><td>Native — the events are the history</td></tr>
+            <tr><td>Audit</td><td>Requires a separate audit log</td><td>Built in</td></tr>
+            <tr><td>Rebuild a past state</td><td>Impossible without history</td><td>Replay up to the timestamp</td></tr>
+            <tr><td>Add a new read model</td><td>Backfill from the current state</td><td>Replay the events</td></tr>
+            <tr><td>Schema changes</td><td>ALTER TABLE</td><td>New event versions, upcasting</td></tr>
+            <tr><td>Storage cost</td><td>One row per entity</td><td>One row per event (larger)</td></tr>
+            <tr><td>Read latency</td><td>Low</td><td>High without a materialized view</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The role of the message log</h4>
+      <p>Kafka is a natural fit for event sourcing because it is an ordered, append-only, replayable log. Each entity's
+      events are written to a partition keyed by the entity ID, so the events for one entity are ordered. Consumers
+      read the log and build materialized views — a current-state table, a search index, a report. The log is the
+      source of truth; the views are derived and can be rebuilt by replaying the log.</p>
+      <p>The log's retention is the constraint: if the log is deleted after 7 days, the events are gone, and the
+      views cannot be rebuilt from scratch. For true event sourcing, the log must be retained indefinitely (or
+      snapshotted periodically so the old events can be dropped). Kafka's log compaction can retain the latest event
+      per entity (enough to rebuild the current state) but loses the full history; a separate, non-compacted topic is
+      needed for the full audit.</p>
+
+      <h4>Snapshots</h4>
+      <p>Replaying thousands of events to reconstruct one entity's state is slow. The standard optimization is
+      snapshots: every N events, store the current state as a snapshot. To reconstruct, load the latest snapshot and
+      replay the events after it. The snapshot is a cache of the replay; the events remain the source of truth.</p>
+      <p>Snapshots are not required for correctness — replaying from the beginning always works — but they are
+      required for performance at scale. The snapshot interval (every 100 events, every 1,000 events) is a
+      trade-off between snapshot storage and replay time.</p>
+
+      <h4>When event sourcing is the right choice</h4>
+      <ul>
+        <li><strong>Audit is required:</strong> financial transactions, healthcare records, compliance — the full
+        history must be preserved.</li>
+        <li><strong>Temporal queries:</strong> "what was the order's state at 3 PM yesterday?" requires the events,
+        not the current state.</li>
+        <li><strong>Multiple read models:</strong> the same events feed a current-state view, a search index, a
+        dashboard, and a recommendation engine. Each is built by replaying the events.</li>
+        <li><strong>Event-driven integration:</strong> other services consume the same events, so the event log is
+        both the source of truth and the integration channel.</li>
+        <li><strong>Complex domain with many state transitions:</strong> the events capture the domain's behaviour
+        more naturally than a state machine table.</li>
+      </ul>
+
+      <h4>When event sourcing is the wrong choice</h4>
+      <ul>
+        <li><strong>Simple CRUD:</strong> a settings page or a product catalogue does not need event sourcing; a
+        state table is simpler and faster.</li>
+        <li><strong>No history requirement:</strong> if the business does not need the audit trail, the storage cost
+        and complexity are unjustified.</li>
+        <li><strong>Read-heavy with no derived views:</strong> if the only read is the current state, the replay cost
+        is pure overhead.</li>
+        <li><strong>Small team:</strong> event sourcing adds complexity (schema evolution, snapshots, view rebuilds)
+        that a small team may not sustain.</li>
+      </ul>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Event sourcing gives a complete audit trail and the ability to rebuild any view, at the cost of storage
+        (one row per event, not per entity), read latency (replay or materialized view), and complexity (snapshots,
+        schema evolution, view maintenance). It is the right choice when the history matters, and the wrong choice
+        when it does not.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Event sourcing stores the events, not the state. The state is derived by replaying, or by a
+        materialized view that is kept up to date. Kafka is the natural log for the events. I'd use it for the ledger
+        because audit is required, and not for the product catalogue because it is simple CRUD." That names the
+        mechanism, the storage, and the decision rule.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q4 -->
+  <article class="q" id="q4">
+    <div class="q-head">
+      <div class="q-num">4</div>
+      <h3>What is CQRS? How does a message queue or event stream enable separate read and write models?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>CQRS (Command Query Responsibility Segregation) separates the write model from the read model. The write
+        model handles commands and produces events; the read model consumes the events and builds a query-optimized
+        view. The message queue is the bridge: it decouples the write path from the read path, lets each scale
+        independently, and lets the read model be rebuilt by replaying the events.</p>
+      </div>
+
+      <h4>Why separate read and write models</h4>
+      <p>Reads and writes have different shapes. A write is a transaction: validate the command, check invariants,
+      persist the change. A read is a query: fetch the data in the shape the UI needs, often joined and aggregated
+      across entities. In a single model, the schema must serve both, and one of them suffers. A normalized schema
+      is good for writes (no duplication, clear invariants) and bad for reads (joins, aggregates). A denormalized
+      schema is good for reads and bad for writes (update anomalies, complex consistency).</p>
+      <p>CQRS separates them: the write model is normalized and transactional; the read model is denormalized and
+      query-shaped. Each is optimized for its purpose, and the two are kept in sync by the event stream.</p>
+
+      <h4>How the queue enables it</h4>
+      <ol>
+        <li><strong>Write:</strong> the command handler validates the command, writes to the write model (the
+        normalized database), and publishes an event to the stream. The write is complete when the event is
+        published (or in the outbox).</li>
+        <li><strong>Bridge:</strong> the event stream carries the change to the read side. The stream is the
+        decoupling point: the write model does not know which read models exist, and the read models do not know
+        about each other.</li>
+        <li><strong>Read:</strong> the read model consumer applies the event to its own store — a denormalized table,
+        a search index, a materialized view. The read is served from this store, which is shaped for the UI's query.</li>
+      </ol>
+      <p>The queue's role is to be the durable, ordered channel between the two. It provides:</p>
+      <ul>
+        <li><strong>Decoupling:</strong> the write model and read models are independent services; the stream is
+        the contract.</li>
+        <li><strong>Ordering:</strong> events are delivered in order (per key), so the read model applies them
+        correctly.</li>
+        <li><strong>Replay:</strong> a new read model can be built by replaying the event history; a broken one can
+        be rebuilt.</li>
+        <li><strong>Multiple read models:</strong> several consumers can read the same stream, each building a
+        different view.</li>
+        <li><strong>Buffering:</strong> if a read model is slow or down, the stream buffers the events; the read model
+        catches up when it recovers.</li>
+      </ul>
+
+      <h4>The read model</h4>
+      <p>The read model is a denormalized view shaped for a specific query. Three common forms:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Form</th><th>Storage</th><th>Use case</th></tr></thead>
+          <tbody>
+            <tr><td>Materialized table</td><td>SQL table with denormalized columns</td><td>Fast point lookups, dashboards</td></tr>
+            <tr><td>Search index</td><td>Elasticsearch / OpenSearch</td><td>Full-text search, filters</td></tr>
+            <tr><td>Aggregate/counter table</td><td>Key-value store (Redis, DynamoDB)</td><td>Leaderboards, counts, summaries</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Each read model is a consumer of the event stream, and each is maintained independently. A new read model
+      (a new dashboard, a new search feature) is added without touching the write model or the other read models.
+      This is the extensibility CQRS provides.</p>
+
+      <h4>The consistency window</h4>
+      <p>The read model lags the write model by the stream's delivery latency plus the consumer's processing time.
+      The write is complete when the event is published, but the read model may not reflect it for milliseconds to
+      seconds. A client that writes and immediately reads may see the old value — the read-your-writes problem,
+      applied at the read model level.</p>
+      <p>The standard mitigations:</p>
+      <ul>
+        <li><strong>Read your own writes:</strong> route the user's read to the write model (or to a read model
+        known to be caught up) for a short window after the write.</li>
+        <li><strong>Version token:</strong> the write returns a version; the read waits for the read model to reach
+        that version before serving.</li>
+        <li><strong>Optimistic UI:</strong> the client shows the expected result before the read model confirms;
+        reconciles when the read model catches up.</li>
+        <li><strong>Accept the lag:</strong> for read models that are not user-facing (analytics, search), the lag
+        is acceptable.</li>
+      </ul>
+
+      <h4>CQRS and event sourcing</h4>
+      <p>CQRS and event sourcing are related but distinct. Event sourcing is about the write model's storage
+      (events, not state). CQRS is about separating read and write paths. They are often used together — an
+      event-sourced write model naturally produces the events that feed the read models — but each can be used
+      without the other:</p>
+      <ul>
+        <li><strong>Event sourcing without CQRS:</strong> the events are the storage, and reads replay them.
+        No separate read model.</li>
+        <li><strong>CQRS without event sourcing:</strong> the write model is a normal database; the events are
+        published via CDC or outbox. The read models are separate.</li>
+        <li><strong>Both:</strong> the write model stores events, and the read models are built by replaying. This
+        is the most common combination.</li>
+      </ul>
+
+      <h4>When CQRS is the right choice</h4>
+      <ul>
+        <li><strong>Read and write workloads differ:</strong> the reads are complex queries and the writes are
+        simple transactions; separate models optimize each.</li>
+        <li><strong>Multiple read shapes:</strong> the same data is read by a web UI, a mobile API, a search, and
+        an analytics dashboard — each needs a different shape.</li>
+        <li><strong>Event-driven integration:</strong> other services consume the events; the read model is one more
+        consumer.</li>
+        <li><strong>Event sourcing is in use:</strong> the events are already the source of truth; read models are
+        the natural derived views.</li>
+      </ul>
+
+      <h4>When CQRS is the wrong choice</h4>
+      <ul>
+        <li><strong>Simple CRUD:</strong> one model serves both reads and writes; CQRS adds complexity for no
+        benefit.</li>
+        <li><strong>Strong consistency required:</strong> the eventual consistency of the read model is unacceptable
+        for the UI.</li>
+        <li><strong>Small team:</strong> two models, two stores, and the sync between them is a lot of code and
+        operations.</li>
+      </ul>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Building CQRS for every entity because it is "the pattern". CQRS is a per-entity decision: the order
+        aggregate may need it (complex read shapes, event-driven), the settings entity does not (single read,
+        single write). Applying it uniformly adds complexity to the entities that do not benefit.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "CQRS separates the write model (normalized, transactional) from the read model (denormalized,
+        query-shaped). The event stream is the bridge, and the read model is rebuilt by replaying. I'll use it for
+        the order view because the write is transactional and the read has multiple shapes, and not for the settings
+        page because it is simple CRUD." That names the pattern, the bridge, and the decision rule.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART B ================= -->
+  <div class="part-band teal">
+    <div class="bar"></div>
+    <h2>Part B — Contracts &amp; Coordination
+      <span class="sub">Outbox, schemas, and sagas</span>
+    </h2>
+  </div>
+
+  <!-- Q5 -->
+  <article class="q teal" id="q5">
+    <div class="q-head">
+      <div class="q-num">5</div>
+      <h3>How do you ensure consistency when a business transaction spans a database write and a message publish? Explain the transactional outbox pattern.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A database write and a message publish cannot be atomic across two systems. The transactional outbox
+        solves it: the message is written to an outbox table in the same database transaction as the business change,
+        and a separate relay process reads the outbox and publishes to the queue. The business change and the message
+        are atomic (same transaction); the publish is eventually consistent (relay retries until it succeeds).</p>
+      </div>
+
+      <h4>The problem</h4>
+      <p>A service places an order: it must write the order to the database and publish "OrderPlaced" to Kafka.
+      The two writes are in different systems, and there is no distributed transaction covering both. The possible
+      failures:</p>
+      <ul>
+        <li><strong>DB write succeeds, publish fails:</strong> the order exists but no one is notified. The inventory
+        is not decremented, the email is not sent, the analytics is not updated. The order is invisible to the rest
+        of the system.</li>
+        <li><strong>Publish succeeds, DB write fails:</strong> the event is published but the order does not exist.
+        Consumers react to a phantom order, and the downstream effects cannot be reconciled.</li>
+      </ul>
+      <p>Retrying the operation does not help: a retry may duplicate the successful step. The problem is the lack of
+      atomicity across two systems.</p>
+
+      <h4>The outbox solution</h4>
+      <ol>
+        <li><strong>Create an outbox table</strong> in the same database as the business tables. Columns: id,
+        aggregate_id, event_type, payload, created_at, published_at (nullable).</li>
+        <li><strong>Write the business change and the outbox row in one transaction.</strong> The order INSERT and the
+        outbox INSERT are committed together or not at all.</li>
+        <li><strong>A relay process reads the outbox</strong> for unpublished rows, publishes each to the queue, and
+        marks it published. The relay retries on failure; the outbox row remains unpublished until the publish
+        succeeds.</li>
+        <li><strong>The consumer receives the event</strong> and processes it idempotently (dedup by outbox ID or
+        event ID).</li>
+      </ol>
+
+      <h4>Why it works</h4>
+      <p>The atomicity of the business change and the outbox row is provided by the database's local transaction,
+      which is well-understood and reliable. The publish is a separate step, but it is retried until it succeeds,
+      so the event is guaranteed to be published eventually. The consumer sees the event after the business change
+      is committed, so there is no phantom order. The overall guarantee is exactly-once effects: the business change
+      happens once, the event is published once (or deduplicated if published twice), and the consumer processes it
+      once (or deduplicates).</p>
+
+      <h4>The relay</h4>
+      <p>The relay is a separate process (or a thread within the service) that polls the outbox. The polling
+      frequency is a trade-off: frequent polling reduces latency but adds database load; infrequent polling reduces
+      load but increases latency. The standard is 100–500 ms polling, with batching (read 100 outbox rows per
+      poll). For lower latency, CDC (e.g., Debezium reading the database's log) can replace polling — the relay
+      becomes a log consumer instead of a poller.</p>
+      <p>The relay must be idempotent: publishing the same outbox row twice is harmless if the consumer deduplicates
+      by outbox ID. The relay marks the row as published only after the publish succeeds; if it crashes between the
+      publish and the mark, the next poll republishes the row (a duplicate the consumer must handle).</p>
+
+      <h4>The polling vs CDC choice</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Approach</th><th>Latency</th><th>DB load</th><th>Complexity</th></tr></thead>
+          <tbody>
+            <tr><td>Polling</td><td>Polling interval (100–500 ms)</td><td>Periodic queries, even when empty</td><td>Simple — a query and a publish</td></tr>
+            <tr><td>CDC (Debezium)</td><td>Near-real-time (ms)</td><td>Reads the DB log; minimal query load</td><td>Higher — a CDC pipeline to run</td></tr>
+            <tr><td>Trigger-based</td><td>Immediate (on commit)</td><td>Trigger overhead on every insert</td><td>Medium — database-specific</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Polling is the default for its simplicity. CDC is better at high volume or low latency. Trigger-based is
+      rarely used because the trigger's side effect (publishing) is not transactional anyway.</p>
+
+      <h4>The outbox vs 2PC</h4>
+      <p>Two-phase commit could, in theory, make the DB write and the publish atomic. But 2PC requires the message
+      broker to support the protocol (Kafka does not), it is blocking (a coordinator failure holds locks), and it is
+      slow (extra round trips). The outbox avoids all three: the local transaction is fast and non-blocking, and the
+      relay is eventually consistent. This is why the outbox is the standard, and 2PC across DB and queue is almost
+      never used.</p>
+
+      <h4>The outbox at the architecture level</h4>
+      <p>The outbox is not just a per-service pattern — it is an architectural primitive. Every service that writes
+      to its database and publishes an event uses an outbox. The relay is a shared component (or a per-service
+      thread). The event stream is the integration bus, and the outbox is the bridge from the database to the bus.
+      This is the mechanism that makes "database per service" compatible with "event-driven integration" without
+      distributed transactions.</p>
+
+      <h4>The cleanup</h4>
+      <p>The outbox grows as rows accumulate. Published rows can be deleted after a retention period (e.g., 7 days),
+      either by the relay or by a separate cleanup job. The retention is long enough to cover any plausible
+      re-publish (if a consumer needs to replay from the outbox, unlikely) and short enough to keep the table small.
+      The table is partitioned by time and old partitions are dropped.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>The outbox gives exactly-once effects across the DB-queue boundary at the cost of a relay process and
+        slight latency (polling interval or CDC lag). The alternative — dual-write or 2PC — is either incorrect
+        (dual-write can diverge) or operationally heavy (2PC is blocking and rarely supported). The outbox is the
+        pragmatic best.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "The DB write and the message publish can't be atomic. I'll use the transactional outbox: write the
+        business row and the outbox row in one transaction, and a relay publishes the outbox. The publish is
+        eventually consistent, and the consumer deduplicates by outbox ID, so the effect is exactly-once." That
+        names the mechanism, the guarantee, and the consumer's responsibility.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q6 -->
+  <article class="q teal" id="q6">
+    <div class="q-head">
+      <div class="q-num">6</div>
+      <h3>How do you design an event schema that can evolve without breaking consumers? What is a schema registry, and why is compatibility important?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Event schemas must evolve as the domain changes, and the evolution must be compatible with existing
+        consumers. A schema registry stores versioned schemas and enforces compatibility rules (backward, forward,
+        full) at publish time. The producer evolves the schema under the rule, and the consumers can upgrade at their
+        own pace without breaking.</p>
+      </div>
+
+      <h4>Why schemas matter</h4>
+      <p>An event is a contract between producer and consumer. The consumer parses the event's fields, and if the
+      producer removes or renames a field, the consumer breaks. In a synchronous API, the break is immediate and
+      visible (the response is wrong). In EDA, the break is delayed and silent: the consumer processes a malformed
+      event, fails in an unexpected way, and the failure appears far from the schema change.</p>
+      <p>The schema must be explicit (not inferred from JSON) so that the contract is documented and enforced. Avro,
+      Protobuf, and JSON Schema are the common formats. Avro is the most common in Kafka for its compactness and
+      schema-evolution support; Protobuf is common in gRPC-heavy environments; JSON Schema is readable but
+      verbose.</p>
+
+      <h4>Compatibility modes</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Mode</th><th>Rule</th><th>Allows</th><th>Breaks</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Backward</td>
+              <td>New schema can read old data</td>
+              <td>Adding optional fields, removing required fields (with defaults)</td>
+              <td>Consumers running the new schema on old data</td>
+            </tr>
+            <tr>
+              <td>Forward</td>
+              <td>Old schema can read new data</td>
+              <td>Adding required fields with defaults, removing optional fields</td>
+              <td>Consumers running the old schema on new data</td>
+            </tr>
+            <tr>
+              <td>Full</td>
+              <td>Both backward and forward</td>
+              <td>Adding optional, removing optional, renaming with aliases</td>
+              <td>Anything that violates either direction</td>
+            </tr>
+            <tr>
+              <td>None</td>
+              <td>No compatibility check</td>
+              <td>Anything</td>
+              <td>Every consumer, eventually</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The right mode depends on the upgrade order. If consumers are upgraded first (they can read the new
+      schema), the producer can adopt a backward-compatible change. If producers are upgraded first (they emit the
+      new schema before consumers can read it), the change must be forward-compatible. In practice, <strong>full
+      compatibility</strong> is the safest default — it allows the producer and consumers to upgrade in any order.</p>
+
+      <h4>The schema registry</h4>
+      <p>A schema registry is a service that stores the schemas (keyed by subject and version), assigns schema IDs,
+      and enforces compatibility at registration. The producer, when it publishes an event, registers the schema
+      (if new) and includes the schema ID in the message header. The consumer looks up the schema by ID and
+      deserializes accordingly.</p>
+      <p>The registry is the source of truth for the contract. It prevents a producer from publishing an
+      incompatible schema — the registration fails, and the producer is forced to evolve the schema under the rule.
+      This is the mechanism that makes compatibility enforceable, not just advisory.</p>
+
+      <h4>Common compatible changes</h4>
+      <ul>
+        <li><strong>Add an optional field with a default:</strong> backward and forward compatible (consumers that
+        do not know the field ignore it; consumers that know it use the default when absent).</li>
+        <li><strong>Remove an optional field:</strong> full compatible (consumers that know it use the default;
+        consumers that do not know it ignore the removal).</li>
+        <li><strong>Rename a field with an alias:</strong> Avro supports aliases, so the old name and the new name are
+        both valid; consumers using the old name still work.</li>
+        <li><strong>Widen a type:</strong> int → long, float → double — allowed in Avro and Protobuf.</li>
+        <li><strong>Add a new enum value:</strong> compatible if the consumer handles unknown values (Avro allows
+        this with a default).</li>
+      </ul>
+
+      <h4>Common incompatible changes</h4>
+      <ul>
+        <li><strong>Remove a required field:</strong> old data does not have it, and new consumers cannot parse.
+        Incompatible.</li>
+        <li><strong>Add a required field without a default:</strong> old producers do not emit it, and new consumers
+        fail. Incompatible unless forward-only.</li>
+        <li><strong>Rename a field without an alias:</strong> consumers using the old name break. Incompatible.</li>
+        <li><strong>Change a field's type incompatibly:</strong> string → int, or a struct's shape. Incompatible.</li>
+        <li><strong>Change the meaning of a field:</strong> the type is the same, but the semantics differ.
+        Incompatible in practice, even if the registry says it is compatible.</li>
+      </ul>
+
+      <h4>The versioning strategy</h4>
+      <p>Two common strategies:</p>
+      <ul>
+        <li><strong>Single topic, multiple schema versions:</strong> the topic carries events with different schema
+        versions, distinguished by the schema ID in the header. Consumers handle all versions. This is the
+        registry's native mode and the most common.</li>
+        <li><strong>New topic per major version:</strong> a breaking change creates a new topic (e.g.,
+        <code>orders.v2</code>) and the old topic is deprecated. This is simpler for consumers but requires
+        migration of producers and consumers, and it loses the continuity of the topic's history.</li>
+      </ul>
+      <p>The first is preferable for compatible changes (add field, remove optional), the second for genuinely
+      breaking changes (new event shape, different semantics).</p>
+
+      <h4>The consumer's responsibility</h4>
+      <p>Even with a registry and full compatibility, the consumer must be robust to schema changes: ignore unknown
+      fields (Avro and Protobuf do this natively), handle missing optional fields with defaults, and log schema
+      mismatches. A consumer that assumes every field is present will break on the first optional field addition —
+      even though the schema is compatible.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Using JSON without a schema and relying on "it's just JSON, it's flexible". JSON is flexible, but without a
+        schema there is no contract, no compatibility check, and no way to detect a breaking change until a consumer
+        fails in production. The registry plus an explicit schema is what makes evolution safe.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q7 -->
+  <article class="q teal" id="q7">
+    <div class="q-head">
+      <div class="q-num">7</div>
+      <h3>What is the difference between choreography and orchestration for sagas? When would you choose each?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A saga is a distributed transaction implemented as a sequence of local transactions with compensating
+        actions. <strong>Choreography</strong> lets each service react to events from the previous service — no
+        central coordinator. <strong>Orchestration</strong> uses a central orchestrator that tells each service what
+        to do. Choreography is more decoupled but harder to reason about; orchestration is easier to debug but
+        introduces a central component.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Dimension</th><th>Choreography</th><th>Orchestration</th></tr></thead>
+          <tbody>
+            <tr><td>Control flow</td><td>Decentralized — each service reacts to events</td><td>Centralized — one orchestrator drives</td></tr>
+            <tr><td>Coupling</td><td>Loose — services know only the events</td><td>Tighter — services are called by the orchestrator</td></tr>
+            <tr><td>Visibility</td><td>Hard — the flow is spread across services</td><td>Easy — the orchestrator has the full state</td></tr>
+            <tr><td>Failure handling</td><td>Each service must handle its own compensation</td><td>The orchestrator handles compensation</td></tr>
+            <tr><td>New step</td><td>Add a new consumer</td><td>Modify the orchestrator</td></tr>
+            <tr><td>Complexity</td><td>Grows with the number of participants</td><td>Concentrated in the orchestrator</td></tr>
+            <tr><td>Best for</td><td>Simple, linear flows with few participants</td><td>Complex flows with many participants or branching</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Choreography in detail</h4>
+      <p>The saga is a chain of events. The order service places an order and publishes <code>OrderPlaced</code>.
+      The payment service consumes it, charges the card, and publishes <code>PaymentCaptured</code>. The inventory
+      service consumes it, reserves the stock, and publishes <code>InventoryReserved</code>. The shipping service
+      consumes it, creates the shipment, and publishes <code>ShipmentCreated</code>. If any step fails, the service
+      publishes a failure event, and the previous services consume it and compensate (refund the card, release the
+      stock).</p>
+      <p>There is no central coordinator. Each service knows the events it consumes and the events it produces. The
+      flow is implicit in the event graph. This is the most decoupled form — adding a new step is a new consumer, and
+      no existing service changes.</p>
+      <p>The problem is visibility. The saga's state is spread across the participants' databases and the events
+      between them. To know whether a saga succeeded, you must trace the events. To debug a stuck saga, you must
+      reconstruct the chain. When the number of participants grows, the graph becomes hard to reason about, and the
+      compensation logic is scattered.</p>
+
+      <h4>Orchestration in detail</h4>
+      <p>A central orchestrator (a saga coordinator) drives the flow. It calls the order service to place the order,
+      the payment service to charge the card, the inventory service to reserve stock, and the shipping service to
+      create the shipment. Each call returns a result (success or failure), and the orchestrator decides the next
+      step. If a step fails, the orchestrator calls the compensating actions for the previous steps.</p>
+      <p>The orchestrator has the full state of the saga: which steps succeeded, which failed, which compensations
+      ran. Debugging is a matter of looking at the orchestrator's state, not reconstructing from events. The
+      compensation logic is centralized — the orchestrator knows which compensation to call for each failure.</p>
+      <p>The problem is coupling. The orchestrator knows every service and every step. Adding a new step means
+      modifying the orchestrator. The orchestrator is a new component to build, deploy, and monitor, and it must be
+      highly available (if it fails, the sagas are stuck). It can become a bottleneck if it handles many sagas.</p>
+
+      <h4>When to choose each</h4>
+      <ul>
+        <li><strong>Choreography:</strong> the saga is linear (a chain of steps), the participants are few (2–5), the
+        compensation is simple (one compensating action per step), and the team values decoupling over
+        visibility.</li>
+        <li><strong>Orchestration:</strong> the saga is complex (branching, parallel steps, conditional logic), the
+        participants are many (5+), the compensation is complex (multiple compensation steps per failure), or the
+        team needs operational visibility (a dashboard of in-flight sagas).</li>
+      </ul>
+      <p>Most teams start with choreography (simpler for the first flow) and move to orchestration when the
+      complexity grows. The migration is not trivial, but it is the natural progression.</p>
+
+      <h4>The hybrid</h4>
+      <p>In practice, a system can use both: choreography for the simple, linear flows, and orchestration for the
+      complex, multi-step flows. The choice is per-saga, not per-system. A team with a saga orchestrator can still
+      use choreography for the simple flows that do not justify the orchestrator's overhead.</p>
+
+      <h4>The orchestrator's design</h4>
+      <p>The orchestrator is a state machine. It persists the saga's state (which step, what was the result, what
+      compensations ran) in a database. It calls each service via a command (Section 6's command, not an event),
+      waits for the result (synchronously or by consuming a reply event), and advances the state machine. The
+      orchestrator's state is the saga's source of truth.</p>
+      <p>The orchestrator must be idempotent: a retry of a step must not duplicate its effect. It must handle timeouts
+      (a step that does not respond within a window is treated as failed). And it must be durable (a crashed
+      orchestrator must resume from the persisted state, not from the beginning). Temporal, Cadence, and AWS
+      Step Functions are managed orchestrators that provide these properties.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Choosing choreography for a complex saga because it is "more decoupled". A 10-step saga with branching
+        and compensation is unmanageable as a choreography — the event graph is too complex, the compensation is
+        scattered, and debugging is a nightmare. Orchestration is the right choice when the saga has non-trivial
+        logic.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Choreography for simple linear flows — order, payment, inventory — because it is decoupled and each
+        service knows only its events. Orchestration for complex flows with branching or many steps, because the
+        orchestrator has the state and the compensation logic. Most systems start with choreography and move to
+        orchestration as complexity grows." That names both and the decision rule.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART C ================= -->
+  <div class="part-band blue">
+    <div class="bar"></div>
+    <h2>Part C — Integration &amp; Capstone
+      <span class="sub">Mixing sync and async, choosing per boundary, and a full pipeline</span>
+    </h2>
+  </div>
+
+  <!-- Q8 -->
+  <article class="q blue" id="q8">
+    <div class="q-head">
+      <div class="q-num">8</div>
+      <h3>How do you integrate a message queue into a system that already uses synchronous RPC? What are the failure modes of mixing both?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Integrate at the boundaries: keep synchronous RPC for user-facing request/response, and use messaging for
+        cross-service notifications and long-running work. The bridge is the outbox on the write side and a
+        synchronous acknowledgment on the read side. The failure modes come from mixing the two — partial failures
+        that are neither fully sync nor fully async, timeouts that leave the caller uncertain, and consistency
+        windows that the UI does not communicate.</p>
+      </div>
+
+      <h4>The integration pattern</h4>
+      <ol>
+        <li><strong>Synchronous entry:</strong> the user's request hits the API, which validates and calls the core
+        service synchronously.</li>
+        <li><strong>Write + outbox:</strong> the core service writes the business change and the outbox row in one
+        transaction. The synchronous call returns success.</li>
+        <li><strong>Relay publishes:</strong> the outbox relay publishes the event to the queue. The downstream
+        services consume asynchronously.</li>
+        <li><strong>Optional synchronous confirmation:</strong> if the user needs to know the downstream result
+        (e.g., the payment succeeded), the API can poll a status endpoint or subscribe to a reply channel, with a
+        timeout. If the timeout expires, the API returns "processing" and the client polls.</li>
+        <li><strong>Asynchronous updates:</strong> the user's client receives updates via WebSocket (Section 5) or
+        push (Section 4) as the downstream completes.</li>
+      </ol>
+      <p>The pattern is "synchronous for the user's request, asynchronous for the downstream work". The user gets an
+      immediate response (the order was accepted), and the downstream effects complete asynchronously with the
+      user being notified when they do.</p>
+
+      <h4>Failure mode 1 — The mixed transaction</h4>
+      <p>A service tries to be both sync and async: it writes to the database, calls a downstream service
+      synchronously, and publishes an event. If the sync call succeeds but the publish fails, the system is
+      inconsistent — the downstream was called but the event was not published. If the sync call fails but the
+      publish succeeds, the event says the work was done but it was not.</p>
+      <p>The fix is to pick one model per operation: either the operation is fully synchronous (the caller waits for
+      all effects) or fully asynchronous (the caller gets an ack and the effects complete later). Mixing them in one
+      operation creates exactly the inconsistency the outbox is meant to prevent.</p>
+
+      <h4>Failure mode 2 — The unknown-timeout</h4>
+      <p>The API calls a service synchronously, the call times out, and the API does not know whether the service
+      processed the request. This is the classic ambiguity of synchronous RPC. In an async system, the timeout is not
+      a failure — the caller gets an ack immediately, and the downstream completes later. In a mixed system, the
+      caller faces the ambiguity and must either retry (risking a duplicate) or return an error (risking a lost
+      request). The fix is idempotency on the downstream (Section 6) so retries are safe.</p>
+
+      <h4>Failure mode 3 — The consistency window not communicated</h4>
+      <p>The user's synchronous call returns success, but the downstream effects are asynchronous. The user
+      immediately reads the data and does not see the downstream effect (the order is placed but the shipping is not
+      yet scheduled). If the UI shows "done", the user is confused. The fix is to communicate the state: "Order
+      placed, shipping will be scheduled shortly", with a status that updates when the downstream completes.</p>
+
+      <h4>Failure mode 4 — The synchronous bottleneck</h4>
+      <p>A service that is mostly async but has one synchronous call in the middle becomes coupled to that call's
+      latency and availability. If the downstream is slow, the upstream is slow; if it is down, the upstream is down.
+      The async parts were supposed to decouple, but the sync call reintroduces the coupling. The fix is to make
+      the sync call async too, or to make it optional (degrade gracefully if the downstream is unavailable).</p>
+
+      <h4>Failure mode 5 — The dual-write</h4>
+      <p>The service writes to the database and publishes to the queue without the outbox. This is the dual-write
+      problem — one can succeed and the other fail, and the system diverges. The fix is the outbox (Question 5).
+      Every service that writes and publishes must use it; a service that uses the outbox in one place and dual-writes
+      in another has an inconsistency waiting to happen.</p>
+
+      <h4>Failure mode 6 — The retry storm</h4>
+      <p>The synchronous caller retries on timeout; the async consumer retries on failure. A slow downstream triggers
+      both, multiplying the load. The fix is a retry budget (Section 4) and a circuit breaker on the sync call, so
+      the retries are bounded and the slow downstream is protected.</p>
+
+      <h4>The migration strategy</h4>
+      <p>For a system that is already synchronous, the migration to async is incremental:</p>
+      <ol>
+        <li><strong>Start with the least latency-sensitive flows:</strong> notifications, analytics, audit logs.
+        These can be made async without affecting the user.</li>
+        <li><strong>Add the outbox to the write path:</strong> every write publishes an event, even if no consumer
+        exists yet. This makes future consumers trivial to add.</li>
+        <li><strong>Move cross-team integrations to events:</strong> the team-to-team dependencies are the biggest
+        coupling; making them async is the biggest win.</li>
+        <li><strong>Keep user-facing request/response synchronous:</strong> the user still needs an immediate answer;
+        the async parts are the downstream effects.</li>
+        <li><strong>Add the status/notification layer:</strong> the user learns about the async completion via
+        WebSocket, push, or polling.</li>
+      </ol>
+      <p>The end state is a hybrid: synchronous for the user's request, asynchronous for the downstream work, with
+      the outbox as the bridge. This is how most production systems are built, and the "pure" EDA (everything async)
+      is rare because users want immediate answers.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Mixing sync and async gives the best of both — immediate user responses and decoupled downstream work — at
+        the cost of two failure models to reason about, two sets of retry logic, and the consistency window that must
+        be communicated. The alternative (all sync) is simpler to reason about but couples the system to every
+        downstream's latency; the alternative (all async) is decoupled but gives the user no immediate answer. The
+        hybrid is the pragmatic choice.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q9 -->
+  <article class="q blue" id="q9">
+    <div class="q-head">
+      <div class="q-num">9</div>
+      <h3>How do you decide between synchronous and asynchronous communication for a given boundary?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Ask four questions about the interaction: does the caller need the response to continue? can the work be
+        done later without harming the user? does the caller care about the outcome or just that it happened? and
+        how many consumers need the result? Synchronous when the answer is "yes, immediate"; asynchronous when the
+        work can be deferred and the caller does not need to wait.</p>
+      </div>
+
+      <h4>The four questions</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Question</th><th>Sync</th><th>Async</th></tr></thead>
+          <tbody>
+            <tr><td>Does the caller need the response to continue?</td><td>Yes — the next step depends on it</td><td>No — the caller can proceed</td></tr>
+            <tr><td>Can the work be deferred?</td><td>No — the user is waiting</td><td>Yes — seconds or minutes are fine</td></tr>
+            <tr><td>Does the caller care about the outcome?</td><td>Yes — success or failure changes the flow</td><td>No — the fact that it happened is enough</td></tr>
+            <tr><td>How many consumers need it?</td><td>One — a specific handler</td><td>Many — independent reactions</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>If the interaction is "the user clicked a button and needs the result", it is synchronous. If it is "the
+      system should notify other services that something happened", it is asynchronous. Most boundaries are obvious;
+      the difficult ones are where the caller needs a result but the work is slow.</p>
+
+      <h4>The synchronous cases</h4>
+      <ul>
+        <li><strong>Authentication:</strong> the login request must verify the credentials before returning the
+        token. Synchronous.</li>
+        <li><strong>Price lookup:</strong> the checkout page needs the current price to render. Synchronous (with
+        caching).</li>
+        <li><strong>Payment authorization:</strong> the checkout must know whether the charge succeeded before
+        confirming the order. Synchronous (with a timeout and a fallback).</li>
+        <li><strong>Read queries:</strong> the user requests data; the response is the data. Synchronous by
+        nature.</li>
+        <li><strong>Lock acquisition:</strong> the process must know whether it has the lock before proceeding.
+        Synchronous.</li>
+      </ul>
+
+      <h4>The asynchronous cases</h4>
+      <ul>
+        <li><strong>Notifications:</strong> the order was placed; the email can go out in a second. Async.</li>
+        <li><strong>Analytics:</strong> the page view should be recorded; the response does not depend on it. Async.</li>
+        <li><strong>Image processing:</strong> the upload was accepted; the thumbnail can be generated in a
+        minute. Async.</li>
+        <li><strong>Cross-service notifications:</strong> the order was placed; inventory, shipping, and billing
+        should react independently. Async (pub/sub).</li>
+        <li><strong>Long workflows:</strong> the refund should be processed; it takes minutes and involves several
+        steps. Async (saga).</li>
+      </ul>
+
+      <h4>The hard cases</h4>
+      <p>Some boundaries need both. The checkout is the canonical example:</p>
+      <ul>
+        <li>The <strong>payment authorization</strong> is synchronous — the user must know the charge succeeded
+        before the order is confirmed.</li>
+        <li>The <strong>order confirmation email</strong> is asynchronous — the user does not need to wait for
+        it.</li>
+        <li>The <strong>inventory reservation</strong> is synchronous if the checkout must fail on insufficient stock
+        (the user sees "out of stock" immediately), or asynchronous if the order is accepted and the failure is
+        handled later (the user sees "order placed" and the reservation runs in the background).</li>
+        <li>The <strong>shipment scheduling</strong> is asynchronous — the user does not need to know until the
+        shipment is created.</li>
+      </ul>
+      <p>The checkout is a hybrid: synchronous for the critical path (payment, inventory), asynchronous for the
+      side effects (email, shipment, analytics). The boundary is not the whole flow — it is per step, chosen by the
+      four questions.</p>
+
+      <h4>The failure and latency constraints</h4>
+      <p>Two additional factors weigh on the decision:</p>
+      <ul>
+        <li><strong>Failure isolation:</strong> if the downstream is unavailable, a synchronous call fails the whole
+        request; an asynchronous call is buffered and retried. If the downstream's availability is independent of the
+        caller's, async isolates the failure.</li>
+        <li><strong>Latency budget:</strong> a synchronous call adds its latency to the request. If the budget is
+        tight (e.g., a 200 ms page load), a 100 ms downstream call is a quarter of the budget. Async moves the
+        latency off the critical path.</li>
+      </ul>
+
+      <h4>The default</h4>
+      <p>When in doubt, ask: "if this step fails, does the user need to know immediately?" If yes, synchronous. If
+      no, asynchronous. Most steps are "no" — the user does not need to know that the email was sent, the analytics
+      was recorded, or the thumbnail was generated. Those should be async. The few steps that are "yes" — payment,
+      inventory, authentication — should be synchronous, with the other steps moved off the critical path.</p>
+
+      <p>The other default: "if the interaction has more than one consumer, it is an event, not a call". A
+      synchronous call is point-to-point; if multiple services need to know, they should be subscribers to an event,
+      not callees of a chain.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "I'll make the payment synchronous because the user needs the result, and the email, analytics, and
+        shipment async because they can happen after the response. The rule is: does the user need to know
+        immediately? If yes, sync; if no, async." That names the decision criterion and applies it per step.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q10 -->
+  <article class="q blue" id="q10">
+    <div class="q-head">
+      <div class="q-num">10</div>
+      <h3>Capstone: design an event-driven order processing system from checkout to delivery.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>The order service is the write model: it accepts the checkout request, validates, writes the order and
+        outbox in one transaction, and returns an ack. The outbox publishes <code>OrderPlaced</code> to the event
+        stream. Payment, inventory, shipping, and notification each consume the event independently and publish
+        their own events. The read model is a denormalized order view maintained by a consumer. The payment step is
+        synchronous (the user needs the result); everything else is asynchronous. The saga is choreographed for
+        simplicity, with an orchestrator added if the flow grows complex.</p>
+      </div>
+
+      <h4>The requirements</h4>
+      <ul>
+        <li><strong>Accept an order</strong> from the user and confirm the payment within the request.</li>
+        <li><strong>Reserve inventory</strong> so the order can be fulfilled.</li>
+        <li><strong>Schedule shipment</strong> once the inventory is reserved.</li>
+        <li><strong>Notify the user</strong> at each stage (confirmation, shipment, delivery).</li>
+        <li><strong>Provide a consistent view</strong> of the order's current state to the user and to support.</li>
+        <li><strong>Handle failures</strong> with compensation (refund if inventory is unavailable, etc.).</li>
+        <li><strong>Be auditable</strong> — every step is recorded.</li>
+      </ul>
+
+      <h4>The architecture</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Component</th><th>Role</th><th>Events consumed</th><th>Events produced</th></tr></thead>
+          <tbody>
+            <tr><td>Order service</td><td>Write model: order state, outbox</td><td>—</td><td><code>OrderPlaced</code>, <code>OrderCancelled</code></td></tr>
+            <tr><td>Payment service</td><td>Synchronous charge, outbox</td><td><code>OrderPlaced</code></td><td><code>PaymentCaptured</code>, <code>PaymentFailed</code></td></tr>
+            <tr><td>Inventory service</td><td>Reserve stock, outbox</td><td><code>PaymentCaptured</code></td><td><code>InventoryReserved</code>, <code>InventoryFailed</code></td></tr>
+            <tr><td>Shipping service</td><td>Create shipment, outbox</td><td><code>InventoryReserved</code></td><td><code>ShipmentCreated</code>, <code>ShipmentFailed</code></td></tr>
+            <tr><td>Notification service</td><td>Send email/push</td><td>All events</td><td>—</td></tr>
+            <tr><td>Order view</td><td>Read model: denormalized order state</td><td>All events</td><td>—</td></tr>
+            <tr><td>Outbox relay</td><td>Publish outbox rows</td><td>—</td><td>—</td></tr>
+            <tr><td>Schema registry</td><td>Event schema versions</td><td>—</td><td>—</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The checkout flow</h4>
+      <ol>
+        <li><strong>User submits order</strong> to the API. The API validates the request (fields, user, cart) and
+        calls the order service synchronously.</li>
+        <li><strong>Order service</strong> writes the order row and the <code>OrderPlaced</code> outbox row in one
+        transaction. Returns the order ID to the API.</li>
+        <li><strong>API calls the payment service synchronously</strong> (within the same request) to charge the
+        card. Payment service calls the provider with an idempotency key, writes the charge result and the
+        <code>PaymentCaptured</code> outbox row in one transaction.</li>
+        <li><strong>API returns success</strong> to the user: "Order 123 placed, payment confirmed."</li>
+        <li><strong>Outbox relays publish</strong> <code>OrderPlaced</code> and <code>PaymentCaptured</code> to the
+        stream.</li>
+        <li><strong>Inventory service</strong> consumes <code>PaymentCaptured</code>, reserves the stock, publishes
+        <code>InventoryReserved</code> (or <code>InventoryFailed</code>).</li>
+        <li><strong>Shipping service</strong> consumes <code>InventoryReserved</code>, creates the shipment, publishes
+        <code>ShipmentCreated</code>.</li>
+        <li><strong>Notification service</strong> consumes each event and sends the appropriate notification
+        (confirmation, shipment, delivery).</li>
+        <li><strong>Order view</strong> consumes each event and updates the denormalized order state (status,
+        timestamps, tracking number).</li>
+      </ol>
+
+      <h4>Why payment is synchronous and the rest is async</h4>
+      <p>The user needs to know whether the payment succeeded before the checkout is complete. A payment failure must
+      be visible immediately ("Your card was declined"). The payment is the critical path, and making it async would
+      mean the user sees "order placed" and then "payment failed" later — a poor experience, and a wasted order if
+      the payment fails.</p>
+      <p>Inventory reservation is arguably also critical (out-of-stock should fail the order), but it is often made
+      async for scalability — the order is accepted, and the reservation runs in the background. The trade-off: the
+      user is told "order placed" even if the item is out of stock, and the failure is handled later (refund, notify).
+      This is a product decision. In the capstone, payment is synchronous (must succeed for the order to be
+      confirmed), inventory is asynchronous (the order is accepted, and the reservation runs; if it fails, the order
+      is cancelled and the payment refunded).</p>
+
+      <h4>The compensation flow</h4>
+      <p>If inventory fails after payment succeeded, the saga compensates:</p>
+      <ol>
+        <li>Inventory publishes <code>InventoryFailed</code>.</li>
+        <li>The order service consumes it, marks the order as cancelled, and publishes <code>OrderCancelled</code>.</li>
+        <li>The payment service consumes <code>OrderCancelled</code>, refunds the charge (with an idempotency key),
+        and publishes <code>RefundProcessed</code>.</li>
+        <li>The notification service sends "Your order was cancelled and refunded".</li>
+        <li>The order view reflects the cancelled state.</li>
+      </ol>
+      <p>The compensation is choreographed: each service reacts to the failure event and does its part. If the flow
+      grows complex (partial shipments, split payments, multiple compensation paths), an orchestrator is added to
+      drive it explicitly.</p>
+
+      <h4>The read model</h4>
+      <p>The user's order page reads from the order view — a denormalized table with the current status, shipment
+      tracking, and timestamps, all updated by consuming events. The view is a CQRS read model: the write model
+      (order service) is normalized and transactional; the read model (order view) is shaped for the UI's query.
+      The view is rebuilt by replaying the events if needed.</p>
+      <p>The read model lags the write model by the event latency. The user's own order page can be served from the
+      write model (read-your-writes) for a short window after checkout, and from the read model after. Or the
+      checkout response already includes the order's state, and the client uses that as the initial view.</p>
+
+      <h4>The consistency model</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Operation</th><th>Consistency</th><th>Mechanism</th></tr></thead>
+          <tbody>
+            <tr><td>Place order + charge</td><td>Strong (synchronous)</td><td>API waits for payment result</td></tr>
+            <tr><td>Inventory reservation</td><td>Eventual</td><td>Consumes <code>PaymentCaptured</code>; order accepted before reservation</td></tr>
+            <tr><td>Shipment creation</td><td>Eventual</td><td>Consumes <code>InventoryReserved</code></td></tr>
+            <tr><td>Notification</td><td>Eventual</td><td>Consumes each event</td></tr>
+            <tr><td>Order view</td><td>Eventual</td><td>Read model lags by event latency</td></tr>
+            <tr><td>Audit</td><td>Durable</td><td>Outbox + event stream retained</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The failure modes</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Failure</th><th>Handling</th></tr></thead>
+          <tbody>
+            <tr><td>Payment fails synchronously</td><td>API returns error; order is not confirmed (or is marked failed)</td></tr>
+            <tr><td>Payment succeeds but API crashes before response</td><td>Payment idempotency key means the retry returns the same result; no double charge</td></tr>
+            <tr><td>Order service crashes before commit</td><td>No order, no event; the client retries</td></tr>
+            <tr><td>Outbox relay crashes</td><td>Outbox rows are durable; relay resumes on restart</td></tr>
+            <tr><td>Inventory consumer crashes</td><td>Event is redelivered; inventory consumer is idempotent (dedup by order ID)</td></tr>
+            <tr><td>Inventory fails</td><td>Saga compensation: order cancelled, payment refunded, user notified</td></tr>
+            <tr><td>Notification service down</td><td>Events accumulate; the consumer catches up on recovery; the user gets a delayed notification</td></tr>
+            <tr><td>Order view consumer down</td><td>Lag grows; the view is stale; the write model still has the truth; the view catches up</td></tr>
+            <tr><td>Schema change breaks a consumer</td><td>Schema registry enforces full compatibility; the change is rejected until consumers can handle it</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>What the design gets right</h4>
+      <ul>
+        <li><strong>Synchronous for the user's critical path:</strong> payment is confirmed before the order is
+        accepted, so the user knows immediately.</li>
+        <li><strong>Asynchronous for the downstream:</strong> inventory, shipping, notification, and the read model
+        are decoupled, so a slow or down service does not affect checkout.</li>
+        <li><strong>Exactly-once effects:</strong> the outbox (DB-queue boundary), the provider idempotency key
+        (external call), and the consumer dedup (event processing) make every step safe to retry.</li>
+        <li><strong>Auditable:</strong> the outbox and the event stream are the audit trail; every step is recorded.</li>
+        <li><strong>Extensible:</strong> a new consumer (loyalty points, fraud detection, analytics) subscribes to
+        the existing events without touching the producers.</li>
+        <li><strong>Consistent read model:</strong> the order view is a purpose-built read model, updated by events,
+        rebuildable by replay.</li>
+      </ul>
+
+      <h4>What would need to change at scale</h4>
+      <ul>
+        <li><strong>Orchestrator:</strong> if the flow adds partial shipments, split payments, or multiple
+        compensation paths, choreography becomes unmanageable and an orchestrator is introduced.</li>
+        <li><strong>Partitioning:</strong> the event stream is partitioned by <code>order_id</code>, so the
+        per-order order is preserved and the consumers scale with the number of orders.</li>
+        <li><strong>Tiered storage:</strong> the event stream's retention grows with the audit requirement; tiered
+        storage keeps it affordable.</li>
+        <li><strong>Read model sharding:</strong> the order view is sharded by <code>user_id</code> for user queries
+        and by <code>order_id</code> for support queries; one of them is denormalized.</li>
+        <li><strong>Multi-region:</strong> the write model is regional (users are pinned to a region); the event
+        stream is regional with cross-region replication for the read model and the global view.</li>
+      </ul>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Order service writes the order and outbox in one transaction, payment is synchronous because the
+        user needs the result, and inventory, shipping, notification, and the read model are async consumers of the
+        events. The outbox makes the DB-queue boundary exactly-once; the provider idempotency key makes the charge
+        safe; the consumers dedup by order ID. If the flow grows complex, I'll add an orchestrator." That names every
+        component, the consistency model per step, and the evolution path.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- NEXT PART -->
+  <section class="next-part">
+    <h3>Coming in Section 9 — Operational Concerns &amp; Failure Modes</h3>
+    <p>Section 9 is about running messaging systems in production: the metrics that reveal a problem before it becomes
+    an outage, end-to-end tracing across a message pipeline, poison pills and how they block a partition, broker
+    outages and the degradation strategy, multi-tenant isolation so one noisy tenant cannot starve the rest, and
+    chaos engineering for messaging.</p>
+    <ul class="next-list">
+      <li>Metrics: consumer lag, broker saturation, rebalance storms</li>
+      <li>End-to-end tracing with correlation IDs</li>
+      <li>Poison messages and head-of-line blocking</li>
+      <li>Broker outage: degradation and recovery</li>
+      <li>Multi-tenancy and noisy-neighbour isolation</li>
+      <li>Chaos engineering for messaging</li>
+      <li>Testing messaging pipelines for correctness</li>
+      <li>Runbooks for the common incidents</li>
+    </ul>
+  </section>
+
+</div>
+</body>
+</html>
