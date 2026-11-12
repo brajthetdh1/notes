@@ -1,0 +1,3244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API Design — Volume 17: 17 Classic API Design Problems</title>
+<style>
+  :root{
+    --ink:#0d0f1c;
+    --ink-soft:#2a2d45;
+    --muted:#6a6f8f;
+    --line:#dde0f0;
+    --bg:#f6f7fc;
+    --card:#ffffff;
+    --navy:#1e3a8a;
+    --navy-soft:#dbeafe;
+    --navy-deep:#0c1a3d;
+    --royal:#2563eb;
+    --sky:#0284c7;
+    --teal:#0f766e;
+    --amber:#b45309;
+    --rose:#be123c;
+    --violet:#6d28d9;
+    --emerald:#047857;
+    --shadow:0 1px 2px rgba(15,25,60,.06), 0 8px 24px -8px rgba(15,25,60,.14);
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 8% -10%, #dbeafe 0%, transparent 60%),
+      radial-gradient(1000px 500px at 100% 0%, #e0e7ff 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:"Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    line-height:1.72;
+    font-size:16.5px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px 90px;}
+
+  header.hero{
+    background:linear-gradient(135deg,#0d0f1c 0%, #0c1a3d 45%, #1e3a8a 100%);
+    color:#eff6ff;
+    padding:64px 22px 56px;
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::after{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      radial-gradient(600px 300px at 85% 15%, rgba(37,99,235,.42), transparent 70%),
+      radial-gradient(520px 280px at 12% 92%, rgba(2,132,199,.4), transparent 70%);
+    pointer-events:none;
+  }
+  .hero-inner{max-width:1080px;margin:0 auto;position:relative;z-index:2;}
+  .eyebrow{
+    display:inline-block;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;
+    font-weight:700;padding:7px 15px;border-radius:999px;
+    background:rgba(147,197,253,.18);border:1px solid rgba(147,197,253,.5);
+    color:#93c5fd;margin-bottom:20px;
+  }
+  header.hero h1{
+    font-size:clamp(1.9rem, 4.4vw, 3rem);line-height:1.15;margin:0 0 16px;
+    font-weight:800;letter-spacing:-.02em;
+  }
+  header.hero h1 span{
+    background:linear-gradient(90deg,#93c5fd,#7dd3fc);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  header.hero p.lede{font-size:1.06rem;color:#bfdbfe;max-width:780px;margin:0 0 26px;}
+  .meta-chips{display:flex;flex-wrap:wrap;gap:10px;}
+  .chip{
+    font-size:.78rem;font-weight:600;padding:7px 14px;border-radius:999px;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#dbeafe;
+  }
+
+  .roadmap{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:26px 28px;margin-top:-34px;position:relative;z-index:5;
+  }
+  .roadmap h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 16px;font-weight:700;
+  }
+  .roadmap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;}
+  .roadmap-item{
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:.86rem;
+    background:#fbfcff;opacity:.7;
+  }
+  .roadmap-item.done{
+    border-color:#93c5fd;background:linear-gradient(180deg,#eff6ff,#ffffff);opacity:1;
+  }
+  .roadmap-item.current{
+    border-color:#60a5fa;background:linear-gradient(180deg,#dbeafe,#ffffff);opacity:1;
+    box-shadow:0 0 0 3px rgba(30,58,138,.14);
+  }
+  .roadmap-item .tag{
+    display:inline-block;font-size:.64rem;font-weight:800;letter-spacing:.08em;
+    padding:2px 8px;border-radius:999px;margin-bottom:6px;
+  }
+  .tag-done{background:var(--navy-soft);color:var(--navy-deep);}
+  .tag-now{background:#bfdbfe;color:#1e3a8a;}
+  .tag-next{background:#e2e8f0;color:#475569;}
+  .roadmap-item strong{display:block;color:var(--ink);font-size:.89rem;}
+
+  nav.toc{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:22px 26px;margin:26px 0 44px;
+  }
+  nav.toc h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 14px;font-weight:700;
+  }
+  nav.toc ol{
+    margin:0;padding-left:0;list-style:none;counter-reset:toc;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:8px 26px;
+  }
+  nav.toc li{
+    counter-increment:toc;font-size:.93rem;padding:6px 0 6px 34px;
+    position:relative;border-bottom:1px dashed #e8ecf8;
+  }
+  nav.toc li::before{
+    content:counter(toc);position:absolute;left:0;top:7px;width:22px;height:22px;
+    border-radius:7px;background:var(--navy-soft);color:var(--navy);
+    font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center;
+  }
+  nav.toc a{color:var(--ink-soft);text-decoration:none;font-weight:500;}
+  nav.toc a:hover{color:var(--navy);}
+
+  .part-band{display:flex;align-items:center;gap:16px;margin:56px 0 26px;}
+  .part-band .bar{
+    width:5px;height:44px;border-radius:99px;
+    background:linear-gradient(180deg,var(--navy),#60a5fa);
+  }
+  .part-band.teal .bar{background:linear-gradient(180deg,var(--teal),#2dd4bf);}
+  .part-band.violet .bar{background:linear-gradient(180deg,var(--violet),#a78bfa);}
+  .part-band h2{margin:0;font-size:1.5rem;letter-spacing:-.01em;font-weight:800;}
+  .part-band .sub{
+    display:block;font-size:.82rem;font-weight:600;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.12em;margin-top:2px;
+  }
+
+  article.q{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:0 0 26px;margin-bottom:28px;overflow:hidden;
+    scroll-margin-top:24px;
+  }
+  .q-head{
+    display:flex;gap:16px;align-items:flex-start;padding:22px 28px 18px;
+    border-bottom:1px solid #eef1fa;background:linear-gradient(180deg,#fafbff,#ffffff);
+  }
+  .q-num{
+    flex:none;width:42px;height:42px;border-radius:12px;display:flex;
+    align-items:center;justify-content:center;font-weight:800;font-size:.92rem;color:#fff;
+    background:linear-gradient(135deg,#1e3a8a,#2563eb);
+    box-shadow:0 6px 14px -6px rgba(30,58,138,.7);
+  }
+  .teal .q-num{background:linear-gradient(135deg,#0f766e,#14b8a6);box-shadow:0 6px 14px -6px rgba(15,118,110,.7);}
+  .violet .q-num{background:linear-gradient(135deg,#6d28d9,#8b5cf6);box-shadow:0 6px 14px -6px rgba(109,40,217,.7);}
+  .q-head h3{margin:0;font-size:1.14rem;font-weight:700;line-height:1.4;letter-spacing:-.01em;}
+  .q-body{padding:22px 28px 0;}
+  .q-body p{margin:0 0 15px;color:var(--ink-soft);}
+  .q-body p:last-child{margin-bottom:0;}
+  .q-body h4{margin:24px 0 10px;font-size:.95rem;font-weight:800;color:var(--ink);}
+  .q-body h4::before{content:"▹";color:var(--navy);margin-right:8px;font-size:.85rem;}
+  .teal .q-body h4::before{color:var(--teal);}
+  .violet .q-body h4::before{color:var(--violet);}
+  .q-body ul,.q-body ol{margin:0 0 16px;padding-left:22px;color:var(--ink-soft);}
+  .q-body li{margin-bottom:8px;}
+  .q-body li::marker{color:var(--navy);}
+  .teal .q-body li::marker{color:var(--teal);}
+  .violet .q-body li::marker{color:var(--violet);}
+  strong{color:var(--ink);font-weight:700;}
+  code{
+    background:#f3f5fb;border:1px solid #dde0f0;border-radius:6px;padding:1px 6px;
+    font-size:.87em;font-family:"SFMono-Regular",Consolas,monospace;color:#1e3a8a;
+  }
+
+  .callout{border-radius:12px;padding:14px 18px;margin:18px 0 4px;font-size:.93rem;border-left:4px solid;}
+  .callout .label{
+    display:block;font-size:.68rem;font-weight:800;letter-spacing:.13em;
+    text-transform:uppercase;margin-bottom:5px;
+  }
+  .callout p{margin:0 0 8px;font-size:.93rem;}
+  .callout p:last-child{margin-bottom:0;}
+  .answer{background:linear-gradient(180deg,#eff6ff,#ffffff);border-color:var(--navy);}
+  .answer .label{color:var(--navy-deep);}
+  .tip{background:linear-gradient(180deg,#f0fdfa,#ffffff);border-color:var(--teal);}
+  .tip .label{color:#0f766e;}
+  .tradeoff{background:linear-gradient(180deg,#fffbeb,#ffffff);border-color:var(--amber);}
+  .tradeoff .label{color:#b45309;}
+  .pitfall{background:linear-gradient(180deg,#fff1f2,#ffffff);border-color:var(--rose);}
+  .pitfall .label{color:#be123c;}
+
+  .table-scroll{overflow-x:auto;margin:18px 0;border-radius:12px;border:1px solid var(--line);}
+  table{width:100%;border-collapse:collapse;font-size:.87rem;background:#fff;}
+  thead th{
+    background:#f8f9ff;text-align:left;padding:11px 14px;font-weight:800;
+    font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+    border-bottom:2px solid var(--line);white-space:nowrap;
+  }
+  tbody td{padding:11px 14px;border-bottom:1px solid #f2f4fb;color:var(--ink-soft);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:nth-child(even){background:#fcfcff;}
+  tbody td:first-child{font-weight:700;color:var(--ink);}
+
+  pre{
+    margin:0;
+    white-space:pre-wrap;
+    font-family:"SFMono-Regular",Consolas,monospace;
+    font-size:.83rem;
+    line-height:1.55;
+  }
+
+  .next-part{
+    background:linear-gradient(135deg,#0d0f1c,#1e3a8a);color:#dbeafe;
+    border-radius:var(--radius);padding:32px 34px;margin-top:50px;box-shadow:var(--shadow);
+  }
+  .next-part h3{margin:0 0 12px;font-size:1.2rem;color:#fff;font-weight:800;}
+  .next-part p{margin:0 0 16px;color:#bfdbfe;font-size:.95rem;}
+  .next-list{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:10px;list-style:none;padding:0;margin:0;
+  }
+  .next-list li{
+    background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
+    border-radius:10px;padding:10px 14px;font-size:.86rem;color:#dbeafe;
+  }
+
+  @media (max-width:640px){
+    .q-head{padding:18px 18px 15px;}
+    .q-body{padding:18px 18px 0;}
+    header.hero{padding:44px 18px 46px;}
+    .roadmap{padding:20px;}
+    nav.toc{padding:18px;}
+    nav.toc ol{grid-template-columns:1fr;}
+  }
+  @media print{
+    body{background:#fff;}
+    article.q, nav.toc, .roadmap{box-shadow:none;page-break-inside:avoid;}
+    header.hero{background:#0d0f1c !important;-webkit-print-color-adjust:exact;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Volume 17 · Section 17 of 18</span>
+    <h1>API Design for System Interviews<br><span>17 Classic API Design Problems</span></h1>
+    <p class="lede">
+      The practice volume. Seventeen end-to-end API design solutions — from a to-do list to a multi-region SaaS
+      platform — each solved with the frameworks from the previous sixteen volumes: resource modeling, HTTP
+      semantics, pagination, idempotency, authentication, rate limiting, errors, versioning, and the trade-offs
+      that separate a strong answer from a merely correct one.
+    </p>
+    <div class="meta-chips">
+      <span class="chip">17 Problems</span>
+      <span class="chip">500+ words each</span>
+      <span class="chip">End-to-end solutions</span>
+      <span class="chip">Interview-ready</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ROADMAP -->
+  <section class="roadmap">
+    <h2>Answer-Series Roadmap</h2>
+    <div class="roadmap-grid">
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 1–16 — Complete</span>
+        <strong>Foundations through Governance</strong>
+        All prior volumes
+      </div>
+      <div class="roadmap-item current">
+        <span class="tag tag-now">Volume 17 — You are here</span>
+        <strong>17 Classic API Design Problems</strong>
+        End-to-end solutions
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 18</span>
+        <strong>Senior &amp; Staff Trade-offs</strong>
+        Choosing between every pair of options
+      </div>
+    </div>
+  </section>
+
+  <!-- TOC -->
+  <nav class="toc">
+    <h2>The 17 Problems</h2>
+    <ol>
+      <li><a href="#q1">To-do list API — the foundational CRUD</a></li>
+      <li><a href="#q2">Social media API — feeds, follows, likes</a></li>
+      <li><a href="#q3">E-commerce API — catalogue, cart, checkout</a></li>
+      <li><a href="#q4">Ride-sharing API — rides, drivers, matching</a></li>
+      <li><a href="#q5">Banking API — accounts, transfers, statements</a></li>
+      <li><a href="#q6">Notification API — multi-channel, preferences</a></li>
+      <li><a href="#q7">File storage API — upload, share, versioning</a></li>
+      <li><a href="#q8">Payment API — idempotency and correctness</a></li>
+      <li><a href="#q9">Public SaaS API — OAuth, scopes, rate limits</a></li>
+      <li><a href="#q10">Webhook delivery system — signed, retried, reconciled</a></li>
+      <li><a href="#q11">GraphQL API for a social feed</a></li>
+      <li><a href="#q12">gRPC API for a microservices platform</a></li>
+      <li><a href="#q13">API gateway configuration for a multi-service system</a></li>
+      <li><a href="#q14">Cursor pagination for a high-volume feed</a></li>
+      <li><a href="#q15">Multi-tenant rate limiter</a></li>
+      <li><a href="#q16">API versioning for a rapidly evolving product</a></li>
+      <li><a href="#q17">Complete API design for a SaaS startup</a></li>
+    </ol>
+  </nav>
+
+  <!-- ================= PART A ================= -->
+  <div class="part-band">
+    <div class="bar"></div>
+    <h2>Part A — The Fundamentals
+      <span class="sub">CRUD, social, and commerce</span>
+    </h2>
+  </div>
+
+  <!-- Q1 -->
+  <article class="q" id="q1">
+    <div class="q-head">
+      <div class="q-num">1</div>
+      <h3>Design the API for a to-do list application.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">The Answer</span>
+        <p>A to-do list API has three resources: <strong>lists</strong> (collections of tasks),
+        <strong>tasks</strong> (individual items), and <strong>users</strong> (owners of lists). The design is
+        a straightforward CRUD API with authentication, per-user authorization, and pagination — the foundational
+        shape that every other API in this volume extends.</p>
+      </div>
+
+      <h4>Clarify requirements</h4>
+      <ul>
+        <li><strong>Users</strong> create lists and add tasks to them.</li>
+        <li><strong>Tasks</strong> have a title, description, status (pending/completed), due date, and priority.</li>
+        <li><strong>Lists</strong> can be shared with other users (read or write access).</li>
+        <li><strong>Personal scale</strong> — a user has tens of lists and hundreds of tasks; no special scale
+        requirement.</li>
+        <li><strong>Mobile and web clients</strong> — the API must work for both; offline sync is out of scope for
+        v1.</li>
+      </ul>
+
+      <h4>The resource model</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Resource</th><th>Relationship</th><th>Identity</th></tr></thead>
+          <tbody>
+            <tr><td><code>User</code></td><td>Owns lists; is a member of shared lists</td><td><code>user_id</code></td></tr>
+            <tr><td><code>List</code></td><td>Belongs to an owner; has members; contains tasks</td><td><code>list_id</code></td></tr>
+            <tr><td><code>Task</code></td><td>Belongs to a list</td><td><code>task_id</code></td></tr>
+            <tr><td><code>Membership</code></td><td>Join table: user × list × role</td><td>Composite <code>(user_id, list_id)</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Endpoints</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Method &amp; Path</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>GET /v1/lists</code></td><td>List the user's lists (owned + shared)</td></tr>
+            <tr><td><code>POST /v1/lists</code></td><td>Create a list</td></tr>
+            <tr><td><code>GET /v1/lists/{id}</code></td><td>Get a list with its metadata</td></tr>
+            <tr><td><code>PATCH /v1/lists/{id}</code></td><td>Update list name, colour</td></tr>
+            <tr><td><code>DELETE /v1/lists/{id}</code></td><td>Delete a list (and its tasks)</td></tr>
+            <tr><td><code>GET /v1/lists/{id}/tasks</code></td><td>List tasks in a list (cursor pagination)</td></tr>
+            <tr><td><code>POST /v1/lists/{id}/tasks</code></td><td>Create a task in a list</td></tr>
+            <tr><td><code>GET /v1/tasks/{id}</code></td><td>Get a task by ID (top-level, for deep links)</td></tr>
+            <tr><td><code>PATCH /v1/tasks/{id}</code></td><td>Update a task (title, status, due date)</td></tr>
+            <tr><td><code>DELETE /v1/tasks/{id}</code></td><td>Delete a task</td></tr>
+            <tr><td><code>POST /v1/lists/{id}/members</code></td><td>Invite a user to the list</td></tr>
+            <tr><td><code>DELETE /v1/lists/{id}/members/{user_id}</code></td><td>Remove a member</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Key design decisions</h4>
+      <ul>
+        <li><strong>Tasks are a sub-resource of lists</strong> — they belong to a list, so <code>/lists/{id}/tasks</code>
+        is the natural creation path. But a task also has a top-level URL (<code>/tasks/{id}</code>) for deep
+        links and updates, because the task has its own identity (Volume 2, Question 3).</li>
+        <li><strong>Membership is a sub-resource</strong> — the list's members are managed at
+        <code>/lists/{id}/members</code>. The membership has a role (owner, editor, viewer), which controls what
+        the user can do.</li>
+        <li><strong>PATCH for updates</strong> — the client only sends the fields it wants to change; the server
+        does not require the full representation (Volume 2, Question 4).</li>
+        <li><strong>Cursor pagination</strong> — even for a small dataset, cursor pagination is the right default
+        because it is stable and consistent (Volume 4, Question 1).</li>
+        <li><strong>Authorization in the query</strong> — a request for a task checks that the caller has access
+        to the containing list; the query filters by the caller's membership (Volume 6, Question 10).</li>
+      </ul>
+
+      <h4>Authentication and authorization</h4>
+      <p>The API uses <strong>OAuth 2.0 with PKCE</strong> for the mobile and web clients — the user logs in via
+      the provider, the client gets a token, and every request carries <code>Authorization: Bearer ...</code>.</p>
+      <p>Authorization is at the list level:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Role</th><th>Permissions</th></tr></thead>
+          <tbody>
+            <tr><td>Owner</td><td>Read, write, delete the list; manage members</td></tr>
+            <tr><td>Editor</td><td>Read, write tasks; cannot delete the list or manage members</td></tr>
+            <tr><td>Viewer</td><td>Read only</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Every task operation looks up the task's list and checks the caller's membership role. The BOLA check
+      is in the query: <code>SELECT * FROM tasks WHERE id = ? AND list_id IN (SELECT list_id FROM memberships
+      WHERE user_id = ?)</code>.</p>
+
+      <h4>Response shape and pagination</h4>
+      <p>A list's tasks endpoint returns a paginated collection:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Field</th><th>Content</th></tr></thead>
+          <tbody>
+            <tr><td><code>data</code></td><td>Array of tasks</td></tr>
+            <tr><td><code>meta.has_more</code></td><td>Whether there is another page</td></tr>
+            <tr><td><code>meta.next_cursor</code></td><td>Cursor for the next page</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The page size is capped at 100; the client can request fewer. The default is 20.</p>
+
+      <h4>Error handling</h4>
+      <p>RFC 7807 for every error. The common cases:</p>
+      <ul>
+        <li><code>400</code> — malformed JSON, missing required field.</li>
+        <li><code>401</code> — missing or invalid token.</li>
+        <li><code>403</code> — authenticated but not a member of the list.</li>
+        <li><code>404</code> — list or task not found (or not accessible — same response, to hide existence).</li>
+        <li><code>409</code> — concurrent modification (if optimistic concurrency is used).</li>
+        <li><code>422</code> — validation failure (a task with an invalid due date).</li>
+        <li><code>429</code> — rate limit exceeded (1000 requests per minute per user).</li>
+      </ul>
+
+      <h4>What is intentionally left out of v1</h4>
+      <ul>
+        <li><strong>Real-time updates</strong> — no WebSocket or SSE; the client polls or refreshes.</li>
+        <li><strong>Offline sync</strong> — no local-first design; the mobile app requires connectivity.</li>
+        <li><strong>Task dependencies</strong> — no "task A blocks task B"; just flat tasks.</li>
+        <li><strong>Recurring tasks</strong> — no repeat rules; each task is one-off.</li>
+        <li><strong>File attachments</strong> — no file uploads; text only.</li>
+        <li><strong>Full-text search</strong> — no search across lists and tasks.</li>
+      </ul>
+      <p>Each is a future feature that changes the API. Mentioning what is left out demonstrates the scope
+      discipline — the API is what it is, and the roadmap is what it is not yet.</p>
+
+      <div class="callout tip">
+        <span class="label">What Makes This Answer Strong</span>
+        <p>The task's dual URL (<code>/lists/{id}/tasks</code> for creation, <code>/tasks/{id}</code> for updates)
+        demonstrates the identity test. The membership roles demonstrate fine-grained authorization. The
+        explicit "what is left out" list demonstrates scope discipline. The cursor pagination for a small dataset
+        demonstrates that the right default does not depend on scale.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q2 -->
+  <article class="q" id="q2">
+    <div class="q-head">
+      <div class="q-num">2</div>
+      <h3>Design the API for a social media platform — posts, feeds, follows, likes.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">The Answer</span>
+        <p>A social API has five core resources: <strong>users</strong>, <strong>posts</strong>,
+        <strong>comments</strong>, <strong>likes</strong>, and <strong>follows</strong>. The hard part is the
+        <strong>feed</strong> — assembling posts from the people a user follows, ordered by recency, at scale.
+        The design separates the write path (post creation, fan-out) from the read path (feed generation), with
+        cursor pagination and aggressive caching.</p>
+      </div>
+
+      <h4>Clarify requirements</h4>
+      <ul>
+        <li><strong>Users</strong> create posts (text, image, or both), comment on posts, like posts.</li>
+        <li><strong>Users</strong> follow other users; a user's feed shows posts from the people they follow.</li>
+        <li><strong>Public and private accounts</strong> — public accounts' posts are visible to anyone; private
+        accounts' posts are visible only to followers.</li>
+        <li><strong>Scale</strong> — 100 million users, 1 billion posts, 10,000 posts per second at peak.</li>
+        <li><strong>Read-heavy</strong> — the feed is read 100× more than a post is written.</li>
+      </ul>
+
+      <h4>Resource model</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Resource</th><th>Relationships</th><th>Identity</th></tr></thead>
+          <tbody>
+            <tr><td><code>User</code></td><td>Has posts; has followers and following</td><td><code>user_id</code></td></tr>
+            <tr><td><code>Post</code></td><td>Belongs to a user; has comments and likes</td><td><code>post_id</code></td></tr>
+            <tr><td><code>Comment</code></td><td>Belongs to a post and a user</td><td><code>comment_id</code></td></tr>
+            <tr><td><code>Like</code></td><td>Belongs to a post and a user</td><td>Composite <code>(post_id, user_id)</code></td></tr>
+            <tr><td><code>Follow</code></td><td>Follower → followee</td><td>Composite <code>(follower_id, followee_id)</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Endpoints</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Method &amp; Path</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>GET /v1/users/{id}</code></td><td>User profile</td></tr>
+            <tr><td><code>GET /v1/users/{id}/posts</code></td><td>User's posts (cursor pagination)</td></tr>
+            <tr><td><code>POST /v1/posts</code></td><td>Create a post</td></tr>
+            <tr><td><code>GET /v1/posts/{id}</code></td><td>Get a post</td></tr>
+            <tr><td><code>DELETE /v1/posts/{id}</code></td><td>Delete a post (author or admin only)</td></tr>
+            <tr><td><code>GET /v1/posts/{id}/comments</code></td><td>Comments on a post</td></tr>
+            <tr><td><code>POST /v1/posts/{id}/comments</code></td><td>Comment on a post</td></tr>
+            <tr><td><code>PUT /v1/posts/{id}/likes</code></td><td>Like a post (idempotent)</td></tr>
+            <tr><td><code>DELETE /v1/posts/{id}/likes</code></td><td>Unlike a post</td></tr>
+            <tr><td><code>POST /v1/users/{id}/follow</code></td><td>Follow a user</td></tr>
+            <tr><td><code>DELETE /v1/users/{id}/follow</code></td><td>Unfollow a user</td></tr>
+            <tr><td><code>GET /v1/feed</code></td><td>The authenticated user's feed</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The feed — the hard problem</h4>
+      <p>The feed is the posts from the people the user follows, ordered by recency, with pagination. Two
+      strategies:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Strategy</th><th>Mechanism</th><th>Pros</th><th>Cons</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Fan-out on read</strong></td>
+              <td>On feed request, query the posts of everyone the user follows, merge, sort</td>
+              <td>No precomputation; always fresh</td>
+              <td>Slow for users who follow many; the query is expensive</td>
+            </tr>
+            <tr>
+              <td><strong>Fan-out on write</strong></td>
+              <td>On post creation, insert the post into every follower's feed (a precomputed list)</td>
+              <td>Fast reads — the feed is a single query</td>
+              <td>Slow writes for users with many followers; a celebrity's post fans out to millions</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The pragmatic answer: <strong>hybrid</strong>. For ordinary users (few followers), fan-out on write
+      — the feed is precomputed, reads are fast. For celebrities (millions of followers), fan-out on read — the
+      post is not pushed to every follower's feed; instead, the feed query includes the celebrity's recent posts
+      alongside the precomputed list. This is the standard "celebrity problem" solution (Volume 5 of the
+      distributed systems series, Question 7).</p>
+
+      <h4>Feed pagination</h4>
+      <p>Cursor pagination, stable across writes. The cursor encodes the last post's <code>(created_at,
+      post_id)</code>. The query:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Query</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre>SELECT * FROM feed_items
+WHERE user_id = ?
+  AND (created_at, post_id) < (?, ?)
+ORDER BY created_at DESC, post_id DESC
+LIMIT 20</pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>For the celebrity component, a separate query for the celebrity's recent posts, merged with the
+      precomputed list. The merge is a bounded K-way merge — fast.</p>
+
+      <h4>Fan-out at write</h4>
+      <p>When a user posts, the fan-out to followers is asynchronous — a job queue processes it:</p>
+      <ol>
+        <li><strong>Post created</strong> — the post is written to the <code>posts</code> table.</li>
+        <li><strong>Event published</strong> — a <code>post.created</code> event goes to the queue.</li>
+        <li><strong>Fan-out worker</strong> — reads the event; for each follower, inserts the post ID into
+        their feed table.</li>
+        <li><strong>Bounded</strong> — if the user has millions of followers, the worker is capped (or the user
+        is treated as a celebrity, and fan-out on read is used).</li>
+      </ol>
+      <p>The feed table is sharded by <code>user_id</code>; the fan-out worker writes to the appropriate shard.
+      The table is small (recent posts only — older posts are trimmed); the query is fast.</p>
+
+      <h4>Likes and counts</h4>
+      <p>Likes are stored as rows in a <code>likes</code> table (composite key <code>(post_id, user_id)</code>).
+      The count is <strong>denormalized</strong> — a <code>like_count</code> column on <code>posts</code>,
+      updated by the write path. A read of the post's like count is a single column read, not a
+      <code>COUNT(*)</code>.</p>
+      <p>The <code>PUT /posts/{id}/likes</code> is idempotent — a user can like a post multiple times with the
+      same result (one like). The unique constraint on <code>(post_id, user_id)</code> makes the duplicate
+      insert a no-op.</p>
+
+      <h4>Public vs private accounts</h4>
+      <p>The visibility rule:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Account</th><th>Who can see the posts</th></tr></thead>
+          <tbody>
+            <tr><td>Public</td><td>Anyone</td></tr>
+            <tr><td>Private</td><td>Only approved followers</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The visibility check is in the query: <code>WHERE (author.is_public = true) OR (author.id IN (SELECT
+      followee_id FROM follows WHERE follower_id = ? AND status = 'accepted'))</code>. The check is per post,
+      in the query, not after fetching.</p>
+
+      <h4>Caching</h4>
+      <p>The read-heavy workload is served by:</p>
+      <ul>
+        <li><strong>Feed cache</strong> — the first page of the feed is cached in Redis for 5 minutes. Most
+        users see the cached version; the cache is invalidated on new posts (or just refreshed every 5 min).</li>
+        <li><strong>User profile cache</strong> — profiles are cached; they change rarely.</li>
+        <li><strong>Like count cache</strong> — the denormalized count is cached; the write updates both.</li>
+        <li><strong>CDN for media</strong> — images and videos are served from a CDN; the API returns the URLs.</li>
+      </ul>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Fan-out on write is fast to read, expensive to write. Fan-out on read is the opposite. The hybrid —
+        write for ordinary users, read for celebrities — is the standard answer. The threshold (10,000
+        followers? 100,000?) is chosen based on the fan-out cost; the celebrities are identified and handled
+        separately.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">What Makes This Answer Strong</span>
+        <p>The hybrid fan-out with the explicit celebrity threshold. The idempotent <code>PUT</code> for likes
+        with the unique constraint. The visibility check in the query (BOLA prevention). The asynchronous
+        fan-out with the bounded worker. The denormalized like count. Each is a specific answer to a specific
+        scale problem.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q3 -->
+  <article class="q" id="q3">
+    <div class="q-head">
+      <div class="q-num">3</div>
+      <h3>Design the API for an e-commerce platform — catalogue, cart, checkout.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">The Answer</span>
+        <p>An e-commerce API has four domains: <strong>catalogue</strong> (products, categories, prices),
+        <strong>cart</strong> (items the user intends to buy), <strong>checkout</strong> (converting the cart
+        to an order, with payment), and <strong>orders</strong> (the resulting purchases). The hard parts are
+        <strong>inventory</strong> (preventing overselling), <strong>pricing</strong> (discounts, taxes,
+        shipping), and <strong>payments</strong> (idempotency and correctness — Question 8).</p>
+      </div>
+
+      <h4>Clarify requirements</h4>
+      <ul>
+        <li><strong>Products</strong> — the catalogue is browsed by anonymous users; a product has a name,
+        description, images, price, and stock.</li>
+        <li><strong>Cart</strong> — a logged-in user adds products to a cart; the cart persists across devices.</li>
+        <li><strong>Checkout</strong> — the user pays, the cart becomes an order, the inventory is
+        decremented.</li>
+        <li><strong>Orders</strong> — the user can view their orders, track shipments.</li>
+        <li><strong>Scale</strong> — 1 million products, 100,000 orders per day, thousands of concurrent carts.</li>
+      </ul>
+
+      <h4>Resource model</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Resource</th><th>Relationships</th><th>Identity</th></tr></thead>
+          <tbody>
+            <tr><td><code>Product</code></td><td>Belongs to a category; has variants (size, colour)</td><td><code>product_id</code></td></tr>
+            <tr><td><code>Category</code></td><td>Contains products; can be nested</td><td><code>category_id</code></td></tr>
+            <tr><td><code>Cart</code></td><td>Belongs to a user; has cart items</td><td><code>cart_id</code> (or <code>user_id</code>)</td></tr>
+            <tr><td><code>CartItem</code></td><td>Belongs to a cart; references a product variant</td><td>Composite <code>(cart_id, product_id, variant_id)</code></td></tr>
+            <tr><td><code>Order</code></td><td>Belongs to a user; has order lines</td><td><code>order_id</code></td></tr>
+            <tr><td><code>OrderLine</code></td><td>Belongs to an order; snapshots the product</td><td>Composite <code>(order_id, line_no)</code></td></tr>
+            <tr><td><code>Payment</code></td><td>Belongs to an order; has a status</td><td><code>payment_id</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Endpoints</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Method &amp; Path</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>GET /v1/products</code></td><td>Browse the catalogue (filter, sort, paginate)</td></tr>
+            <tr><td><code>GET /v1/products/{id}</code></td><td>Get a product</td></tr>
+            <tr><td><code>GET /v1/categories</code></td><td>Browse categories</td></tr>
+            <tr><td><code>GET /v1/cart</code></td><td>Get the current user's cart</td></tr>
+            <tr><td><code>POST /v1/cart/items</code></td><td>Add a product to the cart</td></tr>
+            <tr><td><code>PATCH /v1/cart/items/{id}</code></td><td>Update quantity</td></tr>
+            <tr><td><code>DELETE /v1/cart/items/{id}</code></td><td>Remove from cart</td></tr>
+            <tr><td><code>POST /v1/orders</code></td><td>Checkout — creates an order from the cart</td></tr>
+            <tr><td><code>GET /v1/orders/{id}</code></td><td>Get an order</td></tr>
+            <tr><td><code>GET /v1/orders</code></td><td>List the user's orders</td></tr>
+            <tr><td><code>POST /v1/orders/{id}/cancel</code></td><td>Cancel an order (if allowed)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The catalogue — read-heavy, cached</h4>
+      <p>The catalogue is read-heavy (1000:1 vs writes) and changes rarely. The design:</p>
+      <ul>
+        <li><strong>Read replicas</strong> — the catalogue is served from read replicas; writes go to the
+        primary.</li>
+        <li><strong>CDN caching</strong> — the product pages are cached at the CDN with a short TTL (5 minutes);
+        the invalidation is on product update.</li>
+        <li><strong>Denormalized category data</strong> — the category path is stored on the product, so
+        filtering by category does not require a join.</li>
+        <li><strong>Filtering and sorting</strong> — only indexed fields are filterable (category, price range,
+        availability); the sort is by price or popularity; both are indexed.</li>
+      </ul>
+      <p>The product listing uses cursor pagination (Volume 4, Question 1) — the catalogue is large, and offset
+      pagination breaks at scale.</p>
+
+      <h4>Cart — a stateful resource</h4>
+      <p>The cart is a persistent resource, keyed by user. Every add/update/remove is an operation on the cart:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Operation</th><th>Endpoint</th><th>Idempotency</th></tr></thead>
+          <tbody>
+            <tr><td>Add item</td><td><code>POST /cart/items</code></td><td>Idempotent by <code>(product_id, variant_id)</code> — adding the same item again increments the quantity</td></tr>
+            <tr><td>Update quantity</td><td><code>PATCH /cart/items/{id}</code></td><td>Idempotent — setting the quantity is a set operation</td></tr>
+            <tr><td>Remove item</td><td><code>DELETE /cart/items/{id}</code></td><td>Idempotent — removing a missing item returns 204</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The cart is stored in a database (not just a session cookie) — the cart persists across devices, and
+      the cart items reference the actual products (a product removed from the catalogue shows as unavailable).</p>
+
+      <h4>Checkout — the hard part</h4>
+      <p>Checkout is a multi-step operation:</p>
+      <ol>
+        <li><strong>Reserve inventory</strong> — for each cart item, decrement the available count. This must be
+        atomic — no overselling.</li>
+        <li><strong>Compute pricing</strong> — discounts, taxes, shipping. The pricing is computed server-side
+        (never trust the client's total).</li>
+        <li><strong>Charge payment</strong> — with an idempotency key (Question 8) — the charge is not duplicated
+        on retry.</li>
+        <li><strong>Create order</strong> — with the order lines, the total, the payment reference. The order
+        lines <strong>snapshot</strong> the product details (name, price) — the order history is preserved even
+        if the product is updated later.</li>
+        <li><strong>Confirm</strong> — send the confirmation email; notify the warehouse; update the inventory
+        permanently.</li>
+      </ol>
+      <p>The whole flow is a <strong>saga</strong> (Volume 5 of the distributed systems series) — each step has a
+      compensating action if a later step fails:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Step</th><th>Compensation</th></tr></thead>
+          <tbody>
+            <tr><td>Reserve inventory</td><td>Release the reservation</td></tr>
+            <tr><td>Charge payment</td><td>Refund the charge</td></tr>
+            <tr><td>Create order</td><td>Cancel the order; refund</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The saga is orchestrated by a <strong>checkout service</strong> — it calls the inventory, payment, and
+      order services, and orchestrates the compensations.</p>
+
+      <h4>Inventory — preventing overselling</h4>
+      <p>The classic race condition (Volume 14, Question 8): two users buy the last item, both succeed, the
+      stock goes to -1. The fix: an atomic SQL operation:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Vulnerable</th><th>Fixed</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre>stock = SELECT stock FROM inventory WHERE product_id = ?
+if stock >= qty:
+    UPDATE inventory SET stock = stock - qty</pre>
+              </td>
+              <td>
+                <pre>UPDATE inventory SET stock = stock - qty
+WHERE product_id = ? AND stock >= qty
+# if rows affected = 0, insufficient stock</pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The database performs the check and the decrement atomically — no window between them. The checkout
+      service calls this and, if it fails, aborts the checkout.</p>
+
+      <h4>Idempotency for checkout</h4>
+      <p>The <code>POST /orders</code> endpoint requires an <code>Idempotency-Key</code> header (Question 8).
+      The client generates a UUID at the moment of intent; the server stores the key → order mapping; a retry
+      returns the existing order, not a duplicate.</p>
+      <p>This is critical — the checkout flow involves a payment, and a duplicate charge is a customer-facing
+      incident. Without the key, a client's retry (after a timeout) would double-charge the customer.</p>
+
+      <h4>Order cancellation</h4>
+      <p>An order can be cancelled if it has not shipped:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Status</th><th>Can cancel?</th><th>Side effects</th></tr></thead>
+          <tbody>
+            <tr><td><code>pending</code></td><td>Yes</td><td>Release inventory; refund payment</td></tr>
+            <tr><td><code>confirmed</code></td><td>Yes</td><td>Release inventory; refund payment</td></tr>
+            <tr><td><code>shipped</code></td><td>No</td><td>Return process, not cancellation</td></tr>
+            <tr><td><code>delivered</code></td><td>No</td><td>Return process</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The cancellation is a state transition, implemented as a sub-resource (Volume 2, Question 7):
+      <code>POST /orders/{id}/cancellations</code>. The cancellation has its own state (pending refund, refunded);
+      the client can track it.</p>
+
+      <div class="callout pitfall">
+        <span class="label">The Pitfall to Avoid</span>
+        <p>Trusting the client's total. The checkout must recompute the price — the client's "total" is a hint,
+        not the truth. A modified total in the request would let the customer pay less; the server's computation
+        is the authoritative amount.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">What Makes This Answer Strong</span>
+        <p>The explicit saga with compensations. The atomic inventory operation (Volume 14, Question 8 applied).
+        The order-line snapshot for history preservation. The idempotency key on checkout. The sub-resource
+        cancellation. Each is a specific answer to a specific e-commerce problem.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART B ================= -->
+  <div class="part-band teal">
+    <div class="bar"></div>
+    <h2>Part B — The Complex Domains
+      <span class="sub">Rides, banking, notifications, and files</span>
+    </h2>
+  </div>
+
+  <!-- Q4 -->
+  <article class="q teal" id="q4">
+    <div class="q-head">
+      <div class="q-num">4</div>
+      <h3>Design the API for a ride-sharing service — rides, drivers, matching.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">The Answer</span>
+        <p>A ride-sharing API has four core resources: <strong>riders</strong>, <strong>drivers</strong>,
+        <strong>ride requests</strong>, and <strong>trips</strong>. The hard part is the <strong>matching</strong>
+        — assigning a nearby driver to a ride request in real time — and the <strong>location tracking</strong>
+        — the driver's location is updated continuously. The API is <strong>stateful</strong> (the ride has a
+        lifecycle) and <strong>real-time</strong> (both parties track the ride's progress).</p>
+      </div>
+
+      <h4>Clarify requirements</h4>
+      <ul>
+        <li><strong>Riders</strong> request a ride from a pickup to a destination.</li>
+        <li><strong>Drivers</strong> go online, receive requests, accept or decline.</li>
+        <li><strong>Matching</strong> — the system assigns a nearby driver to the request, considering
+        availability, distance, and rating.</li>
+        <li><strong>Real-time</strong> — the rider sees the driver's location; the driver sees the route.</li>
+        <li><strong>Scale</strong> — 1 million rides per day, 100,000 concurrent drivers, 100,000 concurrent
+        riders.</li>
+        <li><strong>Payments</strong> — the ride ends with a charge; idempotency is mandatory.</li>
+      </ul>
+
+      <h4>Resource model</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Resource</th><th>Relationships</th><th>Identity</th></tr></thead>
+          <tbody>
+            <tr><td><code>Rider</code></td><td>Requests rides</td><td><code>rider_id</code></td></tr>
+            <tr><td><code>Driver</code></td><td>Accepts rides; has a current location</td><td><code>driver_id</code></td></tr>
+            <tr><td><code>RideRequest</code></td><td>Belongs to a rider; is assigned to a driver</td><td><code>request_id</code></td></tr>
+            <tr><td><code>Trip</code></td><td>The active ride; has a status and a route</td><td><code>trip_id</code></td></tr>
+            <tr><td><code>Location</code></td><td>The driver's current position (updated continuously)</td><td><code>driver_id</code></td></tr>
+            <tr><td><code>Payment</code></td><td>Belongs to a trip</td><td><code>payment_id</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Endpoints</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Method &amp; Path</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>POST /v1/ride-requests</code></td><td>Request a ride (pickup, destination)</td></tr>
+            <tr><td><code>GET /v1/ride-requests/{id}</code></td><td>Get the request status</td></tr>
+            <tr><td><code>POST /v1/ride-requests/{id}/cancellations</code></td><td>Cancel the request</td></tr>
+            <tr><td><code>PUT /v1/drivers/{id}/location</code></td><td>Update the driver's location</td></tr>
+            <tr><td><code>PUT /v1/drivers/{id}/availability</code></td><td>Go online/offline</td></tr>
+            <tr><td><code>GET /v1/drivers/{id}/assignments</code></td><td>The driver's current request</td></tr>
+            <tr><td><code>POST /v1/trips/{id}/acceptance</code></td><td>Accept the ride</td></tr>
+            <tr><td><code>POST /v1/trips/{id}/arrival</code></td><td>Mark arrival at pickup</td></tr>
+            <tr><td><code>POST /v1/trips/{id}/start</code></td><td>Start the trip</td></tr>
+            <tr><td><code>POST /v1/trips/{id}/completion</code></td><td>Complete the trip (and charge)</td></tr>
+            <tr><td><code>GET /v1/trips/{id}/location</code></td><td>Get the driver's current location (rider)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The ride lifecycle — state machine</h4>
+      <p>The trip's status is a state machine; each transition is a sub-resource (Volume 2, Question 7):</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>From</th><th>To</th><th>Triggered by</th></tr></thead>
+          <tbody>
+            <tr><td>(none)</td><td><code>requested</code></td><td>Rider creates a request</td></tr>
+            <tr><td><code>requested</code></td><td><code>assigned</code></td><td>System assigns a driver</td></tr>
+            <tr><td><code>assigned</code></td><td><code>accepted</code></td><td>Driver accepts</td></tr>
+            <tr><td><code>accepted</code></td><td><code>arriving</code></td><td>Driver navigates to pickup</td></tr>
+            <tr><td><code>arriving</code></td><td><code>in_progress</code></td><td>Rider in car; trip starts</td></tr>
+            <tr><td><code>in_progress</code></td><td><code>completed</code></td><td>Trip ends; charge</td></tr>
+            <tr><td>any</td><td><code>cancelled</code></td><td>Rider or driver cancels (with rules)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Each transition is idempotent — the same transition called twice is a no-op, returning the current
+      state. The <code>POST /trips/{id}/acceptance</code> is idempotent: if the driver accepts twice, the second
+      call returns 200 with the already-accepted state, not an error.</p>
+
+      <h4>The matching algorithm</h4>
+      <p>When a rider requests a ride, the system must find a nearby available driver. The mechanism:</p>
+      <ol>
+        <li><strong>Find candidates</strong> — query the drivers within a radius (e.g., 5 km) of the pickup,
+        who are online and available. This uses a <strong>geospatial index</strong> — PostGIS, Redis Geo, or a
+        dedicated service.</li>
+        <li><strong>Rank candidates</strong> — score by distance, driver rating, acceptance rate, and time
+        since last ride.</li>
+        <li><strong>Assign</strong> — pick the top candidate; send them the request (via a push channel or a
+        long-poll).</li>
+        <li><strong>Await acceptance</strong> — the driver has N seconds to accept; if they decline or time out,
+        try the next candidate.</li>
+        <li><strong>Confirm</strong> — once accepted, the ride is <code>assigned</code>; the rider sees the
+        driver's info.</li>
+      </ol>
+      <p>The candidate query is the bottleneck — with 100,000 drivers, finding the nearby ones requires a
+      spatial index. The index is updated on every location update (which is frequent — every 5 seconds per
+      driver).</p>
+
+      <h4>Location updates</h4>
+      <p>Every driver sends their location every 5 seconds. With 100,000 drivers, that is 20,000 updates per
+      second. The design:</p>
+      <ul>
+        <li><strong>Write to an in-memory geospatial store</strong> (Redis Geo or a custom service) — the update
+        is a <code>GEOADD</code>; the query is a <code>GEOSEARCH</code>.</li>
+        <li><strong>Batch the writes</strong> — the driver's app batches a few seconds of location updates;
+        the server writes them in one call.</li>
+        <li><strong>Durability for active trips</strong> — the location of a driver on an active trip is
+        persisted (for the route history); the location of an idle driver is in-memory only (it is stale within
+        seconds).</li>
+        <li><strong>Rate limit</strong> — the driver's app is rate-limited; a misbehaving app cannot flood the
+        server.</li>
+      </ul>
+
+      <h4>Real-time updates</h4>
+      <p>Both the rider and the driver need real-time updates: the rider sees the driver's location; the driver
+      sees the request. The mechanism:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Channel</th><th>Use case</th><th>Protocol</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>WebSocket</td>
+              <td>Bidirectional — the rider tracks the driver, the driver sends location</td>
+              <td>WebSocket or gRPC streaming</td>
+            </tr>
+            <tr>
+              <td>Push notification</td>
+              <td>Ride status changes (assigned, arrived, completed) — works when the app is backgrounded</td>
+              <td>APNs / FCM</td>
+            </tr>
+            <tr>
+              <td>Long-poll</td>
+              <td>Fallback for older clients</td>
+              <td>HTTP</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The rider's app keeps a WebSocket connection open; the server pushes the driver's location (throttled
+      to every 2 seconds — the UI does not need 5 updates per second). The push notifications handle the
+      backgrounded app (the user gets a notification when the driver arrives).</p>
+
+      <h4>Payment at trip completion</h4>
+      <p>When the trip completes, the fare is computed (distance × rate + time × rate + surge × multiplier),
+      and the payment is charged. The charge uses an <strong>idempotency key</strong> derived from the trip ID
+      (Question 8) — the completion handler can retry without double-charging.</p>
+      <p>The fare computation is server-side — the client's estimate is a hint, not the truth. The actual fare
+      depends on the actual route, the actual time, and the actual surge at completion.</p>
+
+      <div class="callout pitfall">
+        <span class="label">The Pitfall to Avoid</span>
+        <p>Treating the ride as a synchronous request. The ride is a long-lived resource with a state machine and
+        a saga. The API is not "give me a ride" (which would time out); it is "create a ride request, track
+        its status, receive updates". The 202 + status endpoint pattern (Volume 11) applies, plus the WebSocket
+        for real-time tracking.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">What Makes This Answer Strong</span>
+        <p>The state machine with idempotent transitions. The geospatial index for matching. The rate limit on
+        location updates. The WebSocket for real-time and push notifications for backgrounded apps. The
+        idempotency key on the charge. Each is a specific answer to a ride-sharing scale problem.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q5 -->
+  <article class="q teal" id="q5">
+    <div class="q-head">
+      <div class="q-num">5</div>
+      <h3>Design the API for a banking system — accounts, transfers, statements.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">The Answer</span>
+        <p>A banking API has three core resources: <strong>accounts</strong>, <strong>transactions</strong>
+        (every credit and debit), and <strong>transfers</strong> (a movement between two accounts). The hard
+        parts are <strong>atomicity</strong> (a transfer debits one account and credits another — both or
+        neither), <strong>idempotency</strong> (a retry must not double-transfer), and
+        <strong>reconciliation</strong> (every transaction is traceable and auditable).</p>
+      </div>
+
+      <h4>Clarify requirements</h4>
+      <ul>
+        <li><strong>Accounts</strong> — a customer has one or more accounts (checking, savings); each has a
+        balance and a history.</li>
+        <li><strong>Transfers</strong> — between the customer's own accounts or to another customer.</li>
+        <li><strong>Statements</strong> — the history of transactions on an account, filterable by date
+        range.</li>
+        <li><strong>Strict consistency</strong> — the balance is always correct; a transfer either completes
+        fully or not at all.</li>
+        <li><strong>Auditability</strong> — every transaction is recorded; nothing is silently lost or
+        modified.</li>
+        <li><strong>Regulatory</strong> — the data is retained for years; the API is audited.</li>
+      </ul>
+
+      <h4>Resource model</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Resource</th><th>Relationships</th><th>Identity</th></tr></thead>
+          <tbody>
+            <tr><td><code>Account</code></td><td>Belongs to a customer; has a balance</td><td><code>account_id</code></td></tr>
+            <tr><td><code>Transaction</code></td><td>Belongs to an account; is the atomic unit of change</td><td><code>transaction_id</code></td></tr>
+            <tr><td><code>Transfer</code></td><td>Links two transactions (debit and credit)</td><td><code>transfer_id</code></td></tr>
+            <tr><td><code>Statement</code></td><td>A view of the transactions over a period</td><td>Derived from transactions</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Endpoints</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Method &amp; Path</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>GET /v1/accounts</code></td><td>List the customer's accounts</td></tr>
+            <tr><td><code>GET /v1/accounts/{id}</code></td><td>Get account details</td></tr>
+            <tr><td><code>GET /v1/accounts/{id}/balance</code></td><td>Current balance (strongly consistent)</td></tr>
+            <tr><td><code>GET /v1/accounts/{id}/transactions</code></td><td>Transaction history (cursor pagination)</td></tr>
+            <tr><td><code>GET /v1/accounts/{id}/statements</code></td><td>Statements (monthly)</td></tr>
+            <tr><td><code>POST /v1/transfers</code></td><td>Create a transfer (with idempotency key)</td></tr>
+            <tr><td><code>GET /v1/transfers/{id}</code></td><td>Get transfer status</td></tr>
+            <tr><td><code>POST /v1/transfers/{id}/cancellations</code></td><td>Cancel a pending transfer</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The ledger model</h4>
+      <p>The correct way to model a banking system is a <strong>double-entry ledger</strong>:</p>
+      <ul>
+        <li><strong>Every transaction</strong> is recorded as a pair of entries (debit and credit) that sum to
+        zero. The account balance is not a mutable field — it is derived from the entries.</li>
+        <li><strong>The balance</strong> is the sum of the entries for the account. The sum is maintained as a
+        cached column (updated on every entry) for performance, but the entries are the source of truth.</li>
+        <li><strong>Every transfer</strong> creates two transactions (debit from source, credit to destination),
+        plus a transfer record linking them.</li>
+        <li><strong>Nothing is deleted</strong> — a reversal is a new transfer in the opposite direction; the
+        history is preserved.</li>
+      </ul>
+      <p>This model is auditable, recoverable, and correct — the balance can always be recomputed from the
+      ledger, and any discrepancy is detectable.</p>
+
+      <h4>The transfer — atomicity</h4>
+      <p>The transfer is atomic: either the debit and credit both happen, or neither. The mechanism:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Step</th><th>Action</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td><strong>BEGIN</strong> a database transaction</td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td><strong>Lock</strong> both accounts (in a deterministic order, to prevent deadlocks)</td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td><strong>Check</strong> the source balance is sufficient (the check is in the locked read)</td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td><strong>Insert</strong> the debit entry; <strong>insert</strong> the credit entry</td>
+            </tr>
+            <tr>
+              <td>5</td>
+              <td><strong>Update</strong> the cached balances for both accounts</td>
+            </tr>
+            <tr>
+              <td>6</td>
+              <td><strong>Insert</strong> the transfer record</td>
+            </tr>
+            <tr>
+              <td>7</td>
+              <td><strong>COMMIT</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>All steps are in a single database transaction — if anything fails, the whole transfer rolls back. The
+      locking is essential: without it, two concurrent transfers could both see a $100 balance and both
+      proceed, leaving the account at -$100.</p>
+      <p>For transfers between accounts at different banks, the saga pattern applies (the counterparty's
+      system is a separate service) — the local transaction is followed by a message to the other bank, and the
+      reconciliation handles the settlement.</p>
+
+      <h4>Idempotency — the transfer must not duplicate</h4>
+      <p>The <code>POST /transfers</code> requires an <code>Idempotency-Key</code> header (Question 8). The
+      client generates a UUID; the server stores the key → transfer mapping; a retry returns the existing
+      transfer, not a new one.</p>
+      <p>The storage is durable (a database, not Redis) — the key must survive a failover. The TTL is long
+      (months, not hours) — a banking transfer is not a short-lived operation, and the customer may retry
+      days later.</p>
+
+      <h4>The balance — strongly consistent</h4>
+      <p>The balance endpoint returns the current balance, read from the ledger. The read is strongly consistent:
+      it reads from the primary, not a replica, so the balance reflects the latest committed transaction. The
+      client sees its own transfer's effect immediately.</p>
+      <p>The alternative — reading from a replica — risks a stale balance. The replica might lag by milliseconds,
+      but the user might see a balance before their transfer completed and be confused. For banking, strong
+      consistency is the right choice, and the latency cost is acceptable (Volume 3, Question 3).</p>
+
+      <h4>Statements and transaction history</h4>
+      <p>The transaction history is paginated with cursors (the entries are ordered by timestamp + ID). The
+      cursor encodes the last seen <code>(created_at, transaction_id)</code>; the query is an index scan.</p>
+      <p>The statements are monthly — precomputed and stored (a PDF or a structured document). A statement
+      endpoint returns the statement for a month; the statement is generated once (on the first request for
+      that month) and cached. The generation aggregates the month's transactions and produces the document.</p>
+
+      <h4>Security</h4>
+      <p>The banking API has the strictest security:</p>
+      <ul>
+        <li><strong>OAuth 2.0 with strong authentication</strong> — MFA, hardware tokens for high-value
+        operations.</li>
+        <li><strong>Scopes</strong> — <code>read:accounts</code>, <code>transfer:own</code>,
+        <code>transfer:external</code>.</li>
+        <li><strong>Transaction limits</strong> — per day, per transfer, per account.</li>
+        <li><strong>Anomaly detection</strong> — a transfer that looks unusual triggers a review.</li>
+        <li><strong>Audit log</strong> — every read and write is logged; the log is immutable.</li>
+        <li><strong>Encryption</strong> — data in transit and at rest.</li>
+        <li><strong>Regulatory compliance</strong> — KYC, AML, PCI, GDPR.</li>
+      </ul>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Strong consistency (reading from primary) costs latency and availability. For banking, this is the
+        right choice — a stale balance is unacceptable. For a less critical API (a social profile), eventual
+        consistency with read replicas is fine. The choice depends on what the user expects — and a bank user
+        expects their balance to be exact.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">What Makes This Answer Strong</span>
+        <p>The double-entry ledger — the balance is derived, not stored as truth. The atomic transfer with
+        deterministic lock ordering. The idempotency key with long TTL and durable storage. The strongly
+        consistent balance read. The monthly statement precomputation. The layered security. Each is a specific
+        answer to a banking correctness problem.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q6 -->
+  <article class="q teal" id="q6">
+    <div class="q-head">
+      <div class="q-num">6</div>
+      <h3>Design the API for a notification service — push, email, SMS, in-app, and user preferences.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">The Answer</span>
+        <p>A notification API has three core resources: <strong>notifications</strong> (the message to
+        deliver), <strong>preferences</strong> (which channels the user accepts for which types),
+        <strong>deliveries</strong> (the per-channel attempt and its status). The hard parts are
+        <strong>multi-channel fan-out</strong>, <strong>user preferences</strong>, and
+        <strong>reliability</strong> — a notification is not lost because the email provider was slow.</p>
+      </div>
+
+      <h4>Clarify requirements</h4>
+      <ul>
+        <li><strong>Channels</strong> — push (APNs, FCM), email (SendGrid, SES), SMS (Twilio), in-app (the
+        notification feed), and webhook.</li>
+        <li><strong>Notification types</strong> — transactional (order confirmation), marketing (promotion),
+        security (password changed), social (new follower).</li>
+        <li><strong>Preferences</strong> — the user can opt out per type per channel; the transactional
+        notifications are mandatory.</li>
+        <li><strong>Priority</strong> — security and transactional are immediate; marketing is batched and
+        rate-limited.</li>
+        <li><strong>Reliability</strong> — the notification is delivered at least once; the user does not miss
+        the security alert.</li>
+        <li><strong>Scale</strong> — 100 million users; a marketing campaign sends 10 million notifications in
+        an hour.</li>
+      </ul>
+
+      <h4>Resource model</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Resource</th><th>Relationships</th><th>Identity</th></tr></thead>
+          <tbody>
+            <tr><td><code>Notification</code></td><td>Belongs to a recipient; has a type and content</td><td><code>notification_id</code></td></tr>
+            <tr><td><code>Delivery</code></td><td>Belongs to a notification; one per channel</td><td>Composite <code>(notification_id, channel)</code></td></tr>
+            <tr><td><code>Preference</code></td><td>Belongs to a user; per type per channel</td><td>Composite <code>(user_id, type, channel)</code></td></tr>
+            <tr><td><code>Template</code></td><td>The content template per type per channel</td><td><code>template_id</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Endpoints</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Method &amp; Path</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>POST /v1/notifications</code></td><td>Send a notification (internal service call)</td></tr>
+            <tr><td><code>GET /v1/notifications/{id}</code></td><td>Get the notification and its deliveries</td></tr>
+            <tr><td><code>GET /v1/users/{id}/notifications</code></td><td>The user's in-app notification feed</td></tr>
+            <tr><td><code>POST /v1/users/{id}/notifications/{nid}/read</code></td><td>Mark as read</td></tr>
+            <tr><td><code>GET /v1/users/{id}/preferences</code></td><td>The user's notification preferences</td></tr>
+            <tr><td><code>PATCH /v1/users/{id}/preferences</code></td><td>Update preferences</td></tr>
+            <tr><td><code>POST /v1/users/{id}/devices</code></td><td>Register a push token</td></tr>
+            <tr><td><code>DELETE /v1/users/{id}/devices/{device_id}</code></td><td>Unregister a push token</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The send flow</h4>
+      <ol>
+        <li><strong>Notification created</strong> — the sending service (order, auth, marketing) calls
+        <code>POST /notifications</code> with the recipient, type, and data.</li>
+        <li><strong>Preferences resolved</strong> — the service reads the user's preferences for this type:
+        which channels are enabled?</li>
+        <li><strong>Channels determined</strong> — for each enabled channel, a delivery is created.</li>
+        <li><strong>Per-channel dispatch</strong> — the delivery is queued; a worker for each channel
+        processes it.</li>
+        <li><strong>Provider call</strong> — the worker calls the provider (APNs, SendGrid, Twilio); the
+        response is recorded.</li>
+        <li><strong>Retry</strong> — a failed delivery is retried with backoff; the exhausted ones go to a DLQ.</li>
+        <li><strong>Status update</strong> — the delivery's status (sent, delivered, failed) is recorded.</li>
+      </ol>
+
+      <h4>Preferences</h4>
+      <p>The preferences are a matrix: per notification type × per channel. The default for transactional
+      types is "enabled" on all channels (the user cannot disable a security alert); the default for marketing
+      is "disabled" until the user opts in.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Type</th><th>Push</th><th>Email</th><th>SMS</th><th>In-app</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Transactional</strong> (order, receipt)</td><td>Default on</td><td>Default on</td><td>Optional</td><td>On</td></tr>
+            <tr><td><strong>Security</strong> (password, login)</td><td>On (cannot disable)</td><td>On (cannot disable)</td><td>Optional</td><td>On</td></tr>
+            <tr><td><strong>Social</strong> (follow, mention)</td><td>Optional</td><td>Optional</td><td>Off</td><td>On</td></tr>
+            <tr><td><strong>Marketing</strong></td><td>Off (opt-in)</td><td>Off (opt-in)</td><td>Off (opt-in)</td><td>Off</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The preference check is in the send flow — before dispatching, the service checks the user's
+      preference; a disabled channel is skipped. The security types ignore the preferences — they are always
+      sent on the security channels.</p>
+
+      <h4>The reliability</h4>
+      <p>Each channel has its own failure modes:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Channel</th><th>Failure</th><th>Mitigation</th></tr></thead>
+          <tbody>
+            <tr><td>Push</td><td>APNs/FCM returns an error; the token is expired</td><td>Retry transient errors; remove invalid tokens; fall back to email</td></tr>
+            <tr><td>Email</td><td>SendGrid is down; the address bounces</td><td>Retry transient errors; suppress bounced addresses; use a secondary provider</td></tr>
+            <tr><td>SMS</td><td>Twilio is down; the number is invalid</td><td>Retry transient errors; validate the number; fall back to email</td></tr>
+            <tr><td>In-app</td><td>The database is down</td><td>Retry; the user sees the notification when they refresh</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The delivery is a state machine: <code>pending</code> → <code>sending</code> → <code>sent</code> →
+      <code>delivered</code> (or <code>failed</code>). The worker transitions the state atomically.</p>
+
+      <h4>The marketing fan-out</h4>
+      <p>A marketing campaign sends to 10 million users. The naive approach (send synchronously) is
+      impossible. The design:</p>
+      <ol>
+        <li><strong>Audience selection</strong> — the campaign defines a segment (all users, or a filtered
+        subset).</li>
+        <li><strong>Batch creation</strong> — the notifications are created in batches (10,000 per batch) and
+        queued.</li>
+        <li><strong>Rate limiting</strong> — the sending is rate-limited (the provider's rate limit; the
+        sending service's capacity).</li>
+        <li><strong>Preference check</strong> — each user's preferences are checked; the opt-outs are skipped.</li>
+        <li><strong>Deduplication</strong> — the same user is not sent the same campaign twice.</li>
+        <li><strong>Progress tracking</strong> — the campaign status is tracked (sent, failed, in progress).</li>
+      </ol>
+      <p>The fan-out is a job pipeline, not a synchronous call. The marketing team sees the progress in the
+      dashboard; the customer sees the notification when it is their turn.</p>
+
+      <h4>In-app feed</h4>
+      <p>The in-app notifications are stored per user, paginated with cursors. The feed is a list of
+      notifications, newest first, with read/unread status. The user can mark them read individually or in
+      bulk. The unread count is a denormalized column for the badge.</p>
+
+      <h4>The delivery status — visibility</h4>
+      <p>Every delivery has a status; the sending service can query it. The status:</p>
+      <ul>
+        <li><strong>Queued</strong> — accepted, not yet processed.</li>
+        <li><strong>Sending</strong> — the worker is calling the provider.</li>
+        <li><strong>Sent</strong> — the provider accepted.</li>
+        <li><strong>Delivered</strong> — the provider confirms delivery (email delivered, push received).</li>
+        <li><strong>Failed</strong> — the provider rejected; the retries exhausted.</li>
+        <li><strong>Suppressed</strong> — the user's preference disabled this channel.</li>
+      </ul>
+
+      <div class="callout pitfall">
+        <span class="label">The Pitfall to Avoid</span>
+        <p>Sending the same notification on multiple channels without checking preferences. The user gets the
+        same order confirmation on email, SMS, push, and in-app — annoying, and a spam complaint. The fix: the
+        preferences are checked per type per channel; the security-critical types are the exception (always
+        sent).</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">What Makes This Answer Strong</span>
+        <p>The preferences matrix with the security exception. The per-channel delivery state machine. The
+        marketing fan-out as a job pipeline. The provider-specific failure mitigations. The in-app feed with
+        unread count. Each is a specific answer to a notification scale problem.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q7 -->
+  <article class="q teal" id="q7">
+    <div class="q-head">
+      <div class="q-num">7</div>
+      <h3>Design the API for a file storage service — upload, download, share, versioning.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">The Answer</span>
+        <p>A file storage API has three core resources: <strong>files</strong> (the metadata — name, size,
+        type, checksum), <strong>versions</strong> (the historical copies), and <strong>shares</strong>
+        (permissions granted to other users). The actual file bytes are stored in object storage (S3, GCS);
+        the API stores metadata and issues signed URLs for the upload and download. The hard parts are
+        <strong>large uploads</strong> (resumable, chunked), <strong>sharing</strong> (permissions), and
+        <strong>versioning</strong> (preserving history).</p>
+      </div>
+
+      <h4>Clarify requirements</h4>
+      <ul>
+        <li><strong>Upload</strong> — the user uploads a file; the API returns a file ID.</li>
+        <li><strong>Download</strong> — the user downloads a file by ID.</li>
+        <li><strong>Share</strong> — the user shares a file with another user (read or write) or via a public
+        link.</li>
+        <li><strong>Versioning</strong> — when a file is re-uploaded, the old version is preserved; the user can
+        download a specific version.</li>
+        <li><strong>Large files</strong> — files can be up to 5 GB; the upload must be resumable.</li>
+        <li><strong>Scale</strong> — 1 billion files; 100 TB of storage; 10,000 uploads per second at peak.</li>
+      </ul>
+
+      <h4>Resource model</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Resource</th><th>Relationships</th><th>Identity</th></tr></thead>
+          <tbody>
+            <tr><td><code>File</code></td><td>Belongs to an owner; has versions; has shares</td><td><code>file_id</code></td></tr>
+            <tr><td><code>Version</code></td><td>Belongs to a file; has a storage key</td><td>Composite <code>(file_id, version)</code></td></tr>
+            <tr><td><code>Share</code></td><td>Belongs to a file; grants a user or a link</td><td><code>share_id</code></td></tr>
+            <tr><td><code>Upload</code></td><td>The in-progress upload session (for resumable)</td><td><code>upload_id</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Endpoints</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Method &amp; Path</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>POST /v1/uploads</code></td><td>Initiate an upload (returns an upload ID and a signed URL)</td></tr>
+            <tr><td><code>PUT /v1/uploads/{id}/parts/{part}</code></td><td>Upload a chunk (multipart)</td></tr>
+            <tr><td><code>POST /v1/uploads/{id}/complete</code></td><td>Complete the upload (assembles the chunks)</td></tr>
+            <tr><td><code>DELETE /v1/uploads/{id}</code></td><td>Abort the upload</td></tr>
+            <tr><td><code>GET /v1/files</code></td><td>List the user's files</td></tr>
+            <tr><td><code>GET /v1/files/{id}</code></td><td>Get file metadata</td></tr>
+            <tr><td><code>GET /v1/files/{id}/content</code></td><td>Download the file (signed URL redirect or stream)</td></tr>
+            <tr><td><code>GET /v1/files/{id}/versions</code></td><td>List versions</td></tr>
+            <tr><td><code>GET /v1/files/{id}/versions/{v}/content</code></td><td>Download a specific version</td></tr>
+            <tr><td><code>POST /v1/files/{id}/shares</code></td><td>Share the file</td></tr>
+            <tr><td><code>GET /v1/files/{id}/shares</code></td><td>List shares</td></tr>
+            <tr><td><code>DELETE /v1/files/{id}/shares/{share_id}</code></td><td>Revoke a share</td></tr>
+            <tr><td><code>DELETE /v1/files/{id}</code></td><td>Delete the file (and its versions)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The upload — chunked and resumable</h4>
+      <p>A 5 GB file cannot be uploaded in one HTTP request — the timeout would fire, the connection would
+      drop, and the upload would restart. The chunked upload:</p>
+      <ol>
+        <li><strong>Initiate</strong> — <code>POST /uploads</code> with the file name, size, and checksum. The
+        server returns an <code>upload_id</code> and the part size (e.g., 5 MB).</li>
+        <li><strong>Upload parts</strong> — the client sends each chunk to <code>PUT /uploads/{id}/parts/{n}</code>.
+        The server stores the chunk in object storage.</li>
+        <li><strong>Complete</strong> — <code>POST /uploads/{id}/complete</code> with the list of parts and
+        their checksums. The server verifies the parts, assembles them, and creates the file record.</li>
+      </ol>
+      <p>The resumability: if the upload is interrupted, the client can query which parts are already uploaded
+      and resume from there. The parts are idempotent — re-uploading a part replaces it.</p>
+
+      <h4>Direct-to-storage upload</h4>
+      <p>The efficient architecture uses <strong>signed URLs</strong> — the client uploads directly to object
+      storage, bypassing the API server:</p>
+      <ol>
+        <li>The client asks the API for a signed URL (<code>POST /uploads</code>).</li>
+        <li>The API generates a pre-signed S3 PUT URL (with a TTL) and returns it.</li>
+        <li>The client uploads the bytes directly to S3 via the signed URL.</li>
+        <li>The client notifies the API (<code>POST /uploads/{id}/complete</code>); the API verifies the object
+        exists and creates the file record.</li>
+      </ol>
+      <p>The API server is not in the data path — the bytes go from the client to S3, and the API only handles
+      metadata. This is the standard architecture for file storage at scale.</p>
+
+      <h4>The download</h4>
+      <p>Similarly, the download is via a signed URL:</p>
+      <ol>
+        <li>The client asks the API for a download URL (<code>GET /files/{id}/content</code>).</li>
+        <li>The API authorizes (the user owns or is shared the file) and generates a signed S3 GET URL.</li>
+        <li>The API returns a 302 redirect to the signed URL (or the URL in the body).</li>
+        <li>The client downloads from S3 directly (or via a CDN).</li>
+      </ol>
+      <p>The signed URL has a short TTL (minutes) — it is not a permanent link; the client must request a new
+      one.</p>
+
+      <h4>Sharing and permissions</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Share type</th><th>Grants</th></tr></thead>
+          <tbody>
+            <tr><td><strong>User share</strong></td><td>A specific user gets read or write on the file</td></tr>
+            <tr><td><strong>Public link</strong></td><td>Anyone with the link gets read (or write)</td></tr>
+            <tr><td><strong>Password-protected link</strong></td><td>Anyone with the link + the password</td></tr>
+            <tr><td><strong>Expiring link</strong></td><td>The link works until a date</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The share is a resource; it has an ID and can be revoked. The public link is a URL with a share
+      token; the token is random (not guessable), and the link is checked on every request.</p>
+
+      <h4>Versioning</h4>
+      <p>Every re-upload creates a new version. The file has a current version and a history. The version is
+      identified by a number (1, 2, 3) or a timestamp. The old versions are preserved (until a retention policy
+      removes them); the user can download a specific version.</p>
+      <p>The storage cost: versioning multiplies the storage. The retention policy limits it — keep the last N
+      versions, or the versions for the last N days. The user can also delete a version explicitly.</p>
+
+      <h4>Security</h4>
+      <ul>
+        <li><strong>Signed URLs</strong> — the URLs are signed with a secret and a TTL; they cannot be guessed
+        or forged.</li>
+        <li><strong>Authorization</strong> — the API checks the user's access to the file before issuing the
+        signed URL.</li>
+        <li><strong>Encryption</strong> — the files are encrypted at rest (S3 SSE); the signed URLs use HTTPS.</li>
+        <li><strong>Virus scanning</strong> — the uploaded files are scanned asynchronously; an infected file
+        is quarantined.</li>
+        <li><strong>Content-type validation</strong> — the API does not trust the client's <code>Content-Type</code>;
+        the type is inferred from the file, or the upload is restricted to specific types.</li>
+      </ul>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Direct-to-storage upload (signed URL) saves the API server from handling the bytes — it is faster and
+        cheaper. The cost is that the API cannot inspect the bytes during the upload (only after); the virus
+        scan and content validation are asynchronous. For most use cases, the trade is worth it; for
+        high-security cases (classified documents), the API proxies the upload for inspection.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">What Makes This Answer Strong</span>
+        <p>The signed URLs for direct-to-storage upload and download. The chunked, resumable upload. The
+        versioning with retention policy. The share types (user, public, password, expiring). The asynchronous
+        virus scan. Each is a specific answer to a file storage scale and security problem.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART C ================= -->
+  <div class="part-band violet">
+    <div class="bar"></div>
+    <h2>Part C — The Advanced Patterns
+      <span class="sub">Payments, public APIs, webhooks, and technology choices</span>
+    </h2>
+  </div>
+
+  <!-- Q8 -->
+  <article class="q violet" id="q8">
+    <div class="q-head">
+      <div class="q-num">8</div>
+      <h3>Design a payment API with strict idempotency and correctness.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">The Answer</span>
+        <p>A payment API has three core resources: <strong>payment intents</strong> (the intent to charge),
+        <strong>charges</strong> (the actual charge), and <strong>refunds</strong> (the reversal). The API is
+        <strong>idempotent</strong> — a retry must not double-charge — and <strong>correct</strong> — every
+        charge is traceable, every refund is linked, every state transition is recorded. The design follows
+        Stripe's model — the industry reference.</p>
+      </div>
+
+      <h4>Clarify requirements</h4>
+      <ul>
+        <li><strong>Charge a customer</strong> — the merchant requests a charge for an amount, with a payment
+        method.</li>
+        <li><strong>Refund a charge</strong> — a full or partial refund.</li>
+        <li><strong>Idempotency</strong> — a retry with the same key returns the same result, not a new
+        charge.</li>
+        <li><strong>Correctness</strong> — the amount is exact; the state is consistent; the audit is
+        complete.</li>
+        <li><strong>Reliability</strong> — the charge is processed even if the merchant's server crashes; the
+        webhook notifies the merchant when the charge succeeds or fails.</li>
+        <li><strong>Security</strong> — PCI compliance; the card data never touches the merchant's server
+        (tokenization).</li>
+      </ul>
+
+      <h4>Resource model</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Resource</th><th>Relationships</th><th>Identity</th></tr></thead>
+          <tbody>
+            <tr><td><code>Customer</code></td><td>Has payment methods; has charges</td><td><code>customer_id</code></td></tr>
+            <tr><td><code>PaymentMethod</code></td><td>Belongs to a customer; is a tokenized card</td><td><code>payment_method_id</code></td></tr>
+            <tr><td><code>PaymentIntent</code></td><td>The intent to charge; results in a charge</td><td><code>intent_id</code></td></tr>
+            <tr><td><code>Charge</code></td><td>Belongs to an intent; has a status</td><td><code>charge_id</code></td></tr>
+            <tr><td><code>Refund</code></td><td>Belongs to a charge</td><td><code>refund_id</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Endpoints</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Method &amp; Path</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>POST /v1/payment-intents</code></td><td>Create a payment intent (with idempotency key)</td></tr>
+            <tr><td><code>POST /v1/payment-intents/{id}/confirm</code></td><td>Confirm and charge (with idempotency key)</td></tr>
+            <tr><td><code>GET /v1/payment-intents/{id}</code></td><td>Get intent status</td></tr>
+            <tr><td><code>POST /v1/charges/{id}/refunds</code></td><td>Refund a charge (with idempotency key)</td></tr>
+            <tr><td><code>GET /v1/refunds/{id}</code></td><td>Get refund status</td></tr>
+            <tr><td><code>GET /v1/charges/{id}</code></td><td>Get charge details</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The idempotency — the core mechanism</h4>
+      <p>Every mutating endpoint requires an <code>Idempotency-Key</code> header (Volume 5, Questions 2–7). The
+      flow:</p>
+      <ol>
+        <li><strong>Client generates a key</strong> — a UUID, per logical operation, at the moment of
+        intent.</li>
+        <li><strong>Server claims the key</strong> — atomically inserts the key into the idempotency store, with
+        a fingerprint of the request body.</li>
+        <li><strong>Process</strong> — the charge is processed; the response is stored under the key.</li>
+        <li><strong>Retry</strong> — the same key returns the stored response; a different body with the same
+        key returns 422.</li>
+      </ol>
+      <p>The idempotency store is <strong>durable</strong> (a database) and scoped per account. The TTL is
+      <strong>24 hours</strong> — long enough for any realistic retry; the customer does not retry a payment
+      after a day.</p>
+
+      <h4>The payment intent — the two-phase charge</h4>
+      <p>The payment intent separates the <strong>intent</strong> (the request to charge) from the
+      <strong>charge</strong> (the actual money movement). The flow:</p>
+      <ol>
+        <li><strong>Create the intent</strong> — <code>POST /payment-intents</code> with the amount, currency,
+        and customer. The intent is <code>requires_payment_method</code>; it is not charged yet.</li>
+        <li><strong>Attach the payment method</strong> — the client sends the payment method ID (a tokenized
+        card). The intent becomes <code>requires_confirmation</code>.</li>
+        <li><strong>Confirm the intent</strong> — <code>POST /payment-intents/{id}/confirm</code>. The server
+        charges the card; the intent becomes <code>succeeded</code> or <code>failed</code>.</li>
+        <li><strong>Webhook</strong> — the server notifies the merchant of the outcome (Question 10).</li>
+      </ol>
+      <p>The two-phase design allows the merchant to handle 3D Secure (the customer is redirected to the
+      issuer's page for authentication) and other asynchronous payment flows. The intent tracks the state across
+      the redirect; the charge happens when the authentication completes.</p>
+
+      <h4>The charge — atomic and recorded</h4>
+      <p>The charge is processed by the payment processor (Stripe, Adyen, a bank). The merchant's API:</p>
+      <ul>
+        <li><strong>Validates</strong> — the amount, the currency, the payment method.</li>
+        <li><strong>Records the intent</strong> — before calling the processor.</li>
+        <li><strong>Calls the processor</strong> — with the processor's idempotency key (derived from the
+        intent ID).</li>
+        <li><strong>Records the outcome</strong> — the charge ID, the status, the processor's reference.</li>
+        <li><strong>Emits the event</strong> — the <code>charge.succeeded</code> or <code>charge.failed</code>
+        event, which triggers the webhook.</li>
+      </ul>
+      <p>The processor's idempotency key is critical — the processor must not double-charge if the merchant's
+      API retries. The key is the merchant's intent ID; the processor deduplicates on it.</p>
+
+      <h4>Refunds</h4>
+      <p>The refund is a resource with its own lifecycle:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>State</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>pending</code></td><td>The refund is being processed</td></tr>
+            <tr><td><code>succeeded</code></td><td>The refund has been issued</td></tr>
+            <tr><td><code>failed</code></td><td>The refund was rejected (e.g., insufficient balance)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The refund has its own idempotency key — a partial refund can be retried without duplicating. The
+      refund's amount is checked against the charge's remaining refundable amount; the refund cannot exceed the
+      charge.</p>
+
+      <h4>The webhook — the notification</h4>
+      <p>The merchant's server needs to know when a charge succeeds or fails. The webhook (Question 10):</p>
+      <ul>
+        <li><strong>Subscribed</strong> — the merchant registers a URL for <code>charge.succeeded</code>,
+        <code>charge.failed</code>, <code>refund.succeeded</code>.</li>
+        <li><strong>Signed</strong> — the payload is signed with HMAC; the merchant verifies.</li>
+        <li><strong>Retried</strong> — the webhook is retried with backoff; the merchant's server may be
+        down.</li>
+        <li><strong>Reconcilable</strong> — the merchant can query the API for the event if the webhook is
+        missed.</li>
+      </ul>
+
+      <h4>Security and PCI</h4>
+      <ul>
+        <li><strong>Tokenization</strong> — the card data is tokenized by the processor (Stripe.js, Adyen's
+        components); the merchant's server sees a token, not the card number. The merchant is not in the PCI
+        scope for the card data.</li>
+        <li><strong>HTTPS only</strong> — the API rejects any non-HTTPS request.</li>
+        <li><strong>API keys</strong> — the merchant's API key has a restricted scope (charge, refund); it
+        cannot read other merchants' data.</li>
+        <li><strong>Webhook signatures</strong> — the merchant verifies the signature; a forged webhook is
+        rejected.</li>
+        <li><strong>Audit log</strong> — every charge, refund, and state change is logged; the log is
+        immutable.</li>
+      </ul>
+
+      <div class="callout pitfall">
+        <span class="label">The Pitfall to Avoid</span>
+        <p>Not requiring the idempotency key. The merchant's server retries after a timeout; the payment is
+        charged twice; the customer disputes. The API must require the key on every mutating endpoint — a
+        request without it is a 400. The key is the merchant's responsibility; the API enforces it.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">What Makes This Answer Strong</span>
+        <p>The payment intent as a two-phase charge, enabling 3D Secure. The idempotency key on every mutating
+        endpoint, with durable storage and 24h TTL. The processor idempotency derived from the intent. The
+        webhook with signing and reconciliation. The tokenization for PCI. Each is a specific answer to a
+        payments correctness problem.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q9 -->
+  <article class="q violet" id="q9">
+    <div class="q-head">
+      <div class="q-num">9</div>
+      <h3>Design a public SaaS API — OAuth, scopes, rate limits, versioning, developer experience.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">The Answer</span>
+        <p>A public SaaS API is a product — its surface is the contract with third-party developers. The design
+        brings together every framework: <strong>OAuth 2.0 with scopes</strong> for authentication and
+        authorization, <strong>rate limits and quotas</strong> per plan, <strong>versioning and
+        deprecation</strong> with a documented policy, <strong>RFC 7807 errors</strong>, <strong>cursor
+        pagination</strong>, <strong>idempotency keys</strong>, and <strong>developer experience</strong> (docs,
+        SDKs, sandbox) that determines adoption.</p>
+      </div>
+
+      <h4>Clarify requirements</h4>
+      <ul>
+        <li><strong>Audience</strong> — third-party developers integrating the SaaS's functionality into their
+        own products.</li>
+        <li><strong>Authentication</strong> — the developer's app acts on behalf of the SaaS's user (OAuth) or
+        on its own behalf (client credentials).</li>
+        <li><strong>Scopes</strong> — the developer requests the permissions it needs; the user consents.</li>
+        <li><strong>Rate limits</strong> — per plan (free, pro, enterprise); the limits are documented.</li>
+        <li><strong>Stability</strong> — the API is a contract; breaking changes require a new version.</li>
+        <li><strong>Developer experience</strong> — fast onboarding, good docs, SDKs, sandbox.</li>
+      </ul>
+
+      <h4>Authentication — OAuth 2.0 with PKCE</h4>
+      <p>The developer's app uses the authorization code flow with PKCE (Volume 6, Question 3):</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Step</th><th>Flow</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>The app redirects the user to the SaaS's authorization page with the requested scopes</td></tr>
+            <tr><td>2</td><td>The user logs in, sees the consent screen, and approves</td></tr>
+            <tr><td>3</td><td>The user is redirected back to the app with an authorization code</td></tr>
+            <tr><td>4</td><td>The app exchanges the code (with the PKCE verifier) for an access token and a refresh token</td></tr>
+            <tr><td>5</td><td>The app uses the access token (<code>Authorization: Bearer ...</code>) to call the API</td></tr>
+            <tr><td>6</td><td>The app refreshes the token when it expires</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>For machine-to-machine integrations (a backend service calling the SaaS without a user), the client
+      credentials flow applies — the app authenticates with its own client ID and secret, and receives a token
+      with the app's own scopes.</p>
+
+      <h4>Scopes</h4>
+      <p>The scopes are coarse-grained permissions:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Scope</th><th>Grants</th></tr></thead>
+          <tbody>
+            <tr><td><code>read:profile</code></td><td>Read the user's profile</td></tr>
+            <tr><td><code>write:profile</code></td><td>Update the user's profile</td></tr>
+            <tr><td><code>read:orders</code></td><td>Read the user's orders</td></tr>
+            <tr><td><code>write:orders</code></td><td>Create orders on behalf of the user</td></tr>
+            <tr><td><code>read:analytics</code></td><td>Read aggregate analytics (enterprise)</td></tr>
+            <tr><td><code>admin:webhooks</code></td><td>Manage webhook subscriptions</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The scopes are enforced on every request — the token's scopes are checked against the operation's
+      required scope. The user sees the scopes on the consent screen; the developer requests only the scopes
+      needed.</p>
+
+      <h4>Rate limits and quotas</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Plan</th><th>Rate limit</th><th>Monthly quota</th><th>Overage</th></tr></thead>
+          <tbody>
+            <tr><td>Free</td><td>60/min</td><td>10,000</td><td>Hard cap — 429</td></tr>
+            <tr><td>Pro</td><td>1,000/min</td><td>1,000,000</td><td>Billed at $0.01 per 1,000</td></tr>
+            <tr><td>Enterprise</td><td>Negotiated</td><td>Custom</td><td>Negotiated</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The rate limit uses the token bucket (Volume 7, Question 3) — bursts up to the bucket size are
+      allowed; the sustained rate is the limit. The response includes the standard headers
+      (<code>RateLimit-Limit</code>, <code>RateLimit-Remaining</code>, <code>RateLimit-Reset</code>,
+      <code>Retry-After</code>); a well-behaved client self-throttles.</p>
+      <p>The quota is the monthly allowance — tracked per API key, aggregated per tenant. The developer sees the
+      usage in the dashboard; the alerts fire at 80% and 95%.</p>
+
+      <h4>Versioning</h4>
+      <p>The version is in the URL (<code>/v1/</code>). The policy:</p>
+      <ul>
+        <li><strong>Additive changes</strong> — new fields, new endpoints — are non-breaking; they happen
+        within the current version.</li>
+        <li><strong>Breaking changes</strong> — remove a field, change a type — require a new version.</li>
+        <li><strong>Deprecation</strong> — a version is supported for at least 12 months after a new version is
+        released; the announcement is 6 months before the sunset.</li>
+        <li><strong>Communication</strong> — the changelog, the developer newsletter, the in-band
+        <code>Sunset</code> header.</li>
+      </ul>
+
+      <h4>Error handling</h4>
+      <p>RFC 7807 for every error. The taxonomy:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>HTTP</th><th>Code</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td>400</td><td><code>invalid_request</code></td><td>Malformed JSON</td></tr>
+            <tr><td>401</td><td><code>invalid_token</code></td><td>Token expired or invalid</td></tr>
+            <tr><td>403</td><td><code>insufficient_scope</code></td><td>Token lacks the required scope</td></tr>
+            <tr><td>404</td><td><code>not_found</code></td><td>Resource does not exist (or not accessible)</td></tr>
+            <tr><td>409</td><td><code>conflict</code></td><td>Concurrent modification</td></tr>
+            <tr><td>422</td><td><code>validation_failed</code></td><td>Invalid input</td></tr>
+            <tr><td>429</td><td><code>rate_limited</code></td><td>Rate limit exceeded</td></tr>
+            <tr><td>500</td><td><code>internal_error</code></td><td>Server error</td></tr>
+            <tr><td>503</td><td><code>service_unavailable</code></td><td>Temporarily down</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Idempotency</h4>
+      <p>Every POST that creates a resource requires an <code>Idempotency-Key</code> header. The developer
+      generates a UUID per operation; a retry returns the same response; a different body with the same key
+      returns 422.</p>
+
+      <h4>Pagination</h4>
+      <p>Cursor pagination on every list endpoint. The response includes <code>next_cursor</code> and
+      <code>has_more</code>. The page size is capped at 100.</p>
+
+      <h4>Developer experience</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Layer</th><th>Content</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Getting started</strong></td><td>Sign up, get credentials, first call — in 5 minutes</td></tr>
+            <tr><td><strong>Reference</strong></td><td>Every endpoint, field, error — generated from OpenAPI</td></tr>
+            <tr><td><strong>Guides</strong></td><td>OAuth, webhooks, rate limits, pagination, idempotency</td></tr>
+            <tr><td><strong>SDKs</strong></td><td>Official SDKs in Python, JavaScript, Java, Go, Ruby, PHP</td></tr>
+            <tr><td><strong>Sandbox</strong></td><td>Test environment with test data; no real charges</td></tr>
+            <tr><td><strong>Postman collection</strong></td><td>A ready-made collection; import and start</td></tr>
+            <tr><td><strong>Changelog</strong></td><td>Every change, with the type</td></tr>
+            <tr><td><strong>Status page</strong></td><td>Uptime and incidents</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Webhooks</h4>
+      <p>The developer registers a URL for events. The webhooks are signed, retried, and reconcilable
+      (Question 10). The events: <code>order.created</code>, <code>order.completed</code>,
+      <code>payment.succeeded</code>, <code>subscription.cancelled</code>.</p>
+
+      <div class="callout pitfall">
+        <span class="label">The Pitfall to Avoid</span>
+        <p>Over-scoping the API. The developer requests <code>read:all</code> when it only needs
+        <code>read:orders</code>. The user sees an alarming consent screen and declines. The fix: the scopes
+        are fine-grained; the docs recommend the minimal scope; the consent screen explains what each scope
+        grants.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">What Makes This Answer Strong</span>
+        <p>The complete authentication story (OAuth + PKCE + client credentials). The scopes with the consent
+        screen and minimal-scope guidance. The rate limits per plan with the standard headers. The versioning
+        policy with the 12-month support window. The DX stack (docs, SDKs, sandbox, Postman). Each is a specific
+        answer to a public SaaS API problem.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q10 -->
+  <article class="q violet" id="q10">
+    <div class="q-head">
+      <div class="q-num">10</div>
+      <h3>Design a webhook delivery system — signed, retried, reconcilable.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">The Answer</span>
+        <p>A webhook system has five components: a <strong>subscription registry</strong> (who wants which
+        events), an <strong>event queue</strong> (durable, survives crashes), a <strong>dispatcher</strong>
+        (sends the HTTP requests), a <strong>retry scheduler</strong> (exponential backoff), and a
+        <strong>reconciliation endpoint</strong> (so a receiver that missed events can catch up). The delivery
+        is signed with HMAC, verified by the receiver, and idempotent — a duplicate delivery is harmless
+        (Volume 11, Questions 3–6).</p>
+      </div>
+
+      <h4>The event envelope</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Field</th><th>Content</th></tr></thead>
+          <tbody>
+            <tr><td><code>id</code></td><td>Unique event ID (for receiver idempotency)</td></tr>
+            <tr><td><code>type</code></td><td><code>order.created</code>, <code>payment.succeeded</code></td></tr>
+            <tr><td><code>created_at</code></td><td>When the event occurred</td></tr>
+            <tr><td><code>api_version</code></td><td>The schema version</td></tr>
+            <tr><td><code>data</code></td><td>The event payload</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The subscription registry</h4>
+      <p>Each subscription has:</p>
+      <ul>
+        <li><strong>URL</strong> — the receiver's HTTPS endpoint.</li>
+        <li><strong>Event types</strong> — which events the receiver wants.</li>
+        <li><strong>Secret</strong> — for signing (per subscription; rotatable).</li>
+        <li><strong>Status</strong> — active, paused, disabled (after repeated failures).</li>
+        <li><strong>Metadata</strong> — description, contact, creation date.</li>
+      </ul>
+
+      <h4>The delivery flow</h4>
+      <ol>
+        <li><strong>Event emitted</strong> — the business logic publishes <code>order.created</code>.</li>
+        <li><strong>Event stored</strong> — in a durable outbox, in the same transaction as the business
+        change (Volume 11, Question 6).</li>
+        <li><strong>Dispatcher reads</strong> — the worker reads the outbox, finds the subscribers for the event
+        type.</li>
+        <li><strong>For each subscriber</strong>:
+          <ul>
+            <li>Builds the payload.</li>
+            <li>Signs it with the subscription's secret.</li>
+            <li>POSTs to the URL with a 10-second timeout.</li>
+            <li>Reads the response.</li>
+          </ul>
+        </li>
+        <li><strong>Success (2xx)</strong> — mark delivered; move on.</li>
+        <li><strong>Retryable failure (5xx, timeout, 429)</strong> — schedule a retry with backoff.</li>
+        <li><strong>Non-retryable failure (4xx)</strong> — mark failed; move to DLQ.</li>
+        <li><strong>Retries exhausted</strong> — mark failed; move to DLQ.</li>
+      </ol>
+
+      <h4>The retry schedule</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Attempt</th><th>Delay</th><th>Cumulative</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>Immediate</td><td>0</td></tr>
+            <tr><td>2</td><td>1 minute</td><td>1 min</td></tr>
+            <tr><td>3</td><td>5 minutes</td><td>6 min</td></tr>
+            <tr><td>4</td><td>30 minutes</td><td>36 min</td></tr>
+            <tr><td>5</td><td>2 hours</td><td>~2.5 h</td></tr>
+            <tr><td>6</td><td>6 hours</td><td>~8.5 h</td></tr>
+            <tr><td>7</td><td>24 hours</td><td>~32 h</td></tr>
+            <tr><td>8+</td><td>DLQ</td><td>—</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The signature</h4>
+      <p>The signature is HMAC-SHA256 over <code>timestamp + "." + body</code>, sent in the
+      <code>X-Webhook-Signature</code> header:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Header</th></tr></thead>
+          <tbody>
+            <tr><td><code>X-Webhook-Signature: t=1699999999,v1=5257a869e7ecebeda32affa62cdca3fa51cad7e77a0e56ff536d0ce8e108d8bd</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The receiver verifies:</p>
+      <ol>
+        <li>Extract <code>t</code> and <code>v1</code>.</li>
+        <li>Check <code>abs(now - t) &lt; 300</code> (5 minutes) — reject old requests (replay prevention).</li>
+        <li>Compute <code>HMAC-SHA256(secret, t + "." + body)</code>.</li>
+        <li>Compare with <code>v1</code> using constant-time comparison.</li>
+        <li>Process if matched; reject with 401 if not.</li>
+      </ol>
+
+      <h4>The SSRF prevention</h4>
+      <p>The webhook URL is an SSRF vector (Volume 11, Question 8). The defenses:</p>
+      <ul>
+        <li><strong>HTTPS only</strong> — reject <code>http://</code>.</li>
+        <li><strong>DNS resolution + IP validation</strong> — resolve the hostname; reject private, loopback,
+        link-local, and metadata IPs.</li>
+        <li><strong>Re-validate on every delivery</strong> — the DNS may rebind.</li>
+        <li><strong>No redirects</strong> — a 3xx is a failure, not a follow.</li>
+        <li><strong>Network isolation</strong> — the dispatcher runs in a subnet with no route to internal
+        services.</li>
+        <li><strong>Egress firewall</strong> — deny outbound to RFC 1918 and 169.254.0.0/16.</li>
+      </ul>
+
+      <h4>The reconciliation endpoint</h4>
+      <p>The receiver can query for missed events:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Request</th><th>Response</th></tr></thead>
+          <tbody>
+            <tr><td><code>GET /events?since=2026-11-12T00:00:00Z&amp;type=order.created</code></td><td>List of events since the timestamp, paginated</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The receiver stores its last-seen timestamp; on startup or periodically, it queries for events after
+      that timestamp. This guarantees eventual delivery even if webhooks fail — the receiver can always pull.</p>
+
+      <h4>The DLQ</h4>
+      <p>Exhausted retries go to a dead-letter queue. The receiver can query the DLQ for missed events; the
+      sender can replay after fixing a problem. Without a DLQ, the failed events are silently lost.</p>
+
+      <div class="callout pitfall">
+        <span class="label">The Pitfall to Avoid</span>
+        <p>Relying on webhooks alone. The webhooks fail — the receiver is down, the network is broken, the
+        secret is rotated. Without a reconciliation endpoint, the events are lost permanently. The webhooks are
+        the fast path; the reconciliation is the guarantee.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">What Makes This Answer Strong</span>
+        <p>The durable outbox for the event. The HMAC signature with the timestamp for replay prevention. The
+        exponential backoff schedule. The SSRF defenses (HTTPS, DNS + IP validation, no redirects, network
+        isolation). The reconciliation endpoint. The DLQ. Each is a specific answer to a webhook reliability
+        problem.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q11 -->
+  <article class="q violet" id="q11">
+    <div class="q-head">
+      <div class="q-num">11</div>
+      <h3>Design a GraphQL API for a social feed — schema, N+1, complexity, caching.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">The Answer</span>
+        <p>A GraphQL API for a social feed has three challenges: the <strong>schema design</strong> (how the
+        graph models users, posts, comments, likes), the <strong>N+1 problem</strong> (every field is a
+        resolver; batching is mandatory), and the <strong>security</strong> (query complexity, depth limits,
+        persisted queries). The schema is designed for the client's queries, not for the database
+        tables.</p>
+      </div>
+
+      <h4>The schema</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Type</th><th>Fields</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>User</code></td>
+              <td><code>id</code>, <code>name</code>, <code>avatar</code>, <code>bio</code>, <code>posts</code>,
+              <code>followers</code>, <code>following</code>, <code>feed</code></td>
+            </tr>
+            <tr>
+              <td><code>Post</code></td>
+              <td><code>id</code>, <code>author</code>, <code>content</code>, <code>media</code>,
+              <code>createdAt</code>, <code>likes</code>, <code>comments</code>, <code>likeCount</code></td>
+            </tr>
+            <tr>
+              <td><code>Comment</code></td>
+              <td><code>id</code>, <code>author</code>, <code>content</code>, <code>createdAt</code></td>
+            </tr>
+            <tr>
+              <td><code>Like</code></td>
+              <td><code>user</code>, <code>createdAt</code></td>
+            </tr>
+            <tr>
+              <td><code>FeedConnection</code></td>
+              <td><code>edges</code>, <code>pageInfo</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The Query root</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Query</th><th>Returns</th></tr></thead>
+          <tbody>
+            <tr><td><code>me: User</code></td><td>The authenticated user</td></tr>
+            <tr><td><code>user(id: ID!): User</code></td><td>A user by ID</td></tr>
+            <tr><td><code>post(id: ID!): Post</code></td><td>A post by ID</td></tr>
+            <tr><td><code>feed(first: Int!, after: String): FeedConnection!</code></td><td>The user's feed, paginated</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The Mutation root</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Mutation</th><th>Returns</th></tr></thead>
+          <tbody>
+            <tr><td><code>createPost(input: CreatePostInput!): CreatePostPayload!</code></td><td>The created post</td></tr>
+            <tr><td><code>likePost(postId: ID!): LikePostPayload!</code></td><td>The updated post</td></tr>
+            <tr><td><code>unlikePost(postId: ID!): UnlikePostPayload!</code></td><td>The updated post</td></tr>
+            <tr><td><code>commentOnPost(input: CommentInput!): CommentPayload!</code></td><td>The created comment</td></tr>
+            <tr><td><code>followUser(userId: ID!): FollowPayload!</code></td><td>The updated user</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The N+1 problem — DataLoader everywhere</h4>
+      <p>A query like:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Query</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre>query {
+  feed(first: 20) {
+    edges {
+      node {
+        content
+        author { name avatar }
+        comments(first: 5) { author { name } }
+      }
+    }
+  }
+}</pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Without batching, this triggers:</p>
+      <ul>
+        <li>1 query for the feed's 20 posts.</li>
+        <li>20 queries for the authors.</li>
+        <li>20 queries for the comments.</li>
+        <li>100 queries for the comment authors (5 per post × 20 posts).</li>
+        <li>Total: 141 queries.</li>
+      </ul>
+      <p>With DataLoader, each level is batched:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Level</th><th>Query count</th></tr></thead>
+          <tbody>
+            <tr><td>Feed posts</td><td>1</td></tr>
+            <tr><td>Post authors</td><td>1 (batched)</td></tr>
+            <tr><td>Comments per post</td><td>1 (batched, or a dataloader per post)</td></tr>
+            <tr><td>Comment authors</td><td>1 (batched)</td></tr>
+            <tr><td>Total</td><td>~4 queries</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Every field that does a per-item lookup needs its own DataLoader — the author loader, the comments
+      loader, the likes loader. The loader is created per request, passed through the context, and used by
+      every resolver.</p>
+
+      <h4>Query complexity and depth limits</h4>
+      <p>The GraphQL flexibility is the vulnerability. The defenses:</p>
+      <ul>
+        <li><strong>Depth limit</strong> — reject queries deeper than 10 levels.</li>
+        <li><strong>Complexity score</strong> — each field has a cost; the query's total cost is compared to
+        a budget (1000). A query requesting 100 posts with their comments costs 100 × 10 × 5 = 5000 —
+        rejected.</li>
+        <li><strong>Page size limit</strong> — every list field caps the <code>first</code> parameter at 100.</li>
+        <li><strong>Timeout</strong> — the whole query has a 10-second timeout.</li>
+        <li><strong>Persisted queries</strong> — the production clients only send known query hashes; the
+        arbitrary queries are rejected (Volume 12, Question 5).</li>
+        <li><strong>Introspection off</strong> — production does not expose the schema.</li>
+      </ul>
+
+      <h4>Caching</h4>
+      <p>HTTP caching does not work for GraphQL (POST with a body). The caching strategy:</p>
+      <ul>
+        <li><strong>Client normalized cache</strong> — Apollo Client or Relay stores entities by
+        <code>__typename + id</code>; subsequent queries read from the cache.</li>
+        <li><strong>Persisted queries + GET + CDN</strong> — for public queries, the persisted hash goes in
+        the URL; the CDN caches the response.</li>
+        <li><strong>Resolver-level cache</strong> — expensive resolvers cache their results in Redis.</li>
+        <li><strong>DataLoader per-request cache</strong> — the same entity requested twice in one query is
+        fetched once.</li>
+      </ul>
+
+      <h4>Authorization</h4>
+      <p>Field-level authorization (Volume 12, Question 6):</p>
+      <ul>
+        <li><strong>Operation-level</strong> — can the user run this query? (a check before the resolvers).</li>
+        <li><strong>Field-level</strong> — can the user see this field on this object? (a directive or
+        middleware).</li>
+        <li><strong>Object-level</strong> — can the user see this specific post? (a check in the resolver).</li>
+      </ul>
+      <p>The nested-field BOLA is the subtle bug: a query that fetches <code>user.posts.author.salary</code> —
+      the top-level user is authorized, but the nested author's salary needs its own check.</p>
+
+      <div class="callout pitfall">
+        <span class="label">The Pitfall to Avoid</span>
+        <p>Forgetting DataLoader for a single field. The feed's author resolver is batched, but the comment's
+        author resolver is not — the query fails at the comment level. Every field that does a per-item lookup
+        needs its own loader.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">What Makes This Answer Strong</span>
+        <p>The schema designed for the client's queries. The DataLoader at every nesting level. The complexity
+        score and depth limit. The persisted queries for security and caching. The client normalized cache.
+        The field-level authorization with the nested BOLA check. Each is a specific answer to a GraphQL
+        production problem.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q12 -->
+  <article class="q violet" id="q12">
+    <div class="q-head">
+      <div class="q-num">12</div>
+      <h3>Design a gRPC API for a microservices platform.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">The Answer</span>
+        <p>A gRPC API for a microservices platform has three layers: the <strong>Proto schema</strong> (the
+        services and messages), the <strong>service implementations</strong> (with interceptors for auth,
+        tracing, and deadlines), and the <strong>infrastructure</strong> (load balancing, observability,
+        gRPC-Web for browsers). The design follows the standard patterns: unary for CRUD, streaming for
+        large payloads and real-time, deadlines everywhere, structured errors with
+        <code>google.rpc.Status</code>.</p>
+      </div>
+
+      <h4>The schema — a typical service</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Proto</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre>syntax = "proto3";
+package orders.v1;
+
+service OrderService {
+  rpc GetOrder(GetOrderRequest) returns (Order);
+  rpc CreateOrder(CreateOrderRequest) returns (Order);
+  rpc StreamOrders(StreamOrdersRequest) returns (stream Order);
+  rpc UploadLineItems(stream LineItem) returns (UploadResult);
+}
+
+message Order {
+  string id = 1;
+  string customer_id = 2;
+  repeated LineItem items = 3;
+  int64 total_cents = 4;
+  OrderStatus status = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+enum OrderStatus {
+  ORDER_STATUS_UNSPECIFIED = 0;
+  ORDER_STATUS_PENDING = 1;
+  ORDER_STATUS_CONFIRMED = 2;
+  ORDER_STATUS_SHIPPED = 3;
+  ORDER_STATUS_DELIVERED = 4;
+}</pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The four RPC types</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Type</th><th>Use case</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Unary</strong></td><td><code>GetOrder</code>, <code>CreateOrder</code> — the standard request/response</td></tr>
+            <tr><td><strong>Server streaming</strong></td><td><code>StreamOrders</code> — the server pushes new orders (for a dashboard)</td></tr>
+            <tr><td><strong>Client streaming</strong></td><td><code>UploadLineItems</code> — the client uploads a large list in chunks</td></tr>
+            <tr><td><strong>Bidirectional</strong></td><td>A chat or a live collaboration service</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The interceptors</h4>
+      <p>The chain (outermost to innermost):</p>
+      <ol>
+        <li><strong>Recovery</strong> — catches panics; returns <code>INTERNAL</code>.</li>
+        <li><strong>Request ID</strong> — generates a correlation ID.</li>
+        <li><strong>Metrics</strong> — records latency, error count, in-flight count.</li>
+        <li><strong>Tracing</strong> — starts a span; propagates the trace context.</li>
+        <li><strong>Logging</strong> — logs the method, the duration, the status.</li>
+        <li><strong>Authentication</strong> — validates the token; resolves the identity.</li>
+        <li><strong>Authorization</strong> — checks the permission for the method.</li>
+        <li><strong>Rate limiting</strong> — checks the client's quota.</li>
+        <li><strong>Deadline</strong> — sets a default if none; propagates the deadline.</li>
+      </ol>
+
+      <h4>The deadlines</h4>
+      <p>Every call carries a deadline; the context propagates it. The server checks <code>ctx.Done()</code> in
+      long-running loops; the database client receives the context and cancels the query. The
+      <code>DEADLINE_EXCEEDED</code> is returned when the deadline fires.</p>
+
+      <h4>The errors</h4>
+      <p>The standard <code>google.rpc.Status</code>:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Status</th><th>BadRequest (field violations)</th><th>ErrorInfo (code)</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre>status: INVALID_ARGUMENT
+message: "Validation failed"
+details:
+  - @type: google.rpc.BadRequest
+    field_violations:
+      - field: "items[0].quantity"
+        description: "must be positive"</pre>
+              </td>
+              <td>Field violations for form display</td>
+              <td>Machine-readable code for conditional logic</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The load balancing</h4>
+      <p>gRPC uses HTTP/2 long-lived connections; L4 load balancers route the whole connection to one backend.
+      The solution: client-side load balancing with service discovery, or an L7 proxy (Envoy), or a service
+      mesh.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Approach</th><th>Pros</th><th>Cons</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Client-side LB</strong></td><td>Per-request distribution; low latency</td><td>Every client needs the discovery logic</td></tr>
+            <tr><td><strong>L7 proxy (Envoy)</strong></td><td>Per-request distribution; centralized</td><td>Extra hop; extra infrastructure</td></tr>
+            <tr><td><strong>Service mesh (Istio)</strong></td><td>Transparent; uniform policy</td><td>Operational overhead</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>For a microservices platform, the service mesh is the typical answer — the sidecar handles the load
+      balancing, the mTLS, and the observability transparently.</p>
+
+      <h4>The gRPC-Web for browsers</h4>
+      <p>Browsers cannot speak native gRPC. For the web frontend, the options:</p>
+      <ul>
+        <li><strong>gRPC-Web</strong> — a variant; works with a proxy (Envoy); supports unary and server
+        streaming.</li>
+        <li><strong>grpc-gateway</strong> — generates a REST API from the Proto; the browser speaks REST; the
+        gateway translates.</li>
+        <li><strong>A REST API alongside</strong> — a separate REST API for the browser; the services speak
+        gRPC internally.</li>
+      </ul>
+
+      <h4>The observability</h4>
+      <ul>
+        <li><strong>Metrics</strong> — <code>grpc_server_handled_total</code>, <code>grpc_server_handling_seconds</code>,
+        with the method and status code labels.</li>
+        <li><strong>Traces</strong> — the trace context in the metadata; spans for each RPC.</li>
+        <li><strong>Logs</strong> — structured; the method, the status, the duration, the trace ID.</li>
+        <li><strong>channelz</strong> — the connection state; the per-channel stats.</li>
+        <li><strong>grpcurl</strong> — the debugging client.</li>
+        <li><strong>Reflection</strong> — for the development; off in production.</li>
+      </ul>
+
+      <h4>The schema management</h4>
+      <ul>
+        <li><strong>buf</strong> — lints the Protos; checks breaking changes against the baseline.</li>
+        <li><strong>buf generate</strong> — generates the code for all languages.</li>
+        <li><strong>buf push</strong> — publishes to the registry.</li>
+        <li><strong>Reserved fields</strong> — on removal, the field number is reserved to prevent reuse.</li>
+      </ul>
+
+      <div class="callout pitfall">
+        <span class="label">The Pitfall to Avoid</span>
+        <p>Using gRPC from the browser directly. The browser cannot speak gRPC; the gRPC-Web proxy is required,
+        and it does not support bidirectional streaming. For the browser, use gRPC-Web (unary + server streaming)
+        or grpc-gateway (REST) — not the native gRPC.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">What Makes This Answer Strong</span>
+        <p>The Proto schema with reserved fields and buf linting. The four RPC types with the use cases. The
+        interceptor chain in order. The deadline propagation. The <code>google.rpc.Status</code> with
+        <code>BadRequest</code>. The load balancing options. The gRPC-Web for browsers. Each is a specific
+        answer to a gRPC platform problem.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q13 -->
+  <article class="q violet" id="q13">
+    <div class="q-head">
+      <div class="q-num">13</div>
+      <h3>Design the API gateway configuration for a multi-service system.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">The Answer</span>
+        <p>An API gateway configuration has five layers: <strong>routing</strong> (path and host),
+        <strong>authentication</strong> (validate the token at the edge), <strong>rate limiting</strong>
+        (per-client at the edge), <strong>observability</strong> (access logs, metrics, tracing),
+        <strong>traffic management</strong> (canary, versioning). The configuration is declarative, versioned,
+        and tested. The gateway is thin — routing and cross-cutting concerns, not business logic
+        (Volume 9).</p>
+      </div>
+
+      <h4>The services</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Service</th><th>Path</th><th>Auth</th><th>Rate limit</th></tr></thead>
+          <tbody>
+            <tr><td><code>auth-service</code></td><td><code>/auth/*</code></td><td>None (login, signup)</td><td>Strict (10/min per IP)</td></tr>
+            <tr><td><code>user-service</code></td><td><code>/users/*</code></td><td>JWT</td><td>100/min per user</td></tr>
+            <tr><td><code>order-service</code></td><td><code>/orders/*</code></td><td>JWT + <code>write:orders</code> scope</td><td>200/min per user</td></tr>
+            <tr><td><code>payment-service</code></td><td><code>/payments/*</code></td><td>JWT + <code>write:payments</code> scope + mTLS</td><td>50/min per user</td></tr>
+            <tr><td><code>admin-service</code></td><td><code>/admin/*</code></td><td>JWT + <code>admin</code> role + IP allowlist</td><td>20/min per user</td></tr>
+            <tr><td><code>search-service</code></td><td><code>/search</code></td><td>API key (optional for public)</td><td>60/min per IP</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The routing rules</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Priority</th><th>Rule</th><th>Backend</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td><code>X-Canary: true</code> AND path = <code>/orders/*</code></td><td><code>orders-v2-canary</code></td></tr>
+            <tr><td>2</td><td>path = <code>/auth/*</code></td><td><code>auth-service</code></td></tr>
+            <tr><td>3</td><td>path = <code>/admin/*</code></td><td><code>admin-service</code></td></tr>
+            <tr><td>4</td><td>path = <code>/payments/*</code></td><td><code>payment-service</code></td></tr>
+            <tr><td>5</td><td>path = <code>/orders/*</code> (90% weight to v1, 10% to v2)</td><td><code>orders-v1</code> / <code>orders-v2</code></td></tr>
+            <tr><td>6</td><td>path = <code>/users/*</code></td><td><code>user-service</code></td></tr>
+            <tr><td>7</td><td>path = <code>/search</code></td><td><code>search-service</code></td></tr>
+            <tr><td>8</td><td>path = <code>/health</code></td><td>Gateway's own health</td></tr>
+            <tr><td>9</td><td>default</td><td>404</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The rule order is most-specific first. The canary rule is highest — a canary request goes to the
+      canary regardless of the other rules. The default is a 404 — no traffic to an unknown path.</p>
+
+      <h4>The authentication</h4>
+      <p>The gateway validates the JWT:</p>
+      <ol>
+        <li>Extract the token from <code>Authorization: Bearer</code>.</li>
+        <li>Fetch the public key from the auth service's JWKS (cached).</li>
+        <li>Verify the signature; check the <code>exp</code>, <code>iss</code>, <code>aud</code>.</li>
+        <li>Extract the <code>sub</code>, <code>tenant_id</code>, <code>scope</code>.</li>
+        <li>Forward the identity as signed headers (<code>X-User-ID</code>, <code>X-Tenant-ID</code>) — or use
+        mTLS internally.</li>
+        <li>Reject with 401 if invalid; 403 if the scope is missing.</li>
+      </ol>
+      <p>The gateway <strong>strips</strong> any incoming <code>X-User-*</code> headers from the client — a
+      client cannot forge its identity. The gateway sets them itself.</p>
+
+      <h4>The rate limiting</h4>
+      <p>Per-rule limits, stored in Redis:</p>
+      <ul>
+        <li><strong>Login</strong> — 10/min per IP (prevent credential stuffing).</li>
+        <li><strong>API</strong> — 100–200/min per user, depending on the service.</li>
+        <li><strong>Payment</strong> — 50/min per user (extra protection).</li>
+        <li><strong>Admin</strong> — 20/min per user (low volume).</li>
+      </ul>
+      <p>The response includes <code>RateLimit-Limit</code>, <code>RateLimit-Remaining</code>,
+      <code>RateLimit-Reset</code>; a 429 has <code>Retry-After</code>.</p>
+
+      <h4>The observability</h4>
+      <ul>
+        <li><strong>Access log</strong> — every request: timestamp, method, path, status, duration, user ID,
+        tenant ID, correlation ID.</li>
+        <li><strong>Metrics</strong> — request count, error rate, latency by route; per-rule metrics.</li>
+        <li><strong>Tracing</strong> — the trace context is propagated; the gateway starts the root span.</li>
+        <li><strong>Health</strong> — <code>/health</code> returns 200; <code>/ready</code> returns 200 when
+        the gateway is ready.</li>
+      </ul>
+
+      <h4>The traffic management</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Feature</th><th>Configuration</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Canary</strong></td><td>10% of <code>/orders/*</code> to <code>orders-v2</code>; increase as the canary proves healthy</td></tr>
+            <tr><td><strong>Blue-green</strong></td><td>Switch 100% of a service to the new version; revert by switching back</td></tr>
+            <tr><td><strong>Header-based</strong></td><td><code>X-Beta: true</code> goes to the beta deployment</td></tr>
+            <tr><td><strong>Fault injection</strong></td><td>5% of a specific route returns 503 (chaos testing)</td></tr>
+            <tr><td><strong>Mirroring</strong></td><td>5% of traffic is mirrored to a shadow service (no response)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The resilience</h4>
+      <ul>
+        <li><strong>Timeouts</strong> — 30 seconds per route; shorter for critical routes.</li>
+        <li><strong>Retries</strong> — 2 attempts for idempotent methods (GET, PUT, DELETE); not for POST
+        without an idempotency key.</li>
+        <li><strong>Circuit breaker</strong> — per backend; if the error rate exceeds 50% for 30 seconds, fail
+        fast for 60 seconds.</li>
+        <li><strong>Bulkhead</strong> — per backend, limit the concurrent requests (100); queue the rest.</li>
+      </ul>
+
+      <h4>The configuration</h4>
+      <p>The gateway configuration is declarative (YAML), versioned in git, and deployed via the same pipeline
+      as the services. The configuration is tested — a YAML validation in CI, a smoke test in staging. The
+      deployment is gradual — the canary gateway instance is updated first, then the fleet.</p>
+
+      <div class="callout pitfall">
+        <span class="label">The Pitfall to Avoid</span>
+        <p>Putting business logic in the gateway. The gateway is for routing and cross-cutting concerns, not for
+        "if the request is from a premium tenant, transform the response". The moment the gateway has domain
+        rules, it becomes a distributed monolith — hard to test, hard to change, coupled to the business.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">What Makes This Answer Strong</span>
+        <p>The routing rules with priority order. The canary rule at the top. The authentication with the
+        header-stripping. The per-rule rate limits. The resilience (timeout, retry, circuit breaker, bulkhead).
+        The declarative configuration with the gradual deployment. Each is a specific answer to a gateway
+        management problem.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q14 -->
+  <article class="q violet" id="q14">
+    <div class="q-head">
+      <div class="q-num">14</div>
+      <h3>Design cursor pagination for a high-volume feed.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">The Answer</span>
+        <p>Cursor pagination for a high-volume feed uses an <strong>opaque cursor</strong> that encodes the last
+        item's sort key. The query is a keyset scan — <code>WHERE (created_at, id) &lt; (?, ?) ORDER BY
+        created_at DESC, id DESC LIMIT 20</code> — which uses an index and is O(limit) regardless of how
+        deep the page is. The cursor is base64-encoded JSON, opaque to the client, and stable across writes.
+        The response includes <code>has_more</code> and <code>next_cursor</code>; the client passes the cursor
+        back for the next page.</p>
+      </div>
+
+      <h4>The schema</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Table</th><th>Columns</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>feed_items</code></td>
+              <td><code>user_id</code>, <code>created_at</code>, <code>post_id</code>, <code>author_id</code>, <code>content_snapshot</code></td>
+            </tr>
+            <tr>
+              <td><code>posts</code></td>
+              <td><code>id</code>, <code>author_id</code>, <code>content</code>, <code>created_at</code>, <code>like_count</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The <code>feed_items</code> is a denormalized table (the precomputed feed, from fan-out on write). The
+      composite index is <code>(user_id, created_at DESC, post_id DESC)</code>.</p>
+
+      <h4>The endpoint</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Request</th><th>Response</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre>GET /v1/feed?limit=20&amp;cursor=eyJjcmVhdGVkX2F0IjoiMjAyNi0xMS0xMlQxMDowMDowMFoiLCJpZCI6MTIzNDV9</pre>
+              </td>
+              <td>
+                <pre>{
+  "data": [...],
+  "meta": {
+    "has_more": true,
+    "next_cursor": "eyJjcmVhdGVkX2F0IjoiMjAyNi0xMS0xMVQwOTowMDowMFoiLCJpZCI6MTIzNDB9"
+  }
+}</pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The cursor</h4>
+      <p>The cursor is base64-encoded JSON:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Cursor</th><th>Decoded</th></tr></thead>
+          <tbody>
+            <tr><td><code>eyJjcmVhdGVkX2F0IjoiMjAyNi0xMS0xMlQxMDowMDowMFoiLCJpZCI6MTIzNDV9</code></td><td><code>{"created_at": "2026-11-12T10:00:00Z", "id": 12345}</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The cursor is opaque to the client — it must not parse it; it just passes it back. The opacity allows
+      the server to change the cursor format without breaking clients (the encoding is internal).</p>
+
+      <h4>The query</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>First page (no cursor)</th><th>Next page (with cursor)</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre>SELECT * FROM feed_items
+WHERE user_id = ?
+ORDER BY created_at DESC, id DESC
+LIMIT 21</pre>
+              </td>
+              <td>
+                <pre>SELECT * FROM feed_items
+WHERE user_id = ?
+  AND (created_at, id) &lt; (?, ?)
+ORDER BY created_at DESC, id DESC
+LIMIT 21</pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The <code>LIMIT 21</code> (one more than the page size) lets the server determine
+      <code>has_more</code> — if 21 rows are returned, there is another page; if 20, this is the last. The
+      extra row is discarded from the response.</p>
+      <p>The query uses the composite index <code>(user_id, created_at DESC, id DESC)</code> — an index range
+      scan, O(limit). The key insight: this is O(limit) regardless of how deep the page is, because the index
+      seeks directly to the cursor position — no OFFSET, no scanning from the beginning.</p>
+
+      <h4>The stability under writes</h4>
+      <p>With offset pagination, an item inserted before the current page shifts every subsequent page — the
+      user sees duplicates or misses items. With cursor pagination, the cursor references the last item's
+      position — an insert after the cursor appears on the next page; an insert before the cursor is not
+      seen (it is in the past). The cursor is stable.</p>
+      <p>The tiebreaker (the ID) handles the case where multiple items have the same <code>created_at</code> —
+      the composite comparison <code>(created_at, id) &lt; (?, ?)</code> gives a deterministic order even when
+      timestamps collide.</p>
+
+      <h4>The reverse pagination</h4>
+      <p>For "newer" pages (backward pagination), the cursor is the first item on the current page; the query
+      is <code>WHERE (created_at, id) &gt; (?, ?) ORDER BY created_at ASC, id ASC LIMIT 21</code> — the
+      reverse. The results are reversed again for the response. The cursor and the query direction are part of
+      the same contract.</p>
+
+      <h4>The total count</h4>
+      <p>The total count of the feed is expensive to compute (a <code>COUNT(*)</code> over all feed items). The
+      design: <strong>do not return a total</strong>. Return <code>has_more</code>. If the total is needed (for
+      a "showing 1–20 of 1,234" display), compute it once and cache it — the count changes slowly, and the
+      cache is valid for a minute.</p>
+
+      <h4>The page size</h4>
+      <p>The client requests <code>limit</code> (default 20, max 100). A request for more than 100 is capped at
+      100 — the response's <code>limit</code> field reflects the actual size. The cap prevents the
+      client from requesting 10,000 items in one query.</p>
+
+      <h4>The CDN caching</h4>
+      <p>For the public portion of the feed (the first page, for anonymous users or shared profiles), the
+      response is cached at the CDN. The cache key is the URL with the cursor — every page is a distinct URL.
+      The cache is invalidated on new feed items (or just refreshed with a short TTL). For the personalized
+      feed (the authenticated user's), the response is <code>Cache-Control: private, no-store</code> — not
+      cached at the CDN.</p>
+
+      <h4>The infinite scroll</h4>
+      <p>The client's infinite scroll is the primary consumer of the cursor. The client:</p>
+      <ol>
+        <li>Loads the first page (no cursor).</li>
+        <li>Renders the items.</li>
+        <li>When the user scrolls near the bottom, loads the next page with <code>next_cursor</code>.</li>
+        <li>Appends the items.</li>
+        <li>Continues until <code>has_more = false</code>.</li>
+      </ol>
+      <p>The cursor survives app restarts — the client can persist the last cursor and resume.</p>
+
+      <div class="callout pitfall">
+        <span class="label">The Pitfall to Avoid</span>
+        <p>Using offset pagination for the feed. The query becomes O(offset) — page 1,000 takes seconds. And
+        the page shifts under writes — the user sees duplicates. The cursor is the only design that scales to
+        deep pages and is stable.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">What Makes This Answer Strong</span>
+        <p>The opaque cursor encoding (created_at, id). The LIMIT 21 for has_more. The composite index matching
+        the sort. The reverse pagination. The "do not return a total" decision. The CDN caching for public,
+        no-store for personalized. Each is a specific answer to a pagination scale problem.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q15 -->
+  <article class="q violet" id="q15">
+    <div class="q-head">
+      <div class="q-num">15</div>
+      <h3>Design a multi-tenant rate limiter — fair, distributed, resilient.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">The Answer</span>
+        <p>A multi-tenant rate limiter has four requirements: <strong>fairness</strong> (one tenant cannot
+        starve others), <strong>per-tenant configuration</strong> (different plans, different limits),
+        <strong>distributed enforcement</strong> (across the gateway fleet), and <strong>resilience</strong>
+        (the limiter itself must not be a single point of failure). The design: a per-tenant token bucket in
+        Redis, with the key <code>rate:{tenant_id}:{endpoint}</code>, and a local fallback if Redis is
+        unavailable.</p>
+      </div>
+
+      <h4>The tiers</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Tier</th><th>Rate limit</th><th>Burst</th><th>Concurrency</th></tr></thead>
+          <tbody>
+            <tr><td>Free</td><td>60/min</td><td>10</td><td>5</td></tr>
+            <tr><td>Pro</td><td>1,000/min</td><td>100</td><td>50</td></tr>
+            <tr><td>Enterprise</td><td>10,000/min</td><td>1,000</td><td>500</td></tr>
+            <tr><td>Internal</td><td>Unlimited</td><td>—</td><td>—</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The algorithm — token bucket in Redis</h4>
+      <p>The token bucket (Volume 7, Question 3) is the right algorithm for APIs — it allows bursts up to the
+      bucket size while enforcing the sustained rate.</p>
+      <p>The Redis implementation uses a Lua script for atomicity:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Lua script (pseudo)</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre>local key = KEYS[1]
+local capacity = tonumber(ARGV[1])
+local rate = tonumber(ARGV[2])
+local now = tonumber(ARGV[3])
+local cost = tonumber(ARGV[4])
+
+local bucket = redis.call('HMGET', key, 'tokens', 'last_refill')
+local tokens = tonumber(bucket[1]) or capacity
+local last_refill = tonumber(bucket[2]) or now
+
+-- Refill the bucket based on elapsed time
+local elapsed = math.max(0, now - last_refill)
+local refill = elapsed * rate
+tokens = math.min(capacity, tokens + refill)
+
+if tokens &gt;= cost then
+  tokens = tokens - cost
+  redis.call('HMSET', key, 'tokens', tokens, 'last_refill', now)
+  redis.call('EXPIRE', key, math.ceil(capacity / rate) * 2)
+  return 1
+else
+  return 0
+end</pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The script is atomic — no race between the read, the refill, and the decrement. The
+      <code>EXPIRE</code> cleans up the key after the bucket would be full again, bounding the memory.</p>
+
+      <h4>The key design</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Key</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>rate:{tenant_id}</code></td><td>The global rate limit for the tenant</td></tr>
+            <tr><td><code>rate:{tenant_id}:{endpoint}</code></td><td>Per-endpoint limit (for expensive endpoints)</td></tr>
+            <tr><td><code>rate:{tenant_id}:concurrency</code></td><td>The concurrent requests (a different counter)</td></tr>
+            <tr><td><code>rate:{api_key}</code></td><td>Per-key limit (a tenant may have multiple keys)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The per-endpoint limit is important — a tenant's 1,000/min can be consumed entirely by a single
+      expensive endpoint, starving the other endpoints. The per-endpoint limit ensures the expensive endpoint
+      is bounded separately.</p>
+
+      <h4>The multi-dimensional check</h4>
+      <p>A request passes if it satisfies <em>all</em> the applicable limits:</p>
+      <ol>
+        <li><strong>Tenant limit</strong> — the global rate for the tenant.</li>
+        <li><strong>Endpoint limit</strong> — the rate for this specific endpoint.</li>
+        <li><strong>Key limit</strong> — the rate for this API key.</li>
+        <li><strong>Concurrency limit</strong> — the in-flight requests.</li>
+      </ol>
+      <p>The check is done in sequence — the cheapest first (concurrency), the most expensive last. If any
+      fails, the request is rejected with the appropriate headers (which limit was exceeded).</p>
+
+      <h4>The distributed enforcement</h4>
+      <p>With multiple gateway instances, the rate limiter must be shared. The options:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Approach</th><th>Pros</th><th>Cons</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Central Redis</strong></td>
+              <td>Exact; one source of truth</td>
+              <td>Every request is a Redis round trip; Redis is a hotspot</td>
+            </tr>
+            <tr>
+              <td><strong>Local + sync</strong></td>
+              <td>Fast; no Redis on the hot path</td>
+              <td>Approximate — the effective limit is <code>N × local</code></td>
+            </tr>
+            <tr>
+              <td><strong>Hybrid</strong></td>
+              <td>Fast for the local check; exact for the global</td>
+              <td>Complex; two mechanisms</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The hybrid is the production answer:</p>
+      <ol>
+        <li><strong>Local bucket</strong> — each gateway instance has its own token bucket, sized to
+        <code>limit / N</code>. A request that exceeds the local bucket is rejected immediately (no Redis
+        call).</li>
+        <li><strong>Global bucket</strong> — every Kth request (or every request when the local bucket is
+        near full), the gateway syncs the consumption to Redis. The global bucket enforces the tenant-wide
+        limit.</li>
+        <li><strong>Periodic sync</strong> — every 100 ms, the local consumption is flushed to Redis; the
+        global bucket is decremented.</li>
+      </ol>
+      <p>The result: the local check is fast (no network); the global check is exact (within the sync window).
+      The overshoot is bounded — a burst that briefly exceeds the limit by the sync window.</p>
+
+      <h4>The failure mode</h4>
+      <p>If Redis is down, what happens?</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Policy</th><th>Behaviour</th><th>Trade-off</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Fail-open</strong></td><td>Allow all requests</td><td>Availability; the system is unprotected</td></tr>
+            <tr><td><strong>Fail-closed</strong></td><td>Reject all requests</td><td>Protection; the API is down</td></tr>
+            <tr><td><strong>Fail-local</strong></td><td>Use the local bucket only</td><td>Some protection; the effective limit is per-instance</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Fail-local is the pragmatic answer: the local bucket (which is always available) continues to enforce
+      a per-instance limit; the fleet may over-consume by N × the local limit, which is degraded but not
+      catastrophic. When Redis recovers, the global bucket resumes.</p>
+
+      <h4>The tenant configuration</h4>
+      <p>The tiers are stored in a database; the gateway caches them (5-minute TTL). A change to a tenant's tier
+      propagates within 5 minutes. The config is declarative — a YAML or a table — not code, so the customer
+      success team can change a tier without a deploy.</p>
+
+      <h4>The observability</h4>
+      <ul>
+        <li><strong>Rate limit hits</strong> — per tenant, per endpoint; the count and the trend.</li>
+        <li><strong>Near-limit alerts</strong> — a tenant at 80% of the limit; the customer success team is
+        notified.</li>
+        <li><strong>Rejected requests</strong> — the 429s; the client's retry behaviour.</li>
+        <li><strong>Redis health</strong> — the latency; the error rate; the fail-local activations.</li>
+      </ul>
+
+      <div class="callout pitfall">
+        <span class="label">The Pitfall to Avoid</span>
+        <p>Using a single Redis key for all tenants. The key is a hotspot — every request hits the same Redis
+        shard. The fix: per-tenant keys; Redis Cluster shards them across nodes. Even with per-tenant keys, a
+        huge tenant's key is a hotspot — the local bucket absorbs most of it.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">What Makes This Answer Strong</span>
+        <p>The token bucket in Lua for atomicity. The multi-dimensional check (tenant, endpoint, key,
+        concurrency). The hybrid local + global for performance. The fail-local policy for resilience. The
+        declarative tier configuration. Each is a specific answer to a multi-tenant rate limiting problem.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q16 -->
+  <article class="q violet" id="q16">
+    <div class="q-head">
+      <div class="q-num">16</div>
+      <h3>Design a versioning strategy for a rapidly evolving product.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">The Answer</span>
+        <p>A rapidly evolving product has a tension: the API must evolve quickly (the product changes), but the
+        clients must not break (the integrations continue). The strategy:
+        <strong>additive-by-default</strong> (non-breaking changes happen within the version),
+        <strong>URL versioning</strong> (a breaking change gets a new <code>/v2/</code>),
+        <strong>a deprecation policy</strong> (the old version is supported for 12–18 months),
+        <strong>a migration guide</strong> (the clients have a path), and <strong>the tooling</strong> (a
+        breaking-change check in CI; a linter; the SDK versioning).</p>
+      </div>
+
+      <h4>The versioning policy</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Change</th><th>Version bump?</th></tr></thead>
+          <tbody>
+            <tr><td>Add a new endpoint</td><td>No</td></tr>
+            <tr><td>Add an optional field to a request</td><td>No</td></tr>
+            <tr><td>Add a field to a response</td><td>No (tolerant readers)</td></tr>
+            <tr><td>Add a new enum value</td><td>No (tolerant readers)</td></tr>
+            <tr><td>Add a new error code</td><td>No (tolerant readers)</td></tr>
+            <tr><td>Change a field's type</td><td>Yes</td></tr>
+            <tr><td>Remove a field</td><td>Yes</td></tr>
+            <tr><td>Rename a field</td><td>Yes</td></tr>
+            <tr><td>Add a required field</td><td>Yes</td></tr>
+            <tr><td>Change a status code</td><td>Usually yes</td></tr>
+            <tr><td>Remove an endpoint</td><td>Yes</td></tr>
+            <tr><td>Change the auth scheme</td><td>Yes</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The versioning scheme</h4>
+      <p>URL versioning: <code>/v1/</code>, <code>/v2/</code>. The version is in the path; the routing at the
+      gateway sends each version to the appropriate backend. The old version continues to be served until
+      the sunset.</p>
+      <p>The alternative — header versioning — was considered and rejected: it is invisible in logs, easy to
+      forget, and hard to test. URL versioning is visible everywhere (Volume 3, Question 2).</p>
+
+      <h4>The rapid evolution problem</h4>
+      <p>A rapidly evolving product adds features weekly. If every feature requires a version bump, the API
+      accumulates versions at an unsustainable rate. The solution: <strong>most changes are additive</strong>.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Feature</th><th>Change</th><th>Version?</th></tr></thead>
+          <tbody>
+            <tr><td>New profile field (pronouns)</td><td>Add a field to <code>GET /users/{id}</code></td><td>No</td></tr>
+            <tr><td>New notification type</td><td>Add an enum value</td><td>No</td></tr>
+            <tr><td>New payment method (Klarna)</td><td>Add a new endpoint <code>POST /payments/klarna</code></td><td>No</td></tr>
+            <tr><td>New search filters</td><td>Add optional query parameters</td><td>No</td></tr>
+            <tr><td>Change the order statuses</td><td>Rename <code>pending</code> to <code>awaiting_payment</code></td><td>Yes</td></tr>
+            <tr><td>Change the price field to be a nested object</td><td>Change the type</td><td>Yes</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The additive changes happen within <code>/v1/</code>; the client follows the tolerant reader pattern
+      (unknown fields are ignored; unknown enum values are handled). The breaking changes trigger a new
+      version.</p>
+      <p>In practice, a rapidly evolving product has a version bump every 12–18 months — not every week. The
+      additive changes are the norm; the breaking changes are the exception that requires coordination.</p>
+
+      <h4>The deprecation timeline</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Phase</th><th>Duration</th><th>Action</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Announce</strong></td><td>6 months before the v2 release</td><td>The new version is announced; the migration guide is published; the SDKs are updated</td></tr>
+            <tr><td><strong>Launch</strong></td><td>v2 release</td><td>v2 is live; v1 is still supported; the clients can migrate on their schedule</td></tr>
+            <tr><td><strong>Deprecate</strong></td><td>v2 launch + 6 months</td><td>v1 is marked deprecated; the <code>Sunset</code> header appears; the migration is urged</td></tr>
+            <tr><td><strong>Sunset</strong></td><td>v2 launch + 18 months</td><td>v1 is removed; 410 Gone with the migration guide link</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The migration support</h4>
+      <p>The clients need a path from v1 to v2. The support:</p>
+      <ul>
+        <li><strong>Migration guide</strong> — every change, with the before/after, the code samples, the
+        behaviour changes.</li>
+        <li><strong>Compatibility shim</strong> — for the most common patterns, the v1 → v2 mapping in the SDK;
+        the client upgrades the SDK, the code works.</li>
+        <li><strong>Testing tools</strong> — a test mode where the API serves both v1 and v2 shapes, so the
+        client can compare.</li>
+        <li><strong>Support</strong> — the dedicated channel for the migration questions; the office hours.</li>
+        <li><strong>Tracking</strong> — the usage of v1 by client, so the team knows who has not migrated.</li>
+      </ul>
+
+      <h4>The enforcement — CI</h4>
+      <p>The breaking-change check runs in CI:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Tool</th><th>What it checks</th></tr></thead>
+          <tbody>
+            <tr><td><strong>oasdiff</strong> (OpenAPI)</td><td>Compares the new OpenAPI to the old; reports breaking changes</td></tr>
+            <tr><td><strong>buf breaking</strong> (Protobuf)</td><td>Compares the .proto to the baseline; reports breaking changes</td></tr>
+            <tr><td><strong>graphql-inspector</strong> (GraphQL)</td><td>Compares the schema; reports breaking changes</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>A breaking change in a PR fails the build. The fix: the change goes in a new version (the URL prefix
+      changes), and the old version is untouched. The CI prevents the accidental breaking change.</p>
+
+      <h4>The tolerant reader pattern</h4>
+      <p>The additive changes require the clients to tolerate unknown fields and enum values. The API documents
+      this requirement prominently; the SDKs implement it; the tests verify it. A client that fails on an
+      unknown field will break on every additive change — the client's bug, but the API's problem.</p>
+
+      <h4>The sunset enforcement</h4>
+      <p>When v1 is sunset, the API returns 410 Gone for every v1 endpoint. The response includes a link to the
+      migration guide. The removal is intentional and visible, not a silent 404.</p>
+
+      <h4>The "never version" alternative</h4>
+      <p>Some APIs — Stripe is the famous example — never bump the version; instead, each API key is pinned to
+      a version (a date), and the API serves the shape the key was created with. The old shapes are supported
+      indefinitely (or for a very long time). The advantage: the client never has to migrate (the version is
+      pinned); the API team maintains every shape. The cost: the API team carries the legacy code forever.
+      This works for a stable API with a small surface; for a rapidly evolving API, it is too much overhead.</p>
+      <p>The pragmatic choice: URL versioning with a long support window (12–18 months). The client migrates on
+      a known schedule; the API team supports a finite set of versions. The maintenance is bounded.</p>
+
+      <div class="callout pitfall">
+        <span class="label">The Pitfall to Avoid</span>
+        <p>Bumping the version for every change. The API accumulates versions; the clients are constantly
+        migrating; the API team spends all its time on maintenance. The fix: additive changes within the
+        version (which is most changes); the version bump is reserved for the genuine breaking changes. A
+        rapidly evolving product still has a version bump every 12–18 months, not every week.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">What Makes This Answer Strong</span>
+        <p>The additive-by-default policy. The specific versioning table (what counts as breaking). The
+        deprecation timeline with the phases. The CI enforcement with oasdiff. The tolerant reader requirement.
+        The "never version" alternative compared and rejected. Each is a specific answer to a versioning
+        governance problem.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q17 -->
+  <article class="q violet" id="q17">
+    <div class="q-head">
+      <div class="q-num">17</div>
+      <h3>Design the complete API for a SaaS startup — the end-to-end integration.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">The Answer</span>
+        <p>A SaaS startup's API is the product's foundation — the frontend, the mobile app, the partner
+        integrations, and the public API all depend on it. The design brings together every framework: the
+        <strong>resource model</strong>, the <strong>authentication</strong> (session for the frontend, OAuth
+        for the public API), the <strong>multi-tenancy</strong> (organisations, users, permissions), the
+        <strong>API surface</strong> (the core resources), the <strong>cross-cutting concerns</strong> (errors,
+        pagination, rate limits, idempotency), and the <strong>lifecycle</strong> (versioning, deprecation,
+        DX).</p>
+      </div>
+
+      <h4>Clarify the product</h4>
+      <p>The startup is a project management SaaS — a Trello or Asana competitor. The core concepts:</p>
+      <ul>
+        <li><strong>Organisations</strong> — a customer (a company); each has users, projects, and a billing
+        plan.</li>
+        <li><strong>Users</strong> — members of organisations; each has a role (owner, admin, member, guest).</li>
+        <li><strong>Projects</strong> — a collection of tasks; belongs to an organisation.</li>
+        <li><strong>Tasks</strong> — items in a project; can be assigned, have due dates, have comments.</li>
+        <li><strong>Comments</strong> — discussions on tasks.</li>
+        <li><strong>Attachments</strong> — files on tasks.</li>
+        <li><strong>Webhooks</strong> — external integrations.</li>
+        <li><strong>API keys / OAuth apps</strong> — for the public API.</li>
+      </ul>
+
+      <h4>The resource model</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Resource</th><th>Relationships</th><th>Identity</th></tr></thead>
+          <tbody>
+            <tr><td><code>Organisation</code></td><td>Has users, projects; has a billing plan</td><td><code>org_id</code></td></tr>
+            <tr><td><code>User</code></td><td>Belongs to organisations; is assigned tasks</td><td><code>user_id</code></td></tr>
+            <tr><td><code>Membership</code></td><td>User × org × role</td><td>Composite <code>(user_id, org_id)</code></td></tr>
+            <tr><td><code>Project</code></td><td>Belongs to an organisation; has tasks</td><td><code>project_id</code></td></tr>
+            <tr><td><code>Task</code></td><td>Belongs to a project; assigned to a user; has comments, attachments</td><td><code>task_id</code></td></tr>
+            <tr><td><code>Comment</code></td><td>Belongs to a task and a user</td><td><code>comment_id</code></td></tr>
+            <tr><td><code>Attachment</code></td><td>Belongs to a task; stored in object storage</td><td><code>attachment_id</code></td></tr>
+            <tr><td><code>Webhook</code></td><td>Belongs to an org; subscribed to events</td><td><code>webhook_id</code></td></tr>
+            <tr><td><code>ApiKey</code></td><td>Belongs to an org; has scopes</td><td><code>key_id</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The API surfaces</h4>
+      <p>The startup exposes three API surfaces:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Surface</th><th>Consumer</th><th>Auth</th><th>Protocol</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Internal API</strong></td>
+              <td>The frontend (web and mobile)</td>
+              <td>Session cookies (web) / OAuth PKCE (mobile)</td>
+              <td>REST/JSON over HTTPS</td>
+            </tr>
+            <tr>
+              <td><strong>Public API</strong></td>
+              <td>Third-party developers</td>
+              <td>OAuth 2.0 + API keys</td>
+              <td>REST/JSON over HTTPS</td>
+            </tr>
+            <tr>
+              <td><strong>Webhooks</strong></td>
+              <td>Third-party receivers</td>
+              <td>HMAC signatures</td>
+              <td>HTTP POST</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The internal and public APIs share the same resource model and codebase; the difference is the auth
+      and the exposed surface (the internal API can have extra endpoints for the UI; the public API is
+      curated).</p>
+
+      <h4>The endpoint structure</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Method &amp; Path</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>GET /v1/orgs</code></td><td>List the user's organisations</td></tr>
+            <tr><td><code>POST /v1/orgs</code></td><td>Create an organisation</td></tr>
+            <tr><td><code>GET /v1/orgs/{org_id}</code></td><td>Get an organisation</td></tr>
+            <tr><td><code>GET /v1/orgs/{org_id}/members</code></td><td>List members</td></tr>
+            <tr><td><code>POST /v1/orgs/{org_id}/members</code></td><td>Invite a member</td></tr>
+            <tr><td><code>GET /v1/orgs/{org_id}/projects</code></td><td>List projects</td></tr>
+            <tr><td><code>POST /v1/orgs/{org_id}/projects</code></td><td>Create a project</td></tr>
+            <tr><td><code>GET /v1/projects/{id}</code></td><td>Get a project</td></tr>
+            <tr><td><code>GET /v1/projects/{id}/tasks</code></td><td>List tasks</td></tr>
+            <tr><td><code>POST /v1/projects/{id}/tasks</code></td><td>Create a task</td></tr>
+            <tr><td><code>GET /v1/tasks/{id}</code></td><td>Get a task</td></tr>
+            <tr><td><code>PATCH /v1/tasks/{id}</code></td><td>Update a task</td></tr>
+            <tr><td><code>POST /v1/tasks/{id}/comments</code></td><td>Comment on a task</td></tr>
+            <tr><td><code>POST /v1/tasks/{id}/attachments</code></td><td>Attach a file</td></tr>
+            <tr><td><code>POST /v1/orgs/{org_id}/webhooks</code></td><td>Create a webhook</td></tr>
+            <tr><td><code>POST /v1/orgs/{org_id}/api-keys</code></td><td>Create an API key</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Multi-tenancy</h4>
+      <p>The organisation is the tenant. Every request is scoped to an organisation:</p>
+      <ul>
+        <li><strong>Tenant in the token</strong> — the JWT includes the <code>org_id</code>; the client cannot
+        supply a different org.</li>
+        <li><strong>Per-request check</strong> — the user is a member of the org (a membership lookup, cached
+        per request).</li>
+        <li><strong>Row-level filter</strong> — every query includes <code>WHERE org_id = ?</code>; the
+        composite index on <code>(org_id, ...)</code> makes the filter efficient.</li>
+        <li><strong>RLS (optional)</strong> — for the highest isolation, row-level security in PostgreSQL
+        enforces the filter at the database layer; the application cannot forget it.</li>
+      </ul>
+      <p>The cross-tenant leak is the worst bug — the tests verify that user A of org X cannot see the data of
+      user B of org Y.</p>
+
+      <h4>Authentication</h4>
+      <p>Two auth paths:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Consumer</th><th>Auth</th><th>Token</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Web frontend</td>
+              <td>Session cookie</td>
+              <td><code>Set-Cookie</code> with <code>HttpOnly</code>, <code>Secure</code>, <code>SameSite</code></td>
+            </tr>
+            <tr>
+              <td>Mobile app</td>
+              <td>OAuth 2.0 with PKCE</td>
+              <td>Access token (JWT) + refresh token (opaque)</td>
+            </tr>
+            <tr>
+              <td>Third-party app (user context)</td>
+              <td>OAuth 2.0 with PKCE</td>
+              <td>Access token + refresh token</td>
+            </tr>
+            <tr>
+              <td>Third-party app (machine)</td>
+              <td>Client credentials</td>
+              <td>Access token (short-lived)</td>
+            </tr>
+            <tr>
+              <td>API key</td>
+              <td>Long-lived secret</td>
+              <td><code>Authorization: Bearer sk_...</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The API key is for simple integrations (a script, a CI job); the OAuth is for user-context apps
+      (the third-party app acts for a user); the session is for the first-party web app.</p>
+
+      <h4>Authorization</h4>
+      <p>Two levels:</p>
+      <ul>
+        <li><strong>Organisation role</strong> — owner, admin, member, guest. The role determines what the user
+        can do in the org.</li>
+        <li><strong>Project access</strong> — a user may be a member of the org but not a member of a specific
+        project (private projects).</li>
+      </ul>
+      <p>The permission matrix:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Role</th><th>Create project</th><th>Delete project</th><th>Manage members</th><th>Billing</th></tr></thead>
+          <tbody>
+            <tr><td>Owner</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+            <tr><td>Admin</td><td>Yes</td><td>Yes</td><td>Yes</td><td>No</td></tr>
+            <tr><td>Member</td><td>Yes</td><td>Own only</td><td>No</td><td>No</td></tr>
+            <tr><td>Guest</td><td>No</td><td>No</td><td>No</td><td>No</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Cross-cutting concerns</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Concern</th><th>Design</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Errors</strong></td><td>RFC 7807; the error codes are documented; the validation errors are per-field</td></tr>
+            <tr><td><strong>Pagination</strong></td><td>Cursor pagination; the cursor is opaque; the page size is capped at 100</td></tr>
+            <tr><td><strong>Filtering</strong></td><td>Per-endpoint query parameters; only indexed fields; the documentation lists what is supported</td></tr>
+            <tr><td><strong>Idempotency</strong></td><td><code>Idempotency-Key</code> on every POST; 24h TTL</td></tr>
+            <tr><td><strong>Rate limiting</strong></td><td>Per API key; the plan determines the limit; the headers communicate</td></tr>
+            <tr><td><strong>Versioning</strong></td><td><code>/v1/</code> in the URL; additive changes within; breaking changes get <code>/v2/</code></td></tr>
+            <tr><td><strong>Webhooks</strong></td><td>Signed, retried, reconcilable (Question 10)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The database design</h4>
+      <ul>
+        <li><strong>PostgreSQL</strong> — the primary; strong consistency; the transactional writes.</li>
+        <li><strong>Shared schema with <code>org_id</code></strong> — every table has the tenant column; the
+        composite indexes start with <code>org_id</code>.</li>
+        <li><strong>Read replicas</strong> — for the read-heavy endpoints (project lists, task lists); the
+        replication lag is tolerated for reads.</li>
+        <li><strong>Redis</strong> — the rate limit counters; the session store; the cache.</li>
+        <li><strong>S3</strong> — the attachments; the signed URLs for upload and download (Question 7).</li>
+        <li><strong>Elasticsearch</strong> — the search across projects and tasks (via CDC from PostgreSQL).</li>
+      </ul>
+
+      <h4>The infrastructure</h4>
+      <ul>
+        <li><strong>API gateway</strong> — the edge; the auth; the rate limiting; the routing.</li>
+        <li><strong>Kubernetes</strong> — the deployment; the autoscaling.</li>
+        <li><strong>Service mesh</strong> — the mTLS; the retries; the observability (optional — for a
+        startup, the mesh may be premature).</li>
+        <li><strong>CDN</strong> — the static assets; the public pages.</li>
+        <li><strong>Observability</strong> — the metrics, the logs, the traces; the SLOs.</li>
+      </ul>
+
+      <h4>The lifecycle</h4>
+      <ul>
+        <li><strong>Design-first</strong> — the OpenAPI schema; the review; the mock; the code generation
+        (Volume 16).</li>
+        <li><strong>Linter</strong> — Spectral in CI; the organisation's rules.</li>
+        <li><strong>Breaking-change check</strong> — oasdiff in CI.</li>
+        <li><strong>Docs</strong> — the reference from OpenAPI; the guides; the examples; the changelog.</li>
+        <li><strong>SDKs</strong> — the Python, JavaScript, Go; generated from OpenAPI; ergonomic wrappers.</li>
+        <li><strong>Sandbox</strong> — the test environment; the test data.</li>
+        <li><strong>Status page</strong> — the uptime; the incidents.</li>
+      </ul>
+
+      <h4>What the startup intentionally does not build</h4>
+      <ul>
+        <li><strong>GraphQL</strong> — the REST API is sufficient for the frontend; the GraphQL complexity
+        (N+1, complexity limits) is not justified at the startup's scale.</li>
+        <li><strong>gRPC</strong> — the internal services speak REST; the gRPC performance is not the
+        bottleneck.</li>
+        <li><strong>Microservices</strong> — the startup is a modular monolith; the services are modules within
+        one deployment; the microservices extraction is a future refactor.</li>
+        <li><strong>Real-time</strong> — the webhooks handle the integrations; the in-app real-time (WebSocket)
+        is a future feature.</li>
+        <li><strong>Multi-region</strong> — the startup is single-region; the multi-region is a scaling
+        concern, not a startup concern.</li>
+      </ul>
+      <p>Each is a "not yet" — the startup's scale does not require the complexity. The design is future-proof
+      (the abstractions allow the additions) but not over-engineered.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">The Trade-off</span>
+        <p>A startup's API is the product's foundation — it must be good enough to support the current clients,
+        but not so over-engineered that it delays the launch. The modular monolith with a well-designed REST
+        API is the right balance. The microservices, the GraphQL, the multi-region — each is a future
+        investment, not a startup requirement. The design is future-proof without being complex.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">What Makes This Answer Strong</span>
+        <p>The complete resource model with the multi-tenant org. The three API surfaces (internal, public,
+        webhooks). The dual authentication (session for web, OAuth for mobile and public). The permission
+        matrix. The cross-cutting concerns covered. The database and infrastructure choices. The explicit
+        "what we do not build" list — demonstrating the judgment that a good API design is as much about what
+        you leave out as what you include.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- NEXT PART -->
+  <section class="next-part">
+    <h3>Coming in Volume 18 — Senior &amp; Staff Trade-offs</h3>
+    <p>Volume 18 is the trade-off volume: the senior and staff-level questions that test judgment rather than
+    knowledge. Every pair of options — REST vs GraphQL, JWT vs opaque, optimistic vs pessimistic, offset vs
+    cursor, monolith vs microservices, sync vs async, single-region vs multi-region — explored as a decision
+    framework rather than a preference.</p>
+    <ul class="next-list">
+      <li>REST vs GraphQL vs gRPC — the decision</li>
+      <li>JWT vs opaque tokens — the revocation problem</li>
+      <li>Optimistic vs pessimistic concurrency</li>
+      <li>Offset vs cursor pagination</li>
+      <li>Monolith vs microservices vs serverless</li>
+      <li>Synchronous vs asynchronous APIs</li>
+      <li>Single-region vs multi-region</li>
+      <li>Centralised vs decentralised governance</li>
+      <li>Build vs buy for API infrastructure</li>
+      <li>The staff engineer's judgment framework</li>
+    </ul>
+  </section>
+
+</div>
+</body>
+</html>
