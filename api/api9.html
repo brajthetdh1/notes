@@ -1,0 +1,1635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API Design — Volume 9: API Gateways &amp; Management</title>
+<style>
+  :root{
+    --ink:#0f0f1e;
+    --ink-soft:#2e2e4a;
+    --muted:#6a6a8a;
+    --line:#dcdcf0;
+    --bg:#f6f6fd;
+    --card:#ffffff;
+    --indigo:#3730a3;
+    --indigo-soft:#e0e7ff;
+    --indigo-deep:#1e1b4b;
+    --violet:#6d28d9;
+    --violet-soft:#ede9fe;
+    --teal:#0f766e;
+    --amber:#b45309;
+    --rose:#be123c;
+    --blue:#1d4ed8;
+    --shadow:0 1px 2px rgba(27,27,80,.06), 0 8px 24px -8px rgba(27,27,80,.14);
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 8% -10%, #e0e7ff 0%, transparent 60%),
+      radial-gradient(1000px 500px at 100% 0%, #ede9fe 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:"Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    line-height:1.72;
+    font-size:16.5px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px 90px;}
+
+  header.hero{
+    background:linear-gradient(135deg,#0f0f1e 0%, #1e1b4b 45%, #312e81 100%);
+    color:#eef2ff;
+    padding:64px 22px 56px;
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::after{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      radial-gradient(600px 300px at 85% 15%, rgba(99,102,241,.42), transparent 70%),
+      radial-gradient(520px 280px at 12% 92%, rgba(139,92,246,.38), transparent 70%);
+    pointer-events:none;
+  }
+  .hero-inner{max-width:1080px;margin:0 auto;position:relative;z-index:2;}
+  .eyebrow{
+    display:inline-block;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;
+    font-weight:700;padding:7px 15px;border-radius:999px;
+    background:rgba(165,180,252,.18);border:1px solid rgba(165,180,252,.5);
+    color:#a5b4fc;margin-bottom:20px;
+  }
+  header.hero h1{
+    font-size:clamp(1.9rem, 4.4vw, 3rem);line-height:1.15;margin:0 0 16px;
+    font-weight:800;letter-spacing:-.02em;
+  }
+  header.hero h1 span{
+    background:linear-gradient(90deg,#a5b4fc,#c4b5fd);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  header.hero p.lede{font-size:1.06rem;color:#c7d2fe;max-width:780px;margin:0 0 26px;}
+  .meta-chips{display:flex;flex-wrap:wrap;gap:10px;}
+  .chip{
+    font-size:.78rem;font-weight:600;padding:7px 14px;border-radius:999px;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#e0e7ff;
+  }
+
+  .roadmap{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:26px 28px;margin-top:-34px;position:relative;z-index:5;
+  }
+  .roadmap h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 16px;font-weight:700;
+  }
+  .roadmap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;}
+  .roadmap-item{
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:.86rem;
+    background:#fcfcff;opacity:.7;
+  }
+  .roadmap-item.done{
+    border-color:#a5b4fc;background:linear-gradient(180deg,#eef2ff,#ffffff);opacity:1;
+  }
+  .roadmap-item.current{
+    border-color:#818cf8;background:linear-gradient(180deg,#e0e7ff,#ffffff);opacity:1;
+    box-shadow:0 0 0 3px rgba(55,48,163,.14);
+  }
+  .roadmap-item .tag{
+    display:inline-block;font-size:.64rem;font-weight:800;letter-spacing:.08em;
+    padding:2px 8px;border-radius:999px;margin-bottom:6px;
+  }
+  .tag-done{background:var(--indigo-soft);color:var(--indigo-deep);}
+  .tag-now{background:#c7d2fe;color:#3730a3;}
+  .tag-next{background:#e2e8f0;color:#475569;}
+  .roadmap-item strong{display:block;color:var(--ink);font-size:.89rem;}
+
+  nav.toc{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:22px 26px;margin:26px 0 44px;
+  }
+  nav.toc h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 14px;font-weight:700;
+  }
+  nav.toc ol{
+    margin:0;padding-left:0;list-style:none;counter-reset:toc;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:8px 26px;
+  }
+  nav.toc li{
+    counter-increment:toc;font-size:.93rem;padding:6px 0 6px 34px;
+    position:relative;border-bottom:1px dashed #ececf8;
+  }
+  nav.toc li::before{
+    content:counter(toc);position:absolute;left:0;top:7px;width:22px;height:22px;
+    border-radius:7px;background:var(--indigo-soft);color:var(--indigo);
+    font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center;
+  }
+  nav.toc a{color:var(--ink-soft);text-decoration:none;font-weight:500;}
+  nav.toc a:hover{color:var(--indigo);}
+
+  .part-band{display:flex;align-items:center;gap:16px;margin:56px 0 26px;}
+  .part-band .bar{
+    width:5px;height:44px;border-radius:99px;
+    background:linear-gradient(180deg,var(--indigo),#818cf8);
+  }
+  .part-band.violet .bar{background:linear-gradient(180deg,var(--violet),#a78bfa);}
+  .part-band.teal .bar{background:linear-gradient(180deg,var(--teal),#2dd4bf);}
+  .part-band h2{margin:0;font-size:1.5rem;letter-spacing:-.01em;font-weight:800;}
+  .part-band .sub{
+    display:block;font-size:.82rem;font-weight:600;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.12em;margin-top:2px;
+  }
+
+  article.q{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:0 0 26px;margin-bottom:28px;overflow:hidden;
+    scroll-margin-top:24px;
+  }
+  .q-head{
+    display:flex;gap:16px;align-items:flex-start;padding:22px 28px 18px;
+    border-bottom:1px solid #f0f0fa;background:linear-gradient(180deg,#fafaff,#ffffff);
+  }
+  .q-num{
+    flex:none;width:42px;height:42px;border-radius:12px;display:flex;
+    align-items:center;justify-content:center;font-weight:800;font-size:.92rem;color:#fff;
+    background:linear-gradient(135deg,#3730a3,#6366f1);
+    box-shadow:0 6px 14px -6px rgba(55,48,163,.7);
+  }
+  .violet .q-num{background:linear-gradient(135deg,#6d28d9,#8b5cf6);box-shadow:0 6px 14px -6px rgba(109,40,217,.7);}
+  .teal .q-num{background:linear-gradient(135deg,#0f766e,#14b8a6);box-shadow:0 6px 14px -6px rgba(15,118,110,.7);}
+  .q-head h3{margin:0;font-size:1.14rem;font-weight:700;line-height:1.4;letter-spacing:-.01em;}
+  .q-body{padding:22px 28px 0;}
+  .q-body p{margin:0 0 15px;color:var(--ink-soft);}
+  .q-body p:last-child{margin-bottom:0;}
+  .q-body h4{margin:24px 0 10px;font-size:.95rem;font-weight:800;color:var(--ink);}
+  .q-body h4::before{content:"▹";color:var(--indigo);margin-right:8px;font-size:.85rem;}
+  .violet .q-body h4::before{color:var(--violet);}
+  .teal .q-body h4::before{color:var(--teal);}
+  .q-body ul,.q-body ol{margin:0 0 16px;padding-left:22px;color:var(--ink-soft);}
+  .q-body li{margin-bottom:8px;}
+  .q-body li::marker{color:var(--indigo);}
+  .violet .q-body li::marker{color:var(--violet);}
+  .teal .q-body li::marker{color:var(--teal);}
+  strong{color:var(--ink);font-weight:700;}
+  code{
+    background:#f4f4fe;border:1px solid #dcdcf0;border-radius:6px;padding:1px 6px;
+    font-size:.87em;font-family:"SFMono-Regular",Consolas,monospace;color:#4338ca;
+  }
+
+  .callout{border-radius:12px;padding:14px 18px;margin:18px 0 4px;font-size:.93rem;border-left:4px solid;}
+  .callout .label{
+    display:block;font-size:.68rem;font-weight:800;letter-spacing:.13em;
+    text-transform:uppercase;margin-bottom:5px;
+  }
+  .callout p{margin:0 0 8px;font-size:.93rem;}
+  .callout p:last-child{margin-bottom:0;}
+  .answer{background:linear-gradient(180deg,#eef2ff,#ffffff);border-color:var(--indigo);}
+  .answer .label{color:var(--indigo-deep);}
+  .tip{background:linear-gradient(180deg,#f0fdfa,#ffffff);border-color:var(--teal);}
+  .tip .label{color:#0f766e;}
+  .tradeoff{background:linear-gradient(180deg,#fffbeb,#ffffff);border-color:var(--amber);}
+  .tradeoff .label{color:#b45309;}
+  .pitfall{background:linear-gradient(180deg,#fff1f2,#ffffff);border-color:var(--rose);}
+  .pitfall .label{color:#be123c;}
+
+  .table-scroll{overflow-x:auto;margin:18px 0;border-radius:12px;border:1px solid var(--line);}
+  table{width:100%;border-collapse:collapse;font-size:.87rem;background:#fff;}
+  thead th{
+    background:#f8f8ff;text-align:left;padding:11px 14px;font-weight:800;
+    font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+    border-bottom:2px solid var(--line);white-space:nowrap;
+  }
+  tbody td{padding:11px 14px;border-bottom:1px solid #f2f2fc;color:var(--ink-soft);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:nth-child(even){background:#fcfcff;}
+  tbody td:first-child{font-weight:700;color:var(--ink);}
+
+  .next-part{
+    background:linear-gradient(135deg,#0f0f1e,#312e81);color:#e0e7ff;
+    border-radius:var(--radius);padding:32px 34px;margin-top:50px;box-shadow:var(--shadow);
+  }
+  .next-part h3{margin:0 0 12px;font-size:1.2rem;color:#fff;font-weight:800;}
+  .next-part p{margin:0 0 16px;color:#c7d2fe;font-size:.95rem;}
+  .next-list{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:10px;list-style:none;padding:0;margin:0;
+  }
+  .next-list li{
+    background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
+    border-radius:10px;padding:10px 14px;font-size:.86rem;color:#e0e7ff;
+  }
+
+  @media (max-width:640px){
+    .q-head{padding:18px 18px 15px;}
+    .q-body{padding:18px 18px 0;}
+    header.hero{padding:44px 18px 46px;}
+    .roadmap{padding:20px;}
+    nav.toc{padding:18px;}
+    nav.toc ol{grid-template-columns:1fr;}
+  }
+  @media print{
+    body{background:#fff;}
+    article.q, nav.toc, .roadmap{box-shadow:none;page-break-inside:avoid;}
+    header.hero{background:#0f0f1e !important;-webkit-print-color-adjust:exact;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Volume 9 · Section 9 of 18</span>
+    <h1>API Design for System Interviews<br><span>API Gateways &amp; Management</span></h1>
+    <p class="lede">
+      The infrastructure layer between clients and services. How an API gateway differs from a load balancer and
+      a service mesh, how to design routing for canary and blue-green deploys, how the Backend-for-Frontend
+      pattern shapes responses per client, and how to operate a gateway without making it a single point of
+      failure or a distributed monolith.
+    </p>
+    <div class="meta-chips">
+      <span class="chip">10 Questions</span>
+      <span class="chip">500+ words each</span>
+      <span class="chip">Infrastructure-focused</span>
+      <span class="chip">Traffic management</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ROADMAP -->
+  <section class="roadmap">
+    <h2>Answer-Series Roadmap</h2>
+    <div class="roadmap-grid">
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 1 — Complete</span>
+        <strong>Fundamentals &amp; Style Selection</strong>
+        API vs protocol vs service, contracts, styles, paradigms
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 2 — Complete</span>
+        <strong>Resource Modeling &amp; REST Design</strong>
+        Resources, URLs, nesting, HTTP methods, representations
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 3 — Complete</span>
+        <strong>Contracts, Versioning &amp; Evolution</strong>
+        Breaking changes, versioning, deprecation, schema evolution
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 4 — Complete</span>
+        <strong>Request/Response Design</strong>
+        Pagination, filtering, sorting, field selection, envelopes
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 5 — Complete</span>
+        <strong>Idempotency &amp; Correctness</strong>
+        Idempotency keys, ETags, optimistic concurrency, retries
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 6 — Complete</span>
+        <strong>Authentication &amp; Authorization</strong>
+        API keys, OAuth, JWT, mTLS, RBAC, ABAC, BOLA, IDOR
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 7 — Complete</span>
+        <strong>Rate Limiting &amp; Quotas</strong>
+        Algorithms, distributed enforcement, headers, quotas
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 8 — Complete</span>
+        <strong>Error Handling &amp; Status Codes</strong>
+        Status code precision, RFC 7807, retryability, partial failures
+      </div>
+      <div class="roadmap-item current">
+        <span class="tag tag-now">Volume 9 — You are here</span>
+        <strong>API Gateways &amp; Management</strong>
+        Routing, BFF, canary, gateway vs mesh, gateway operations
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 10</span>
+        <strong>Performance &amp; Caching</strong>
+        HTTP caching, compression, HTTP/2 and HTTP/3
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 11</span>
+        <strong>Async APIs &amp; Webhooks</strong>
+        202 Accepted, callbacks, signatures, SSE
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 12–13</span>
+        <strong>GraphQL &amp; gRPC Deep Dives</strong>
+        N+1, DataLoader, streaming RPCs, gRPC-Web
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 14</span>
+        <strong>Security &amp; Abuse Prevention</strong>
+        OWASP API Top 10, injection, SSRF, enumeration
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 15</span>
+        <strong>Observability &amp; Operations</strong>
+        Metrics, tracing, deployment, incidents
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 16–17</span>
+        <strong>Lifecycle, Governance &amp; 17 Problems</strong>
+        Design reviews, DX, classic API prompts
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 18</span>
+        <strong>Senior &amp; Staff Trade-offs</strong>
+        Choosing between every pair of options
+      </div>
+    </div>
+  </section>
+
+  <!-- TOC -->
+  <nav class="toc">
+    <h2>Questions Answered in This Volume</h2>
+    <ol>
+      <li><a href="#q1">What is an API gateway, and what problems does it solve?</a></li>
+      <li><a href="#q2">Gateway vs load balancer vs service mesh</a></li>
+      <li><a href="#q3">North-south vs east-west traffic</a></li>
+      <li><a href="#q4">How do you design routing — path, host, header, weight?</a></li>
+      <li><a href="#q5">Request and response transformation at the gateway</a></li>
+      <li><a href="#q6">What is the BFF pattern, and when should you use it?</a></li>
+      <li><a href="#q7">How do you implement canary and blue-green deploys at the gateway?</a></li>
+      <li><a href="#q8">Should authentication be at the gateway or in the service?</a></li>
+      <li><a href="#q9">How do you scale a gateway and prevent it from being a SPOF?</a></li>
+      <li><a href="#q10">How do you avoid the gateway becoming a distributed monolith?</a></li>
+    </ol>
+  </nav>
+
+  <!-- ================= PART A ================= -->
+  <div class="part-band">
+    <div class="bar"></div>
+    <h2>Part A — Fundamentals
+      <span class="sub">What a gateway is, what it is not, and how it fits</span>
+    </h2>
+  </div>
+
+  <!-- Q1 -->
+  <article class="q" id="q1">
+    <div class="q-head">
+      <div class="q-num">1</div>
+      <h3>What is an API gateway, and what problems does it actually solve?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>An API gateway is a reverse proxy that sits at the edge of a microservices architecture and handles the
+        cross-cutting concerns that would otherwise be duplicated across every service: authentication,
+        authorization, rate limiting, routing, request/response transformation, observability, and versioning.
+        It is not a piece of middleware — it is <strong>the single entry point for all client traffic</strong>, and
+        the place where the public API contract is defined.</p>
+      </div>
+
+      <h4>The problem it solves</h4>
+      <p>Without a gateway, every microservice implements authentication, rate limiting, logging, and TLS on its
+      own. The result is predictable:</p>
+      <ul>
+        <li><strong>Inconsistency.</strong> One service validates JWTs correctly, another forgets to check
+        expiry, a third accepts unsigned tokens. Security becomes the weakest link.</li>
+        <li><strong>Duplication.</strong> Six services, six rate limiters, each with slightly different
+        configuration. A bug in one is a bug that affects everyone.</li>
+        <li><strong>Coupling.</strong> Each service must know how to parse the client's API key, the JWT, the
+        token refresh flow — all infrastructure concerns, not domain concerns.</li>
+        <li><strong>No single view.</strong> No place to see "how many requests is the mobile app making?" —
+        each service logs its own slice, and correlating across services is impossible.</li>
+      </ul>
+      <p>The gateway centralises these concerns. A client's request arrives at one place, is authenticated once,
+      is rate-limited once, is logged once, and is routed to the right service. The service sees an authenticated,
+      authorised, rate-limited request with a correlation ID — its only job is to do the domain work.</p>
+
+      <h4>The cross-cutting concerns a gateway handles</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Concern</th><th>What the gateway does</th><th>Why centralise</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Authentication</strong></td><td>Verify API keys, JWTs, OAuth tokens, mTLS</td><td>One implementation, one set of secrets, one rotation policy</td></tr>
+            <tr><td><strong>Authorization (coarse)</strong></td><td>Check scopes, roles, plans</td><td>Reject unauthorised requests before they reach a service</td></tr>
+            <tr><td><strong>Rate limiting</strong></td><td>Per API key, per tenant, per user</td><td>Uniform policy; no service can be overwhelmed</td></tr>
+            <tr><td><strong>Routing</strong></td><td>Path, host, header, or weighted routing to services</td><td>Clients see a stable URL; services move internally</td></tr>
+            <tr><td><strong>Transformation</strong></td><td>Request/response rewrite, protocol translation (REST↔gRPC)</td><td>Services can speak their native protocol</td></tr>
+            <tr><td><strong>Versioning</strong></td><td>Route /v1 to old services, /v2 to new</td><td>Multiple versions coexist without service changes</td></tr>
+            <tr><td><strong>Observability</strong></td><td>Access logs, metrics, trace propagation</td><td>One place to see all client traffic</td></tr>
+            <tr><td><strong>Resilience</strong></td><td>Timeouts, retries, circuit breakers, bulkheads</td><td>Uniform policy, not per-service</td></tr>
+            <tr><td><strong>Aggregation</strong></td><td>Combine responses from multiple services (BFF)</td><td>Reduce round trips for clients</td></tr>
+            <tr><td><strong>Security</strong></td><td>WAF, IP allowlists, request size limits</td><td>Block malicious traffic before it reaches services</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>What a gateway is not</h4>
+      <ul>
+        <li><strong>Not a service mesh.</strong> The gateway handles north-south traffic (clients → system);
+        the mesh handles east-west (service → service). They are complementary, not alternatives.</li>
+        <li><strong>Not a load balancer.</strong> A load balancer distributes across instances of the same service;
+        a gateway routes between services and applies policy. (The gateway does load-balance, but that is one of
+        its jobs, not its primary purpose.)</li>
+        <li><strong>Not a business logic layer.</strong> The moment the gateway has domain rules — "promotions apply
+        only to non-enterprise tenants" — it has become a distributed monolith (Question 10).</li>
+        <li><strong>Not a substitute for service-level authorization.</strong> The gateway can do coarse
+        authorization (does this token have the scope?); the service must do fine-grained (does this user own
+        this resource?). Both are required.</li>
+      </ul>
+
+      <h4>When to use a gateway</h4>
+      <p>When the architecture has more than a handful of services, or when the API is public (so the consistency
+      and observability matter). For a small monolith, an ingress controller or a simple reverse proxy is
+      sufficient — a full gateway is over-engineering.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "The gateway is the single entry point — authentication, rate limiting, routing, and observability
+        all happen there. Services see authenticated, rate-limited requests and focus on domain logic." That
+        demonstrates the centralising purpose in one sentence.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q2 -->
+  <article class="q" id="q2">
+    <div class="q-head">
+      <div class="q-num">2</div>
+      <h3>What is the difference between an API gateway, a load balancer, and a service mesh?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A <strong>load balancer</strong> distributes traffic across instances of one service. An <strong>API
+        gateway</strong> routes traffic between services and applies edge policy (auth, rate limiting,
+        transformation). A <strong>service mesh</strong> handles service-to-service traffic with mTLS, retries, and
+        observability. They operate at different layers and are complementary — a complete architecture often uses
+        all three.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Layer</th><th>What it does</th><th>Traffic</th><th>Examples</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Load balancer</strong></td>
+              <td>Distributes across instances of the same service; health checks; TLS termination</td>
+              <td>Client → instance</td>
+              <td>AWS ELB, NGINX, HAProxy</td>
+            </tr>
+            <tr>
+              <td><strong>API gateway</strong></td>
+              <td>Routes between services; auth, rate limiting, transformation, versioning</td>
+              <td>Client → service</td>
+              <td>Kong, Apigee, AWS API Gateway, Envoy Gateway</td>
+            </tr>
+            <tr>
+              <td><strong>Service mesh</strong></td>
+              <td>mTLS, retries, timeouts, circuit breaking, observability per service call</td>
+              <td>Service → service</td>
+              <td>Istio, Linkerd, Consul Connect</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The load balancer</h4>
+      <p>The simplest infrastructure layer. It receives traffic on a single address and distributes it across N
+      instances of the same service. Its concerns are capacity and health — is any instance overwhelmed, is any
+      instance unhealthy. It is L4 (TCP/IP) or L7 (HTTP path/host). It does not know about authentication, scopes,
+      or service boundaries.</p>
+      <p>A gateway often includes load balancing as one of its functions, but the two are conceptually distinct. A
+      standalone load balancer is right when there is only one service (no routing needed) — for example, a load
+      balancer in front of a monolith.</p>
+
+      <h4>The API gateway</h4>
+      <p>The edge layer for a multi-service architecture. It knows about service boundaries — "route /users to
+      user-service, /orders to order-service" — and applies cross-cutting policy. It is a superset of what a load
+      balancer does; it also authenticates, rate-limits, transforms, and versions.</p>
+      <p>The gateway is the place where the public API contract is defined. Clients see <code>/v1/users</code>,
+      not <code>user-service-7f3a.internal:8080</code>. This abstraction is what allows services to move, split,
+      merge, or be rewritten without breaking clients.</p>
+
+      <h4>The service mesh</h4>
+      <p>The internal communication layer. It handles the calls between services — service A calling service B,
+      service B calling the database, service C calling the cache. Its concerns are security (mTLS — every call
+      encrypted and authenticated), reliability (retries, timeouts, circuit breakers, bulkheads), and observability
+      (per-call metrics, trace propagation).</p>
+      <p>The mesh is not aware of the public API. It sees internal service names and internal traffic, not client
+      requests. Its job is to make internal communication reliable and secure, not to define the API surface.</p>
+
+      <h4>How they compose</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Request path</th><th>Handled by</th></tr></thead>
+          <tbody>
+            <tr><td>Client → CDN</td><td>CDN (edge caching, DDoS)</td></tr>
+            <tr><td>CDN → load balancer</td><td>Load balancer (TLS, distribution)</td></tr>
+            <tr><td>Load balancer → API gateway</td><td>Gateway (auth, rate limit, routing)</td></tr>
+            <tr><td>Gateway → service A</td><td>Service mesh sidecar (mTLS, retries)</td></tr>
+            <tr><td>Service A → service B</td><td>Service mesh (mTLS, retries, circuit breaker)</td></tr>
+            <tr><td>Service B → database</td><td>Service mesh or direct (depending on policy)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Each layer has a single job. The CDN absorbs static content and DDoS; the load balancer distributes TLS
+      connections; the gateway routes and applies edge policy; the mesh secures and stabilises service-to-service
+      communication.</p>
+
+      <h4>The overlap question</h4>
+      <p>Modern gateways and meshes overlap. Envoy can act as a gateway, a mesh sidecar, and a load balancer. Istio
+      includes a gateway component (Istio Gateway) that uses Envoy as the underlying proxy. Kong can be deployed as
+      an ingress controller in Kubernetes, blurring the line with a load balancer.</p>
+      <p>The overlap is fine — the technology is converging. What matters is the conceptual model: which layer is
+      responsible for which concern. A request should be authenticated at the gateway, secured with mTLS at the
+      mesh, and load-balanced at both. The technology can be unified; the responsibility boundaries should not be.</p>
+
+      <h4>When you need which</h4>
+      <ul>
+        <li><strong>One service, small team:</strong> a load balancer (or an ingress controller). No gateway, no
+        mesh.</li>
+        <li><strong>Several services, external clients:</strong> a load balancer + a gateway. The mesh is optional
+        if the services are few.</li>
+        <li><strong>Many services, multi-language, compliance requirements:</strong> all three. The mesh provides
+        uniform mTLS and observability; the gateway provides the edge; the load balancer distributes.</li>
+        <li><strong>Public API with a small internal team:</strong> a gateway (managed, like AWS API Gateway or
+        Kong Cloud) is often enough. A full mesh is over-engineering.</li>
+      </ul>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>A service mesh gives the strongest security (mTLS by default) and observability, but adds a control
+        plane and per-pod proxies — a real operational cost. A gateway gives the strongest edge policy but does
+        not secure internal traffic. A load balancer is the simplest but does no policy. Use each at its layer;
+        do not use one to do another's job.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "The load balancer distributes; the gateway authenticates and routes; the mesh secures internal
+        calls with mTLS and provides retries. They operate at different layers — client-to-service, service-to-service,
+        instance-to-instance — and are complementary." That demonstrates the layering and its purpose in one
+        sentence.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q3 -->
+  <article class="q" id="q3">
+    <div class="q-head">
+      <div class="q-num">3</div>
+      <h3>What is the difference between north-south and east-west traffic?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p><strong>North-south</strong> traffic enters the system from outside — clients calling the API. It flows
+        vertically through the CDN, load balancer, gateway, and into the services. <strong>East-west</strong>
+        traffic flows horizontally between services inside the system — order-service calling user-service,
+        payment-service calling the database. The gateway handles north-south; the service mesh handles east-west.
+        The distinction determines the appropriate tooling and security model.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Dimension</th><th>North-south</th><th>East-west</th></tr></thead>
+          <tbody>
+            <tr><td>Direction</td><td>External → internal</td><td>Internal ↔ internal</td></tr>
+            <tr><td>Source</td><td>Clients (browsers, mobile, partners)</td><td>Services within the cluster</td></tr>
+            <tr><td>Identity</td><td>User (JWT, session, API key)</td><td>Service (mTLS, SPIFFE)</td></tr>
+            <tr><td>Threat model</td><td>Untrusted clients</td><td>Trusted services (but zero-trust assumes the worst)</td></tr>
+            <tr><td>Rate limiting</td><td>Per client, per API key, per user</td><td>Per service, per endpoint</td></tr>
+            <tr><td>Tooling</td><td>CDN, load balancer, API gateway, WAF</td><td>Service mesh, sidecars, client libraries</td></tr>
+            <tr><td>Latency tolerance</td><td>Variable — client is waiting</td><td>Tight — every millisecond counts in the call chain</td></tr>
+            <tr><td>Failure handling</td><td>Retry, degrade gracefully, show error</td><td>Circuit breaker, fallback, timeout</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Why the distinction matters</h4>
+      <ul>
+        <li><strong>Different identity models.</strong> North-south traffic is from untrusted clients; identity is
+        user-based (JWT, session). East-west traffic is from services; identity is service-based (mTLS, SPIFFE).
+        Mixing them — accepting user JWTs for internal calls, or requiring mTLS on public endpoints — is a design
+        smell.</li>
+        <li><strong>Different policy.</strong> Rate limits for a client are per-user or per-API-key; rate limits
+        between services are per-endpoint or per-service. A gateway that applies client rate limits to internal
+        calls is throttling the wrong thing.</li>
+        <li><strong>Different tooling.</strong> North-south uses a CDN, load balancer, and gateway. East-west uses
+        a service mesh or shared client libraries. Using the wrong tool means extra complexity or missing
+        protection.</li>
+        <li><strong>Different threat model.</strong> North-south is exposed to the internet — DDoS, injection,
+        botnets. East-west is inside the network, but zero-trust assumes the internal network is untrusted too,
+        which is why mTLS is essential.</li>
+      </ul>
+
+      <h4>The classic pattern</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Layer</th><th>North-south</th><th>East-west</th></tr></thead>
+          <tbody>
+            <tr><td>Edge</td><td>CDN + WAF + DDoS</td><td>—</td></tr>
+            <tr><td>Load balancing</td><td>L4/L7 load balancer</td><td>Service mesh sidecar or client LB</td></tr>
+            <tr><td>API policy</td><td>API gateway</td><td>Service mesh policy (retries, timeouts)</td></tr>
+            <tr><td>Identity</td><td>JWT, session, API key</td><td>mTLS, SPIFFE</td></tr>
+            <tr><td>Observability</td><td>Access logs, client metrics</td><td>Per-call traces, service metrics</td></tr>
+            <tr><td>Traffic management</td><td>Canary, blue-green, versioning</td><td>Weighted routing, fault injection</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The hybrid reality</h4>
+      <p>Some requests span both directions. A user request comes north-south into the gateway, then fans out
+      east-west to several services. The gateway handles the north-south portion; the mesh handles the east-west
+      portion; the correlation ID flows through both, so the whole request can be traced end-to-end.</p>
+      <p>The mistake: applying north-south policy in the east-west path, or vice versa. For example, requiring
+      user JWTs for internal service calls — which means every service must validate JWTs, duplicating the
+      gateway's job. Or applying per-client rate limits to internal calls, which means a burst from one client
+      can throttle the service's calls to its dependencies.</p>
+
+      <h4>Where the boundary blurs</h4>
+      <p>The public API is north-south. A service that exposes a public-facing endpoint but also calls other
+      services internally has both. A mobile app calling an API endpoint that the app also uses internally for
+      other purposes crosses the boundary. The design principle: <strong>classify the request by its origin</strong>
+      (client vs service), not by its destination. A request from a client is north-south regardless of where it
+      ends up; a request from a service is east-west regardless of which service it hits.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Putting the service mesh in front of external traffic. A mesh sidecar is designed for east-west, with
+        mTLS and internal-only identity. Exposing it directly to clients means managing client certificates and
+        dealing with all the mesh's assumptions about trusted callers. Use a gateway for north-south; use the mesh
+        for east-west. They serve different purposes.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "North-south is clients calling in — CDN, load balancer, gateway, user identity, per-client rate
+        limits. East-west is services calling each other — service mesh, mTLS, per-service policies. The boundary
+        is the origin of the request, not the destination." That demonstrates the distinction and its implication
+        in one sentence.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART B ================= -->
+  <div class="part-band violet">
+    <div class="bar"></div>
+    <h2>Part B — Gateway Features
+      <span class="sub">Routing, transformation, BFF, and traffic management</span>
+    </h2>
+  </div>
+
+  <!-- Q4 -->
+  <article class="q violet" id="q4">
+    <div class="q-head">
+      <div class="q-num">4</div>
+      <h3>How do you design routing at the gateway — path, host, header, weight?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Routing decides which service handles a request. The four mechanisms: <strong>path</strong> (URL prefix
+        — <code>/users/*</code>), <strong>host</strong> (subdomain — <code>users.api.example.com</code>),
+        <strong>header</strong> (custom header — <code>X-Version: 2</code>), and <strong>weight</strong> (percentage
+        — 10% to canary). Real gateways combine them, with a priority order and a fallback. The routing rules
+        must be declarative, versioned, and testable — they are part of the API contract.</p>
+      </div>
+
+      <h4>Path-based routing</h4>
+      <p>The most common mechanism. The URL prefix determines the service:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Path</th><th>Service</th></tr></thead>
+          <tbody>
+            <tr><td><code>/users/*</code></td><td>user-service</td></tr>
+            <tr><td><code>/orders/*</code></td><td>order-service</td></tr>
+            <tr><td><code>/payments/*</code></td><td>payment-service</td></tr>
+            <tr><td><code>/admin/*</code></td><td>admin-service (with additional auth)</td></tr>
+            <tr><td><code>/*</code></td><td>fallback — usually 404 or a default service</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The gateway matches the path prefix and forwards to the service. Most gateways support:
+      exact match (<code>/users</code>), prefix match (<code>/users/*</code>), and regex match
+      (<code>/users/[0-9]+</code>) — in that order of preference, from most specific to least.</p>
+      <p><strong>Trade-off:</strong> path routing is simple and visible, but it couples the URL structure to
+      the service boundaries. If user-service is later split into user-service and profile-service, the
+      <code>/users/*</code> rule must be split into <code>/users/*</code> and <code>/profiles/*</code> — a
+      routing change that must be coordinated.</p>
+
+      <h4>Host-based routing</h4>
+      <p>Different subdomains route to different services (or different versions):</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Host</th><th>Service</th></tr></thead>
+          <tbody>
+            <tr><td><code>api.example.com</code></td><td>Public API gateway</td></tr>
+            <tr><td><code>admin.example.com</code></td><td>Admin gateway (different auth)</td></tr>
+            <tr><td><code>partners.example.com</code></td><td>Partner API (different rate limits)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Host routing is useful when different audiences need different policies. The public API and the admin API
+      have different authentication, different rate limits, and different SLAs — keeping them on different hosts
+      keeps the policies cleanly separated.</p>
+
+      <h4>Header-based routing</h4>
+      <p>A custom header selects the service or version:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Header</th><th>Routes to</th></tr></thead>
+          <tbody>
+            <tr><td><code>X-API-Version: 2</code></td><td>v2 of the service</td></tr>
+            <tr><td><code>X-Beta-Feature: new-checkout</code></td><td>A beta deployment</td></tr>
+            <tr><td><code>X-Internal-Caller: true</code></td><td>Internal-only endpoints</td></tr>
+            <tr><td><code>X-Canary: true</code></td><td>The canary deployment</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Header routing is useful for:
+      <ul>
+        <li><strong>Versioning</strong> — clients send the version they want, the gateway routes accordingly
+        (Volume 3, Question 2).</li>
+        <li><strong>Beta testing</strong> — internal users or opted-in customers get the new version.</li>
+        <li><strong>Debugging</strong> — a support engineer can route a specific request to a specific version to
+        reproduce a bug.</li>
+      </ul>
+      <p>The risk: clients can set headers, so a header-based route must be validated. <code>X-Internal-Caller:
+      true</code> from an external client is a privilege escalation if trusted.</p>
+
+      <h4>Weight-based routing (traffic splitting)</h4>
+      <p>A percentage of traffic goes to each backend:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Backend</th><th>Weight</th></tr></thead>
+          <tbody>
+            <tr><td>orders-v1</td><td>90%</td></tr>
+            <tr><td>orders-v2</td><td>10%</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>This is the mechanism for canary deploys (Question 7) and gradual rollouts. The weights are adjusted over
+      time — 10% → 50% → 100% — as confidence in the new version grows. If a problem appears, the weights can be
+      reverted in seconds.</p>
+      <p>The split must be <strong>sticky per user</strong> for user-facing features — a user should not flip
+      between v1 and v2 on every request. The gateway can hash a user identifier (from the JWT) to assign the user
+      consistently to one bucket.</p>
+
+      <h4>Combining mechanisms</h4>
+      <p>Real routing is a priority-ordered set of rules:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Priority</th><th>Rule</th><th>Backend</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td><code>X-Canary: true</code> AND path = <code>/orders/*</code></td><td>orders-v2-canary</td></tr>
+            <tr><td>2</td><td>path = <code>/admin/*</code></td><td>admin-service (with strict auth)</td></tr>
+            <tr><td>3</td><td>path = <code>/orders/*</code></td><td>orders-v1 (with 10% weight to v2)</td></tr>
+            <tr><td>4</td><td>path = <code>/users/*</code></td><td>user-service</td></tr>
+            <tr><td>5</td><td>default</td><td>404 (or a catch-all service)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The rules are evaluated in order; the first match wins. This is how canary deploys, versioning, and
+      internal-only endpoints coexist.</p>
+
+      <h4>Routing table as code</h4>
+      <p>The routing table should be:</p>
+      <ul>
+        <li><strong>Declarative</strong> — expressed as YAML or a resource, not as imperative code.</li>
+        <li><strong>Versioned</strong> — in git, with the same review process as application code.</li>
+        <li><strong>Testable</strong> — a unit test can verify that <code>/users/42</code> routes to
+        user-service.</li>
+        <li><strong>Deployable atomically</strong> — a routing change is a deployment, with the same rollback
+        story.</li>
+        <li><strong>Observable</strong> — every request logs which rule matched, so debugging is possible.</li>
+      </ul>
+      <p>Gateways like Kong, Envoy, and AWS API Gateway support declarative routing. Treating the routing table
+      as code means it can be reviewed, tested, and reverted — which is essential for a table that determines
+      every request's fate.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Ordering routing rules incorrectly. A prefix match <code>/*</code> placed before <code>/users/*</code>
+        means every request matches <code>/*</code> first, and <code>/users/*</code> is never reached. The rule
+        order must go from most specific to least. Test the routing table with representative paths to verify
+        the order.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Path routing for service boundaries, host routing for different audiences, header routing for
+        version and beta, weight routing for canary. Evaluated in priority order, declarative, in version
+        control." That covers the four mechanisms and the operational discipline in one sentence.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q5 -->
+  <article class="q violet" id="q5">
+    <div class="q-head">
+      <div class="q-num">5</div>
+      <h3>What can request and response transformation at the gateway do, and what should it never do?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Transformation at the gateway can rewrite headers, change the protocol (REST to gRPC), add or remove
+        fields, rename fields to match the public contract, and adapt the response shape for a specific client.
+        It should never implement domain logic, hide business rules, or become the place where API semantics
+        live — that is the path to a distributed monolith (Question 10).</p>
+      </div>
+
+      <h4>What transformation can do</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Type</th><th>Example</th><th>Use case</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Header manipulation</strong></td>
+              <td>Add <code>X-Request-ID</code>, strip <code>X-Internal-*</code>, add <code>Authorization</code> for the backend</td>
+              <td>Correlation, internal auth, hiding implementation details</td>
+            </tr>
+            <tr>
+              <td><strong>Protocol translation</strong></td>
+              <td>REST/JSON on the outside, gRPC on the inside</td>
+              <td>Public clients use HTTP; services use the efficient internal protocol</td>
+            </tr>
+            <tr>
+              <td><strong>Field renaming</strong></td>
+              <td>Internal <code>user_id</code> becomes public <code>userId</code></td>
+              <td>Public contract differs from internal schema</td>
+            </tr>
+            <tr>
+              <td><strong>Field filtering</strong></td>
+              <td>Remove <code>internal_notes</code> from the response</td>
+              <td>Prevent leaking internal fields (defence in depth, not the only defence)</td>
+            </tr>
+            <tr>
+              <td><strong>Field addition</strong></td>
+              <td>Add <code>_links</code> (HATEOAS), add <code>request_id</code></td>
+              <td>Enrich the response with metadata</td>
+            </tr>
+            <tr>
+              <td><strong>Versioning shim</strong></td>
+              <td>Route <code>/v1/users</code> to the new service but translate the response to the v1 shape</td>
+              <td>Migrate internal services without breaking old clients</td>
+            </tr>
+            <tr>
+              <td><strong>Content negotiation</strong></td>
+              <td>Accept XML from an old client, return JSON to the modern client</td>
+              <td>Support multiple formats</td>
+            </tr>
+            <tr>
+              <td><strong>Compression</strong></td>
+              <td>gzip response bodies</td>
+              <td>Reduce bandwidth (Volume 10)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>What transformation should never do</h4>
+      <ul>
+        <li><strong>Business logic.</strong> "Discount applies only if the customer is premium" is not a
+        transformation — it is a domain rule. It belongs in the service, not in the gateway.</li>
+        <li><strong>Aggregation beyond simple composition.</strong> Combining <code>user</code> and <code>orders</code>
+        into one response is fine (BFF pattern, Question 6). Computing "the user's lifetime value" from those
+        fields is business logic — it belongs in a service.</li>
+        <li><strong>Authorization decisions.</strong> The gateway can do coarse auth (is the token valid? does the
+        scope cover the operation?). Fine-grained auth (does this user own this resource?) requires the
+        service's context.</li>
+        <li><strong>Data consistency logic.</strong> Coordinating writes across multiple services is a distributed
+        transaction (Volume 5 of the distributed systems series), not a transformation.</li>
+        <li><strong>Long-running work.</strong> The gateway is on the hot path; it must respond in milliseconds.
+        Anything that takes more than a few ms belongs in the service (async).</li>
+        <li><strong>Validation logic beyond structure.</strong> The gateway can validate "the body is valid JSON
+        and has a required field" — but "this email is already registered" is a domain rule that requires the
+        database.</li>
+      </ul>
+
+      <h4>The slippery slope</h4>
+      <p>A transformation starts small: rename one field, add one header. Then a client needs a different shape
+      for a different endpoint, so a new rule is added. Then a bug requires a workaround, so another rule. Within
+      six months, the gateway has hundreds of rules, no one understands the whole picture, and every change risks
+      breaking something else. This is how a gateway becomes a distributed monolith.</p>
+      <p>The guardrails:</p>
+      <ul>
+        <li><strong>Every transformation must be justified by the public contract.</strong> If the public API does
+        not require the transformation, do not add it.</li>
+        <li><strong>Transformations must be declarative and testable.</strong> A rule in YAML with an associated
+        test, not a Lua script buried in a config.</li>
+        <li><strong>Review by the API owner.</strong> Someone responsible for the public contract must approve
+        new transformations.</li>
+        <li><strong>Deprecate unused transformations.</strong> The same discipline as API versioning — unused
+        rules should be removed.</li>
+      </ul>
+
+      <h4>The BFF exception</h4>
+      <p>The BFF pattern (Question 6) is the one place where substantial transformation is justified. A BFF is
+      explicitly a per-client adapter: it takes the services' generic responses and shapes them for one specific
+      client (mobile, web, partner). The transformation is the BFF's purpose, not a side effect. Even then, the
+      BFF should be a separate service, not the gateway itself — so the gateway remains a thin, uniform layer.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Transformation lets the gateway present a stable public contract even as internal services change.
+        But it also creates a hidden layer of logic that is hard to test, hard to debug, and hard to reason about.
+        The pragmatic rule: transform only what the public contract requires, and always with tests.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "The gateway can translate protocol, rename fields, and filter internal data — but no business
+        logic, no aggregation that computes derived values, no authorization beyond scopes. If a transformation
+        needs domain context, it belongs in a service." That demonstrates the boundary clearly.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q6 -->
+  <article class="q violet" id="q6">
+    <div class="q-head">
+      <div class="q-num">6</div>
+      <h3>What is the BFF pattern, and when should you use it?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Backend-for-Frontend (BFF) is a pattern where each client type — mobile, web, partner — gets its own
+        thin backend layer that aggregates and shapes the responses from the underlying services for that client.
+        The BFF hides the service complexity from the client, reduces the number of round trips, and lets each
+        client's needs evolve independently. It should be a separate service, not a function of the gateway.</p>
+      </div>
+
+      <h4>The problem it solves</h4>
+      <p>Without a BFF, a client talks directly to multiple services:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Client</th><th>Round trips needed</th></tr></thead>
+          <tbody>
+            <tr><td>Web app loading the home screen</td><td>users, feed, notifications, recommendations — 4 calls</td></tr>
+            <tr><td>Mobile app loading the home screen</td><td>4 calls, but only needs a subset of fields from each</td></tr>
+            <tr><td>Partner API reading customer data</td><td>2 calls, but expects a different shape</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Each round trip is latency (on mobile, hundreds of milliseconds), each response has fields the client does
+      not need, and each client ends up with its own aggregation code that drifts from the others. The BFF moves
+      the aggregation server-side: one call to the BFF, which fans out to the services in parallel, assembles the
+      response, and returns exactly what that client needs.</p>
+
+      <h4>The structure</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Layer</th><th>Responsibility</th></tr></thead>
+          <tbody>
+            <tr><td>Client</td><td>Renders the UI; makes one call to the BFF</td></tr>
+            <tr><td>BFF</td><td>Authenticates the user; fans out to services; aggregates; shapes; returns</td></tr>
+            <tr><td>Services</td><td>Own their domain; expose generic APIs</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Each BFF is a separate deployment, often owned by the team that owns the client. The mobile BFF is owned
+      by the mobile team, the web BFF by the web team. This ownership is the key benefit — the BFF can evolve at the
+      client's pace, without affecting other clients.</p>
+
+      <h4>BFF vs API gateway</h4>
+      <p>They are often confused, and sometimes implemented in the same technology. The differences:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Aspect</th><th>API Gateway</th><th>BFF</th></tr></thead>
+          <tbody>
+            <tr><td>Purpose</td><td>Cross-cutting concerns (auth, rate limit, routing)</td><td>Client-specific aggregation and shaping</td></tr>
+            <tr><td>Audience</td><td>All clients</td><td>One client type</td></tr>
+            <tr><td>Business logic</td><td>None</td><td>Client-specific composition — which fields to include, which services to call</td></tr>
+            <tr><td>Ownership</td><td>Platform / infrastructure team</td><td>Client team</td></tr>
+            <tr><td>Deployment</td><td>One per environment</td><td>One per client per environment</td></tr>
+            <tr><td>Evolution</td><td>Slow, coordinated</td><td>Fast, independent</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The gateway and the BFF can be deployed together (the gateway routes <code>/mobile/*</code> to the mobile
+      BFF, which then routes to services). But they are different concerns — the gateway handles all clients
+      uniformly; the BFF handles one client specifically.</p>
+
+      <h4>When to use a BFF</h4>
+      <ul>
+        <li><strong>Multiple heterogeneous clients.</strong> Mobile, web, and partner APIs with different needs —
+        each gets its own BFF.</li>
+        <li><strong>Complex aggregation.</strong> The home screen requires data from five services — the BFF
+        composes the response in one round trip.</li>
+        <li><strong>Client-specific optimization.</strong> Mobile needs minimal payloads; web needs more; partner
+        needs a stable legacy shape.</li>
+        <li><strong>Client teams want autonomy.</strong> The client team owns its BFF, deploys at its own pace,
+        and does not need to coordinate with services for every UI change.</li>
+      </ul>
+
+      <h4>When not to use a BFF</h4>
+      <ul>
+        <li><strong>Single client.</strong> If there is only one client, the BFF is just an extra hop. The
+        services can be designed for that client directly.</li>
+        <li><strong>Simple reads.</strong> If the client just fetches one resource from one service, no BFF is
+        needed.</li>
+        <li><strong>Small systems.</strong> A monolith with a few endpoints does not need a BFF layer; the API
+        itself is the BFF.</li>
+        <li><strong>Replacing proper service design.</strong> The BFF is not a fix for a badly decomposed
+        service — if the services are chatty and slow, the BFF will be chatty and slow too.</li>
+      </ul>
+
+      <h4>The pitfalls</h4>
+      <ul>
+        <li><strong>BFF becomes the new monolith.</strong> If the BFF accumulates business logic, it becomes a
+        single point of coupling. The BFF should only compose and shape; the domain logic stays in the
+        services.</li>
+        <li><strong>BFF duplicated across clients.</strong> If mobile and web BFFs have identical code, they are
+        the same BFF — share it, or make the clients use the same API.</li>
+        <li><strong>Too many BFFs.</strong> One per client version, one per platform, one per region — the
+        combinatorics explode. Consolidate where possible.</li>
+        <li><strong>Synchronous fan-out at the BFF.</strong> The BFF calling five services sequentially is slower
+        than the client calling them directly. The BFF must fan out <em>in parallel</em> and merge.</li>
+      </ul>
+
+      <h4>The GraphQL variant</h4>
+      <p>GraphQL is a natural fit for a BFF — the schema defines the client-facing API, the resolvers fan out to
+      services, and the client queries exactly what it needs. A GraphQL BFF gives the client control over field
+      selection and shape, which is the essence of the BFF pattern taken further. The caveat: GraphQL adds
+      complexity (Volume 12–13) and does not remove the need for aggregation logic in the resolvers.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>A BFF reduces client round trips and gives each client team autonomy, but adds a deployment per client,
+        a code layer to maintain, and a potential bottleneck if not fanning out in parallel. Use it when the client
+        genuinely needs aggregation and has its own team; skip it when the client can talk to services directly.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "One BFF per client type — mobile, web, partner — each owned by the client team, each aggregating
+        and shaping the underlying services. It is separate from the gateway; it is the client-specific adapter
+        layer." That demonstrates the pattern, its ownership, and its relationship to the gateway.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q7 -->
+  <article class="q violet" id="q7">
+    <div class="q-head">
+      <div class="q-num">7</div>
+      <h3>How do you implement canary and blue-green deploys at the gateway?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p><strong>Canary</strong>: route a small percentage of traffic (1%, 5%, 10%) to the new version, monitor
+        error rates and latency, and gradually increase the percentage until 100%, or roll back if the canary
+        shows problems. <strong>Blue-green</strong>: run two identical environments, route 100% of traffic to one
+        (blue), switch 100% to the other (green) when ready, and roll back by switching back. Both rely on the
+        gateway's ability to route and split traffic.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Aspect</th><th>Canary</th><th>Blue-green</th></tr></thead>
+          <tbody>
+            <tr><td>Traffic split</td><td>Percentage-based, gradual</td><td>100% all-at-once</td></tr>
+            <tr><td>Rollout time</td><td>Minutes to hours</td><td>Seconds</td></tr>
+            <tr><td>Rollback</td><td>Reduce canary weight to 0</td><td>Switch traffic back to blue</td></tr>
+            <tr><td>Cost</td><td>Canary fleet is small (5–10% of capacity)</td><td>Two full environments</td></tr>
+            <tr><td>Risk</td><td>Canary traffic is limited; problems affect few users</td><td>If green is broken, all users are affected immediately</td></tr>
+            <tr><td>Best for</td><td>Most deploys; catching issues early</td><td>Major version changes, infrastructure migrations</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Canary deployment</h4>
+      <p>The standard pattern:</p>
+      <ol>
+        <li><strong>Deploy the new version</strong> alongside the old, with its own service instances but the same
+        database.</li>
+        <li><strong>Route 1% of traffic</strong> to the new version, either by random sampling or by hash of the
+        user ID (sticky, so a user sees one version consistently).</li>
+        <li><strong>Monitor</strong> — error rate, latency p99, throughput, and business metrics (conversion,
+        signups). Compare to the baseline from the old version.</li>
+        <li><strong>Increase gradually</strong> — 1% → 5% → 10% → 50% → 100%, with a pause and evaluation at each
+        step.</li>
+        <li><strong>Roll back</strong> immediately if any metric regresses — set the canary weight to 0.</li>
+      </ol>
+      <p>The critical requirement: the new version must be backward compatible with the old — same database schema,
+      same API contract — because both versions run simultaneously. A schema change that breaks the old version
+      cannot be canary-deployed; it requires an expand-contract migration (Volume 3, Question 4).</p>
+
+      <h4>The traffic split mechanism</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Method</th><th>Behaviour</th><th>Trade-off</th></tr></thead>
+          <tbody>
+            <tr><td>Random per-request</td><td>Each request has a 5% chance of going to canary</td><td>Simple; but a user might flip between versions</td></tr>
+            <tr><td>Sticky per-user</td><td>Users in bucket 0–5% go to canary consistently</td><td>Consistent experience; but a bucket is a fixed set of users</td></tr>
+            <tr><td>Header-based</td><td>Internal testers set <code>X-Canary: true</code></td><td>Targeted testing; not representative traffic</td></tr>
+            <tr><td>Geographic</td><td>One region gets the canary</td><td>Limits blast radius; but regions differ in load</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Sticky per-user is the right default for user-facing services, because it avoids the confusing experience
+      of the same user seeing two different versions. Random per-request is fine for stateless API endpoints where
+      each request is independent.</p>
+
+      <h4>Blue-green deployment</h4>
+      <p>The pattern:</p>
+      <ol>
+        <li><strong>Two environments</strong> — blue (currently serving) and green (idle or on a previous
+        version). Both are full capacity.</li>
+        <li><strong>Deploy the new version</strong> to the idle environment (green).</li>
+        <li><strong>Test green</strong> with smoke tests, canary traffic, or internal users.</li>
+        <li><strong>Switch the router</strong> — 100% of traffic moves to green, atomically.</li>
+        <li><strong>Monitor</strong> — if the new version has problems, switch back to blue.</li>
+        <li><strong>After confidence</strong>, blue becomes the next idle environment for the next deploy.</li>
+      </ol>
+      <p>The critical requirement: the two environments must be <strong>isolated</strong> — no shared state that
+      would cause issues when switching. A shared database is fine (both versions read the same data), but a shared
+      cache or a shared connection pool is a problem.</p>
+
+      <h4>The routing mechanism for both</h4>
+      <p>The gateway (or an ingress controller) does the traffic split. The mechanism:</p>
+      <ul>
+        <li><strong>Weighted routing</strong> — the gateway has a rule that says "90% to orders-v1, 10% to
+        orders-v2".</li>
+        <li><strong>Header routing</strong> — <code>X-Canary: true</code> goes to v2.</li>
+        <li><strong>Path routing</strong> — <code>/canary/*</code> goes to v2 (for internal testing).</li>
+      </ul>
+      <p>The gateway is the right place for this because it can change the routing without redeploying the
+      services. A canary deploy is a routing change, not a code change.</p>
+
+      <h4>The observability requirement</h4>
+      <p>Canary deploys only work if you can <strong>compare</strong> the canary's metrics to the baseline. This
+      requires:</p>
+      <ul>
+        <li><strong>Version tagging</strong> — every metric is tagged with <code>version: v1</code> or
+        <code>version: v2</code>, so the comparison is possible.</li>
+        <li><strong>Per-version dashboards</strong> — error rate, latency, throughput side by side.</li>
+        <li><strong>Business metrics</strong> — conversion, signups, checkouts, not just technical metrics. A
+        canary that is fast but breaks the checkout flow is worse than the baseline.</li>
+        <li><strong>Alerts</strong> — automatic alerts if the canary's error rate exceeds the baseline by N%.</li>
+      </ul>
+      <p>Without this observability, canary deploys are guesswork. With it, they are the safest deployment pattern
+      available.</p>
+
+      <h4>The database compatibility requirement</h4>
+      <p>Both canary and blue-green require that both versions can run against the same database simultaneously.
+      This means:</p>
+      <ul>
+        <li><strong>Schema changes must be backward-compatible</strong> — adding a column is fine; removing or
+        renaming one requires expand-contract (Volume 3, Question 4).</li>
+        <li><strong>New fields must have defaults</strong> — the old version does not set them, so the new version
+        must handle their absence.</li>
+        <li><strong>Data migrations must be idempotent</strong> — running them twice is safe, since both versions
+        may trigger them.</li>
+      </ul>
+
+      <h4>Which to choose</h4>
+      <ul>
+        <li><strong>Canary for most deploys.</strong> Gradual, low-risk, catches problems early.</li>
+        <li><strong>Blue-green for infrastructure changes.</strong> Migrating to a new database engine, a new
+        cluster, a new cloud — where gradual rollout is not possible.</li>
+        <li><strong>Combined.</strong> Deploy to green, canary-test green with 1% of traffic, switch 100% if
+        good. This gives the safety of canary with the atomic switch of blue-green.</li>
+      </ul>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Canary-deploying a database schema change that the old version cannot handle. The canary version writes
+        a new column; the old version does not know about it; both crash. Canary requires backward-compatible
+        schemas — if the schema is not compatible, use expand-contract first, then canary-deploy the code.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Canary is gradual — 1% to 100% with monitoring and immediate rollback. Blue-green is atomic — two
+        environments, switch traffic. Both require backward-compatible schemas, per-version metrics, and the
+        gateway to route." That covers the patterns, their requirements, and the mechanism.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART C ================= -->
+  <div class="part-band teal">
+    <div class="bar"></div>
+    <h2>Part C — Operations &amp; Boundaries
+      <span class="sub">Authentication placement, scaling, and avoiding the distributed monolith</span>
+    </h2>
+  </div>
+
+  <!-- Q8 -->
+  <article class="q teal" id="q8">
+    <div class="q-head">
+      <div class="q-num">8</div>
+      <h3>Should authentication be at the gateway, in the service, or both?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Both, with different jobs. The gateway does <strong>coarse authentication</strong> — validates the token,
+        resolves the identity, rejects invalid requests with 401 before they reach any service. The service does
+        <strong>fine-grained authorization</strong> — does this user own this resource? — using the identity the
+        gateway forwarded. Defence in depth: the gateway is the first line; the service is the last line.</p>
+      </div>
+
+      <h4>The case for gateway authentication</h4>
+      <ul>
+        <li><strong>Uniform policy.</strong> Every request is authenticated the same way; no service can forget
+        to validate a token.</li>
+        <li><strong>Performance.</strong> Invalid requests are rejected at the edge, before consuming service
+        resources.</li>
+        <li><strong>Key and secret management.</strong> The signing keys, the OAuth client secrets, and the
+        rotation policy are in one place.</li>
+        <li><strong>Simplifies services.</strong> Each service receives a trusted identity header, not a raw token
+        it must parse.</li>
+        <li><strong>Observability.</strong> Authentication failures are logged in one place, making abuse patterns
+        visible.</li>
+      </ul>
+
+      <h4>The case for service-level authorization</h4>
+      <ul>
+        <li><strong>Resource ownership.</strong> "This order belongs to this user" requires the service's data —
+        the gateway cannot know it.</li>
+        <li><strong>Business rules.</strong> "Only admins of the tenant can delete" requires the tenant's role
+        model — a service concern.</li>
+        <li><strong>Context.</strong> Some authorization decisions need the resource state, not just the identity
+        — the gateway does not have the resource.</li>
+        <li><strong>Defence in depth.</strong> If the gateway is misconfigured, the service still enforces. If the
+        service is called internally (bypassing the gateway), it still enforces.</li>
+      </ul>
+
+      <h4>The division of responsibility</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Concern</th><th>Gateway</th><th>Service</th></tr></thead>
+          <tbody>
+            <tr><td>Token signature and expiry</td><td>Yes</td><td>Defence in depth (verify again if not trusting the gateway)</td></tr>
+            <tr><td>API key validation</td><td>Yes</td><td>No (trust the gateway's forwarded identity)</td></tr>
+            <tr><td>Identity resolution (user ID, tenant ID)</td><td>Yes</td><td>Uses the forwarded identity</td></tr>
+            <tr><td>Scope check (read:orders)</td><td>Yes</td><td>Defence in depth</td></tr>
+            <tr><td>Role check (is admin)</td><td>Sometimes (coarse)</td><td>Yes (fine-grained)</td></tr>
+            <tr><td>Resource ownership</td><td>No</td><td>Yes (BOLA prevention — Volume 6, Question 10)</td></tr>
+            <tr><td>Business-rule authorization</td><td>No</td><td>Yes</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The "trust the gateway" question</h4>
+      <p>A common design: the gateway validates the token and forwards <code>X-User-ID</code> and
+      <code>X-Tenant-ID</code> headers to the service. The service trusts these headers and does not re-validate
+      the token. This is efficient — the service does not need to verify signatures or fetch user data.</p>
+      <p>The risk: if the service is reachable without going through the gateway (a misconfigured network policy,
+      an internal caller bypassing the gateway, a compromised pod), an attacker can send <code>X-User-ID:
+      admin</code> and the service will trust it. This is a real attack vector in Kubernetes environments where
+      services are reachable within the cluster.</p>
+      <p>The mitigations:</p>
+      <ul>
+        <li><strong>Network isolation.</strong> The service accepts traffic only from the gateway (a network
+        policy, a service mesh authorization rule).</li>
+        <li><strong>Signed headers.</strong> The gateway signs the identity headers (mTLS or a JWT); the service
+        verifies the signature. Adds complexity but eliminates the "trust the header" risk.</li>
+        <li><strong>Service re-validation.</strong> The service verifies the token itself, not trusting the
+        gateway. The most robust, but slower (a signature check or a lookup per request).</li>
+      </ul>
+      <p>The pragmatic middle: network isolation (services only reachable via the gateway) plus periodic
+      re-validation (the service verifies the token on a subset of requests, or on cache miss). This gives
+      performance with defence in depth.</p>
+
+      <h4>The alternative: no gateway auth</h4>
+      <p>Some architectures put authentication entirely in the services, using a shared library. The library
+      validates the token, resolves the identity, and provides the authorization helpers. The gateway only routes.</p>
+      <p>This is defensible when: the services are all in the same language (so a shared library is viable), there
+      is no concern about one service forgetting the library, and the team prefers to keep the gateway thin.</p>
+      <p>The downside: every service must include the library correctly, update it when the auth model changes,
+      and enforce it consistently. The risk of "one service forgot" is real — which is exactly what the gateway
+      design prevents.</p>
+
+      <h4>The recommendation</h4>
+      <p>For most microservices architectures, the right answer is:</p>
+      <ol>
+        <li><strong>Gateway: coarse auth</strong> — validate the token, resolve the identity, reject 401 before
+        the request reaches the service. Forward the identity as a signed header or via mTLS.</li>
+        <li><strong>Service: fine auth</strong> — check scope, role, and resource ownership using the forwarded
+        identity. Never trust client-supplied identity fields.</li>
+        <li><strong>Defence in depth</strong> — the service verifies the token or the signed header, so a
+        gateway-bypass is still caught.</li>
+        <li><strong>Network isolation</strong> — the service cannot be reached from outside the cluster except
+        via the gateway.</li>
+      </ol>
+      <p>This gives the performance benefit of the gateway with the safety of service-level enforcement.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Trusting client-supplied identity headers (<code>X-User-ID</code>) without the gateway stripping them.
+        A client can send <code>X-User-ID: admin</code>, the gateway forwards it unchanged, and the service
+        believes the client is an admin. The gateway must strip any incoming <code>X-User-*</code> or
+        <code>X-Internal-*</code> headers and set them itself.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Gateway does coarse auth — token validation, identity resolution, 401. Service does fine auth —
+        ownership, roles, business rules. Defence in depth: the service verifies the forwarded identity or the
+        token itself, and network policy prevents bypassing the gateway." That covers the layering in one
+        sentence.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q9 -->
+  <article class="q teal" id="q9">
+    <div class="q-head">
+      <div class="q-num">9</div>
+      <h3>How do you scale a gateway and prevent it from becoming a single point of failure?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Deploy the gateway as a horizontally scaled fleet of stateless instances behind a load balancer or DNS
+        round-robin. Make the gateway stateless (no local session, no local rate limit state — those go to Redis).
+        Deploy across multiple availability zones. Give the gateway its own capacity budget so it can absorb
+        traffic spikes. And add a fallback path — a secondary gateway or a bypass — so a gateway outage does not
+        mean a complete outage.</p>
+      </div>
+
+      <h4>Why the gateway is a SPOF risk</h4>
+      <p>Every client request goes through the gateway. If the gateway is down, the whole API is down — regardless
+      of how healthy the services are. The gateway is therefore the most critical component to make highly available
+      (Volume 1, Question 7).</p>
+      <p>The common mistakes:</p>
+      <ul>
+        <li><strong>One gateway instance.</strong> A single VM, a single container, a single pod — any failure is
+        total.</li>
+        <li><strong>Stateful gateway.</strong> Sessions stored in memory, rate-limit counters in memory, caches
+        per-instance — a failure loses state, and load balancing is uneven.</li>
+        <li><strong>Single AZ.</strong> All gateway instances in one datacenter — an AZ failure takes them all
+        down.</li>
+        <li><strong>Undersized.</strong> The gateway is provisioned at average load, and a spike saturates it —
+        the gateway becomes the bottleneck that the services were designed to avoid.</li>
+        <li><strong>No fallback.</strong> The gateway is the only path; there is no secondary or bypass.</li>
+      </ul>
+
+      <h4>Stateless deployment</h4>
+      <p>The gateway should be stateless:</p>
+      <ul>
+        <li><strong>No sessions in memory.</strong> Sessions are in a shared store (Redis) or encoded in the
+        token (JWT).</li>
+        <li><strong>No rate-limit counters in memory.</strong> Counters are in Redis (Volume 7, Question 4),
+        with a local fallback that is conservative (per-instance limit × instance count ≤ global limit).</li>
+        <li><strong>No caches in memory.</strong> Response caches are in a shared cache or the CDN.</li>
+        <li><strong>Config loaded from a central store.</strong> The routing table, the policies, the secrets —
+        loaded from etcd, Consul, or a config service at startup and updated on change.</li>
+      </ul>
+      <p>Statelessness lets the fleet scale arbitrarily and lets any instance serve any request.</p>
+
+      <h4>Horizontal scaling</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Layer</th><th>Scaling mechanism</th></tr></thead>
+          <tbody>
+            <tr><td>DNS</td><td>Multiple A records or anycast to multiple gateways</td></tr>
+            <tr><td>External load balancer</td><td>Distributes across the gateway fleet</td></tr>
+            <tr><td>Gateway fleet</td><td>N instances, autoscaled by CPU/connection count</td></tr>
+            <tr><td>Within the gateway</td><td>Worker threads or async I/O (Envoy, NGINX, Kong are event-driven)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The gateway must have headroom — its peak capacity should exceed the services' peak capacity, so the
+      gateway is never the bottleneck. A gateway at 80% CPU is a gateway that will drop requests under a burst.</p>
+
+      <h4>Multi-AZ deployment</h4>
+      <p>Deploy the gateway fleet across at least two availability zones (preferably three). The external load
+      balancer health-checks each instance and routes around failed AZs. An AZ failure leaves the other AZs
+      serving.</p>
+      <p>For the highest availability, deploy the gateway in multiple regions with GeoDNS or anycast. A regional
+      failure routes traffic to another region.</p>
+
+      <h4>The capacity budget</h4>
+      <p>The gateway is on the hot path for every request, so its capacity must be sized for the peak, not the
+      average:</p>
+      <ul>
+        <li><strong>Baseline capacity</strong> — enough instances to serve average load at 40% CPU.</li>
+        <li><strong>Autoscaling</strong> — add instances when CPU exceeds 60%, remove when below 30%.</li>
+        <li><strong>Reserved capacity</strong> — a minimum fleet size (e.g., 3 instances) even at low load, so a
+        sudden spike does not outrun the autoscaler.</li>
+        <li><strong>Load shedding</strong> — if the gateway reaches its capacity limit, shed low-priority traffic
+        (Volume 7, Question 7) rather than crashing.</li>
+      </ul>
+
+      <h4>The fallback path</h4>
+      <p>Even a highly available gateway can have a bad day — a bad config push, a dependency outage, a DNS
+      issue. The fallback:</p>
+      <ul>
+        <li><strong>A secondary gateway</strong> in a different region, with the same routing table, reachable via
+        a different DNS name. The client (or a smart DNS service) can switch to it if the primary is unreachable.</li>
+        <li><strong>A static maintenance page</strong> served by the CDN, so the client sees "we are doing
+        maintenance" rather than a connection error.</li>
+        <li><strong>A read-only bypass</strong> for critical endpoints — a direct path to the services for GET
+        requests, bypassing the gateway's policy, for emergencies.</li>
+      </ul>
+      <p>The fallback should be tested — the same as any other failover mechanism.</p>
+
+      <h4>The config rollout safety</h4>
+      <p>The gateway is frequently changed — routing rules, rate limits, auth policies. Each change is a potential
+      outage. The safety measures:</p>
+      <ul>
+        <li><strong>Config as code</strong>, reviewed in PRs, tested with unit tests.</li>
+        <li><strong>Staged rollout</strong> — apply the config to a canary gateway instance, verify, then roll
+        out to the fleet.</li>
+        <li><strong>Automatic rollback</strong> — if the error rate spikes after a config change, revert
+        automatically.</li>
+        <li><strong>Dry-run mode</strong> — some gateways support validating a config change against production
+        traffic without applying it.</li>
+      </ul>
+      <p>The worst gateway outage is a config error — a bad routing rule that drops all traffic, a typo in the
+      auth policy that rejects everyone. The config discipline prevents these.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Storing rate-limit counters in the gateway's memory. With N gateway instances, the effective limit is
+        N × the configured limit — a client's requests are spread across instances, each with its own counter.
+        Rate limits must be in a shared store (Redis), not per-instance, or the limit is meaningless.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "The gateway is stateless, horizontally scaled, multi-AZ, with headroom for bursts, and a
+        secondary path for fallback. Config is code, rolled out gradually, with automatic rollback. The gateway is
+        the most critical component — it must be the most available." That covers the architecture and the
+        operational discipline.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q10 -->
+  <article class="q teal" id="q10">
+    <div class="q-head">
+      <div class="q-num">10</div>
+      <h3>How do you prevent the gateway from becoming a distributed monolith?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A gateway becomes a distributed monolith when it accumulates business logic, per-client branching,
+        and domain rules that should live in services. The symptoms: hundreds of routing rules, transformation
+        scripts that nobody understands, per-endpoint custom logic, and a gateway deployment that requires
+        coordinating every team. The prevention: keep the gateway thin, put business logic in services, use the
+        BFF pattern for client-specific shaping, and treat the gateway as infrastructure — not as an application.</p>
+      </div>
+
+      <h4>The distributed monolith anti-pattern</h4>
+      <p>A distributed monolith is a system that has the deployment topology of microservices but the coupling of
+      a monolith. In the gateway context, it manifests as:</p>
+      <ul>
+        <li><strong>Business logic in the gateway.</strong> "If the request is from a premium tenant and the
+        product is on sale, apply the discount" — implemented as a gateway rule, not a service call.</li>
+        <li><strong>Hundreds of per-client rules.</strong> "For the mobile v2.3.1 client on iOS 17, transform the
+        response to include..." — the gateway becomes a compatibility layer for every client version.</li>
+        <li><strong>Orchestration.</strong> The gateway calls service A, uses the response to call service B,
+        combines the results, and applies conditional logic — this is business process orchestration, not API
+        gateway work.</li>
+        <li><strong>Stateful workflows.</strong> The gateway holds state between requests — shopping cart
+        sessions, multi-step wizards, progressive onboarding — which should be in a service.</li>
+        <li><strong>A shared deployment.</strong> Every team's change requires a gateway deployment, and the
+        gateway team becomes a bottleneck for every product change.</li>
+      </ul>
+      <p>Each of these is a sign that the gateway is no longer a thin proxy — it is becoming an application that
+      happens to live at the edge.</p>
+
+      <h4>Why it happens</h4>
+      <ul>
+        <li><strong>It is easy.</strong> A routing rule or a transformation script is faster to write than a new
+        service endpoint.</li>
+        <li><strong>It avoids service changes.</strong> A client needs a slightly different response, and the
+        service team is busy — the gateway team adds a transformation.</li>
+        <li><strong>It centralises observability.</strong> "We need to log every request with these fields" — the
+        gateway is the place to do it, so the gateway grows.</li>
+        <li><strong>It is invisible.</strong> Gateway logic does not go through the same review as service code.
+        A transformation here, a rule there, and suddenly it is 10,000 lines of config.</li>
+      </ul>
+
+      <h4>The prevention</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Rule</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>No business logic.</strong> The gateway routes, authenticates, rate-limits, and transforms structurally — nothing more.</td>
+              <td>Business logic requires domain knowledge and tests; the gateway is not the place for it.</td>
+            </tr>
+            <tr>
+              <td><strong>BFF for client-specific shaping.</strong> If a client needs a different response, it gets a BFF, not a gateway transformation.</td>
+              <td>The BFF is owned by the client team, deployed independently, and can evolve without affecting others.</td>
+            </tr>
+            <tr>
+              <td><strong>Thin gateway config.</strong> Under a few hundred rules; most requests match a simple prefix.</td>
+              <td>The gateway's value is uniformity; complexity defeats it.</td>
+            </tr>
+            <tr>
+              <td><strong>Reviewed by the API owner.</strong> Every new rule or transformation requires approval from someone responsible for the public contract.</td>
+              <td>Prevents the slow accumulation of ad-hoc rules.</td>
+            </tr>
+            <tr>
+              <td><strong>Tested transformations.</strong> Every transformation has a unit test that verifies the input → output.</td>
+              <td>Untested transformations are bugs waiting to happen, and impossible to change safely.</td>
+            </tr>
+            <tr>
+              <td><strong>Versioned and deprecated.</strong> Old rules are removed, not accumulated.</td>
+              <td>Like API endpoints, gateway rules have a lifecycle.</td>
+            </tr>
+            <tr>
+              <td><strong>Separate from the deployment pipeline.</strong> The gateway's config is deployed independently of the services — the services can deploy without the gateway, and the gateway without the services.</td>
+              <td>Prevents the gateway from being a coordination point for every service deploy.</td>
+            </tr>
+            <tr>
+              <td><strong>Declarative, not imperative.</strong> YAML or a declarative DSL, not a general-purpose language like Lua.</td>
+              <td>The declarative form makes the config visible, reviewable, and bounded.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The BFF as the pressure valve</h4>
+      <p>The BFF pattern is the escape hatch for client-specific needs. When a client needs a different response,
+      a different aggregation, or a different shape, the answer is not a gateway rule — it is a BFF. The BFF is a
+      separate service, deployed by the client team, with its own tests and its own life. This keeps the gateway
+      thin and lets the client's complexity live where it belongs.</p>
+      <p>The BFF is not a panacea — a BFF that accumulates business logic is just a smaller distributed monolith.
+      The BFF's job is composition and shaping, not domain logic. The services still own the domain.</p>
+
+      <h4>The health check</h4>
+      <p>How do you know the gateway is becoming a distributed monolith? The signals:</p>
+      <ul>
+        <li><strong>Rule count growing.</strong> More than a few hundred rules is a warning sign; more than a
+        thousand is a problem.</li>
+        <li><strong>Per-client rules.</strong> If the routing table has rules that mention client versions, the
+        gateway is becoming a compatibility layer.</li>
+        <li><strong>Deployment frequency rising.</strong> If the gateway deploys more often than the services,
+        it is accumulating logic.</li>
+        <li><strong>The gateway team is a bottleneck.</strong> If every product change requires a gateway change,
+        the gateway is coupled to every team.</li>
+        <li><strong>Complex config.</strong> If a new engineer cannot understand the routing table in a day, it is
+        too complex.</li>
+      </ul>
+      <p>Any of these signals should prompt a review: what is in the gateway that should be in a service?</p>
+
+      <h4>The refactoring path</h4>
+      <p>If the gateway has already become a distributed monolith, the refactoring:</p>
+      <ol>
+        <li><strong>Extract business logic into services.</strong> Identify the gateway rules that contain domain
+        logic, and move that logic into the service that owns the domain.</li>
+        <li><strong>Extract per-client logic into BFFs.</strong> Identify the transformations that serve one client,
+        and move them into a BFF for that client.</li>
+        <li><strong>Simplify the routing.</strong> Reduce the routing table to path-based routing for service
+        boundaries; move everything else into the services.</li>
+        <li><strong>Retire unused rules.</strong> Many gateway rules are no longer needed — the clients that
+        needed them have been updated, the services have changed, the versions have been deprecated.</li>
+        <li><strong>Establish review.</strong> New rules require approval from the API owner.</li>
+      </ol>
+      <p>The refactoring is not trivial — the gateway is on the hot path, and every change carries risk. But the
+      alternative — a gateway that grows unboundedly — is worse: it becomes unmaintainable, the team becomes a
+      bottleneck, and the distributed monolith slowly grinds to a halt.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>A thin gateway is simple but requires that every client-specific need be addressed elsewhere — in a
+        BFF or a service. A thick gateway is flexible in the short term but becomes unmaintainable in the long
+        term. The discipline is to keep the gateway thin and pay the cost of proper service design.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "The gateway is infrastructure — routing, auth, rate limits — nothing more. Client-specific shaping
+        goes in a BFF, owned by the client team. Business logic goes in the service. Every gateway rule needs
+        review, and unused rules are removed." That demonstrates the discipline and its boundaries in one
+        sentence.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- NEXT PART -->
+  <section class="next-part">
+    <h3>Coming in Volume 10 — Performance &amp; Caching</h3>
+    <p>Volume 10 turns to the mechanisms that make an API fast: HTTP caching (Cache-Control, ETags, conditional
+    requests), CDN caching and invalidation, compression (gzip, brotli, zstd), connection reuse and pooling,
+    HTTP/2 multiplexing and HTTP/3, and the performance patterns that separate a fast API from a slow one.</p>
+    <ul class="next-list">
+      <li>HTTP caching headers and their semantics</li>
+      <li>Cache-Control: max-age, s-maxage, stale-while-revalidate</li>
+      <li>ETags and conditional requests</li>
+      <li>CDN caching, cache keys, and invalidation</li>
+      <li>Compression: gzip, brotli, zstd</li>
+      <li>Connection reuse, pooling, and HTTP keep-alive</li>
+      <li>HTTP/2 multiplexing and server push</li>
+      <li>HTTP/3 and QUIC</li>
+      <li>Request coalescing and batching</li>
+      <li>Tail latency and its causes</li>
+    </ul>
+  </section>
+
+</div>
+</body>
+</html>
