@@ -1,0 +1,1764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API Design — Volume 10: Performance &amp; Caching</title>
+<style>
+  :root{
+    --ink:#04121e;
+    --ink-soft:#1e3648;
+    --muted:#5a7a8e;
+    --line:#cfe4ee;
+    --bg:#f2fafd;
+    --card:#ffffff;
+    --cyan:#0e7490;
+    --cyan-soft:#cffafe;
+    --cyan-deep:#164e63;
+    --sky:#0284c7;
+    --sky-soft:#e0f2fe;
+    --teal:#0f766e;
+    --emerald:#047857;
+    --amber:#b45309;
+    --rose:#be123c;
+    --blue:#1d4ed8;
+    --shadow:0 1px 2px rgba(4,30,55,.06), 0 8px 24px -8px rgba(4,30,55,.14);
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 8% -10%, #cffafe 0%, transparent 60%),
+      radial-gradient(1000px 500px at 100% 0%, #e0f2fe 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:"Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    line-height:1.72;
+    font-size:16.5px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px 90px;}
+
+  header.hero{
+    background:linear-gradient(135deg,#04121e 0%, #164e63 45%, #0e7490 100%);
+    color:#ecfeff;
+    padding:64px 22px 56px;
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::after{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      radial-gradient(600px 300px at 85% 15%, rgba(6,182,212,.42), transparent 70%),
+      radial-gradient(520px 280px at 12% 92%, rgba(2,132,199,.4), transparent 70%);
+    pointer-events:none;
+  }
+  .hero-inner{max-width:1080px;margin:0 auto;position:relative;z-index:2;}
+  .eyebrow{
+    display:inline-block;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;
+    font-weight:700;padding:7px 15px;border-radius:999px;
+    background:rgba(34,211,238,.18);border:1px solid rgba(34,211,238,.5);
+    color:#67e8f9;margin-bottom:20px;
+  }
+  header.hero h1{
+    font-size:clamp(1.9rem, 4.4vw, 3rem);line-height:1.15;margin:0 0 16px;
+    font-weight:800;letter-spacing:-.02em;
+  }
+  header.hero h1 span{
+    background:linear-gradient(90deg,#67e8f9,#bae6fd);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  header.hero p.lede{font-size:1.06rem;color:#a5f3fc;max-width:780px;margin:0 0 26px;}
+  .meta-chips{display:flex;flex-wrap:wrap;gap:10px;}
+  .chip{
+    font-size:.78rem;font-weight:600;padding:7px 14px;border-radius:999px;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#cffafe;
+  }
+
+  .roadmap{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:26px 28px;margin-top:-34px;position:relative;z-index:5;
+  }
+  .roadmap h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 16px;font-weight:700;
+  }
+  .roadmap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;}
+  .roadmap-item{
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:.86rem;
+    background:#fbfeff;opacity:.7;
+  }
+  .roadmap-item.done{
+    border-color:#67e8f9;background:linear-gradient(180deg,#ecfeff,#ffffff);opacity:1;
+  }
+  .roadmap-item.current{
+    border-color:#22d3ee;background:linear-gradient(180deg,#cffafe,#ffffff);opacity:1;
+    box-shadow:0 0 0 3px rgba(14,116,144,.14);
+  }
+  .roadmap-item .tag{
+    display:inline-block;font-size:.64rem;font-weight:800;letter-spacing:.08em;
+    padding:2px 8px;border-radius:999px;margin-bottom:6px;
+  }
+  .tag-done{background:var(--sky-soft);color:var(--cyan-deep);}
+  .tag-now{background:#a5f3fc;color:#155e75;}
+  .tag-next{background:#e2e8f0;color:#475569;}
+  .roadmap-item strong{display:block;color:var(--ink);font-size:.89rem;}
+
+  nav.toc{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:22px 26px;margin:26px 0 44px;
+  }
+  nav.toc h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 14px;font-weight:700;
+  }
+  nav.toc ol{
+    margin:0;padding-left:0;list-style:none;counter-reset:toc;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:8px 26px;
+  }
+  nav.toc li{
+    counter-increment:toc;font-size:.93rem;padding:6px 0 6px 34px;
+    position:relative;border-bottom:1px dashed #e6f4fa;
+  }
+  nav.toc li::before{
+    content:counter(toc);position:absolute;left:0;top:7px;width:22px;height:22px;
+    border-radius:7px;background:var(--cyan-soft);color:var(--cyan);
+    font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center;
+  }
+  nav.toc a{color:var(--ink-soft);text-decoration:none;font-weight:500;}
+  nav.toc a:hover{color:var(--cyan);}
+
+  .part-band{display:flex;align-items:center;gap:16px;margin:56px 0 26px;}
+  .part-band .bar{
+    width:5px;height:44px;border-radius:99px;
+    background:linear-gradient(180deg,var(--cyan),#22d3ee);
+  }
+  .part-band.sky .bar{background:linear-gradient(180deg,var(--sky),#38bdf8);}
+  .part-band.teal .bar{background:linear-gradient(180deg,var(--teal),#2dd4bf);}
+  .part-band h2{margin:0;font-size:1.5rem;letter-spacing:-.01em;font-weight:800;}
+  .part-band .sub{
+    display:block;font-size:.82rem;font-weight:600;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.12em;margin-top:2px;
+  }
+
+  article.q{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:0 0 26px;margin-bottom:28px;overflow:hidden;
+    scroll-margin-top:24px;
+  }
+  .q-head{
+    display:flex;gap:16px;align-items:flex-start;padding:22px 28px 18px;
+    border-bottom:1px solid #ecf6fb;background:linear-gradient(180deg,#f9fdff,#ffffff);
+  }
+  .q-num{
+    flex:none;width:42px;height:42px;border-radius:12px;display:flex;
+    align-items:center;justify-content:center;font-weight:800;font-size:.92rem;color:#fff;
+    background:linear-gradient(135deg,#0e7490,#06b6d4);
+    box-shadow:0 6px 14px -6px rgba(14,116,144,.7);
+  }
+  .sky .q-num{background:linear-gradient(135deg,#0284c7,#38bdf8);box-shadow:0 6px 14px -6px rgba(2,132,199,.7);}
+  .teal .q-num{background:linear-gradient(135deg,#0f766e,#14b8a6);box-shadow:0 6px 14px -6px rgba(15,118,110,.7);}
+  .q-head h3{margin:0;font-size:1.14rem;font-weight:700;line-height:1.4;letter-spacing:-.01em;}
+  .q-body{padding:22px 28px 0;}
+  .q-body p{margin:0 0 15px;color:var(--ink-soft);}
+  .q-body p:last-child{margin-bottom:0;}
+  .q-body h4{margin:24px 0 10px;font-size:.95rem;font-weight:800;color:var(--ink);}
+  .q-body h4::before{content:"▹";color:var(--cyan);margin-right:8px;font-size:.85rem;}
+  .sky .q-body h4::before{color:var(--sky);}
+  .teal .q-body h4::before{color:var(--teal);}
+  .q-body ul,.q-body ol{margin:0 0 16px;padding-left:22px;color:var(--ink-soft);}
+  .q-body li{margin-bottom:8px;}
+  .q-body li::marker{color:var(--cyan);}
+  .sky .q-body li::marker{color:var(--sky);}
+  .teal .q-body li::marker{color:var(--teal);}
+  strong{color:var(--ink);font-weight:700;}
+  code{
+    background:#f0f9fd;border:1px solid #cfe4ee;border-radius:6px;padding:1px 6px;
+    font-size:.87em;font-family:"SFMono-Regular",Consolas,monospace;color:#0e7490;
+  }
+
+  .callout{border-radius:12px;padding:14px 18px;margin:18px 0 4px;font-size:.93rem;border-left:4px solid;}
+  .callout .label{
+    display:block;font-size:.68rem;font-weight:800;letter-spacing:.13em;
+    text-transform:uppercase;margin-bottom:5px;
+  }
+  .callout p{margin:0 0 8px;font-size:.93rem;}
+  .callout p:last-child{margin-bottom:0;}
+  .answer{background:linear-gradient(180deg,#ecfeff,#ffffff);border-color:var(--cyan);}
+  .answer .label{color:var(--cyan-deep);}
+  .tip{background:linear-gradient(180deg,#eff6ff,#ffffff);border-color:var(--blue);}
+  .tip .label{color:#1d4ed8;}
+  .tradeoff{background:linear-gradient(180deg,#fffbeb,#ffffff);border-color:var(--amber);}
+  .tradeoff .label{color:#b45309;}
+  .pitfall{background:linear-gradient(180deg,#fff1f2,#ffffff);border-color:var(--rose);}
+  .pitfall .label{color:#be123c;}
+
+  .table-scroll{overflow-x:auto;margin:18px 0;border-radius:12px;border:1px solid var(--line);}
+  table{width:100%;border-collapse:collapse;font-size:.87rem;background:#fff;}
+  thead th{
+    background:#f7fcfe;text-align:left;padding:11px 14px;font-weight:800;
+    font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+    border-bottom:2px solid var(--line);white-space:nowrap;
+  }
+  tbody td{padding:11px 14px;border-bottom:1px solid #f0f8fc;color:var(--ink-soft);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:nth-child(even){background:#fbfeff;}
+  tbody td:first-child{font-weight:700;color:var(--ink);}
+
+  .next-part{
+    background:linear-gradient(135deg,#04121e,#0e7490);color:#cffafe;
+    border-radius:var(--radius);padding:32px 34px;margin-top:50px;box-shadow:var(--shadow);
+  }
+  .next-part h3{margin:0 0 12px;font-size:1.2rem;color:#fff;font-weight:800;}
+  .next-part p{margin:0 0 16px;color:#a5f3fc;font-size:.95rem;}
+  .next-list{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:10px;list-style:none;padding:0;margin:0;
+  }
+  .next-list li{
+    background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
+    border-radius:10px;padding:10px 14px;font-size:.86rem;color:#cffafe;
+  }
+
+  @media (max-width:640px){
+    .q-head{padding:18px 18px 15px;}
+    .q-body{padding:18px 18px 0;}
+    header.hero{padding:44px 18px 46px;}
+    .roadmap{padding:20px;}
+    nav.toc{padding:18px;}
+    nav.toc ol{grid-template-columns:1fr;}
+  }
+  @media print{
+    body{background:#fff;}
+    article.q, nav.toc, .roadmap{box-shadow:none;page-break-inside:avoid;}
+    header.hero{background:#04121e !important;-webkit-print-color-adjust:exact;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Volume 10 · Section 10 of 18</span>
+    <h1>API Design for System Interviews<br><span>Performance &amp; Caching</span></h1>
+    <p class="lede">
+      The mechanisms that make an API fast: HTTP caching semantics and the headers that control them, CDN behaviour
+      and cache-key design, compression algorithms, connection reuse, HTTP/2 multiplexing and HTTP/3, and the
+      patterns — request coalescing, batching, tail-latency reduction — that separate a fast API from a slow one.
+    </p>
+    <div class="meta-chips">
+      <span class="chip">10 Questions</span>
+      <span class="chip">500+ words each</span>
+      <span class="chip">Protocol-level detail</span>
+      <span class="chip">Latency-focused</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ROADMAP -->
+  <section class="roadmap">
+    <h2>Answer-Series Roadmap</h2>
+    <div class="roadmap-grid">
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 1 — Complete</span>
+        <strong>Fundamentals &amp; Style Selection</strong>
+        API vs protocol vs service, contracts, styles, paradigms
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 2 — Complete</span>
+        <strong>Resource Modeling &amp; REST Design</strong>
+        Resources, URLs, nesting, HTTP methods, representations
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 3 — Complete</span>
+        <strong>Contracts, Versioning &amp; Evolution</strong>
+        Breaking changes, versioning, deprecation, schema evolution
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 4 — Complete</span>
+        <strong>Request/Response Design</strong>
+        Pagination, filtering, sorting, field selection, envelopes
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 5 — Complete</span>
+        <strong>Idempotency &amp; Correctness</strong>
+        Idempotency keys, ETags, optimistic concurrency, retries
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 6 — Complete</span>
+        <strong>Authentication &amp; Authorization</strong>
+        API keys, OAuth, JWT, mTLS, RBAC, ABAC, BOLA, IDOR
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 7 — Complete</span>
+        <strong>Rate Limiting &amp; Quotas</strong>
+        Algorithms, distributed enforcement, headers, quotas
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 8 — Complete</span>
+        <strong>Error Handling &amp; Status Codes</strong>
+        Status code precision, RFC 7807, retryability, partial failures
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 9 — Complete</span>
+        <strong>API Gateways &amp; Management</strong>
+        Routing, BFF, canary, gateway vs mesh, gateway operations
+      </div>
+      <div class="roadmap-item current">
+        <span class="tag tag-now">Volume 10 — You are here</span>
+        <strong>Performance &amp; Caching</strong>
+        HTTP caching, CDN, compression, HTTP/2 and HTTP/3, tail latency
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 11</span>
+        <strong>Async APIs &amp; Webhooks</strong>
+        202 Accepted, callbacks, signatures, SSE
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 12–13</span>
+        <strong>GraphQL &amp; gRPC Deep Dives</strong>
+        N+1, DataLoader, streaming RPCs, gRPC-Web
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 14</span>
+        <strong>Security &amp; Abuse Prevention</strong>
+        OWASP API Top 10, injection, SSRF, enumeration
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 15</span>
+        <strong>Observability &amp; Operations</strong>
+        Metrics, tracing, deployment, incidents
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 16–17</span>
+        <strong>Lifecycle, Governance &amp; 17 Problems</strong>
+        Design reviews, DX, classic API prompts
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 18</span>
+        <strong>Senior &amp; Staff Trade-offs</strong>
+        Choosing between every pair of options
+      </div>
+    </div>
+  </section>
+
+  <!-- TOC -->
+  <nav class="toc">
+    <h2>Questions Answered in This Volume</h2>
+    <ol>
+      <li><a href="#q1">How does HTTP caching actually work — the mental model?</a></li>
+      <li><a href="#q2">What do the Cache-Control directives mean, and when do you use each?</a></li>
+      <li><a href="#q3">ETags, Last-Modified, and conditional requests</a></li>
+      <li><a href="#q4">How does CDN caching work, and how do you design cache keys?</a></li>
+      <li><a href="#q5">How do you invalidate a cache safely?</a></li>
+      <li><a href="#q6">Compression: gzip vs brotli vs zstd</a></li>
+      <li><a href="#q7">Connection reuse, keep-alive, and pooling</a></li>
+      <li><a href="#q8">HTTP/2 multiplexing, HOL blocking, and HTTP/3</a></li>
+      <li><a href="#q9">Request coalescing, batching, and de-duplication</a></li>
+      <li><a href="#q10">What causes tail latency, and how do you reduce it?</a></li>
+    </ol>
+  </nav>
+
+  <!-- ================= PART A ================= -->
+  <div class="part-band">
+    <div class="bar"></div>
+    <h2>Part A — HTTP Caching
+      <span class="sub">The protocol's built-in performance mechanism, and why most APIs misuse it</span>
+    </h2>
+  </div>
+
+  <!-- Q1 -->
+  <article class="q" id="q1">
+    <div class="q-head">
+      <div class="q-num">1</div>
+      <h3>How does HTTP caching actually work? Explain the mental model.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>HTTP caching is a <strong>contract between the server and any intermediary</strong> — browser, CDN,
+        proxy — about how long a response may be reused and under what conditions. The server declares cacheability
+        via headers (<code>Cache-Control</code>, <code>ETag</code>, <code>Last-Modified</code>); the cache decides
+        whether to serve a stored response, validate it with the server, or fetch fresh. Done right, it eliminates
+        round trips and dramatically reduces load; done wrong, it serves stale data or leaks information between
+        users.</p>
+      </div>
+
+      <h4>The three participants</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Participant</th><th>Role</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Origin server</strong></td><td>Produces responses and declares their cacheability via headers</td></tr>
+            <tr><td><strong>Cache</strong></td><td>Stores responses and decides whether to serve them, validate them, or fetch fresh</td></tr>
+            <tr><td><strong>Client</strong></td><td>Issues requests; may itself be a cache (browser)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The lifecycle of a cached response</h4>
+      <ol>
+        <li><strong>Fresh</strong> — the response is within its <code>max-age</code>. The cache serves it directly,
+        no request to the origin. Zero latency for the client.</li>
+        <li><strong>Stale</strong> — the response has exceeded its <code>max-age</code>. The cache has three
+        options:
+        <ul>
+          <li><strong>Validate</strong> — send a conditional request to the origin with
+          <code>If-None-Match</code> (ETag) or <code>If-Modified-Since</code>. If the origin returns
+          <code>304 Not Modified</code>, the cache refreshes the freshness and serves the stored response. If
+          <code>200</code>, the cache replaces the stored response.</li>
+          <li><strong>Serve stale</strong> — if the origin is unreachable and <code>stale-if-error</code> is set,
+          the cache serves the stale copy anyway. Better than a 500.</li>
+          <li><strong>Fetch fresh</strong> — if the origin allows it, the cache can revalidate unconditionally.</li>
+        </ul>
+        </li>
+        <li><strong>Evicted</strong> — the cache removes the response due to size pressure or expiry.</li>
+      </ol>
+
+      <h4>The two kinds of cache</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Type</th><th>Location</th><th>Governed by</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Private cache</strong></td>
+              <td>Browser</td>
+              <td><code>Cache-Control: private</code></td>
+              <td>Specific to one user; can store authenticated responses</td>
+            </tr>
+            <tr>
+              <td><strong>Shared cache</strong></td>
+              <td>CDN, reverse proxy, load balancer</td>
+              <td><code>Cache-Control: public</code> or <code>s-maxage</code></td>
+              <td>Shared across users; must NOT store per-user responses</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The distinction is critical: a response with <code>Cache-Control: private</code> is stored only in the
+      browser. A CDN will refuse to store it — because storing it would serve one user's data to another. A
+      response with <code>public</code> can be stored anywhere, but the server must guarantee that it is safe
+      for all users.</p>
+
+      <h4>The "it is cacheable by default" rule</h4>
+      <p>HTTP is opt-out, not opt-in. A response is cacheable by default unless it says otherwise. The rule:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Response includes</th><th>Cacheable?</th></tr></thead>
+          <tbody>
+            <tr><td><code>Authorization</code> header (request)</td><td>No — private responses are not cached by shared caches</td></tr>
+            <tr><td><code>Cache-Control: no-store</code></td><td>No — never stored anywhere</td></tr>
+            <tr><td><code>Cache-Control: private</code></td><td>Yes — but only in private caches (browser)</td></tr>
+            <tr><td><code>Cache-Control: public, max-age=60</code></td><td>Yes — anywhere, for 60 seconds</td></tr>
+            <tr><td>No cache headers, but a status of 200</td><td>Yes, but heuristically — caches may apply a small default</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The heuristic case is the source of many bugs: a response without cache headers may still be cached by a
+      browser or CDN, with a heuristic freshness (often 10% of the time since <code>Last-Modified</code>). To
+      avoid this, always set explicit headers — either a real TTL or <code>no-store</code>.</p>
+
+      <h4>The mistake most APIs make</h4>
+      <p>Most APIs do not set cache headers at all. This means:</p>
+      <ul>
+        <li><strong>Browsers apply heuristic caching</strong> — the response is cached for some interval, and
+        updates are not seen until the cache expires.</li>
+        <li><strong>CDNs refuse to cache</strong> — because there is no explicit <code>public</code> declaration
+        for per-user endpoints, the CDN either does not cache (default) or applies an unsafe heuristic.</li>
+        <li><strong>Proxies have no guidance</strong> — corporate proxies, mobile carriers' transparent caches,
+        and other intermediaries cache based on defaults that the server did not choose.</li>
+      </ul>
+      <p>The fix is to set cache headers explicitly on every response — either a real cache policy for cacheable
+      endpoints, or <code>Cache-Control: no-store</code> for anything that must not be cached. Silence is not the
+      safe option; it delegates the decision to someone else's heuristic.</p>
+
+      <h4>The performance impact</h4>
+      <p>A cache hit is roughly:</p>
+      <ul>
+        <li><strong>Zero network latency</strong> — no round trip to the origin.</li>
+        <li><strong>Zero server load</strong> — the origin does not see the request.</li>
+        <li><strong>Zero database queries</strong> — the response is the stored bytes.</li>
+      </ul>
+      <p>For a public API serving millions of requests to a stable resource, a well-configured CDN can absorb 95%+
+      of the traffic. The remaining 5% is the origin's load — a 20× reduction with no code change and no extra
+      infrastructure. This is why HTTP caching is the single highest-leverage performance mechanism available, and
+      why most APIs underuse it.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "HTTP is opt-out, not opt-in — responses are cacheable by default unless I say otherwise. I'll set
+        explicit Cache-Control on every response: public with a TTL for static content, no-store for per-user
+        endpoints. Silence is the bug." That demonstrates the mental model and the discipline in one sentence.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q2 -->
+  <article class="q" id="q2">
+    <div class="q-head">
+      <div class="q-num">2</div>
+      <h3>What do the Cache-Control directives mean, and when do you use each?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p><code>Cache-Control</code> is the primary caching directive. The key ones: <strong>max-age</strong> (TTL
+        for private caches), <strong>s-maxage</strong> (TTL for shared caches like CDNs),
+        <strong>no-store</strong> (never cache), <strong>no-cache</strong> (must revalidate before use),
+        <strong>private</strong> (only private caches), <strong>public</strong> (any cache),
+        <strong>stale-while-revalidate</strong> (serve stale while refreshing in the background),
+        <strong>stale-if-error</strong> (serve stale on origin failure).</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Directive</th><th>Meaning</th><th>When to use</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>max-age=N</code></td>
+              <td>Response is fresh for N seconds in <em>any</em> cache (unless overridden by s-maxage)</td>
+              <td>Default TTL for publicly cacheable content</td>
+            </tr>
+            <tr>
+              <td><code>s-maxage=N</code></td>
+              <td>Overrides max-age for <em>shared</em> caches (CDN, proxy)</td>
+              <td>CDN TTL when you want it different from browser TTL</td>
+            </tr>
+            <tr>
+              <td><code>no-store</code></td>
+              <td>Never store the response anywhere (browser, CDN, proxy)</td>
+              <td>Per-user sensitive data, tokens, private data</td>
+            </tr>
+            <tr>
+              <td><code>no-cache</code></td>
+              <td>Store, but revalidate with the origin before each use</td>
+              <td>Content that changes often and must be fresh but is expensive to regenerate</td>
+            </tr>
+            <tr>
+              <td><code>private</code></td>
+              <td>Only private caches (browser) may store; CDNs must not</td>
+              <td>Per-user data that the browser can cache but the CDN must not</td>
+            </tr>
+            <tr>
+              <td><code>public</code></td>
+              <td>Any cache may store</td>
+              <td>Static content, public API data</td>
+            </tr>
+            <tr>
+              <td><code>must-revalidate</code></td>
+              <td>Once stale, must validate before serving; do not serve stale</td>
+              <td>Security-sensitive data</td>
+            </tr>
+            <tr>
+              <td><code>immutable</code></td>
+              <td>Never revalidate, even on user reload</td>
+              <td>Versioned assets (JS bundles with hashes in filename)</td>
+            </tr>
+            <tr>
+              <td><code>stale-while-revalidate=N</code></td>
+              <td>Serve stale for up to N seconds while refreshing in background</td>
+              <td>Acceptable-staleness content — feeds, recommendations</td>
+            </tr>
+            <tr>
+              <td><code>stale-if-error=N</code></td>
+              <td>Serve stale if the origin returns 5xx for up to N seconds</td>
+              <td>Resilience — serving stale is better than an error</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>max-age vs s-maxage — why both</h4>
+      <p>A response often needs different TTLs for different caches:</p>
+      <ul>
+        <li><strong>Browser (private)</strong> — should cache briefly, because the user might expect fresh data on
+        reload.</li>
+        <li><strong>CDN (shared)</strong> — should cache longer, because the origin load reduction is more valuable
+        than a few seconds of freshness.</li>
+      </ul>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Header</th><th>Browser TTL</th><th>CDN TTL</th></tr></thead>
+          <tbody>
+            <tr><td><code>Cache-Control: max-age=300</code></td><td>300s</td><td>300s</td></tr>
+            <tr><td><code>Cache-Control: max-age=60, s-maxage=3600</code></td><td>60s</td><td>3600s</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The second form is common for public API data: the CDN caches for an hour, but the user's browser
+      revalidates every minute. The origin sees one request per hour per CDN edge, not one per minute per user.</p>
+
+      <h4>no-store vs no-cache — the most confused pair</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Directive</th><th>Stored?</th><th>Revalidated?</th><th>Use for</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>no-store</code></td>
+              <td>Never</td>
+              <td>N/A — no copy to revalidate</td>
+              <td>Passwords, tokens, per-user sensitive data</td>
+            </tr>
+            <tr>
+              <td><code>no-cache</code></td>
+              <td>Yes</td>
+              <td>Every time, before use</td>
+              <td>Expensive-to-generate content that must be fresh</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The name <code>no-cache</code> is misleading — it means "no <em>unvalidated</em> cache use", not "do not
+      cache". A response with <code>no-cache</code> is stored but must be revalidated with the origin on every
+      use. A response with <code>no-store</code> is not stored at all.</p>
+      <p>For anything that must never be cached — banking data, personal information, authentication
+      tokens — use <code>no-store</code>. For data that changes but is expensive — a computed report — use
+      <code>no-cache</code> with an ETag, so the browser can send a conditional request.</p>
+
+      <h4>stale-while-revalidate — the resilience directive</h4>
+      <p>This directive (RFC 5861) says: after the response becomes stale, the cache may serve the stale response
+      for up to N seconds while revalidating in the background. The user sees an instant response (the stale one);
+      the next request after the revalidation completes sees the fresh one.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Header</th><th>Behaviour</th></tr></thead>
+          <tbody>
+            <tr><td><code>Cache-Control: max-age=60, stale-while-revalidate=600</code></td><td>Fresh for 60s; stale for up to 600s more, with background refresh</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>This is enormously useful for feeds, recommendations, and any content where a few seconds of staleness is
+      acceptable in exchange for zero latency. The CDN serves the stale response instantly, and the origin
+      regenerates in the background for the next request.</p>
+
+      <h4>stale-if-error — the availability directive</h4>
+      <p>When the origin returns 5xx or is unreachable, the cache may serve the stale response for up to N
+      seconds. This turns an origin outage into a degraded experience (stale data) rather than a failed one (error
+      page). For a public API, this is often the right trade-off — a user sees yesterday's recommendations rather
+      than an error.</p>
+
+      <h4>The complete policy for an API</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Endpoint type</th><th>Cache-Control</th></tr></thead>
+          <tbody>
+            <tr><td>Static assets (versioned JS, CSS, images)</td><td><code>public, max-age=31536000, immutable</code></td></tr>
+            <tr><td>Public API data (catalog, public profile)</td><td><code>public, max-age=60, s-maxage=300, stale-while-revalidate=600</code></td></tr>
+            <tr><td>Authenticated API data (user's orders)</td><td><code>private, max-age=0, must-revalidate</code></td></tr>
+            <tr><td>Sensitive data (banking, tokens)</td><td><code>no-store</code></td></tr>
+            <tr><td>Error responses</td><td><code>no-store</code> (do not cache 4xx/5xx)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Caching a response with <code>Set-Cookie</code> in a shared cache. The cookie is served to the next
+        user, which is a session-hijacking vulnerability. Any response with <code>Set-Cookie</code> must be
+        <code>private</code> (or <code>no-store</code>). Most CDNs strip <code>Set-Cookie</code> when caching
+        publicly, but the origin should not rely on that — the header should be correct.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Static assets get max-age=1year, immutable. Public API data gets max-age=60, s-maxage=300,
+        stale-while-revalidate=600. Authenticated data gets private, no-cache. Sensitive data gets no-store. The
+        directive depends on the freshness requirement and the audience." That covers the policy in one
+        sentence.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q3 -->
+  <article class="q" id="q3">
+    <div class="q-head">
+      <div class="q-num">3</div>
+      <h3>What are ETags and Last-Modified, and how do conditional requests work?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>An <strong>ETag</strong> is an opaque version identifier for a response; a
+        <strong>Last-Modified</strong> is the timestamp of the last change. The client sends them back in
+        conditional requests (<code>If-None-Match</code>, <code>If-Modified-Since</code>) to ask "has this
+        changed?". If not, the server returns <code>304 Not Modified</code> with no body — saving bandwidth
+        and generation cost. Conditional requests are also the mechanism for optimistic concurrency
+        (Volume 5, Question 8).</p>
+      </div>
+
+      <h4>The two validators</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Validator</th><th>What it is</th><th>Pros</th><th>Cons</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>ETag</strong></td>
+              <td>An opaque identifier — usually a hash or a version number</td>
+              <td>Precise — detects any change, even if the timestamp did not move</td>
+              <td>Must be generated; expensive if hashing the whole body</td>
+            </tr>
+            <tr>
+              <td><strong>Last-Modified</strong></td>
+              <td>The timestamp of the last modification</td>
+              <td>Cheap — one column read</td>
+              <td>Second-level granularity — two changes in the same second look identical</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>ETag is more precise and preferred. Last-Modified is cheaper and useful as a fallback when ETag is
+      expensive to compute. Both can be present; the client will prefer ETag if both are given.</p>
+
+      <h4>The conditional request flow</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Step</th><th>Client</th><th>Server</th></tr></thead>
+          <tbody>
+            <tr><td>1. Initial GET</td><td><code>GET /users/42</code></td><td><code>200 OK</code> with <code>ETag: "v42"</code> and body</td></tr>
+            <tr><td>2. Cache</td><td>Stores the response and the ETag</td><td>—</td></tr>
+            <tr><td>3. Revalidation</td><td><code>GET /users/42</code> with <code>If-None-Match: "v42"</code></td><td>—</td></tr>
+            <tr><td>4a. Unchanged</td><td>Sees <code>304 Not Modified</code>; uses cached body</td><td>Compares ETag; matches; returns 304 with no body</td></tr>
+            <tr><td>4b. Changed</td><td>Sees <code>200 OK</code> with new body and new ETag</td><td>ETag differs; returns the new response</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The key insight: a 304 response has no body. The client uses its cached copy, but the bandwidth and CPU
+      of regenerating the response are saved. For a large response (a 1 MB JSON, an image), the saving is
+      substantial.</p>
+
+      <h4>If-None-Match vs If-Match</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Header</th><th>Semantics</th><th>Use</th></tr></thead>
+          <tbody>
+            <tr><td><code>If-None-Match</code></td><td>Only return 200 if the ETag is <em>different</em></td><td>Caching (return 304 if unchanged)</td></tr>
+            <tr><td><code>If-Match</code></td><td>Only return 200 if the ETag <em>matches</em></td><td>Optimistic concurrency (prevent lost updates)</td></tr>
+            <tr><td><code>If-Modified-Since</code></td><td>Only return 200 if modified after the given date</td><td>Caching, using Last-Modified</td></tr>
+            <tr><td><code>If-Unmodified-Since</code></td><td>Only return 200 if not modified since the date</td><td>Weaker form of If-Match</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The two families are opposite in intent: <em>None</em>-Match asks "has it changed?"; Match asks "is it
+      still what I think it is?". Caching uses the first; concurrency control uses the second. Confusing them is a
+      common source of bugs — using <code>If-None-Match</code> for an update will succeed <em>only</em> if the
+      resource changed, which is the opposite of what an update wants.</p>
+
+      <h4>How to generate an ETag</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Approach</th><th>Pros</th><th>Cons</th><th>Best for</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Content hash</strong> (SHA-256 of body)</td><td>Precise; detects any byte change</td><td>Expensive for large bodies</td><td>Small responses, exact correctness</td></tr>
+            <tr><td><strong>Version column</strong> (a monotonically increasing integer)</td><td>Cheap; deterministic</td><td>Requires a column; changes on every write</td><td>Database-backed resources</td></tr>
+            <tr><td><strong>Last-updated timestamp</strong></td><td>Cheap</td><td>Second-level granularity; clock skew</td><td>Slow-changing resources</td></tr>
+            <tr><td><strong>Composite</strong> (version + schema version)</td><td>Detects schema and data changes</td><td>More complex</td><td>APIs with evolving schemas</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The version column is the most practical for high-volume APIs. It is cheap to generate, it is
+      deterministic (the same version produces the same ETag), and it works correctly with concurrent updates
+      (the version increments on each write, so an old ETag is always "stale").</p>
+
+      <h4>Strong vs weak ETags</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Type</th><th>Syntax</th><th>Meaning</th><th>Use</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Strong</td>
+              <td><code>ETag: "v42"</code></td>
+              <td>Byte-for-byte identical</td>
+              <td>Caching and optimistic concurrency</td>
+            </tr>
+            <tr>
+              <td>Weak</td>
+              <td><code>ETag: W/"v42"</code></td>
+              <td>Semantically equivalent, but possibly byte-different</td>
+              <td>Caching only — must not be used for If-Match (concurrency)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The weak form is useful when the response can vary byte-wise but is semantically the same — a JSON
+      response with fields reordered, a gzip-compressed response that decompresses to the same body. The
+      <code>W/</code> prefix warns caches that the bytes may differ, so a client using it for concurrency would
+      get wrong results.</p>
+
+      <h4>304 and the headers that must be repeated</h4>
+      <p>Even though a 304 has no body, it must repeat the headers that the cache needs:</p>
+      <ul>
+        <li><code>ETag</code> — the same ETag (or a new one, if the ETag changed but the content is semantically
+        the same).</li>
+        <li><code>Cache-Control</code> — the freshness policy (so the cache knows how long to extend).</li>
+        <li><code>Vary</code> — the cache key components (Question 4).</li>
+        <li><code>Date</code> — the current time.</li>
+      </ul>
+      <p>Forgetting these means the cache does not know how to update its freshness, and revalidates again
+      immediately — turning the 304 into a wasted round trip.</p>
+
+      <h4>The performance impact</h4>
+      <p>A 304 response is typically 200–500 bytes (headers only). A full response of 100 KB is 200× larger. The
+      origin still processes the request (checks the ETag) but does not serialise the body. The bandwidth savings
+      dominate for large responses; the generation savings dominate for expensive-to-compute responses.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "ETag is the version — the client sends If-None-Match, the server returns 304 if unchanged. That
+        saves the body on every cached-but-revalidated response. For optimistic concurrency, If-Match uses the
+        same ETag the opposite way: only apply the write if the version has not changed." That covers caching
+        and concurrency in one sentence.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART B ================= -->
+  <div class="part-band sky">
+    <div class="bar"></div>
+    <h2>Part B — CDN &amp; Invalidation
+      <span class="sub">Edge caching, cache keys, and the invalidation problem</span>
+    </h2>
+  </div>
+
+  <!-- Q4 -->
+  <article class="q sky" id="q4">
+    <div class="q-head">
+      <div class="q-num">4</div>
+      <h3>How does CDN caching work, and how do you design cache keys?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A CDN is a globally distributed set of caching proxies. When a client requests a URL, the nearest edge
+        checks its cache: if fresh, serve; if not, fetch from the origin (or a mid-tier shield), store, and serve.
+        The <strong>cache key</strong> determines what counts as "the same request" — usually the URL, optionally
+        extended with specific headers or query parameters. Designing the cache key correctly is the difference
+        between a 95% hit rate and a 5% one, or between correct isolation and a data leak.</p>
+      </div>
+
+      <h4>The CDN request flow</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Step</th><th>What happens</th></tr></thead>
+          <tbody>
+            <tr><td>1. DNS / anycast</td><td>The client's DNS resolves the hostname to the nearest CDN edge (anycast or GeoDNS)</td></tr>
+            <tr><td>2. Edge lookup</td><td>The edge checks its cache using the cache key</td></tr>
+            <tr><td>3a. Hit</td><td>Serves the cached response — latency is a few milliseconds</td></tr>
+            <tr><td>3b. Miss</td><td>Forwards to the mid-tier shield or the origin, stores the response, serves it</td></tr>
+            <tr><td>4. Origin</td><td>Receives one request per cache miss, not per client — the load reduction comes from here</td></tr>
+            <tr><td>5. Revalidation</td><td>On expiry, the edge sends a conditional request; origin returns 304 if unchanged</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Cache keys</h4>
+      <p>The cache key determines which requests share a stored response. The default key is the URL — scheme,
+      host, path, and query string. Additional components can be included:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Component</th><th>Include?</th><th>Reason</th></tr></thead>
+          <tbody>
+            <tr><td>Path</td><td>Always</td><td>Different resources</td></tr>
+            <tr><td>Query string</td><td>Usually</td><td><code>?page=2</code> and <code>?page=3</code> are different</td></tr>
+            <tr><td>Host</td><td>Usually</td><td><code>api.example.com</code> vs <code>admin.example.com</code></td></tr>
+            <tr><td><code>Accept-Encoding</code></td><td>Yes, by default in most CDNs</td><td>gzip vs brotli vs identity</td></tr>
+            <tr><td><code>Accept-Language</code></td><td>Only if the response varies by language</td><td>Localised content</td></tr>
+            <tr><td><code>Authorization</code></td><td>Never as a key, but presence affects cacheability</td><td>Per-user — should not be shared</td></tr>
+            <tr><td><code>Cookie</code></td><td>Rarely; only for specific cookies</td><td>Usually per-user</td></tr>
+            <tr><td><code>Vary</code> header components</td><td>As declared by the origin</td><td>Origin's explicit instruction</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The Vary header</h4>
+      <p><code>Vary</code> tells the CDN which request headers are part of the cache key. A response with
+      <code>Vary: Accept-Language</code> is cached separately per language — so a French user does not get the
+      English cached copy.</p>
+      <p>The classic failure: caching a response that varies by <code>Authorization</code> without including it in
+      the cache key. The first user's response is served to every subsequent user — a data leak. The fix: either
+      <code>Vary: Authorization</code> (which fragments the cache into one entry per user — impractical) or,
+      better, <code>Cache-Control: private</code> on authenticated responses (which tells the CDN not to store
+      them).</p>
+      <p>The rule: <strong>if the response varies by user, do not cache it in a shared cache</strong>. Do not try
+      to include user identity in the cache key — the cardinality is too high, and the risk of a mistake is a data
+      leak.</p>
+
+      <h4>Origin shielding</h4>
+      <p>Without shielding, hundreds of edge locations may each miss the same object and hit the origin — hundreds
+      of requests for the same resource. Shielding inserts a mid-tier cache between the edges and the origin:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Without shield</th><th>With shield</th></tr></thead>
+          <tbody>
+            <tr><td>Each edge miss → origin</td><td>Each edge miss → shield; shield miss → origin</td></tr>
+            <tr><td>Hundreds of origin requests per object</td><td>At most a few — one per shield region</td></tr>
+            <tr><td>Cache stampede on cold start</td><td>Shield coalesces concurrent misses</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The shield also provides request collapsing — if 100 edges miss simultaneously, the shield sends one
+      request to the origin and serves the response to all 100. This is the CDN's answer to the thundering-herd
+      problem.</p>
+
+      <h4>The cache key design process</h4>
+      <ol>
+        <li><strong>List the dimensions the response varies on</strong> — language, device, currency, user
+        segment.</li>
+        <li><strong>Decide which dimensions are worth including</strong> — each one multiplies the cache size
+        and reduces the hit rate.</li>
+        <li><strong>Include the minimum set</strong> — the smaller the cache key, the higher the hit rate.</li>
+        <li><strong>Use the Vary header</strong> for standard header-based variation; use custom CDN config for
+        more complex cases.</li>
+        <li><strong>Test the leak scenario</strong> — a request as user A, then as user B; if B sees A's data,
+        the cache key is wrong.</li>
+      </ol>
+
+      <h4>The cache key in practice</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Endpoint</th><th>Cache key</th><th>Vary</th></tr></thead>
+          <tbody>
+            <tr><td>Static JS</td><td>URL (with hash in filename)</td><td><code>Accept-Encoding</code></td></tr>
+            <tr><td>Product catalogue (all users)</td><td>URL + query string</td><td><code>Accept-Language</code>, <code>Accept-Encoding</code></td></tr>
+            <tr><td>User's orders (per-user)</td><td>Not cached (private)</td><td>—</td></tr>
+            <tr><td>Search results</td><td>URL + query</td><td>Optional</td></tr>
+            <tr><td>Homepage for logged-in user</td><td>Split: public shell (URL), user fragment (per-user, no CDN)</td><td>—</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The "cache the shell, not the content" pattern</h4>
+      <p>For a page that is mostly the same for all users but has a personalised fragment (a "Hello, Alice" header,
+      a cart icon count), cache the shell and fetch the personalised fragment separately. The CDN caches the shell
+      (high hit rate, safe); the personalised fragment is a separate API call, not cached. This gives the CDN's
+      benefit for most of the page, while keeping the user data safe.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Setting <code>Vary: User-Agent</code>. User agents are thousands of distinct strings, each with
+        sub-versions and feature flags. The cache fragments into thousands of entries, most with a single request
+        each — the hit rate collapses. If the response varies by device type, map the user agent to a small set
+        of device classes (mobile, tablet, desktop) and include only that in the key.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "The cache key is the URL plus the dimensions the response varies on — usually Accept-Language and
+        Accept-Encoding. Per-user data is not cached in the CDN at all; it uses private. The shell is cached; the
+        personalised fragment is fetched separately." That covers the design and the safety in one sentence.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q5 -->
+  <article class="q sky" id="q5">
+    <div class="q-head">
+      <div class="q-num">5</div>
+      <h3>How do you invalidate a cache safely?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>There are four invalidation strategies, each with a different trade-off: <strong>TTL</strong> (wait for
+        expiry — simple, but stale until then), <strong>explicit purge</strong> (delete the cache entry — fast,
+        but propagation is asynchronous and global purges are slow), <strong>versioned URLs</strong> (change the
+        URL when content changes — instant and safe), <strong>cache tagging</strong> (purge all entries sharing a
+        tag). The right strategy depends on how much staleness is acceptable.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Strategy</th><th>Speed</th><th>Reliability</th><th>Best for</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>TTL expiry</strong></td>
+              <td>Slow — up to the TTL</td>
+              <td>Deterministic</td>
+              <td>Content where bounded staleness is acceptable (catalogue, feeds)</td>
+            </tr>
+            <tr>
+              <td><strong>Explicit purge</strong></td>
+              <td>Seconds to minutes — asynchronous</td>
+              <td>Best-effort; may miss edges</td>
+              <td>Breaking news, product updates</td>
+            </tr>
+            <tr>
+              <td><strong>Versioned URLs</strong></td>
+              <td>Instant</td>
+              <td>Deterministic</td>
+              <td>Static assets, anything that can change its URL</td>
+            </tr>
+            <tr>
+              <td><strong>Cache tags</strong></td>
+              <td>Seconds</td>
+              <td>Best-effort</td>
+              <td>Content with related items (a product and its reviews)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>TTL expiry</h4>
+      <p>The simplest strategy: set a TTL that is shorter than the acceptable staleness window, and let the cache
+      expire naturally. A response with <code>max-age=60</code> is guaranteed fresh for 60 seconds and may be
+      stale for a few more; after that, the next request revalidates or fetches fresh.</p>
+      <p>The TTL is a decision about staleness tolerance, not about invalidation. A catalogue with hourly updates
+      can use <code>max-age=3600</code>; the users see the version from up to an hour ago, which is fine for the
+      domain. A stock price with second-level updates needs <code>max-age=1</code> or <code>no-cache</code> —
+      HTTP caching cannot keep up with that, and the design should use a different mechanism (WebSocket, SSE, or
+      polling with <code>no-store</code>).</p>
+
+      <h4>Explicit purge</h4>
+      <p>A CDN API call tells the CDN to delete a specific URL (or URLs matching a pattern) from its caches.
+      Cloudflare, Fastly, Akamai, and AWS CloudFront all support this.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Type</th><th>Scope</th><th>Speed</th></tr></thead>
+          <tbody>
+            <tr><td>Single URL purge</td><td>One specific URL</td><td>Seconds</td></tr>
+            <tr><td>Tag/wildcard purge</td><td>All URLs matching a pattern</td><td>Seconds to minutes</td></tr>
+            <tr><td>Full purge</td><td>Everything</td><td>Minutes — expensive, rarely needed</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The critical caveat: purge is <strong>asynchronous and best-effort</strong>. The CDN accepts the
+      request, but propagation across hundreds of edges takes time. A user in Tokyo might still see the stale
+      version for a few seconds after the purge is issued. For a breaking-news event or a mispriced product, this
+      latency is unacceptable — which is why the highest-stakes content uses versioned URLs.</p>
+
+      <h4>Versioned URLs</h4>
+      <p>The safest invalidation: if the content changes, the URL changes. A static asset
+      <code>/static/app.a3f2c1.js</code> becomes <code>/static/app.b8e4d2.js</code> on rebuild. The old URL can
+      be cached forever (<code>immutable</code>), because its content never changes; the new URL is a cache miss,
+      fetching the fresh content.</p>
+      <p>For APIs, the equivalent is a version in the URL (<code>/v2/products</code>) or a version in the
+      resource's identifier (<code>/products?version=abc</code>). The benefit is that invalidation is
+      instantaneous — the new URL was never cached, so it is a guaranteed miss.</p>
+      <p>The cost: every content change creates a new URL, which means bookmarks break, shared links change, and
+      search engines re-index. Versioned URLs are ideal for assets (where clients always fetch the latest from
+      an HTML page), not for user-facing resources.</p>
+
+      <h4>Cache tags</h4>
+      <p>Modern CDNs support tagging responses with one or more tags, and purging all responses with a given tag.
+      This is useful when one content change affects many URLs:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Content</th><th>Tag</th></tr></thead>
+          <tbody>
+            <tr><td>Product page <code>/products/42</code></td><td><code>product-42</code>, <code>category-shoes</code></td></tr>
+            <tr><td>Product reviews <code>/products/42/reviews</code></td><td><code>product-42</code></td></tr>
+            <tr><td>Home page featuring product 42</td><td><code>featured-products</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>When product 42 is updated, purge <code>product-42</code> — all related URLs are invalidated. When the
+      featured-products list changes, purge <code>featured-products</code> — the home page re-renders. This is
+      the granularity that explicit URL purges cannot provide.</p>
+      <p>The CDN must support tags (Cloudflare, Fastly, Akamai, and CloudFront all do, with different names —
+      "cache tags", "surrogate keys", "purge keys"). The origin sets a <code>Cache-Tag</code> header (or
+      equivalent); the purge API accepts a tag.</p>
+
+      <h4>The safe invalidation pattern</h4>
+      <p>For content that must be fresh immediately:</p>
+      <ol>
+        <li><strong>Version the URL</strong> — the new content has a new URL; the old content is still cached
+        but no longer served.</li>
+        <li><strong>Update the reference</strong> — the HTML, the API response, or the redirect points to the
+        new URL.</li>
+        <li><strong>Purge the reference</strong> — the reference itself (the HTML page, the catalogue index) is
+        purged so the new URL is served.</li>
+        <li><strong>Let the old URL expire</strong> — no purge needed; nobody requests it.</li>
+      </ol>
+      <p>This combines the safety of versioned URLs with the reach of a targeted purge. It is the pattern used by
+      every major site for asset deployment and content updates.</p>
+
+      <h4>The "I purged and it is still stale" bug</h4>
+      <p>Common causes:</p>
+      <ul>
+        <li><strong>Purge is asynchronous</strong> — the CDN accepted the request, but not all edges have
+        processed it. Wait or check the purge status.</li>
+        <li><strong>Multiple cache layers</strong> — the browser, the CDN, and the origin's own cache may all
+        hold a copy. Purging the CDN does not clear the browser.</li>
+        <li><strong>Cache key mismatch</strong> — the purge used a different key than the cache stored. The URL
+        normalisation (trailing slash, query order) may differ.</li>
+        <li><strong>Vary headers</strong> — if the response varies by language, purging the URL may only purge
+        one language's entry. Check the variant handling.</li>
+      </ul>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Shorter TTLs reduce staleness but increase origin load. Purging gives instant invalidation but is
+        asynchronous and best-effort. Versioned URLs are instant and safe but only apply to assets. The right
+        mix depends on the content: assets use versioned URLs, catalogue data uses TTL + purge, and per-user data
+        is not cached at all.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Assets use versioned URLs, immutable. Catalogue data uses TTL with an explicit purge on update.
+        The purge is asynchronous, so for anything that must be instant — a mispriced product — the design should
+        version the URL instead." That demonstrates the four strategies and their trade-offs.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART C ================= -->
+  <div class="part-band teal">
+    <div class="bar"></div>
+    <h2>Part C — Transport &amp; Latency
+      <span class="sub">Compression, connections, protocols, and tail latency</span>
+    </h2>
+  </div>
+
+  <!-- Q6 -->
+  <article class="q teal" id="q6">
+    <div class="q-head">
+      <div class="q-num">6</div>
+      <h3>Compare gzip, brotli, and zstd for API compression — when do you use each?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p><strong>gzip</strong> is the universal default — supported everywhere, ~70% compression on JSON, fast.
+        <strong>brotli</strong> compresses better (~20% smaller than gzip) and is supported by all modern browsers,
+        but is slower to compress at max levels. <strong>zstd</strong> is the fastest at comparable compression,
+        with a wide range of levels, but browser support is still limited. Use gzip for maximum compatibility,
+        brotli for web content, and zstd for service-to-service where both sides control the client.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Algorithm</th><th>Compression ratio (JSON)</th><th>Speed</th><th>Browser support</th><th>Best for</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>gzip</strong></td>
+              <td>Baseline (~70% reduction)</td>
+              <td>Fast</td>
+              <td>Universal</td>
+              <td>Everything — the safe default</td>
+            </tr>
+            <tr>
+              <td><strong>brotli</strong></td>
+              <td>~20% better than gzip</td>
+              <td>Slower at high levels; a fast level (4) is competitive</td>
+              <td>All modern browsers (via HTTPS)</td>
+              <td>Web content — HTML, JS, CSS, JSON</td>
+            </tr>
+            <tr>
+              <td><strong>zstd</strong></td>
+              <td>~10–20% better than gzip; comparable to brotli</td>
+              <td>Fastest at comparable ratios; excellent high levels</td>
+              <td>Limited (Chrome supports it via custom, not universal)</td>
+              <td>Service-to-service; internal APIs</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Why compression matters for APIs</h4>
+      <p>A 100 KB JSON response compresses to ~20 KB with gzip — a 5× reduction. On a mobile network at 5 Mbps,
+      the transfer time drops from ~160 ms to ~32 ms. The savings are even larger on slower connections: a 100 KB
+      response on a 1 Mbps link takes 800 ms uncompressed, 160 ms compressed. Compression is the single biggest
+      transport-level win for text-heavy APIs.</p>
+      <p>Binary formats (protobuf, Avro, MessagePack) compress less well than JSON, because they are already
+      compact. For protobuf, compression gives ~30% reduction; for JSON, ~70%. The choice of format and the
+      choice of compression are somewhat substitutes: if you use protobuf, you need compression less; if you use
+      JSON, you need it more.</p>
+
+      <h4>How negotiation works</h4>
+      <p>The client sends <code>Accept-Encoding: gzip, br, zstd</code>; the server picks the best one it supports
+      and sets <code>Content-Encoding</code> in the response. If the client sends nothing, the server may send
+      uncompressed — but for compatibility, most APIs default to gzip if the client accepts anything.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Client</th><th>Server</th></tr></thead>
+          <tbody>
+            <tr><td><code>Accept-Encoding: gzip</code></td><td><code>Content-Encoding: gzip</code></td></tr>
+            <tr><td><code>Accept-Encoding: gzip, br</code></td><td><code>Content-Encoding: br</code> (prefers brotli)</td></tr>
+            <tr><td><code>Accept-Encoding: identity</code></td><td>No compression</td></tr>
+            <tr><td>(no header)</td><td>No compression, or gzip (server's choice)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>When NOT to compress</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Content</th><th>Compress?</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr><td>Small responses (&lt; 1 KB)</td><td>No</td><td>Compression overhead exceeds the savings; a gzip header alone is ~20 bytes</td></tr>
+            <tr><td>Already-compressed content (JPEG, PNG, ZIP, MP4)</td><td>No</td><td>Compressing compressed data produces larger output</td></tr>
+            <tr><td>Real-time streams (small messages)</td><td>Usually no, unless batching</td><td>Per-message overhead dominates</td></tr>
+            <tr><td>Sensitive data over TLS</td><td>Yes, but beware BREACH</td><td>Compression + encryption can leak secrets (see below)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The BREACH attack</h4>
+      <p>Compressing a response that mixes secret data (a CSRF token, a session cookie) with user-controlled input
+      (a search query, a form field) can leak the secret. The attacker sends many requests with guessed prefixes
+      of the secret; the compressed size reveals which guess was correct, byte by byte. This is the BREACH attack
+      (CVE-2013-3587), and it affects HTTP compression of any page that reflects user input alongside a secret.</p>
+      <p>The mitigations: do not reflect user input in the same response as secrets, use <code>Cache-Control:
+      no-store</code> on sensitive responses, use per-response random padding, or disable compression for
+      sensitive endpoints. For pure API endpoints (JSON responses with no HTML), BREACH is mostly theoretical —
+      but for anything that returns a page mixing a token with a user-controlled value, it is real.</p>
+
+      <h4>Compression level tuning</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Algorithm</th><th>Level</th><th>Speed vs ratio</th><th>Recommendation</th></tr></thead>
+          <tbody>
+            <tr><td>gzip</td><td>1</td><td>Fastest, worst ratio</td><td>Real-time, high-volume</td></tr>
+            <tr><td>gzip</td><td>6</td><td>Default balance</td><td>Most APIs</td></tr>
+            <tr><td>gzip</td><td>9</td><td>Slowest, best ratio</td><td>One-time, cached content</td></tr>
+            <tr><td>brotli</td><td>4</td><td>Fast, good ratio</td><td>Dynamic responses</td></tr>
+            <tr><td>brotli</td><td>11</td><td>Slowest, best ratio</td><td>Static assets, pre-compressed</td></tr>
+            <tr><td>zstd</td><td>3</td><td>Fast, good ratio</td><td>Real-time</td></tr>
+            <tr><td>zstd</td><td>19</td><td>Slow, best ratio</td><td>Archival, offline</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>For dynamic API responses, use a fast level (gzip 6, brotli 4, zstd 3). The bottleneck is CPU, not
+      bandwidth, and a fast level captures most of the ratio. For static assets, pre-compress at a high level
+      (brotli 11) once and serve the compressed bytes — the CPU cost is paid once, not per request.</p>
+
+      <h4>Pre-compression for static assets</h4>
+      <p>Static assets (JS, CSS, HTML) should be pre-compressed at build time at a high level, stored alongside
+      the original, and served based on <code>Accept-Encoding</code>. The server does not compress on the fly —
+      it serves the pre-compressed file directly. The compression level is the highest available (brotli 11,
+      gzip 9), because it is paid once at build time and reused for every request.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Compressing already-compressed content (JPEG, PNG, MP4, ZIP). The output is larger than the input,
+        because the compressor tries to find patterns in random bytes and fails. Check the <code>Content-Type</code>
+        and skip compression for image/*, video/*, audio/*, and application/zip.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "gzip is the universal default; brotli for web content where it saves 20% more; zstd for
+        service-to-service. Do not compress small responses or already-compressed data. And beware BREACH —
+        compressing a response that mixes secrets with user input leaks the secret." That covers the algorithms,
+        the rules, and the security concern.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q7 -->
+  <article class="q teal" id="q7">
+    <div class="q-head">
+      <div class="q-num">7</div>
+      <h3>Why does connection reuse matter, and how do you design connection pooling?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Establishing a new TCP connection takes one round trip (SYN/SYN-ACK) plus, for HTTPS, several more
+        (TLS handshake). Reusing an existing connection eliminates those round trips — saving 100+ ms per request
+        on high-latency networks. Connection pooling is the mechanism: a pool of warm connections reused across
+        requests, sized to match the concurrency, with health checks and timeouts.</p>
+      </div>
+
+      <h4>The cost of a new connection</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Step</th><th>Round trips</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>DNS lookup</td><td>1</td><td>Cached for a TTL, but the first lookup is a round trip</td></tr>
+            <tr><td>TCP handshake</td><td>1</td><td>SYN / SYN-ACK / ACK</td></tr>
+            <tr><td>TLS 1.2 handshake</td><td>2</td><td>ClientHello/ServerHello, then key exchange</td></tr>
+            <tr><td>TLS 1.3 handshake</td><td>1 (or 0 with resumption)</td><td>The improvement over TLS 1.2</td></tr>
+            <tr><td>HTTP request/response</td><td>1</td><td>The actual work</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>For HTTPS over TLS 1.3 on a 100 ms RTT link, a new connection costs ~200 ms (TCP + TLS + request). A reused
+      connection costs ~100 ms (just the request). That is a 2× speedup, and the difference dominates for small
+      API responses where the payload is only a few kilobytes.</p>
+
+      <h4>HTTP keep-alive</h4>
+      <p>HTTP/1.1 has persistent connections by default: a <code>Connection: keep-alive</code> header (implicit
+      in 1.1) means the connection stays open for subsequent requests. The client reuses it for the next request
+      to the same host, eliminating the handshake cost.</p>
+      <p>The server should send <code>Keep-Alive: timeout=N, max=M</code> to tell the client how long the
+      connection will be held open and how many requests it will serve. A timeout shorter than the client's
+      idle timeout causes the client to try to reuse a closed connection — a race that produces confusing
+      errors. The server's keep-alive timeout must be longer than the client's, or the client must handle
+      reconnect gracefully.</p>
+
+      <h4>Connection pooling</h4>
+      <p>A connection pool maintains a set of pre-established connections and reuses them across requests. The
+      pool is the client-side equivalent of keep-alive — it is how an application with many concurrent requests
+      reuses a small number of connections.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Parameter</th><th>Meaning</th><th>Typical value</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Max connections per host</strong></td><td>Upper bound on concurrent connections</td><td>10–50 for internal APIs; 2–6 for external hosts (browser default)</td></tr>
+            <tr><td><strong>Max total connections</strong></td><td>Across all hosts</td><td>100–500, depending on capacity</td></tr>
+            <tr><td><strong>Idle timeout</strong></td><td>How long a connection sits idle before being closed</td><td>30s to 5 min</td></tr>
+            <tr><td><strong>Max lifetime</strong></td><td>Maximum age of a connection before it is recycled</td><td>5–30 min (to handle DNS changes, deployment)</td></tr>
+            <tr><td><strong>Connect timeout</strong></td><td>How long to wait for the TCP handshake</td><td>1–5 s</td></tr>
+            <tr><td><strong>Request timeout</strong></td><td>How long to wait for the response</td><td>10–60 s, depending on the operation</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The pool sizing problem</h4>
+      <p>A common mistake: sizing the pool too large. A pool of 100 connections per instance sounds generous, but
+      with 20 instances, that is 2,000 connections to the upstream — which may have a limit of 500. The pool
+      must be sized with the <strong>downstream's capacity</strong> in mind, not just the client's concurrency.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Upstream limit</th><th>Client instances</th><th>Max pool per instance</th></tr></thead>
+          <tbody>
+            <tr><td>500 connections</td><td>20</td><td>25 (500 / 20)</td></tr>
+            <tr><td>1000 connections</td><td>50</td><td>20</td></tr>
+            <tr><td>Unbounded (e.g., a public API)</td><td>—</td><td>Limited by the client's concurrency and thread pool</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>An oversized pool is also a resource leak on the client — file descriptors, memory for socket buffers,
+      and TCP connection state. The pool should be sized to the actual concurrent request load, not to the
+      maximum possible.</p>
+
+      <h4>Connection pooling for databases</h4>
+      <p>The database connection is the most expensive connection. A PostgreSQL connection has significant
+      memory (a few MB) and startup cost (parsing the schema, setting up the session). A pool of 10–20 per
+      application instance is standard; a pool of 100 is usually wrong (the database cannot handle 100
+      concurrent active queries efficiently — the CPU is the bottleneck, not the connection).</p>
+      <p>The pool should be sized based on: the database's max_connections (typically 100–500), the number of
+      application instances, and the average query duration. The formula: <code>pool_size × instances ≤ 80% of
+      max_connections</code>.</p>
+
+      <h4>Connection reuse in HTTP/2</h4>
+      <p>HTTP/2 changes the pool calculus. A single HTTP/2 connection can carry many concurrent streams — no
+      need for a pool of connections, one connection multiplexes them. This is why modern HTTP clients (gRPC,
+      HTTP/2-enabled load balancers) often use a much smaller pool: one or two connections per host, each with
+      many concurrent streams.</p>
+      <p>The benefit: fewer TCP connections means fewer handshakes, less state, less resource usage. The
+      trade-off: a single connection is a single point of failure — if it dies, all in-flight streams fail. The
+      right design uses a small pool (2–4 connections per host) and retries on connection failure.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Not configuring a connection pool at all — using a new connection per request. This is the default in
+        many HTTP libraries, and it adds a handshake (and often a TLS negotiation) to every call. For a chatty
+        API (dozens of calls per request), the handshake cost dwarfs the actual work. Always configure a pool or
+        use a keep-alive client.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Every new connection is a TCP handshake plus a TLS handshake — 100+ ms of overhead on a
+        high-latency link. Connection pooling reuses warm connections, sized to the downstream's capacity, not the
+        client's concurrency. HTTP/2 reduces the need for a large pool because one connection multiplexes." That
+        covers the cost and the design in one sentence.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q8 -->
+  <article class="q teal" id="q8">
+    <div class="q-head">
+      <div class="q-num">8</div>
+      <h3>What does HTTP/2 change, what is head-of-line blocking, and what does HTTP/3 fix?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p><strong>HTTP/1.1</strong> suffers from head-of-line (HOL) blocking at the HTTP level — one slow response
+        blocks all subsequent requests on the same connection. <strong>HTTP/2</strong> fixes this with
+        multiplexing — many concurrent streams on one TCP connection. But TCP itself has HOL blocking — a lost
+        packet blocks all streams on that connection. <strong>HTTP/3</strong> runs over QUIC (UDP-based), where
+        each stream is independent — no HOL blocking at the transport level.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Version</th><th>Transport</th><th>HOL blocking</th><th>Multiplexing</th><th>Key feature</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>HTTP/1.1</td>
+              <td>TCP</td>
+              <td>Yes — at the HTTP level</td>
+              <td>No (or via pipelining, abandoned)</td>
+              <td>Keep-alive</td>
+            </tr>
+            <tr>
+              <td>HTTP/2</td>
+              <td>TCP</td>
+              <td>Yes — at the TCP level</td>
+              <td>Yes — many streams per connection</td>
+              <td>Multiplexing, header compression</td>
+            </tr>
+            <tr>
+              <td>HTTP/3</td>
+              <td>QUIC (UDP)</td>
+              <td>No</td>
+              <td>Yes — independent streams</td>
+              <td>0-RTT, connection migration</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>HTTP/1.1 and head-of-line blocking</h4>
+      <p>On a single HTTP/1.1 connection, only one request is in flight at a time. The next request cannot be sent
+      until the previous response is complete. If the first response is slow (a slow database query, a large
+      payload), every subsequent request waits — even if they would be fast.</p>
+      <p>The workarounds:</p>
+      <ul>
+        <li><strong>Multiple connections</strong> — browsers open 6 connections per host, allowing 6 concurrent
+        requests. Beyond that, requests queue.</li>
+        <li><strong>Domain sharding</strong> — serve assets from multiple subdomains (<code>static1.example.com</code>,
+        <code>static2.example.com</code>), each with 6 connections. This multiplies concurrency but adds DNS
+        lookups and complexity.</li>
+        <li><strong>Bundling and spriting</strong> — combine assets into fewer requests. This works, but makes
+        cache invalidation coarse (one change invalidates the whole bundle).</li>
+      </ul>
+
+      <h4>HTTP/2 multiplexing</h4>
+      <p>HTTP/2 introduces streams: many requests can be in flight on one connection, and their responses can be
+      interleaved. A slow request does not block the others — the streams share the connection bandwidth but are
+      not serialised.</p>
+      <p>Other HTTP/2 features:</p>
+      <ul>
+        <li><strong>Header compression</strong> (HPACK) — headers are compressed with a shared table, reducing
+        overhead. This matters because APIs often have large headers (Authorization, cookies).</li>
+        <li><strong>Server push</strong> — the server can send resources the client did not request (usually an
+        asset the client will need). This is deprecated in HTTP/2 (browsers did not use it well).</li>
+        <li><strong>Stream prioritisation</strong> — the client can indicate which streams matter most. In practice,
+        prioritisation is not widely implemented well.</li>
+        <li><strong>Binary framing</strong> — a binary protocol, more efficient than HTTP/1.1's text format.</li>
+      </ul>
+
+      <h4>TCP head-of-line blocking</h4>
+      <p>HTTP/2 multiplexing works at the HTTP layer, but the underlying TCP connection is a single ordered stream
+      of bytes. If a packet is lost, TCP stalls delivery of all subsequent bytes until the lost packet is
+      retransmitted — even if the subsequent bytes belong to a different HTTP/2 stream. All streams stall together.</p>
+      <p>On a healthy network (low loss), this is rare. On a lossy network (mobile, WiFi at the edge of range,
+      long-distance links), a single lost packet stalls every request. This is the HOL blocking that HTTP/2 cannot
+      solve — because it is in the transport, not the application protocol.</p>
+
+      <h4>HTTP/3 and QUIC</h4>
+      <p>HTTP/3 replaces TCP with QUIC, a UDP-based protocol that implements reliable, ordered delivery per stream
+      — not per connection. Each HTTP/3 request is a separate QUIC stream; a packet loss on stream A does not stall
+      stream B. This eliminates TCP HOL blocking.</p>
+      <p>Other QUIC benefits:</p>
+      <ul>
+        <li><strong>Faster handshake</strong> — QUIC combines transport and TLS handshakes into one round trip
+        (1-RTT), or zero on resumption (0-RTT). TLS 1.3 over TCP requires two round trips on a new connection.</li>
+        <li><strong>Connection migration</strong> — a client can change IP addresses (WiFi to cellular) without
+        re-establishing the connection. TCP connections are bound to a 4-tuple; QUIC connections are not.</li>
+        <li><strong>Better loss recovery</strong> — QUIC has more sophisticated loss detection and recovery than
+        TCP, particularly for high-latency or lossy networks.</li>
+      </ul>
+      <p>The caveat: QUIC runs over UDP, which some networks block or throttle (corporate firewalls, some ISPs).
+      HTTP/3 clients fall back to HTTP/2 over TCP when QUIC is unavailable, so the benefit is lost on those networks
+      — but the fallback is graceful.</p>
+
+      <h4>Adoption and recommendations</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Environment</th><th>Recommendation</th></tr></thead>
+          <tbody>
+            <tr><td>Modern browsers, CDN</td><td>HTTP/2 or HTTP/3; the CDN negotiates automatically</td></tr>
+            <tr><td>Mobile clients</td><td>HTTP/3 where supported — the handshake and migration benefits are large</td></tr>
+            <tr><td>Service-to-service</td><td>HTTP/2 (or gRPC, which uses HTTP/2)</td></tr>
+            <tr><td>Legacy clients</td><td>Fall back to HTTP/1.1</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>For an API, the pragmatic recommendation: support HTTP/2 and HTTP/3 on the edge (CDN, load balancer),
+      HTTP/2 internally (gRPC), and let the protocol negotiation handle the rest. The client gets the best protocol
+      it supports; the server does not have to think about it.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Domain sharding for HTTP/2 sites. The HTTP/1.1 technique of spreading assets across many subdomains is
+        actively harmful for HTTP/2 — it defeats multiplexing (each subdomain needs a separate connection) and
+        prevents header compression from being shared. Modern best practice is one connection, all assets on one
+        host.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "HTTP/1.1 has HOL blocking at the HTTP level; HTTP/2 fixes it with multiplexing. But TCP itself has
+        HOL blocking — one lost packet stalls all streams. HTTP/3 over QUIC fixes that with independent streams.
+        HTTP/2 is the safe default; HTTP/3 is better on lossy mobile networks." That covers the three versions
+        and their distinctions.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q9 -->
+  <article class="q teal" id="q9">
+    <div class="q-head">
+      <div class="q-num">9</div>
+      <h3>What are request coalescing and batching, and when do they matter?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p><strong>Request coalescing</strong> (also called single-flight or request collapsing) means that when
+        multiple clients request the same expensive resource at the same time, the server computes it once and
+        shares the result. <strong>Batching</strong> means combining multiple small requests into one. Both reduce
+        the total work and the tail latency — coalescing eliminates redundant work; batching reduces per-request
+        overhead.</p>
+      </div>
+
+      <h4>Request coalescing</h4>
+      <p>The scenario: 100 clients request <code>GET /products/42</code> in the same second, the cache is empty
+      (the key just expired), and the database query takes 200 ms. Without coalescing, the server executes 100
+      queries — the thundering herd (Volume 2, Question 1). With coalescing, the first request triggers the query;
+      the next 99 wait for the result and receive the same response.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Without coalescing</th><th>With coalescing</th></tr></thead>
+          <tbody>
+            <tr><td>100 database queries</td><td>1 database query</td></tr>
+            <tr><td>200 ms latency per request, but the database is saturated</td><td>200 ms for the first, ~200 ms for all (they wait for the result)</td></tr>
+            <tr><td>The cache is filled 100 times</td><td>The cache is filled once</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The implementation: a map of "in-flight requests" keyed by the cache key. The first request inserts a
+      promise; subsequent requests for the same key get the same promise. When the promise resolves, all waiters
+      receive the result and the entry is removed.</p>
+      <p>Libraries that implement it: <code>singleflight</code> in Go, <code>async-cache-dedupe</code> in Node,
+      the collapse feature in Fastly and Cloudflare's request collapsing (at the CDN level).</p>
+
+      <h4>Batching</h4>
+      <p>The scenario: a client needs 100 resources, each identified by an ID. Without batching, the client sends
+      100 requests (or 100 parallel requests, which is still 100 round trips). With batching, the client sends one
+      request with 100 IDs, and the server returns 100 resources in one response.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Without batching</th><th>With batching</th></tr></thead>
+          <tbody>
+            <tr><td>100 round trips, 100 latency × 100</td><td>1 round trip, 1 latency</td></tr>
+            <tr><td>100 request headers, 100 response overheads</td><td>One set of headers, one response</td></tr>
+            <tr><td>100 connections from the pool (or 6, with queuing)</td><td>1 connection</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The batching API: <code>POST /batch</code> with an array of requests, or a multi-value parameter
+      (<code>GET /products?ids=1,2,3</code>). The response contains an array of results, in the order of the
+      request, with per-item status (Volume 8, Question 9).</p>
+
+      <h4>The DataLoader pattern</h4>
+      <p>In GraphQL and other resolver-based systems, the N+1 problem produces one query per item — a list of 100
+      posts fetches 100 authors separately. DataLoader solves it by batching the author fetches within a single
+      event-loop tick: it collects all the author IDs requested, issues one batched query, and distributes the
+      results. This is request-level batching, automatic — the resolver code does not know it is batched.</p>
+      <p>The pattern is general: any system where the same logical operation is repeated with different IDs can
+      batch them. DataLoader is the canonical implementation, but the principle applies to any resolver-based
+      architecture.</p>
+
+      <h4>Batching trade-offs</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Pro</th><th>Con</th></tr></thead>
+          <tbody>
+            <tr><td>Fewer round trips → lower latency</td><td>Larger payloads → higher per-request bandwidth</td></tr>
+            <tr><td>Fewer connections → less overhead</td><td>One slow item delays the whole batch</td></tr>
+            <tr><td>Server can parallelise the work</td><td>Partial failure must be handled per item</td></tr>
+            <tr><td>Simpler client logic</td><td>Batch size limits; do not batch 10,000 items</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The "batch size" question</h4>
+      <p>Every batching API must have a maximum batch size. A client that sends 100,000 items in one batch will
+      exhaust the server's memory or time out. The batch is sized to the server's capacity — typically 100 to
+      1,000 items — and the client chunks larger requests into multiple batches.</p>
+      <p>Chunking on the client side: if the client has 10,000 items, it sends 10 batches of 1,000. Each batch is
+      independent (or idempotent, if it must be retried). The client parallelises the batches to reduce total
+      time, but limits parallelism to avoid overwhelming the server.</p>
+
+      <h4>When coalescing and batching matter</h4>
+      <ul>
+        <li><strong>High-traffic, cacheable endpoints</strong> — coalescing prevents thundering herds on cache
+        misses.</li>
+        <li><strong>List endpoints with related resources</strong> — batching prevents N+1 (a list of posts with
+        authors, a list of orders with customers).</li>
+        <li><strong>Chatty clients</strong> — mobile apps that need many resources per screen; batching reduces
+        the round trips.</li>
+        <li><strong>Batch jobs and data pipelines</strong> — processing a large set of items; batching is the
+        natural pattern.</li>
+      </ul>
+      <p>When they do not matter: single-resource endpoints (one request, no coalescing or batching needed), or
+      when the client's latency is dominated by something else (a slow render, a slow database). Coalescing and
+      batching are optimisations — apply them where the cost is measurable.</p>
+
+      <h4>The CDN's coalescing</h4>
+      <p>CDNs already implement coalescing: when 1,000 edges miss the same object simultaneously, they send one
+      request to the origin (via the shield) and serve the response to all. This is why origin shielding
+      (Question 4) is important — without it, each edge coalesces independently, and the origin still sees many
+      requests.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Implementing coalescing without a timeout. If the first request hangs (a slow database, a stuck
+        dependency), all subsequent requests wait for it — a single slow query stalls the entire key. The
+        coalescing implementation must have a timeout: if the first request does not complete within N seconds,
+        the waiters should fail or retry.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Coalescing eliminates duplicate work — 100 requests for the same missing key trigger one query.
+        Batching eliminates round trips — 100 IDs in one request instead of 100 requests. Both reduce load and
+        latency; both need timeouts and size limits." That covers the two patterns and their constraints.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q10 -->
+  <article class="q teal" id="q10">
+    <div class="q-head">
+      <div class="q-num">10</div>
+      <h3>What causes tail latency, and how do you reduce it?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Tail latency (p99, p999) is dominated by a few causes: <strong>queuing</strong> (requests waiting for a
+        resource), <strong>fan-out amplification</strong> (many parallel calls where the slowest determines the
+        total), <strong>GC pauses</strong>, <strong>network jitter</strong>, <strong>contention</strong> (locks,
+        connection pool exhaustion), and <strong>background tasks</strong> (compaction, backups). It is what users
+        actually experience, because the slowest request in a page determines the page load time.</p>
+      </div>
+
+      <h4>Why tail latency matters</h4>
+      <p>A page load issues 20 backend calls. If the p99 of each call is 500 ms and the p50 is 20 ms, the
+      probability that <em>at least one</em> of the 20 calls is at the p99 is:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Calls</th><th>Probability at least one is p99</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>1%</td></tr>
+            <tr><td>10</td><td>~10%</td></tr>
+            <tr><td>20</td><td>~18%</td></tr>
+            <tr><td>100</td><td>~63%</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>So the page load is dominated by the tail, not the median. This is the fan-out amplification of tail
+      latency — the more calls, the worse the user experience. The same math applies to a single slow query in a
+      database with a queue: the queue depth amplifies the tail.</p>
+
+      <h4>The causes</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Cause</th><th>Mechanism</th><th>Typical magnitude</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Queuing</strong></td><td>Requests wait for a resource (CPU, thread, connection, lock)</td><td>Arbitrary — grows with load</td></tr>
+            <tr><td><strong>Fan-out</strong></td><td>Many parallel calls; the slowest determines the response</td><td>Amplifies other tails</td></tr>
+            <tr><td><strong>GC pauses</strong></td><td>Stop-the-world GC stalls all requests</td><td>Tens to hundreds of ms</td></tr>
+            <tr><td><strong>Network jitter</strong></td><td>Packet loss, reordering, routing changes</td><td>Milliseconds to seconds</td></tr>
+            <tr><td><strong>Contention</strong></td><td>Lock waits, connection pool exhaustion, database row locks</td><td>Arbitrary</td></tr>
+            <tr><td><strong>Background tasks</strong></td><td>Compaction, backups, cron jobs sharing resources</td><td>Seconds to minutes</td></tr>
+            <tr><td><strong>Cold caches</strong></td><td>First request after eviction hits the database</td><td>Depends on the query</td></tr>
+            <tr><td><strong>Thundering herd</strong></td><td>Many requests hit a missing key simultaneously</td><td>Seconds under load</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The reduction techniques</h4>
+      <ol>
+        <li><strong>Reduce fan-out.</strong> Combine sequential calls into one, cache aggressively, use a BFF to
+        aggregate. Every call removed is one less tail to amplify.</li>
+        <li><strong>Hedged requests.</strong> Send the request to two replicas after a delay (say, p95 of the
+        first); take whichever responds first. This cuts the tail dramatically — the p99 becomes the p50 of the
+        fastest of two. The cost: extra load. Used sparingly for critical, idempotent requests.</li>
+        <li><strong>Timeouts and deadlines.</strong> A request that is already over its deadline should be
+        cancelled, not allowed to consume resources. Deadline propagation (the deadline flows through every
+        service call) ensures the whole chain gives up together.</li>
+        <li><strong>Backpressure and load shedding.</strong> When the system is overloaded, reject requests early
+        rather than queueing them (Volume 7, Question 7). A queued request that eventually times out is worse
+        than a rejected one.</li>
+        <li><strong>Request coalescing</strong> (Question 9) — eliminates duplicate work for the same key.</li>
+        <li><strong>Connection pooling and keep-alive</strong> (Question 7) — eliminates handshake latency on every
+        request.</li>
+        <li><strong>GC tuning</strong> — use a low-pause GC (ZGC, Shenandoah, the Go GC), monitor pause times,
+        and ensure heap is sized appropriately. A GC pause that lasts 500 ms stalls every request on that
+        instance.</li>
+        <li><strong>Isolate background tasks.</strong> Compaction, backups, and batch jobs must be rate-limited
+        or run on separate resources. A nightly backup that competes with production traffic causes latency
+        spikes.</li>
+        <li><strong>Warm caches</strong> — pre-load caches at startup, use request coalescing on misses, and
+        avoid evictions during peak traffic.</li>
+        <li><strong>Monitor the tail, not the mean.</strong> Alert on p99 and p999, not just p50. A mean of 20 ms
+        with a p99 of 5 seconds is a bad experience for 1% of users — which is a lot of users at scale.</li>
+      </ol>
+
+      <h4>The "coordinated omission" trap</h4>
+      <p>A subtle measurement problem: if the load generator waits for each response before issuing the next
+      request, it stops generating load when the system is slow — so the slow responses are never measured at the
+      rate they would occur in production. The result is a latency report that looks much better than reality. The
+      fix is open-loop load generation (fixed arrival rate, independent of response time) and measuring latency
+      from the intended send time.</p>
+
+      <h4>Tail latency at the storage layer</h4>
+      <p>For a database, tail latency comes from: slow queries (unindexed scans, lock waits), compaction
+      (LSM-tree stores like Cassandra, RocksDB), page cache misses, and connection pool exhaustion. The
+      mitigations: query optimization, read replicas, caching, and monitoring the slow query log. The p99 of
+      the database often determines the p99 of the API — the API is only as fast as its slowest query.</p>
+
+      <h4>The tail tolerance</h4>
+      <p>Not all tails need to be eliminated. A 1% tail of 2 seconds on a background analytics endpoint is
+      acceptable; a 1% tail of 2 seconds on the checkout flow is not. The design should:</p>
+      <ul>
+        <li><strong>Define the tail budget</strong> per endpoint — what p99 is acceptable?</li>
+        <li><strong>Monitor and alert</strong> when the tail exceeds the budget.</li>
+        <li><strong>Prioritise</strong> the fixes on the endpoints that matter most.</li>
+        <li><strong>Accept</strong> the tails on endpoints where the cost of elimination exceeds the benefit.</li>
+      </ul>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Optimising the mean latency. A system with a mean of 50 ms and a p99 of 5 seconds is worse than one
+        with a mean of 80 ms and a p99 of 150 ms, for most users — the mean hides the tail. Optimise the tail,
+        measure the tail, alert on the tail.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Tail latency is what users feel — the slowest request in a page determines the page load. Reduce
+        fan-out, use hedged requests for critical paths, propagate deadlines, and shed load rather than queue.
+        Monitor p99 and p999, not the mean." That covers the cause, the techniques, and the discipline.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- NEXT PART -->
+  <section class="next-part">
+    <h3>Coming in Volume 11 — Async APIs &amp; Webhooks</h3>
+    <p>Volume 11 turns to the mechanisms for work that does not fit in a request/response cycle: the 202 Accepted
+    pattern and status endpoints, webhooks with signatures and retries, SSE and long-polling for real-time
+    updates, the outbox pattern for reliable event delivery, and the design of async APIs that are reliable,
+    idempotent, and debuggable.</p>
+    <ul class="next-list">
+      <li>202 Accepted and the status endpoint pattern</li>
+      <li>Webhook design: signing, retries, DLQ</li>
+      <li>Webhook receivers: idempotency, verification</li>
+      <li>SSE vs long-polling vs WebSocket for streams</li>
+      <li>The outbox pattern for reliable events</li>
+      <li>Reconciliation endpoints for missed events</li>
+      <li>Async error propagation</li>
+      <li>Callback URLs and SSRF prevention</li>
+      <li>Idempotency in async flows</li>
+      <li>Testing and debugging async pipelines</li>
+    </ul>
+  </section>
+
+</div>
+</body>
+</html>
