@@ -1,0 +1,1521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API Design — Volume 5: Idempotency &amp; Correctness</title>
+<style>
+  :root{
+    --ink:#1c1417;
+    --ink-soft:#4a2f36;
+    --muted:#87616b;
+    --line:#f0dbe0;
+    --bg:#fdf6f7;
+    --card:#ffffff;
+    --crimson:#9f1239;
+    --crimson-soft:#ffe4e6;
+    --crimson-deep:#4c0519;
+    --rose:#be123c;
+    --rose-soft:#fecdd3;
+    --teal:#0f766e;
+    --amber:#b45309;
+    --blue:#1d4ed8;
+    --shadow:0 1px 2px rgba(76,5,25,.06), 0 8px 24px -8px rgba(76,5,25,.14);
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 8% -10%, #ffe4e6 0%, transparent 60%),
+      radial-gradient(1000px 500px at 100% 0%, #fecdd3 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:"Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    line-height:1.72;
+    font-size:16.5px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px 90px;}
+
+  header.hero{
+    background:linear-gradient(135deg,#1c0a10 0%, #4c0519 45%, #881337 100%);
+    color:#fff1f2;
+    padding:64px 22px 56px;
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::after{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      radial-gradient(600px 300px at 85% 15%, rgba(225,29,72,.42), transparent 70%),
+      radial-gradient(520px 280px at 12% 92%, rgba(190,18,60,.4), transparent 70%);
+    pointer-events:none;
+  }
+  .hero-inner{max-width:1080px;margin:0 auto;position:relative;z-index:2;}
+  .eyebrow{
+    display:inline-block;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;
+    font-weight:700;padding:7px 15px;border-radius:999px;
+    background:rgba(251,113,133,.18);border:1px solid rgba(251,113,133,.5);
+    color:#fda4af;margin-bottom:20px;
+  }
+  header.hero h1{
+    font-size:clamp(1.9rem, 4.4vw, 3rem);line-height:1.15;margin:0 0 16px;
+    font-weight:800;letter-spacing:-.02em;
+  }
+  header.hero h1 span{
+    background:linear-gradient(90deg,#fda4af,#fecdd3);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  header.hero p.lede{font-size:1.06rem;color:#fecdd3;max-width:780px;margin:0 0 26px;}
+  .meta-chips{display:flex;flex-wrap:wrap;gap:10px;}
+  .chip{
+    font-size:.78rem;font-weight:600;padding:7px 14px;border-radius:999px;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#ffe4e6;
+  }
+
+  .roadmap{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:26px 28px;margin-top:-34px;position:relative;z-index:5;
+  }
+  .roadmap h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 16px;font-weight:700;
+  }
+  .roadmap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;}
+  .roadmap-item{
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:.86rem;
+    background:#fffc;opacity:.7;
+  }
+  .roadmap-item.done{
+    border-color:#fda4af;background:linear-gradient(180deg,#fff1f2,#ffffff);opacity:1;
+  }
+  .roadmap-item.current{
+    border-color:#fb7185;background:linear-gradient(180deg,#ffe4e6,#ffffff);opacity:1;
+    box-shadow:0 0 0 3px rgba(159,18,57,.14);
+  }
+  .roadmap-item .tag{
+    display:inline-block;font-size:.64rem;font-weight:800;letter-spacing:.08em;
+    padding:2px 8px;border-radius:999px;margin-bottom:6px;
+  }
+  .tag-done{background:var(--crimson-soft);color:var(--crimson-deep);}
+  .tag-now{background:#fecdd3;color:#881337;}
+  .tag-next{background:#e2e8f0;color:#475569;}
+  .roadmap-item strong{display:block;color:var(--ink);font-size:.89rem;}
+
+  nav.toc{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:22px 26px;margin:26px 0 44px;
+  }
+  nav.toc h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 14px;font-weight:700;
+  }
+  nav.toc ol{
+    margin:0;padding-left:0;list-style:none;counter-reset:toc;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:8px 26px;
+  }
+  nav.toc li{
+    counter-increment:toc;font-size:.93rem;padding:6px 0 6px 34px;
+    position:relative;border-bottom:1px dashed #f7e6ea;
+  }
+  nav.toc li::before{
+    content:counter(toc);position:absolute;left:0;top:7px;width:22px;height:22px;
+    border-radius:7px;background:var(--crimson-soft);color:var(--crimson);
+    font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center;
+  }
+  nav.toc a{color:var(--ink-soft);text-decoration:none;font-weight:500;}
+  nav.toc a:hover{color:var(--crimson);}
+
+  .part-band{display:flex;align-items:center;gap:16px;margin:56px 0 26px;}
+  .part-band .bar{
+    width:5px;height:44px;border-radius:99px;
+    background:linear-gradient(180deg,var(--crimson),#fb7185);
+  }
+  .part-band.rose .bar{background:linear-gradient(180deg,var(--rose),#f43f5e);}
+  .part-band.teal .bar{background:linear-gradient(180deg,var(--teal),#2dd4bf);}
+  .part-band h2{margin:0;font-size:1.5rem;letter-spacing:-.01em;font-weight:800;}
+  .part-band .sub{
+    display:block;font-size:.82rem;font-weight:600;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.12em;margin-top:2px;
+  }
+
+  article.q{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:0 0 26px;margin-bottom:28px;overflow:hidden;
+    scroll-margin-top:24px;
+  }
+  .q-head{
+    display:flex;gap:16px;align-items:flex-start;padding:22px 28px 18px;
+    border-bottom:1px solid #faebee;background:linear-gradient(180deg,#fffafb,#ffffff);
+  }
+  .q-num{
+    flex:none;width:42px;height:42px;border-radius:12px;display:flex;
+    align-items:center;justify-content:center;font-weight:800;font-size:.92rem;color:#fff;
+    background:linear-gradient(135deg,#9f1239,#e11d48);
+    box-shadow:0 6px 14px -6px rgba(159,18,57,.7);
+  }
+  .rose .q-num{background:linear-gradient(135deg,#be123c,#f43f5e);box-shadow:0 6px 14px -6px rgba(190,18,60,.7);}
+  .teal .q-num{background:linear-gradient(135deg,#0f766e,#14b8a6);box-shadow:0 6px 14px -6px rgba(15,118,110,.7);}
+  .q-head h3{margin:0;font-size:1.14rem;font-weight:700;line-height:1.4;letter-spacing:-.01em;}
+  .q-body{padding:22px 28px 0;}
+  .q-body p{margin:0 0 15px;color:var(--ink-soft);}
+  .q-body p:last-child{margin-bottom:0;}
+  .q-body h4{margin:24px 0 10px;font-size:.95rem;font-weight:800;color:var(--ink);}
+  .q-body h4::before{content:"▹";color:var(--crimson);margin-right:8px;font-size:.85rem;}
+  .rose .q-body h4::before{color:var(--rose);}
+  .teal .q-body h4::before{color:var(--teal);}
+  .q-body ul,.q-body ol{margin:0 0 16px;padding-left:22px;color:var(--ink-soft);}
+  .q-body li{margin-bottom:8px;}
+  .q-body li::marker{color:var(--crimson);}
+  .rose .q-body li::marker{color:var(--rose);}
+  .teal .q-body li::marker{color:var(--teal);}
+  strong{color:var(--ink);font-weight:700;}
+  code{
+    background:#fdf2f4;border:1px solid #f0dbe0;border-radius:6px;padding:1px 6px;
+    font-size:.87em;font-family:"SFMono-Regular",Consolas,monospace;color:#9f1239;
+  }
+
+  .callout{border-radius:12px;padding:14px 18px;margin:18px 0 4px;font-size:.93rem;border-left:4px solid;}
+  .callout .label{
+    display:block;font-size:.68rem;font-weight:800;letter-spacing:.13em;
+    text-transform:uppercase;margin-bottom:5px;
+  }
+  .callout p{margin:0 0 8px;font-size:.93rem;}
+  .callout p:last-child{margin-bottom:0;}
+  .answer{background:linear-gradient(180deg,#fff1f2,#ffffff);border-color:var(--crimson);}
+  .answer .label{color:var(--crimson-deep);}
+  .tip{background:linear-gradient(180deg,#eff6ff,#ffffff);border-color:var(--blue);}
+  .tip .label{color:#1d4ed8;}
+  .tradeoff{background:linear-gradient(180deg,#fffbeb,#ffffff);border-color:var(--amber);}
+  .tradeoff .label{color:#b45309;}
+  .pitfall{background:linear-gradient(180deg,#fff5f6,#ffffff);border-color:var(--rose);}
+  .pitfall .label{color:#be123c;}
+
+  .table-scroll{overflow-x:auto;margin:18px 0;border-radius:12px;border:1px solid var(--line);}
+  table{width:100%;border-collapse:collapse;font-size:.87rem;background:#fff;}
+  thead th{
+    background:#fef7f8;text-align:left;padding:11px 14px;font-weight:800;
+    font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+    border-bottom:2px solid var(--line);white-space:nowrap;
+  }
+  tbody td{padding:11px 14px;border-bottom:1px solid #fbecf0;color:var(--ink-soft);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:nth-child(even){background:#fffcfc;}
+  tbody td:first-child{font-weight:700;color:var(--ink);}
+
+  .next-part{
+    background:linear-gradient(135deg,#1c0a10,#881337);color:#ffe4e6;
+    border-radius:var(--radius);padding:32px 34px;margin-top:50px;box-shadow:var(--shadow);
+  }
+  .next-part h3{margin:0 0 12px;font-size:1.2rem;color:#fff;font-weight:800;}
+  .next-part p{margin:0 0 16px;color:#fecdd3;font-size:.95rem;}
+  .next-list{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:10px;list-style:none;padding:0;margin:0;
+  }
+  .next-list li{
+    background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
+    border-radius:10px;padding:10px 14px;font-size:.86rem;color:#ffe4e6;
+  }
+
+  @media (max-width:640px){
+    .q-head{padding:18px 18px 15px;}
+    .q-body{padding:18px 18px 0;}
+    header.hero{padding:44px 18px 46px;}
+    .roadmap{padding:20px;}
+    nav.toc{padding:18px;}
+    nav.toc ol{grid-template-columns:1fr;}
+  }
+  @media print{
+    body{background:#fff;}
+    article.q, nav.toc, .roadmap{box-shadow:none;page-break-inside:avoid;}
+    header.hero{background:#1c0a10 !important;-webkit-print-color-adjust:exact;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Volume 5 · Section 5 of 18</span>
+    <h1>API Design for System Interviews<br><span>Idempotency &amp; Correctness</span></h1>
+    <p class="lede">
+      The mechanisms that make retries safe. How idempotency keys prevent double charges, how conditional
+      requests prevent lost updates, how optimistic and pessimistic concurrency differ, and how to design retry
+      logic that does not amplify a failure into an outage.
+    </p>
+    <div class="meta-chips">
+      <span class="chip">10 Questions</span>
+      <span class="chip">500+ words each</span>
+      <span class="chip">Correctness-first</span>
+      <span class="chip">Stripe-grade detail</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ROADMAP -->
+  <section class="roadmap">
+    <h2>Answer-Series Roadmap</h2>
+    <div class="roadmap-grid">
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 1 — Complete</span>
+        <strong>Fundamentals &amp; Style Selection</strong>
+        API vs protocol vs service, contracts, styles, paradigms
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 2 — Complete</span>
+        <strong>Resource Modeling &amp; REST Design</strong>
+        Resources, URLs, nesting, HTTP methods, representations
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 3 — Complete</span>
+        <strong>Contracts, Versioning &amp; Evolution</strong>
+        Breaking changes, versioning, deprecation, schema evolution
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 4 — Complete</span>
+        <strong>Request/Response Design</strong>
+        Pagination, filtering, sorting, field selection, envelopes
+      </div>
+      <div class="roadmap-item current">
+        <span class="tag tag-now">Volume 5 — You are here</span>
+        <strong>Idempotency &amp; Correctness</strong>
+        Idempotency keys, ETags, optimistic concurrency, retries
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 6</span>
+        <strong>Authentication &amp; Authorization</strong>
+        OAuth, JWT, RBAC, ABAC, IDOR
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 7</span>
+        <strong>Rate Limiting &amp; Quotas</strong>
+        Algorithms, distributed enforcement, headers
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 8</span>
+        <strong>Error Handling &amp; Status Codes</strong>
+        RFC 7807, retryability, partial failures
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 9</span>
+        <strong>API Gateways &amp; Management</strong>
+        Routing, BFF, canary, gateway vs mesh
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 10</span>
+        <strong>Performance &amp; Caching</strong>
+        HTTP caching, compression, HTTP/2 and HTTP/3
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 11</span>
+        <strong>Async APIs &amp; Webhooks</strong>
+        202 Accepted, callbacks, signatures, SSE
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 12–13</span>
+        <strong>GraphQL &amp; gRPC Deep Dives</strong>
+        N+1, DataLoader, streaming RPCs, gRPC-Web
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 14</span>
+        <strong>Security &amp; Abuse Prevention</strong>
+        OWASP API Top 10, injection, SSRF, enumeration
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 15</span>
+        <strong>Observability &amp; Operations</strong>
+        Metrics, tracing, deployment, incidents
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 16–17</span>
+        <strong>Lifecycle, Governance &amp; 17 Problems</strong>
+        Design reviews, DX, classic API prompts
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 18</span>
+        <strong>Senior &amp; Staff Trade-offs</strong>
+        Choosing between every pair of options
+      </div>
+    </div>
+  </section>
+
+  <!-- TOC -->
+  <nav class="toc">
+    <h2>Questions Answered in This Volume</h2>
+    <ol>
+      <li><a href="#q1">What is idempotency, and why is it essential?</a></li>
+      <li><a href="#q2">What is an idempotency key, and how do you design one?</a></li>
+      <li><a href="#q3">How do you store and check idempotency keys?</a></li>
+      <li><a href="#q4">How do you handle concurrent requests with the same key?</a></li>
+      <li><a href="#q5">What if a client retries with the same key but a different payload?</a></li>
+      <li><a href="#q6">What is the TTL for an idempotency key?</a></li>
+      <li><a href="#q7">How do payment APIs (Stripe) implement idempotency?</a></li>
+      <li><a href="#q8">What are ETags, and how do conditional requests work?</a></li>
+      <li><a href="#q9">Optimistic vs pessimistic concurrency in an API</a></li>
+      <li><a href="#q10">How do you design retries safely?</a></li>
+    </ol>
+  </nav>
+
+  <!-- ================= PART A ================= -->
+  <div class="part-band">
+    <div class="bar"></div>
+    <h2>Part A — Idempotency Fundamentals
+      <span class="sub">Why retries are dangerous, and what makes them safe</span>
+    </h2>
+  </div>
+
+  <!-- Q1 -->
+  <article class="q" id="q1">
+    <div class="q-head">
+      <div class="q-num">1</div>
+      <h3>What is idempotency, and why is it essential in distributed systems?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Idempotency means that executing an operation multiple times has the same effect as executing it once.
+        It is essential because every distributed system operates over a network where the outcome of a request is
+        ambiguous — the server may have processed the request but the response was lost. Without idempotency,
+        retrying after an ambiguous failure causes double charges, duplicate orders, and double emails.</p>
+      </div>
+
+      <h4>The fundamental ambiguity</h4>
+      <p>Consider a client sending <code>POST /payments</code> to charge $100. The request reaches the server, the
+      server commits the charge, and the server's response is lost in transit. The client sees a timeout. What should
+      the client do?</p>
+      <ul>
+        <li><strong>Give up?</strong> The payment may or may not have been charged — the customer does not know
+        whether their order went through.</li>
+        <li><strong>Retry?</strong> If the first request succeeded, retrying charges the customer twice.</li>
+      </ul>
+      <p>There is no information in the timeout that distinguishes these two cases. This is the <em>two generals
+      problem</em> applied to HTTP: a client cannot know whether a request succeeded just because it did not get a
+      response. Idempotency is the mechanism that resolves this ambiguity — it makes retry safe by making the second
+      execution a no-op.</p>
+
+      <h4>Three ways to achieve idempotency</h4>
+      <ol>
+        <li><strong>Natural idempotency.</strong> The operation is inherently idempotent — <code>PUT</code> with a
+        full representation, <code>DELETE</code> of a specific resource, <code>GET</code>. Repeating it produces
+        the same state, no key required.</li>
+        <li><strong>Idempotency keys.</strong> The client generates a unique key per logical operation and sends it
+        with every retry. The server stores the key and returns the cached response for subsequent requests with the
+        same key. This is the mechanism for non-idempotent operations (<code>POST</code> that creates a resource).
+        (Questions 2–7 cover this in depth.)</li>
+        <li><strong>External deduplication.</strong> A downstream system deduplicates — the payment processor
+        rejects a duplicate charge within a window, the queue consumer tracks processed message IDs. This shifts
+        the burden to another system, which must have its own idempotency.</li>
+      </ol>
+
+      <h4>Where idempotency matters most</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Operation</th><th>Why retry is dangerous</th><th>Solution</th></tr></thead>
+          <tbody>
+            <tr><td>Charge a payment</td><td>Double charges the customer</td><td>Idempotency key</td></tr>
+            <tr><td>Create an order</td><td>Duplicates the order and shipping</td><td>Idempotency key</td></tr>
+            <tr><td>Send an email</td><td>Duplicate emails annoy the user</td><td>Idempotency key or dedup at the email service</td></tr>
+            <tr><td>Increment a counter</td><td>Double-counts</td><td>Make it a set operation (PUT), or idempotency key</td></tr>
+            <tr><td>Post a message</td><td>Duplicates the message</td><td>Client-generated message ID + dedup</td></tr>
+            <tr><td>Enqueue a job</td><td>Runs the job twice</td><td>Idempotency key or natural job ID</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Where it does not matter: reads, deterministic queries, and operations whose duplicate execution is
+      obviously safe (a <code>DELETE</code> that leaves the resource deleted). For these, retry is already safe, and
+      adding idempotency keys is overhead.</p>
+
+      <h4>The cost of not having it</h4>
+      <p>The classic incident: a mobile app has a flaky network, a user taps "Pay", the request times out, the app
+      retries automatically, and the user is charged twice. The fix in the app is either to retry safely (with an
+      idempotency key) or not to retry at all (and let the user see the error). The fix in the API is to support
+      idempotency keys so that retries are safe.</p>
+      <p>Other incidents: duplicate emails that the user receives twice and unsubscribes, duplicate orders that
+      inventory and shipping both process, duplicate events that a downstream system processes and double-counts.
+      Every one of these is a real production bug that a well-designed idempotency layer prevents.</p>
+
+      <h4>Idempotency is a property of the operation, not the endpoint</h4>
+      <p>An endpoint is not "idempotent" or "not idempotent" as a property — it depends on what the operation does.
+      <code>POST /payments</code> is not idempotent. <code>POST /payments</code> with an idempotency key becomes
+      idempotent. <code>PUT /users/42</code> is idempotent. <code>PUT /users/42</code> with a body that includes a
+      "last_login" timestamp is not (each PUT sets a different time). The design decision is about what
+      guarantees to provide, not about labelling the endpoint.</p>
+
+      <h4>Idempotency vs at-least-once delivery</h4>
+      <p>Message queues deliver at-least-once: a message can be delivered multiple times if the broker does not
+      receive an acknowledgement. The consumer must therefore be idempotent — process the message, record its ID as
+      processed, and ignore duplicates. HTTP clients have the same problem: any retry is an at-least-once delivery,
+      and the receiver must be idempotent. Idempotency is the client-side complement to at-least-once
+      infrastructure.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Every network request is ambiguous — the client does not know whether a timeout means the server
+        did not receive it or the response was lost. To make retries safe, either the operation is naturally
+        idempotent (PUT/DELETE), or the client sends an idempotency key and the server deduplicates." That single
+        sentence covers the whole topic.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q2 -->
+  <article class="q" id="q2">
+    <div class="q-head">
+      <div class="q-num">2</div>
+      <h3>What is an idempotency key, and how do you design one?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>An idempotency key is a <strong>client-generated unique identifier</strong> for a logical operation. The
+        client generates one per operation and sends it with every retry of that operation. The server records the
+        key, its result, and returns the same result for any subsequent request with that key. The key must be unique
+        per operation, stable across retries, and opaque to the server.</p>
+      </div>
+
+      <h4>The core properties</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Property</th><th>Meaning</th><th>Why it matters</th></tr></thead>
+          <tbody>
+            <tr><td>Client-generated</td><td>The client creates the key, not the server</td><td>A server-generated key cannot be used for retries — the client does not know it until it has a response</td></tr>
+            <tr><td>Unique per operation</td><td>Each logical operation (each "click Pay") has its own key</td><td>Reusing a key for two different operations makes the second a duplicate of the first</td></tr>
+            <tr><td>Stable across retries</td><td>The same key is used for every retry of the same operation</td><td>If the client generates a new key on retry, the server has no way to know it is a retry</td></tr>
+            <tr><td>Opaque to the server</td><td>The server does not interpret the key; it just compares</td><td>Lets clients use any format (UUID, ULID, hash) without server changes</td></tr>
+            <tr><td>Unique enough to avoid collision</td><td>Two clients must not generate the same key</td><td>Collision would make one client's request a duplicate of another's</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Generating the key</h4>
+      <p>The key must be unique across all clients. The standard choices:</p>
+      <ul>
+        <li><strong>UUID v4</strong> — 122 bits of randomness. The default for most APIs. Collision probability is
+        negligible.</li>
+        <li><strong>ULID</strong> — 128 bits, time-ordered. Sortable and unique. Useful if you want to query keys
+        by time.</li>
+        <li><strong>UUID v7</strong> — new standard, time-ordered like ULID. Good for index locality.</li>
+        <li><strong>Prefixed tokens</strong> — e.g., <code>order_abc123</code>. Human-readable, but must still have
+        enough randomness to avoid collision.</li>
+      </ul>
+      <p>What <em>not</em> to use:</p>
+      <ul>
+        <li><strong>User ID + timestamp.</strong> Two requests in the same millisecond collide.</li>
+        <li><strong>Request body hash.</strong> The same body could legitimately be sent twice for two different
+        operations. More importantly, the hash is not a key — it is a fingerprint that the server might use to
+        detect misuse (see Question 5), but it cannot be the primary deduplication mechanism.</li>
+        <li><strong>Session ID.</strong> A session has many operations; using it as the key makes all operations
+        in a session duplicates of each other.</li>
+        <li><strong>Server-assigned ID.</strong> The client cannot know it before the first response, so it cannot
+        use it for retries.</li>
+      </ul>
+
+      <h4>Where the key goes</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Location</th><th>Example</th><th>Pros</th><th>Cons</th></tr></thead>
+          <tbody>
+            <tr><td>Custom header</td><td><code>Idempotency-Key: abc-123</code></td><td>Separates metadata from the body; easy to add to all requests via an HTTP interceptor</td><td>Not visible in the body; requires header inspection</td></tr>
+            <tr><td>Body field</td><td><code>{"idempotency_key": "abc-123", ...}</code></td><td>Visible in logs and examples</td><td>Mixes metadata with data; every schema must include it</td></tr>
+            <tr><td>Query parameter</td><td><code>?idempotency_key=abc-123</code></td><td>Simple</td><td>Pollutes the URL; not a resource identifier; not standard</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Stripe's convention is the <code>Idempotency-Key</code> header, and it is the de facto standard. Use it.
+      The header is convenient because it can be added by generic HTTP middleware (an interceptor, an SDK) without
+      modifying the request body, and it does not require the body schema to include a metadata field.</p>
+
+      <h4>Who generates the key, and when</h4>
+      <p>The client generates the key at the <strong>moment of intent</strong> — when the user clicks "Pay", when
+      the mobile app sends the "create order" request, when the batch job constructs the operation. The same key is
+      then used for every retry of that intent, no matter how many retries occur.</p>
+      <p>This means the key must be generated in application code, not by the HTTP library (which might generate a
+      fresh UUID per request). The key must be persisted if the operation might outlive the process — a mobile app
+      that is killed and restarted after a failed payment must reuse the same key when the user retries.</p>
+
+      <h4>What if the client does not send one?</h4>
+      <p>Three options:</p>
+      <ul>
+        <li><strong>Reject the request.</strong> Return <code>400 Bad Request</code> with "Idempotency-Key header is
+        required". Strictest, safest for critical endpoints (payments, order creation).</li>
+        <li><strong>Allow, no deduplication.</strong> Treat the request as non-idempotent — retries will duplicate.
+        Acceptable for internal APIs where the client team is trusted to implement retries correctly.</li>
+        <li><strong>Generate one server-side.</strong> The server generates a key and returns it, but this only helps
+        if the client can use it for retries — which requires the client to have received the first response, so
+        it is too late for the ambiguous case.</li>
+      </ul>
+      <p>For any endpoint where duplicates cause harm, the first option is correct. For everything else, the second
+      is fine. The third is a false comfort — it does not actually solve the problem it claims to.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Generating a new key on every retry attempt. This makes every retry a new operation from the server's
+        perspective, which is exactly the bug idempotency was meant to prevent. The key must be generated once per
+        logical operation and reused for all retries. This requires application code to carry the key through its
+        retry loop, which is why it is not just an HTTP concern.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q3 -->
+  <article class="q" id="q3">
+    <div class="q-head">
+      <div class="q-num">3</div>
+      <h3>How do you store and check idempotency keys?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Store each key with its response, status, and request fingerprint in a durable store. On receipt, look up
+        the key: if present with a completed response, return it; if present with an in-progress marker, return
+        <code>409 Conflict</code> (another request is in flight); if absent, process the request and store the result
+        atomically. The store must be transactional or use an atomic set-if-not-exists operation.</p>
+      </div>
+
+      <h4>The storage schema</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Column</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>idempotency_key</code></td><td>Primary key — the client's key</td></tr>
+            <tr><td><code>request_fingerprint</code></td><td>Hash of the request body + method + path, to detect misuse (Question 5)</td></tr>
+            <tr><td><code>status</code></td><td><code>in_progress</code>, <code>completed</code>, <code>failed</code></td></tr>
+            <tr><td><code>status_code</code></td><td>The HTTP status of the original response (for <code>completed</code>)</td></tr>
+            <tr><td><code>response_body</code></td><td>The response body, so retries get the same result</td></tr>
+            <tr><td><code>response_headers</code></td><td>At least the important ones (Content-Type, Location)</td></tr>
+            <tr><td><code>created_at</code></td><td>When the key was first used</td></tr>
+            <tr><td><code>expires_at</code></td><td>TTL for cleanup (Question 6)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Why store the response, not just a flag</h4>
+      <p>If you only store "this key was used", a retry can be detected but the client does not get the original
+      result — it gets an error ("duplicate request") and has no way to know what the original response was. That
+      defeats the purpose: the whole point is that a retry returns the same result as the original.</p>
+      <p>Storing the full response is what makes the retry indistinguishable from the original. The client sees the
+      same status code, the same body, the same headers. This is why idempotency keys are sometimes called
+      "response memoization" — they cache the response under the key.</p>
+
+      <h4>The processing flow</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Step</th><th>Action</th><th>On result</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>Look up the key</td><td>Not found → continue to 2. Found → go to 4.</td></tr>
+            <tr><td>2</td><td>Atomically insert a row with <code>status = in_progress</code></td><td>Insert succeeded → process. Unique violation → go to 4.</td></tr>
+            <tr><td>3</td><td>Process the request, then update the row to <code>completed</code> with the response</td><td>Success → done. Failure → update to <code>failed</code> (see below).</td></tr>
+            <tr><td>4</td><td>Read the existing row</td><td><code>in_progress</code> → return 409. <code>completed</code> → return the stored response. <code>failed</code> → decide based on policy.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The atomic insert in step 2 is the critical part. Two concurrent requests with the same key will race; the
+      unique constraint on <code>idempotency_key</code> ensures only one succeeds in inserting, and the other sees the
+      conflict and goes to step 4. This is the mechanism that prevents double processing (Question 4).</p>
+
+      <h4>What to do with a failed request</h4>
+      <p>If the request failed (a 500, a network error), should the key be reusable? Two policies:</p>
+      <ul>
+        <li><strong>Delete the key on failure.</strong> A retry is allowed to reprocess. This is what Stripe does for
+        server errors — the key is released so the client can retry. The risk: the operation may have partially
+        succeeded before the error, and retrying re-does that partial work.</li>
+        <li><strong>Keep the key with the failure response.</strong> A retry returns the same error. This is what
+        Stripe does for validation errors (400) — the request is malformed, so retrying the same request will fail
+        the same way. The client must fix the request and use a new key.</li>
+      </ul>
+      <p>The distinction is between <em>transient</em> failures (500, network) and <em>permanent</em> failures (400,
+      422). For transient, release the key; for permanent, keep it. This is covered in more detail in Question 7.</p>
+
+      <h4>Storage choices</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Store</th><th>Pros</th><th>Cons</th><th>Best for</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Redis</td>
+              <td>Fast; native TTL; atomic <code>SET NX</code></td>
+              <td>Not durable by default — a Redis crash loses keys, allowing duplicate processing</td>
+              <td>High-throughput APIs where occasional duplicate is acceptable</td>
+            </tr>
+            <tr>
+              <td>Relational DB</td>
+              <td>Durable; transactional; easy to query for audit</td>
+              <td>Slower; requires an index and a cleanup job</td>
+              <td>Payments, orders, anything where duplicates must never happen</td>
+            </tr>
+            <tr>
+              <td>DynamoDB / Cassandra</td>
+              <td>Durable, horizontally scalable; TTL built-in</td>
+              <td>Eventual consistency can leak duplicates during failover</td>
+              <td>High-scale APIs with a need for durability</td>
+            </tr>
+            <tr>
+              <td>Hybrid</td>
+              <td>Redis for fast lookup, DB for durability</td>
+              <td>More complexity; two failure modes to handle</td>
+              <td>Very high scale where every millisecond matters</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>For payments and any operation where a duplicate causes harm, use a durable store (database or DynamoDB).
+      Redis is acceptable when the operation is high-volume and a rare duplicate is tolerable — but "tolerable
+      duplicate" is a high bar for anything involving money.</p>
+
+      <h4>The audit trail</h4>
+      <p>Idempotency keys leave a natural audit trail: every operation, its request, its response, and its timestamp
+      are recorded. This is enormously valuable for debugging "did this payment go through?" and for compliance
+      ("show me every refund request with its outcome"). Store the audit records longer than the operational TTL
+      — the key can expire, but the audit history should not.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Redis gives you speed and TTL but can lose keys on failover, which allows duplicate processing. A database
+        gives durability at the cost of latency and cleanup complexity. For payments, the database is the right
+        choice, and the ~5 ms of extra latency is negligible compared to the cost of a double charge.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q4 -->
+  <article class="q" id="q4">
+    <div class="q-head">
+      <div class="q-num">4</div>
+      <h3>How do you handle concurrent requests with the same idempotency key?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Use an atomic operation (unique constraint insert, or Redis <code>SET NX</code>) to ensure only one request
+        claims the key. The first request processes the operation; the second returns <code>409 Conflict</code> with
+        "another request with the same idempotency key is in progress". Once the first completes, subsequent requests
+        return the stored response. The in-progress state must have a timeout to recover from crashes.</p>
+      </div>
+
+      <h4>The race condition</h4>
+      <p>Two requests arrive at the server at nearly the same time, both with <code>Idempotency-Key: abc-123</code>.
+      The naive implementation:</p>
+      <ol>
+        <li>Request A looks up the key — not found.</li>
+        <li>Request B looks up the key — not found.</li>
+        <li>Request A processes and charges the customer.</li>
+        <li>Request B processes and charges the customer again.</li>
+      </ol>
+      <p>The key was supposed to prevent this, but both requests saw "not found" and both proceeded. This is a race
+      condition, and it happens constantly in production — the network may deliver two retries within milliseconds
+      of each other, especially if a client is aggressive about retries.</p>
+
+      <h4>The atomic claim</h4>
+      <p>The fix is that the check-and-claim must be atomic. The two standard mechanisms:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Store</th><th>Operation</th><th>Behaviour</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Relational DB</td>
+              <td><code>INSERT INTO idempotency_keys (key, status, ...) VALUES (..., 'in_progress')</code></td>
+              <td>Success → this request owns the key. Unique violation → another request already owns it.</td>
+            </tr>
+            <tr>
+              <td>Redis</td>
+              <td><code>SET key "in_progress" NX EX 3600</code></td>
+              <td>Returns 1 → this request owns the key. Returns nil → key exists, another request owns it.</td>
+            </tr>
+            <tr>
+              <td>DynamoDB</td>
+              <td><code>PutItem</code> with <code>ConditionExpression: "attribute_not_exists(key)"</code></td>
+              <td>Succeeds → this request owns the key. ConditionalCheckFailedException → another owns it.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The atomicity is provided by the store, not by the application. The application cannot implement
+      check-then-insert because there is a window between the check and the insert — only the store can make that
+      window zero.</p>
+
+      <h4>What the second request returns</h4>
+      <p>Once the first request has claimed the key, the second request sees <code>status = in_progress</code> and
+      must decide what to return. The options:</p>
+      <ul>
+        <li><strong>409 Conflict</strong> — "a request with this idempotency key is already in progress". The client
+        should retry after a delay. This is the most common.</li>
+        <li><strong>423 Locked</strong> — semantically similar, but less common in REST APIs.</li>
+        <li><strong>202 Accepted</strong> — "your request is being processed, poll for the result". This works if
+        the endpoint is already async, but for a synchronous endpoint, 409 is more honest.</li>
+        <li><strong>Wait and return the result</strong> — the server blocks until the first request completes, then
+        returns the same response. Elegant, but requires the second request to wait, which may exceed its timeout.
+        This is what some databases do with row-level locking, but it is hard to implement at the API layer.</li>
+      </ul>
+      <p>409 with a <code>Retry-After</code> header is the standard — it tells the client exactly what to do.
+      The client should wait the indicated time and retry, at which point the first request will have completed and
+      the stored response will be returned.</p>
+
+      <h4>The stale in-progress problem</h4>
+      <p>If the first request crashes (the server dies mid-processing), the key is stuck in <code>in_progress</code>
+      forever. Every subsequent retry gets 409, and the operation never completes. This is a deadlock.</p>
+      <p>The fix is a <strong>timeout on the in-progress state</strong>. The row has an
+      <code>in_progress_at</code> timestamp; if a request finds a key that has been in progress for longer than a
+      threshold (e.g., 60 seconds), it can either:</p>
+      <ul>
+        <li><strong>Take over</strong> — atomically update the row to a new in-progress state owned by this request,
+        and process. Risk: the original request is still running and may also complete, causing a duplicate.</li>
+        <li><strong>Return 409 with a note</strong> — the client should investigate. Safer but not self-healing.</li>
+        <li><strong>Return 500</strong> — the operation is stuck; manual intervention needed. Worst option.</li>
+      </ul>
+      <p>The timeout + takeover approach is what most systems use, with the caveat that the operations must be
+      idempotent at the storage layer (the charge, if it was made, should be detectable). If the operation is a
+      database write, the write's own idempotency (upsert, unique constraint) handles the double-processing risk.</p>
+
+      <h4>The two-phase design</h4>
+      <p>A more robust approach separates the key claim from the operation:</p>
+      <ol>
+        <li><strong>Claim</strong> — atomically insert the key with a short lease (e.g., 30 seconds). If claimed,
+        proceed.</li>
+        <li><strong>Process</strong> — do the work. If it succeeds, update to completed with the response.</li>
+        <li><strong>Renew the lease</strong> — if the work takes longer than the lease, the processor extends it
+        periodically. If it crashes, the lease expires and a retry can take over.</li>
+        <li><strong>Release</strong> — on completion or failure, update the row to a terminal state, releasing the
+        lease.</li>
+      </ol>
+      <p>This is a distributed lock pattern applied to idempotency. It handles crashes gracefully and does not
+      require operations to be naturally idempotent (though having them idempotent is still better).</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Doing the lookup and the insert as two separate operations without any atomicity. The code looks correct:
+        "if not exists, insert and process". But two concurrent requests both see "not exists" and both proceed.
+        The fix is a single atomic operation (unique constraint, <code>SET NX</code>, conditional put) that
+        guarantees only one request wins.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART B ================= -->
+  <div class="part-band rose">
+    <div class="bar"></div>
+    <h2>Part B — Key Lifecycle &amp; Misuse
+      <span class="sub">Fingerprints, TTLs, and how Stripe does it</span>
+    </h2>
+  </div>
+
+  <!-- Q5 -->
+  <article class="q rose" id="q5">
+    <div class="q-head">
+      <div class="q-num">5</div>
+      <h3>What happens if a client retries with the same key but a different payload?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>This is an error condition. The key is supposed to identify one operation; reusing it with a different
+        payload means either a buggy client or a malicious request. The server should compare a fingerprint of the
+        request to the stored fingerprint and, on mismatch, return <code>422 Unprocessable Entity</code> with a
+        clear error — and not process the new payload.</p>
+      </div>
+
+      <h4>Why this happens</h4>
+      <ul>
+        <li><strong>Buggy retry logic.</strong> The client generates a key, sends request A, gets a timeout, then
+        for some reason sends request B (a modified version of A) with the same key. Perhaps the user edited the
+        amount and the retry logic reused the key.</li>
+        <li><strong>Key collision.</strong> Two different clients accidentally generate the same key. Unlikely with
+        UUIDs, but possible with low-entropy formats (user ID + counter).</li>
+        <li><strong>Misuse.</strong> A client deliberately reuses a key to try to get a "free" operation — e.g.,
+        using a past key to avoid paying again. This is a form of replay attack.</li>
+        <li><strong>Copy-paste error.</strong> A developer hardcodes a key in a test, and the test runs against
+        production.</li>
+      </ul>
+
+      <h4>The fingerprint check</h4>
+      <p>The server must store a fingerprint of the original request alongside the key. On subsequent requests, it
+      computes the fingerprint of the new request and compares:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Comparison</th><th>Meaning</th><th>Response</th></tr></thead>
+          <tbody>
+            <tr><td>Same key, same fingerprint</td><td>Legitimate retry</td><td>Return stored response</td></tr>
+            <tr><td>Same key, different fingerprint</td><td>Misuse</td><td><code>422</code> with an error</td></tr>
+            <tr><td>Same key, in progress</td><td>Concurrent request</td><td><code>409</code> (Question 4)</td></tr>
+            <tr><td>New key</td><td>New operation</td><td>Process normally</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>How to compute the fingerprint</h4>
+      <p>The fingerprint is a hash (SHA-256) of the canonical request: method, path, and a canonicalised body.
+      Canonicalisation matters — a body of <code>{"a": 1, "b": 2}</code> and <code>{"b": 2, "a": 1}</code> is
+      semantically the same, and a client that serialises its JSON differently between retries should not be
+      penalised. The standard approach is:</p>
+      <ol>
+        <li>Sort object keys recursively.</li>
+        <li>Normalise whitespace.</li>
+        <li>Normalise number formats (or reject them).</li>
+        <li>Hash the resulting string.</li>
+      </ol>
+      <p>Alternatively, canonicalise only the semantically important fields and ignore ones that might legitimately
+      differ (like a client-generated timestamp in the body). This is more forgiving but harder to get right. For
+      most APIs, the full-body hash after canonicalisation is fine.</p>
+
+      <h4>The response format</h4>
+      <p>On a fingerprint mismatch, return a clear error that tells the client what happened:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Field</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr><td>Status</td><td><code>422 Unprocessable Entity</code></td></tr>
+            <tr><td>Error code</td><td><code>idempotency_key_reuse</code></td></tr>
+            <tr><td>Message</td><td>"The provided idempotency key has already been used with a different request body."</td></tr>
+            <tr><td>Details</td><td>The fingerprint of the original request (a hash, not the body — for security)</td></tr>
+            <tr><td>Docs link</td><td>Link to documentation on idempotency</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The error should not reveal the original body — that would leak information to a potentially malicious
+      client. The hash is enough to confirm the mismatch without disclosing the content.</p>
+
+      <h4>What NOT to do</h4>
+      <ul>
+        <li><strong>Silently return the cached response.</strong> The client asked for something different and got
+        the old answer. This is confusing — the client has no way to know its new request was ignored. Worse, if
+        the new request is a legitimate correction (the user edited the amount), the client will believe its edit
+        took effect when it did not.</li>
+        <li><strong>Silently process the new request.</strong> This defeats the entire purpose of idempotency — the
+        key becomes meaningless if it can be reused with a different body.</li>
+        <li><strong>Return 400.</strong> This implies a malformed request, which is not the case. The request is
+        well-formed; the key is being misused. <code>422</code> is more accurate.</li>
+        <li><strong>Return 409.</strong> This implies a conflict with the current state, which is not what happened.
+        <code>409</code> is for concurrent in-progress requests; <code>422</code> is for semantic errors.</li>
+      </ul>
+
+      <h4>The audit and alerting angle</h4>
+      <p>A fingerprint mismatch is worth alerting on. It usually indicates a client bug, and one client's bug will
+      cause many mismatches. The API should track:</p>
+      <ul>
+        <li>Rate of fingerprint mismatches per client (API key, user ID).</li>
+        <li>Any client with a sustained mismatch rate above a threshold — likely a bug to be reported.</li>
+        <li>Suspicious patterns (same key, wildly different payloads — possibly an attack).</li>
+      </ul>
+      <p>This turns the error into an operational signal, which is much more useful than a silent failure.</p>
+
+      <h4>The "replay attack" dimension</h4>
+      <p>A malicious client might try to reuse a key from a past operation. If the server stores the response
+      with a TTL (Question 6), a key that is past its TTL is treated as new — so a replay after the TTL succeeds as
+      a new operation. This is fine for most cases (the client has to know the key, which requires it to have been
+      the legitimate client). For high-security operations (money transfers), consider storing keys indefinitely or
+      using signed idempotency tokens that the server can verify.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Same key + same body = return cached response. Same key + different body = 422, because the client
+        is misusing the key. I'll store a hash of the request body with the key so I can detect the mismatch without
+        storing the body itself." That demonstrates you know the fingerprint mechanism and its purpose.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q6 -->
+  <article class="q rose" id="q6">
+    <div class="q-head">
+      <div class="q-num">6</div>
+      <h3>What is the TTL for an idempotency key, and how do you choose it?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>TTL should cover the window in which a client might retry. <strong>24 hours is the industry standard</strong>
+        (Stripe uses 24h), which is long enough for every reasonable retry pattern and short enough to keep storage
+        bounded. For high-volume, low-stakes operations, 1 hour is fine; for very high-stakes operations (large
+        payments), 7 days.</p>
+      </div>
+
+      <h4>What TTL is for</h4>
+      <p>Every idempotency key consumes storage — the key, its request fingerprint, its response body, and its
+      metadata. At a million operations per day, that is a million rows per day, and without cleanup the store grows
+      unboundedly. The TTL is the cleanup mechanism: after N hours or days, the key is deleted, and any retry with
+      that key is treated as a new operation.</p>
+
+      <h4>The two failure modes</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>TTL too short</th><th>TTL too long</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>A retry after the TTL is treated as a new operation — the duplicate is not prevented. This is
+              exactly the bug idempotency was meant to prevent.</td>
+              <td>Storage grows; the store becomes expensive and slow; cleanup jobs take longer. At high volume,
+              the storage cost dominates.</td>
+            </tr>
+            <tr>
+              <td>Example: a 1-hour TTL on a payment API — a customer retries after 2 hours and is charged twice.</td>
+              <td>Example: an indefinite TTL — after a year, the store has 365 million rows and queries are slow.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The TTL must be long enough that a legitimate retry is always within the window, and short enough that
+      the storage cost is acceptable. The right value depends on the client's retry behaviour.</p>
+
+      <h4>The retry window</h4>
+      <p>How long does a client actually retry? It depends on the operation and the client's design:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Client type</th><th>Typical retry window</th><th>Reason</th></tr></thead>
+          <tbody>
+            <tr><td>Mobile app, immediate retry</td><td>Seconds to minutes</td><td>The user is waiting; the app retries a few times with backoff</td></tr>
+            <tr><td>Server-to-server with SDK</td><td>Minutes to hours</td><td>The SDK retries with exponential backoff; the process may be long-lived</td></tr>
+            <tr><td>Batch job</td><td>Hours to a day</td><td>The job runs nightly and retries failed items</td></tr>
+            <tr><td>Manual retry after an incident</td><td>Hours to days</td><td>The operator investigates and retries</td></tr>
+            <tr><td>Client with a queue</td><td>Up to a day</td><td>Items sit in a retry queue</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>A 24-hour TTL covers all of these. A 1-hour TTL would miss the batch job and manual retry cases. A 7-day
+      TTL covers the "operator investigates over a long weekend" case, but costs 7× the storage.</p>
+
+      <h4>Recommended values</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Operation</th><th>TTL</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr><td>Low-stakes, high-volume (creating a "like", logging an event)</td><td>1 hour</td><td>Retries are rare and immediate; storage matters</td></tr>
+            <tr><td>Standard API operation (create order, send email)</td><td>24 hours</td><td>The industry default; covers all common retry patterns</td></tr>
+            <tr><td>Payment, transfer, any money movement</td><td>7 days or indefinite</td><td>The cost of a duplicate is catastrophic; storage is negligible compared to it</td></tr>
+            <tr><td>Configuration or deployment operation</td><td>Indefinite</td><td>Redoing a deployment with the same key should never be allowed to re-run</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>How to expire</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Store</th><th>Mechanism</th></tr></thead>
+          <tbody>
+            <tr><td>Redis</td><td><code>SET key value EX 86400</code> — expiry is automatic</td></tr>
+            <tr><td>DynamoDB</td><td>TTL attribute (<code>expires_at</code>) — the item is deleted automatically within 48 hours of expiration</td></tr>
+            <tr><td>PostgreSQL</td><td>Scheduled job (pg_cron or application-level) that runs <code>DELETE FROM idempotency_keys WHERE expires_at &lt; now()</code></td></tr>
+            <tr><td>MySQL</td><td>Same — scheduled job or a partition-based approach where old partitions are dropped</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The cleanup must be reliable. If it fails, the store grows unboundedly. The cleanup job should be
+      monitored, and the store's size should be alerted on. For high-volume systems, partition-based expiry (drop
+      partitions older than N days) is more efficient than a delete query.</p>
+
+      <h4>What happens after the TTL</h4>
+      <p>A retry with an expired key is treated as a new operation. This is the correct behaviour — the TTL says
+      "after this long, we no longer track this operation". The client should ideally never retry after the TTL
+      (its retry policy should give up before that), but if it does, the operation proceeds as new.</p>
+      <p>For high-stakes operations, the audit trail is separate from the TTL — the key expires, but the record of
+      what happened does not. This allows investigation ("was this charged twice?") without keeping every key
+      forever.</p>
+
+      <h4>The Stripe 24-hour precedent</h4>
+      <p>Stripe's documentation says: "We'll remember the key for 24 hours. After that, a request using the same
+      idempotency key is treated as a new request." This is the industry standard, and it is a good default for most
+      APIs. The reasoning: 24 hours covers every realistic retry, the storage cost is manageable, and the behaviour
+      is documented so clients can plan.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Long TTLs are safer (fewer duplicates) but cost more storage and make the store slower. Short TTLs are
+        cheaper but risk duplicates for slow retries. The right balance depends on the cost of a duplicate: for a
+        $1 like, 1 hour; for a $1M transfer, indefinite.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q7 -->
+  <article class="q rose" id="q7">
+    <div class="q-head">
+      <div class="q-num">7</div>
+      <h3>How do payment APIs (Stripe) implement idempotency?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Stripe's implementation is the reference design: an <code>Idempotency-Key</code> header on POST requests,
+        a per-account namespace, a durable store of key → response, a fingerprint check for misuse, a 24-hour TTL,
+        and a 409 response for concurrent requests. It is worth studying because payments are where idempotency
+        matters most and where the design has been battle-tested at enormous scale.</p>
+      </div>
+
+      <h4>The Stripe flow</h4>
+      <ol>
+        <li>The client generates a unique key (Stripe recommends UUID v4 or a similar scheme) at the moment of
+        intent — when the user clicks "Pay", not when the request is retried.</li>
+        <li>The client sends <code>POST /v1/charges</code> with the key in the <code>Idempotency-Key</code>
+        header.</li>
+        <li>The server looks up the key in the per-account namespace. If not found, it processes the charge and
+        stores the response under the key.</li>
+        <li>If found and completed, the server returns the stored response — the same status code, the same body,
+        the same headers. The client sees an identical result.</li>
+        <li>If found but in progress (another request with the same key is currently processing), the server returns
+        <code>409 Conflict</code> with a clear error.</li>
+        <li>If found but with a different request fingerprint, the server returns <code>422</code> with an error.</li>
+        <li>After 24 hours, the key expires and a new request with the same key is treated as a fresh charge.</li>
+      </ol>
+
+      <h4>The per-account namespace</h4>
+      <p>Stripe's keys are scoped per account (or per API key). This means two different accounts can use the same
+      idempotency key value without conflict — each account has its own namespace. This is important for multi-tenant
+      APIs: the key must be scoped to prevent one tenant from "using up" a key that another tenant wants.</p>
+
+      <h4>The response caching detail</h4>
+      <p>Stripe stores the entire response — status code, body, and headers. This is what makes a retry truly
+      indistinguishable from the original. The client cannot tell whether it is seeing a fresh response or a cached
+      one, which is exactly the point.</p>
+      <p>The stored response includes errors: if the original charge failed with <code>402 Payment Required</code>,
+      retries return the same 402 (not a fresh attempt that might succeed). The exception is server errors (5xx),
+      where the key is released so a retry can reprocess — because a 500 might have been transient.</p>
+
+      <h4>The error-handling policy</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Original response</th><th>Behaviour on retry</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr><td>200 OK (charge succeeded)</td><td>Return stored 200 with the same charge ID</td><td>The charge was made; the client should see it</td></tr>
+            <tr><td>400 Bad Request (invalid parameters)</td><td>Return stored 400</td><td>The request is malformed; retrying the same body will fail the same way</td></tr>
+            <tr><td>402 Payment Required (card declined)</td><td>Return stored 402</td><td>The decline is the outcome; retrying the same card will decline again</td></tr>
+            <tr><td>409 Conflict (concurrent request)</td><td>Not stored — the in-progress request will complete</td><td>The original request's outcome will be stored</td></tr>
+            <tr><td>422 (idempotency misuse)</td><td>Not stored — the key is invalid</td><td>The client must use a new key</td></tr>
+            <tr><td>500 Internal Server Error</td><td>Release the key</td><td>A 500 may be transient; retrying with the same key should be allowed</td></tr>
+            <tr><td>Network timeout (no response)</td><td>Release the key</td><td>Same as 500 — the operation may or may not have happened; retry is allowed</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The 500-release policy is the subtle one. If the server crashed after charging but before storing the
+      response, releasing the key allows a retry, which charges again. Stripe accepts this risk — the alternative
+      (keeping the key with a 500) would make legitimate retries impossible after a transient failure. The
+      mitigation is that payment processors are themselves idempotent at the network level, so a duplicate charge
+      can be detected and reversed. For most APIs, releasing on 5xx is the right policy.</p>
+
+      <h4>The 24-hour TTL</h4>
+      <p>Stripe documents the 24-hour TTL explicitly. This means a client that retries after 24 hours will make a
+      new charge — and is expected to know this. The documentation is the contract: the client must complete its
+      retries within 24 hours, or accept that the key is no longer valid.</p>
+
+      <h4>What Stripe's design teaches</h4>
+      <ul>
+        <li><strong>Use the standard header.</strong> <code>Idempotency-Key</code> is the de facto convention.</li>
+        <li><strong>Scope keys per tenant.</strong> Multi-tenant APIs need a namespace, not a global key space.</li>
+        <li><strong>Store the full response.</strong> Not just the outcome, but the status, body, and important
+        headers.</li>
+        <li><strong>Distinguish transient and permanent failures.</strong> 5xx releases the key; 4xx keeps it.</li>
+        <li><strong>Document the TTL.</strong> Clients need to know how long their keys are valid.</li>
+        <li><strong>Return 409 for concurrent requests.</strong> Not a silent retry, not a blocked wait.</li>
+        <li><strong>Reject key misuse with 422.</strong> Same key + different body is a client bug, not a retry.</li>
+        <li><strong>Durability matters.</strong> A payment API cannot use Redis with default settings — the key
+        store must survive failover.</li>
+      </ul>
+
+      <h4>What is different for non-payment APIs</h4>
+      <p>Most APIs do not need the full Stripe design. A less critical API might:</p>
+      <ul>
+        <li>Use Redis instead of a database (accepting rare duplicate processing during failover).</li>
+        <li>Use a shorter TTL (1 hour instead of 24).</li>
+        <li>Not store the full response — just a hash and a status flag, if the client can reconstruct the result.</li>
+        <li>Not distinguish 4xx and 5xx — just delete on failure, always allowing retry.</li>
+      </ul>
+      <p>The Stripe design is the gold standard because payments are the highest-stakes case. For other APIs, the
+      same principles apply at lower cost. The core invariants — atomic claim, stored response, fingerprint
+      check, documented TTL — are non-negotiable.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Implementing idempotency keys but not scope-ing them per account. A multi-tenant API where keys are
+        global means tenant A's key <code>abc-123</code> blocks tenant B's key <code>abc-123</code>, which is a
+        confusing cross-tenant bug. Scope the key to the account (or API key) as part of the primary key.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART C ================= -->
+  <div class="part-band teal">
+    <div class="bar"></div>
+    <h2>Part C — Concurrency &amp; Retries
+      <span class="sub">Conditional requests, optimistic vs pessimistic locking, and the retry discipline</span>
+    </h2>
+  </div>
+
+  <!-- Q8 -->
+  <article class="q teal" id="q8">
+    <div class="q-head">
+      <div class="q-num">8</div>
+      <h3>What are ETags, and how do conditional requests enable optimistic concurrency?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>An ETag is an opaque version identifier for a resource. The server includes it in responses
+        (<code>ETag: "v42"</code>), and the client sends it back in conditional requests
+        (<code>If-Match: "v42"</code>) to say "only apply my change if the resource is still at this version". If
+        the version has changed, the server returns <code>412 Precondition Failed</code> — the lost-update problem is
+        prevented without any locking.</p>
+      </div>
+
+      <h4>The lost-update problem</h4>
+      <p>Two clients read the same user profile (version 1). Client A updates the name to "Alice". Client B updates
+      the email. If both use a plain PUT, client B's write overwrites client A's — the name is silently lost. This
+      is the lost-update problem, and it is the most common data corruption bug in concurrent systems.</p>
+      <p>Optimistic concurrency solves it by detecting the conflict at write time. The client says "I read version 1,
+      apply my change only if it is still version 1". If the server is at version 2 (because client A already
+      updated), it rejects the write — the client must re-read and retry with the new version.</p>
+
+      <h4>The ETag mechanism</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Step</th><th>Client</th><th>Server</th></tr></thead>
+          <tbody>
+            <tr><td>1. Read</td><td><code>GET /users/42</code></td><td>Returns <code>200 OK</code> with <code>ETag: "v1"</code> and body</td></tr>
+            <tr><td>2. Modify locally</td><td>Changes the name to "Alice"</td><td>—</td></tr>
+            <tr><td>3. Write with precondition</td><td><code>PUT /users/42</code> with <code>If-Match: "v1"</code></td><td>—</td></tr>
+            <tr><td>4a. Success</td><td>Sees <code>200 OK</code> with new <code>ETag: "v2"</code></td><td>ETag matched; update applied; new version</td></tr>
+            <tr><td>4b. Conflict</td><td>Sees <code>412 Precondition Failed</code></td><td>ETag did not match (another client updated); write rejected</td></tr>
+            <tr><td>5. On conflict</td><td>Re-reads, merges, retries with the new ETag</td><td>Accepts the new write if ETag matches</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Strong vs weak ETags</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Type</th><th>Syntax</th><th>Meaning</th><th>Use</th></tr></thead>
+          <tbody>
+            <tr><td>Strong</td><td><code>ETag: "v42"</code></td><td>Byte-for-byte identical</td><td>Updates — a byte difference is a real conflict</td></tr>
+            <tr><td>Weak</td><td><code>ETag: W/"v42"</code></td><td>Semantically equivalent, but possibly byte-different</td><td>Caching — a semantically identical response can be reused</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>For optimistic concurrency, use strong ETags. A weak ETag says "these two responses mean the same thing",
+      which is fine for caching but not for conflict detection — you need to know whether the resource is
+      <em>exactly</em> the version the client saw.</p>
+
+      <h4>How to generate ETags</h4>
+      <ul>
+        <li><strong>Content hash.</strong> SHA-256 of the response body. Works for any resource, but expensive to
+        compute on every response.</li>
+        <li><strong>Version column.</strong> A monotonically increasing integer updated on every write. Cheap, but
+        requires a schema column and a write-time increment.</li>
+        <li><strong>Timestamp.</strong> <code>updated_at</code> as an ETag. Simple, but two updates in the same
+        millisecond collide, and clock skew can cause ordering issues.</li>
+        <li><strong>Composite.</strong> A hash of the version column plus a schema version — allows distinguishing
+        "the resource changed" from "the schema changed".</li>
+      </ul>
+      <p>The version column is the most practical for high-volume APIs. The content hash is the most correct but
+      the most expensive. The timestamp is the easiest but the least reliable under high write rates.</p>
+
+      <h4>If-Match vs If-None-Match</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Header</th><th>Semantics</th><th>Use case</th></tr></thead>
+          <tbody>
+            <tr><td><code>If-Match</code></td><td>Apply only if the ETag matches</td><td>Optimistic update — "only if unchanged"</td></tr>
+            <tr><td><code>If-None-Match</code></td><td>Apply only if the ETag does <em>not</em> match</td><td>Create-if-absent (with <code>*</code>), or caching</td></tr>
+            <tr><td><code>If-Modified-Since</code></td><td>Only if modified since a date</td><td>Caching — return 304 if unchanged</td></tr>
+            <tr><td><code>If-Unmodified-Since</code></td><td>Only if not modified since a date</td><td>Weaker form of If-Match</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p><code>If-Match: *</code> means "only if the resource exists" — used for create-if-absent semantics.</p>
+
+      <h4>The 412 vs 409 distinction</h4>
+      <p>When an <code>If-Match</code> precondition fails, the standard response is <code>412 Precondition
+      Failed</code>. This is distinct from <code>409 Conflict</code> (used for idempotency key contention and other
+      state conflicts). The 412 specifically means "your precondition was not met" — which is exactly the message
+      the client needs.</p>
+
+      <h4>The cost of optimistic concurrency</h4>
+      <p>Every write requires a read first (to get the ETag), which is an extra round trip. On high-latency
+      networks, this doubles the cost of an update. The mitigations:</p>
+      <ul>
+        <li><strong>Return the ETag in the create response.</strong> A client that creates a resource gets the ETag,
+        and can use it for the first update without a read.</li>
+        <li><strong>Let the client supply the ETag from its local cache.</strong> If the client has cached the
+        resource with its ETag, it can use it without a network round trip.</li>
+        <li><strong>Accept the cost.</strong> For high-stakes updates (payments, inventory), the extra round trip is
+        worth the correctness. For low-stakes updates (user preferences), a plain PUT is fine — the lost-update
+        risk is acceptable.</li>
+      </ul>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Optimistic concurrency avoids locks (good for throughput) but requires the client to handle conflicts
+        (412) and retry. Pessimistic concurrency (Question 9) avoids conflicts but serialises access. Choose based
+        on conflict probability: low-conflict resources favour optimistic, high-conflict resources favour
+        pessimistic.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q9 -->
+  <article class="q teal" id="q9">
+    <div class="q-head">
+      <div class="q-num">9</div>
+      <h3>What is the difference between optimistic and pessimistic concurrency in an API?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p><strong>Optimistic concurrency</strong> assumes conflicts are rare: it does not lock, but detects conflicts
+        at write time (ETag/If-Match, version columns) and rejects conflicting writes. <strong>Pessimistic
+        concurrency</strong> assumes conflicts are common: it locks before modifying, preventing other writers from
+        touching the resource until the lock is released. Optimistic scales better; pessimistic avoids conflict
+        retries.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Aspect</th><th>Optimistic</th><th>Pessimistic</th></tr></thead>
+          <tbody>
+            <tr><td>Mechanism</td><td>Version check at write time</td><td>Lock acquired before write</td></tr>
+            <tr><td>Conflict detection</td><td>At write time (412)</td><td>At lock time (wait or 409)</td></tr>
+            <tr><td>Client experience</td><td>Read, write, retry if conflict</td><td>Lock, write, unlock (or hold lock)</td></tr>
+            <tr><td>Throughput</td><td>High — no locks held</td><td>Lower — locks reduce concurrency</td></tr>
+            <tr><td>Deadlock risk</td><td>None</td><td>Yes — lock ordering matters</td></tr>
+            <tr><td>Best for</td><td>Low-conflict, long-lived operations</td><td>High-conflict, short-lived operations</td></tr>
+            <tr><td>Example</td><td>User profile update</td><td>Seat reservation</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Optimistic concurrency in detail</h4>
+      <p>The client reads the resource, gets a version (ETag or a version field), modifies locally, and writes with
+      a precondition. If the version has not changed, the write succeeds; if it has, the write fails and the client
+      retries with the new version. The server never holds a lock — it only checks at write time.</p>
+      <p>This is ideal when conflicts are rare. In a user profile, two people rarely edit the same field at the
+      same millisecond. In a document editor, conflicts are uncommon and can be merged. The cost is that the client
+      must handle the 412 and retry, which is extra code. The benefit is that the server can serve thousands of
+      concurrent reads without any coordination.</p>
+
+      <h4>Pessimistic concurrency in detail</h4>
+      <p>The client acquires a lock on the resource, does its work, and releases the lock. Other clients that try to
+      acquire the lock either wait (blocking) or get a 409/423 (non-blocking). The server must implement the lock
+      — a row lock in the database (<code>SELECT ... FOR UPDATE</code>), a distributed lock (Redis, etcd), or an
+      explicit lock endpoint.</p>
+      <p>This is ideal when conflicts are common. In seat reservation, two people trying to book the same seat at
+      the same time is a real scenario; the lock ensures only one succeeds. In inventory, the lock prevents
+      overselling. The cost is that the lock reduces throughput and introduces deadlock risk (if two operations
+      acquire locks in different orders). The benefit is that the client does not have to retry — the lock either
+      succeeds (proceed) or fails (a clear error).</p>
+
+      <h4>How each appears in an API</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Pattern</th><th>Optimistic</th><th>Pessimistic</th></tr></thead>
+          <tbody>
+            <tr><td>Update</td><td><code>PUT /users/42</code> with <code>If-Match: "v1"</code></td><td><code>POST /seats/42/lock</code>, then <code>PUT /seats/42</code>, then <code>DELETE /seats/42/lock</code></td></tr>
+            <tr><td>Conflict response</td><td><code>412 Precondition Failed</code></td><td><code>409 Conflict</code> or <code>423 Locked</code></td></tr>
+            <tr><td>Retry</td><td>Client re-reads and retries</td><td>Client waits and retries the lock</td></tr>
+            <tr><td>Lock lifecycle</td><td>None</td><td>Explicit acquire and release; auto-expiry on timeout</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Pessimistic locking patterns</h4>
+      <ul>
+        <li><strong>Database row lock.</strong> <code>SELECT ... FOR UPDATE</code> — the transaction holds the lock
+        until commit. Simple, but limited to a single database session.</li>
+        <li><strong>Distributed lock.</strong> Redis <code>SET NX EX</code>, etcd lease, ZooKeeper ephemeral node.
+        Works across services, but adds a dependency and has its own failure modes (lock expiry, split-brain).</li>
+        <li><strong>Lock endpoint.</strong> An explicit <code>POST /resource/lock</code> that returns a lock token,
+        and <code>DELETE /resource/lock</code> to release. More visible in the API, but requires the client to
+        manage the lifecycle.</li>
+      </ul>
+
+      <h4>The lock timeout problem</h4>
+      <p>Every pessimistic lock needs a timeout. If a client acquires a lock and crashes without releasing it, the
+      resource is locked forever. The standard fix is a lease — the lock expires after N seconds unless renewed.
+      The client must renew the lease if the operation takes longer than expected, and must be prepared for the
+      lock being stolen if it fails to renew. This is the fencing token problem (Volume 6 of the distributed
+      systems series) — the classic example is a paused process that resumes after its lock has expired and
+      continues to write.</p>
+
+      <h4>Choosing between them</h4>
+      <ol>
+        <li><strong>How often do conflicts happen?</strong> Rare → optimistic. Frequent → pessimistic.</li>
+        <li><strong>How long does the operation take?</strong> Long → optimistic (holding a lock for a long time
+        blocks everyone). Short → pessimistic is fine.</li>
+        <li><strong>How bad is a conflict?</strong> Mergeable (text, tags) → optimistic. Not mergeable (seat, balance)
+        → pessimistic.</li>
+        <li><strong>Do you have a distributed lock store?</strong> No → optimistic is simpler. Yes → pessimistic is
+        possible.</li>
+      </ol>
+
+      <h4>The hybrid pattern</h4>
+      <p>Many systems use optimistic for most operations and pessimistic only for the critical ones. A banking API
+      might use ETags for profile updates and a database row lock for transfers. The choice is per operation, not
+      per API. Documenting which operations use which mechanism is important — the client needs to know whether to
+      expect a 412 (retry) or a 409 (wait).</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Using optimistic concurrency but not telling the client how to recover from 412. The client sees a 412 and
+        does not know whether to retry (with a new ETag) or give up. The documentation and error message must say:
+        "Re-read the resource to get a fresh ETag, then retry your update."</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q10 -->
+  <article class="q teal" id="q10">
+    <div class="q-head">
+      <div class="q-num">10</div>
+      <h3>How do you design retries safely — retryable vs non-retryable errors, backoff, budgets, and circuit breakers?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Retry only on <strong>transient errors</strong> (5xx, 429, timeouts), never on <strong>permanent errors</strong>
+        (4xx like 400, 401, 403, 404, 422). Use <strong>exponential backoff with jitter</strong>, cap the attempts
+        and total duration, enforce a <strong>retry budget</strong> (retries as a fraction of total requests), and
+        wrap the downstream in a <strong>circuit breaker</strong> that fails fast when it is unhealthy. And retry
+        only if the operation is idempotent or carries an idempotency key.</p>
+      </div>
+
+      <h4>Classifying errors</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Category</th><th>Examples</th><th>Retry?</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr><td>Client errors (400, 401, 403, 404, 422)</td><td>Bad request, invalid token, forbidden, not found</td><td>No</td><td>The request is malformed or unauthorised — retrying will produce the same error</td></tr>
+            <tr><td>Conflict (409, 412)</td><td>Version conflict, concurrent request</td><td>Sometimes</td><td>Retry after re-reading (412) or after the conflicting operation completes (409)</td></tr>
+            <tr><td>Rate limiting (429)</td><td>Too many requests</td><td>Yes</td><td>Retry after <code>Retry-After</code> header</td></tr>
+            <tr><td>Timeout (408, network)</td><td>Request timeout, connection reset</td><td>Yes, with idempotency</td><td>The request may or may not have been processed; retry with a key</td></tr>
+            <tr><td>Server errors (500, 502, 503, 504)</td><td>Internal error, bad gateway, unavailable, timeout</td><td>Yes, with backoff</td><td>Transient — the server may recover</td></tr>
+            <tr><td>Non-idempotent POST without a key</td><td>Payment, order creation</td><td>No</td><td>Retry may duplicate the operation</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The rule: <strong>4xx means the client is wrong; 5xx means the server is wrong.</strong> Retrying a 4xx
+      is usually pointless — the client must fix its request. Retrying a 5xx is often useful — the server may
+      recover. The exceptions are 408 (timeout — retry), 429 (rate limit — retry after delay), and 409/412
+      (conflict — retry after resolving the conflict).</p>
+
+      <h4>Exponential backoff with jitter</h4>
+      <p>Retrying immediately hammers a struggling server. The standard is exponential backoff: the wait doubles
+      with each attempt.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Attempt</th><th>Base backoff</th><th>With jitter (random 0–100%)</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>1s</td><td>0–1s</td></tr>
+            <tr><td>2</td><td>2s</td><td>0–2s</td></tr>
+            <tr><td>3</td><td>4s</td><td>0–4s</td></tr>
+            <tr><td>4</td><td>8s</td><td>0–8s</td></tr>
+            <tr><td>5</td><td>16s</td><td>0–16s</td></tr>
+            <tr><td>Max</td><td>60s or a fixed cap</td><td>0–60s</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The <strong>jitter</strong> is critical. Without jitter, a thousand clients that all fail at the same
+      moment will all retry at exactly 1s, 2s, 4s — a thundering herd that amplifies the problem. With full jitter
+      (random in [0, backoff]), the retries spread out and the load is smoothed. AWS's "exponential backoff and
+      jitter" paper documents this in detail; the practical recommendation is decorrelated jitter, which randomises
+      both the base and the cap.</p>
+
+      <h4>The retry cap</h4>
+      <p>Retries must be bounded. Two limits:</p>
+      <ul>
+        <li><strong>Max attempts</strong> — typically 3–5. Beyond that, the failure is probably not transient.</li>
+        <li><strong>Max duration</strong> — typically 30 seconds to 2 minutes. Beyond that, the client should give
+        up and report the failure to the user.</li>
+      </ul>
+      <p>A request that takes 10 retries and 5 minutes to fail is worse than one that fails immediately — the user
+      has waited all that time and still sees an error. Fail fast, or escalate to async (Volume 1, Question 13).</p>
+
+      <h4>The retry budget</h4>
+      <p>A retry budget is a cap on retries as a fraction of total requests. If a service normally has a 2% retry
+      rate, a budget of 10% means retries can be used freely in normal operation but are throttled when a downstream
+      failure causes a spike. Without a budget, a failing service causes every client to retry, which triples the
+      load — a retry storm that turns a local failure into a global outage.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Scenario</th><th>Retry rate</th><th>With budget (10%)</th></tr></thead>
+          <tbody>
+            <tr><td>Normal operation</td><td>2%</td><td>All retries allowed</td></tr>
+            <tr><td>Minor blip</td><td>8%</td><td>All retries allowed</td></tr>
+            <tr><td>Downstream failure</td><td>50%</td><td>Retries throttled to 10%; 90% of failures returned to client immediately</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The budget is enforced by the client (or by a service-mesh sidecar), tracked over a rolling window (e.g.,
+      the last 10 seconds). When the budget is exhausted, further requests fail fast rather than retrying — which
+      reduces load on the struggling service and gives it a chance to recover.</p>
+
+      <h4>The circuit breaker</h4>
+      <p>The circuit breaker is the next level of protection: after a threshold of failures, it stops sending
+      requests to the failing dependency entirely, for a cool-down period. This is different from a retry budget:
+      a budget limits <em>retries</em>, a circuit breaker stops <em>all traffic</em> to a dependency.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>State</th><th>Behaviour</th><th>Transition</th></tr></thead>
+          <tbody>
+            <tr><td>Closed</td><td>Requests flow normally; failures are counted</td><td>Failure threshold exceeded → Open</td></tr>
+            <tr><td>Open</td><td>All requests fail immediately (or go to a fallback)</td><td>After timeout → Half-Open</td></tr>
+            <tr><td>Half-Open</td><td>A single test request is allowed through</td><td>Success → Closed. Failure → Open</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The circuit breaker converts a slow timeout into a fast failure, which is much better for the client (the
+      user sees an error immediately instead of waiting 30 seconds) and for the dependency (it receives almost no
+      traffic, so it can recover).</p>
+
+      <h4>Client-side vs server-side retries</h4>
+      <p>Retries can be implemented on either side:</p>
+      <ul>
+        <li><strong>Client-side retries.</strong> The SDK or application retries. More control per client, but each
+        client team must implement it — and many forget the budget, jitter, or idempotency key.</li>
+        <li><strong>Server-side retries.</strong> The gateway or service mesh retries on behalf of the client. Uniform
+        policy, but harder to apply idempotency per operation — the gateway does not know which operations are safe.</li>
+        <li><strong>Both.</strong> The gateway retries transient errors uniformly, and the client retries for its own
+        operation semantics. This is common but compounds — a gateway retry of 3 plus a client retry of 3 means 9
+        attempts, which is usually too many.</li>
+      </ul>
+      <p>The best practice: <strong>one layer does the retry</strong>. Either the client (with full operation
+      knowledge) or the gateway (with uniform policy), but not both. If both are needed, the client retries only
+      after the gateway has exhausted its retries and returned a definitive error.</p>
+
+      <h4>Retry and idempotency are intertwined</h4>
+      <p>Every retry is safe only if the operation is idempotent or carries an idempotency key (Questions 1–2).
+      This is why retry design and idempotency design belong together: the retry policy says <em>when</em> to
+      retry, and the idempotency key says <em>why</em> a retry is safe. Without both, retries are a footgun — they
+      turn transient failures into duplicate charges, duplicate orders, and duplicate emails.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "I'll retry 5xx, 429, and timeouts with exponential backoff and jitter, and never retry 4xx. I'll cap
+        attempts at 3, use a retry budget to prevent retry storms, and wrap the downstream in a circuit breaker. And
+        I'll only retry non-idempotent operations if they carry an idempotency key." That single sentence covers
+        every dimension of the retry policy.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- NEXT PART -->
+  <section class="next-part">
+    <h3>Coming in Volume 6 — Authentication &amp; Authorization</h3>
+    <p>Volume 6 turns to the security boundary: how to authenticate clients (API keys, OAuth 2.0, JWT, mTLS), how
+    to authorize them (RBAC, ABAC, ReBAC, scopes), how to handle multi-tenant identity, how to prevent the OWASP API
+    Top 10 (BOLA, IDOR, mass assignment), and how token lifecycle, rotation, and revocation actually work.</p>
+    <ul class="next-list">
+      <li>Authentication vs authorization</li>
+      <li>API keys and their limits</li>
+      <li>OAuth 2.0 flows compared</li>
+      <li>JWT vs opaque tokens</li>
+      <li>Token rotation and revocation</li>
+      <li>RBAC, ABAC, and ReBAC</li>
+      <li>Scopes in OAuth</li>
+      <li>Multi-tenant authorization</li>
+      <li>BOLA and IDOR prevention</li>
+      <li>mTLS for machine-to-machine</li>
+    </ul>
+  </section>
+
+</div>
+</body>
+</html>
