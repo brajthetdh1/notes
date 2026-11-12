@@ -1,0 +1,1634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API Design — Volume 7: Rate Limiting &amp; Quotas</title>
+<style>
+  :root{
+    --ink:#0f172a;
+    --ink-soft:#334155;
+    --muted:#64748b;
+    --line:#e0e7ef;
+    --bg:#f5f8fb;
+    --card:#ffffff;
+    --slate:#1e40af;
+    --slate-soft:#dbeafe;
+    --slate-deep:#1e3a8a;
+    --cyan:#0891b2;
+    --cyan-soft:#cffafe;
+    --emerald:#047857;
+    --amber:#b45309;
+    --rose:#be123c;
+    --violet:#7c3aed;
+    --shadow:0 1px 2px rgba(15,40,80,.06), 0 8px 24px -8px rgba(15,40,80,.14);
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 8% -10%, #dbeafe 0%, transparent 60%),
+      radial-gradient(1000px 500px at 100% 0%, #cffafe 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:"Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    line-height:1.72;
+    font-size:16.5px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px 90px;}
+
+  header.hero{
+    background:linear-gradient(135deg,#0c1a3a 0%, #1e3a8a 45%, #0e7490 100%);
+    color:#eff6ff;
+    padding:64px 22px 56px;
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::after{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      radial-gradient(600px 300px at 85% 15%, rgba(14,165,233,.4), transparent 70%),
+      radial-gradient(520px 280px at 12% 92%, rgba(6,182,212,.38), transparent 70%);
+    pointer-events:none;
+  }
+  .hero-inner{max-width:1080px;margin:0 auto;position:relative;z-index:2;}
+  .eyebrow{
+    display:inline-block;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;
+    font-weight:700;padding:7px 15px;border-radius:999px;
+    background:rgba(56,189,248,.18);border:1px solid rgba(56,189,248,.5);
+    color:#7dd3fc;margin-bottom:20px;
+  }
+  header.hero h1{
+    font-size:clamp(1.9rem, 4.4vw, 3rem);line-height:1.15;margin:0 0 16px;
+    font-weight:800;letter-spacing:-.02em;
+  }
+  header.hero h1 span{
+    background:linear-gradient(90deg,#7dd3fc,#67e8f9);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  header.hero p.lede{font-size:1.06rem;color:#bfdbfe;max-width:780px;margin:0 0 26px;}
+  .meta-chips{display:flex;flex-wrap:wrap;gap:10px;}
+  .chip{
+    font-size:.78rem;font-weight:600;padding:7px 14px;border-radius:999px;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#e0f2fe;
+  }
+
+  .roadmap{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:26px 28px;margin-top:-34px;position:relative;z-index:5;
+  }
+  .roadmap h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 16px;font-weight:700;
+  }
+  .roadmap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;}
+  .roadmap-item{
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:.86rem;
+    background:#fbfdff;opacity:.7;
+  }
+  .roadmap-item.done{
+    border-color:#93c5fd;background:linear-gradient(180deg,#eff6ff,#ffffff);opacity:1;
+  }
+  .roadmap-item.current{
+    border-color:#38bdf8;background:linear-gradient(180deg,#e0f2fe,#ffffff);opacity:1;
+    box-shadow:0 0 0 3px rgba(30,64,175,.14);
+  }
+  .roadmap-item .tag{
+    display:inline-block;font-size:.64rem;font-weight:800;letter-spacing:.08em;
+    padding:2px 8px;border-radius:999px;margin-bottom:6px;
+  }
+  .tag-done{background:var(--slate-soft);color:var(--slate-deep);}
+  .tag-now{background:var(--cyan-soft);color:#0e7490;}
+  .tag-next{background:#e2e8f0;color:#475569;}
+  .roadmap-item strong{display:block;color:var(--ink);font-size:.89rem;}
+
+  nav.toc{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:22px 26px;margin:26px 0 44px;
+  }
+  nav.toc h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 14px;font-weight:700;
+  }
+  nav.toc ol{
+    margin:0;padding-left:0;list-style:none;counter-reset:toc;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:8px 26px;
+  }
+  nav.toc li{
+    counter-increment:toc;font-size:.93rem;padding:6px 0 6px 34px;
+    position:relative;border-bottom:1px dashed #eaf1f8;
+  }
+  nav.toc li::before{
+    content:counter(toc);position:absolute;left:0;top:7px;width:22px;height:22px;
+    border-radius:7px;background:var(--cyan-soft);color:var(--cyan);
+    font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center;
+  }
+  nav.toc a{color:var(--ink-soft);text-decoration:none;font-weight:500;}
+  nav.toc a:hover{color:var(--cyan);}
+
+  .part-band{display:flex;align-items:center;gap:16px;margin:56px 0 26px;}
+  .part-band .bar{
+    width:5px;height:44px;border-radius:99px;
+    background:linear-gradient(180deg,var(--cyan),#22d3ee);
+  }
+  .part-band.slate .bar{background:linear-gradient(180deg,var(--slate),#60a5fa);}
+  .part-band.emerald .bar{background:linear-gradient(180deg,var(--emerald),#34d399);}
+  .part-band h2{margin:0;font-size:1.5rem;letter-spacing:-.01em;font-weight:800;}
+  .part-band .sub{
+    display:block;font-size:.82rem;font-weight:600;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.12em;margin-top:2px;
+  }
+
+  article.q{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:0 0 26px;margin-bottom:28px;overflow:hidden;
+    scroll-margin-top:24px;
+  }
+  .q-head{
+    display:flex;gap:16px;align-items:flex-start;padding:22px 28px 18px;
+    border-bottom:1px solid #eef4fa;background:linear-gradient(180deg,#f8fbff,#ffffff);
+  }
+  .q-num{
+    flex:none;width:42px;height:42px;border-radius:12px;display:flex;
+    align-items:center;justify-content:center;font-weight:800;font-size:.92rem;color:#fff;
+    background:linear-gradient(135deg,#0891b2,#06b6d4);
+    box-shadow:0 6px 14px -6px rgba(8,145,178,.7);
+  }
+  .slate .q-num{background:linear-gradient(135deg,#1e40af,#3b82f6);box-shadow:0 6px 14px -6px rgba(30,64,175,.7);}
+  .emerald .q-num{background:linear-gradient(135deg,#047857,#10b981);box-shadow:0 6px 14px -6px rgba(4,120,87,.7);}
+  .q-head h3{margin:0;font-size:1.14rem;font-weight:700;line-height:1.4;letter-spacing:-.01em;}
+  .q-body{padding:22px 28px 0;}
+  .q-body p{margin:0 0 15px;color:var(--ink-soft);}
+  .q-body p:last-child{margin-bottom:0;}
+  .q-body h4{margin:24px 0 10px;font-size:.95rem;font-weight:800;color:var(--ink);}
+  .q-body h4::before{content:"▹";color:var(--cyan);margin-right:8px;font-size:.85rem;}
+  .slate .q-body h4::before{color:var(--slate);}
+  .emerald .q-body h4::before{color:var(--emerald);}
+  .q-body ul,.q-body ol{margin:0 0 16px;padding-left:22px;color:var(--ink-soft);}
+  .q-body li{margin-bottom:8px;}
+  .q-body li::marker{color:var(--cyan);}
+  .slate .q-body li::marker{color:var(--slate);}
+  .emerald .q-body li::marker{color:var(--emerald);}
+  strong{color:var(--ink);font-weight:700;}
+  code{
+    background:#f0f9ff;border:1px solid #e0e7ef;border-radius:6px;padding:1px 6px;
+    font-size:.87em;font-family:"SFMono-Regular",Consolas,monospace;color:#0e7490;
+  }
+
+  .callout{border-radius:12px;padding:14px 18px;margin:18px 0 4px;font-size:.93rem;border-left:4px solid;}
+  .callout .label{
+    display:block;font-size:.68rem;font-weight:800;letter-spacing:.13em;
+    text-transform:uppercase;margin-bottom:5px;
+  }
+  .callout p{margin:0 0 8px;font-size:.93rem;}
+  .callout p:last-child{margin-bottom:0;}
+  .answer{background:linear-gradient(180deg,#eff9ff,#ffffff);border-color:var(--cyan);}
+  .answer .label{color:#0e7490;}
+  .tip{background:linear-gradient(180deg,#eff6ff,#ffffff);border-color:var(--slate);}
+  .tip .label{color:var(--slate-deep);}
+  .tradeoff{background:linear-gradient(180deg,#fffbeb,#ffffff);border-color:var(--amber);}
+  .tradeoff .label{color:#b45309;}
+  .pitfall{background:linear-gradient(180deg,#fff1f2,#ffffff);border-color:var(--rose);}
+  .pitfall .label{color:#be123c;}
+
+  .table-scroll{overflow-x:auto;margin:18px 0;border-radius:12px;border:1px solid var(--line);}
+  table{width:100%;border-collapse:collapse;font-size:.87rem;background:#fff;}
+  thead th{
+    background:#f7fbfe;text-align:left;padding:11px 14px;font-weight:800;
+    font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+    border-bottom:2px solid var(--line);white-space:nowrap;
+  }
+  tbody td{padding:11px 14px;border-bottom:1px solid #f1f6fb;color:var(--ink-soft);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:nth-child(even){background:#fbfdff;}
+  tbody td:first-child{font-weight:700;color:var(--ink);}
+
+  .next-part{
+    background:linear-gradient(135deg,#0c1a3a,#0e7490);color:#e0f2fe;
+    border-radius:var(--radius);padding:32px 34px;margin-top:50px;box-shadow:var(--shadow);
+  }
+  .next-part h3{margin:0 0 12px;font-size:1.2rem;color:#fff;font-weight:800;}
+  .next-part p{margin:0 0 16px;color:#bfdbfe;font-size:.95rem;}
+  .next-list{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:10px;list-style:none;padding:0;margin:0;
+  }
+  .next-list li{
+    background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
+    border-radius:10px;padding:10px 14px;font-size:.86rem;color:#e0f2fe;
+  }
+
+  @media (max-width:640px){
+    .q-head{padding:18px 18px 15px;}
+    .q-body{padding:18px 18px 0;}
+    header.hero{padding:44px 18px 46px;}
+    .roadmap{padding:20px;}
+    nav.toc{padding:18px;}
+    nav.toc ol{grid-template-columns:1fr;}
+  }
+  @media print{
+    body{background:#fff;}
+    article.q, nav.toc, .roadmap{box-shadow:none;page-break-inside:avoid;}
+    header.hero{background:#0c1a3a !important;-webkit-print-color-adjust:exact;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Volume 7 · Section 7 of 18</span>
+    <h1>API Design for System Interviews<br><span>Rate Limiting &amp; Quotas</span></h1>
+    <p class="lede">
+      The abuse-prevention layer. How the five classic algorithms actually behave under burst, how to implement
+      a distributed limiter without making it a single point of failure, how to tell clients what their limits are
+      through headers and 429 responses, and how to design quotas that are fair across tenants of wildly different
+      sizes.
+    </p>
+    <div class="meta-chips">
+      <span class="chip">10 Questions</span>
+      <span class="chip">500+ words each</span>
+      <span class="chip">Algorithm + implementation</span>
+      <span class="chip">Fairness-focused</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ROADMAP -->
+  <section class="roadmap">
+    <h2>Answer-Series Roadmap</h2>
+    <div class="roadmap-grid">
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 1 — Complete</span>
+        <strong>Fundamentals &amp; Style Selection</strong>
+        API vs protocol vs service, contracts, styles, paradigms
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 2 — Complete</span>
+        <strong>Resource Modeling &amp; REST Design</strong>
+        Resources, URLs, nesting, HTTP methods, representations
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 3 — Complete</span>
+        <strong>Contracts, Versioning &amp; Evolution</strong>
+        Breaking changes, versioning, deprecation, schema evolution
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 4 — Complete</span>
+        <strong>Request/Response Design</strong>
+        Pagination, filtering, sorting, field selection, envelopes
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 5 — Complete</span>
+        <strong>Idempotency &amp; Correctness</strong>
+        Idempotency keys, ETags, optimistic concurrency, retries
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 6 — Complete</span>
+        <strong>Authentication &amp; Authorization</strong>
+        API keys, OAuth, JWT, mTLS, RBAC, ABAC, BOLA, IDOR
+      </div>
+      <div class="roadmap-item current">
+        <span class="tag tag-now">Volume 7 — You are here</span>
+        <strong>Rate Limiting &amp; Quotas</strong>
+        Algorithms, distributed enforcement, headers, quotas
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 8</span>
+        <strong>Error Handling &amp; Status Codes</strong>
+        RFC 7807, retryability, partial failures
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 9</span>
+        <strong>API Gateways &amp; Management</strong>
+        Routing, BFF, canary, gateway vs mesh
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 10</span>
+        <strong>Performance &amp; Caching</strong>
+        HTTP caching, compression, HTTP/2 and HTTP/3
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 11</span>
+        <strong>Async APIs &amp; Webhooks</strong>
+        202 Accepted, callbacks, signatures, SSE
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 12–13</span>
+        <strong>GraphQL &amp; gRPC Deep Dives</strong>
+        N+1, DataLoader, streaming RPCs, gRPC-Web
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 14</span>
+        <strong>Security &amp; Abuse Prevention</strong>
+        OWASP API Top 10, injection, SSRF, enumeration
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 15</span>
+        <strong>Observability &amp; Operations</strong>
+        Metrics, tracing, deployment, incidents
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 16–17</span>
+        <strong>Lifecycle, Governance &amp; 17 Problems</strong>
+        Design reviews, DX, classic API prompts
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 18</span>
+        <strong>Senior &amp; Staff Trade-offs</strong>
+        Choosing between every pair of options
+      </div>
+    </div>
+  </section>
+
+  <!-- TOC -->
+  <nav class="toc">
+    <h2>Questions Answered in This Volume</h2>
+    <ol>
+      <li><a href="#q1">Why rate limit? What problem does it solve?</a></li>
+      <li><a href="#q2">Fixed window vs sliding window log vs sliding window counter</a></li>
+      <li><a href="#q3">Token bucket vs leaky bucket</a></li>
+      <li><a href="#q4">How do you implement a distributed rate limiter?</a></li>
+      <li><a href="#q5">What do you rate limit on — IP, user, tenant, endpoint?</a></li>
+      <li><a href="#q6">How do you communicate limits to clients — headers and 429?</a></li>
+      <li><a href="#q7">Rate limiting vs concurrency limiting vs load shedding</a></li>
+      <li><a href="#q8">How do you design quotas for a multi-tenant SaaS?</a></li>
+      <li><a href="#q9">Throttling vs rejection — when do you delay instead of denying?</a></li>
+      <li><a href="#q10">How do you prevent rate-limit bypass and abuse?</a></li>
+    </ol>
+  </nav>
+
+  <!-- ================= PART A ================= -->
+  <div class="part-band">
+    <div class="bar"></div>
+    <h2>Part A — Algorithms
+      <span class="sub">The five classic limiters, and how each behaves under burst</span>
+    </h2>
+  </div>
+
+  <!-- Q1 -->
+  <article class="q" id="q1">
+    <div class="q-head">
+      <div class="q-num">1</div>
+      <h3>Why rate limit? What problem does it actually solve?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Rate limiting protects three things: <strong>availability</strong> (one client cannot exhaust shared
+        resources), <strong>fairness</strong> (every client gets a reasonable share), and <strong>cost</strong>
+        (downstream services, third-party APIs, and compute are bounded). It is not about security in the narrow
+        sense — it is about making the system's capacity predictable under abuse, accident, or runaway clients.</p>
+      </div>
+
+      <h4>The four reasons to rate limit</h4>
+      <ul>
+        <li><strong>Protect shared infrastructure.</strong> A single client sending 100,000 requests per second can
+        saturate the database, the connection pool, or the CPU — degrading service for everyone. The limiter caps
+        each client's share of the shared resource.</li>
+        <li><strong>Prevent accidental over-use.</strong> A misconfigured client (a retry loop with no backoff, a
+        batch job with too much parallelism) can generate traffic that looks like an attack. The limiter turns it
+        into clear 429s that the client can respond to, instead of silent degradation.</li>
+        <li><strong>Bound cost.</strong> Every request costs compute, database IO, or a third-party API call.
+        Without a limit, one client's usage can produce an unbounded bill — or exhaust a downstream quota (e.g.,
+        a payment provider's per-second limit), which affects all clients.</li>
+        <li><strong>Make abuse expensive.</strong> Scrapers, credential stuffing, and enumeration become far less
+        effective when each source is limited to a rate that makes the attack impractically slow. This is the
+        security dimension — not preventing the attack, but making it economically unattractive.</li>
+      </ul>
+
+      <h4>What rate limiting is not</h4>
+      <p>Rate limiting is often confused with adjacent mechanisms. It is not:</p>
+      <ul>
+        <li><strong>Authentication.</strong> A rate limit applies after authentication. It cannot substitute for
+        verifying identity.</li>
+        <li><strong>Authorization.</strong> It does not check whether the caller is allowed to do something — only
+        how often.</li>
+        <li><strong>DDoS protection.</strong> A DDoS attack from 100,000 IPs each sending 10 requests per second
+        will not be stopped by per-IP rate limiting. DDoS protection is at the network edge (anycast, scrubbing
+        centres, CDNs). Rate limiting is for authenticated or semi-identified clients.</li>
+        <li><strong>A security boundary.</strong> A determined attacker with many accounts can bypass per-user
+        limits. Rate limiting raises the cost; it does not guarantee safety.</li>
+      </ul>
+
+      <h4>The consequences of not rate limiting</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Scenario</th><th>Without rate limiting</th><th>With rate limiting</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>A client's retry loop goes haywire</td>
+              <td>Database saturates; all clients see errors; the system looks down</td>
+              <td>The runaway client gets 429s; healthy traffic continues</td>
+            </tr>
+            <tr>
+              <td>A scraper enumerates the catalogue</td>
+              <td>The scraper copies the entire dataset in minutes</td>
+              <td>Enumeration takes days; the cost outweighs the value</td>
+            </tr>
+            <tr>
+              <td>A batch job re-processes an entire table</td>
+              <td>Third-party API quota is exhausted; the integration breaks for everyone</td>
+              <td>The batch job is throttled; other clients unaffected</td>
+            </tr>
+            <tr>
+              <td>A bug creates a tight loop in a mobile app</td>
+              <td>Thousands of users with the bug overwhelm the backend</td>
+              <td>The app's users get 429s and backoff; the rest of the system is safe</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Where to rate limit</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Layer</th><th>What it protects</th><th>Typical limit</th></tr></thead>
+          <tbody>
+            <tr><td>CDN / edge</td><td>Network bandwidth, DDoS</td><td>Very high per IP (thousands/s)</td></tr>
+            <tr><td>API gateway</td><td>The API surface, authentication, and routing</td><td>Per API key: tens to thousands/s</td></tr>
+            <tr><td>Service</td><td>The service's own resources (database, dependencies)</td><td>Per operation: specific to the operation's cost</td></tr>
+            <tr><td>Third-party client</td><td>The downstream provider's quota</td><td>At or below the provider's limit</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The standard architecture: a coarse limit at the gateway (per API key) and a finer limit at the service
+      (per operation, or per tenant). The gateway protects the whole API; the service protects its specific
+      resource.</p>
+
+      <h4>The fairness dimension</h4>
+      <p>Rate limiting is fundamentally about fairness. A system with no limits is a system where the loudest client
+      wins, and the quietest client suffers. A system with well-designed limits is one where each client gets a
+      share proportional to its tier, the shared infrastructure is protected, and the quiet client is never
+      degraded by the loud one. This framing — fairness, not punishment — is what distinguishes a good rate limiter
+      from a hostile one.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Rate limiting is about fairness and protection, not security — it caps each client's share of shared
+        resources and bounds the cost of any one client. DDoS is handled at the edge, not here." That framing shows
+        you understand what the mechanism is actually for.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q2 -->
+  <article class="q" id="q2">
+    <div class="q-head">
+      <div class="q-num">2</div>
+      <h3>Compare fixed window, sliding window log, and sliding window counter algorithms.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p><strong>Fixed window</strong> counts requests in a fixed time bucket (e.g., per minute) — simple and
+        cheap, but allows a 2× burst at the boundary. <strong>Sliding window log</strong> stores each request
+        timestamp and counts the last N — accurate, but memory-heavy. <strong>Sliding window counter</strong>
+        approximates the sliding window by weighted interpolation of two fixed windows — nearly as accurate as the
+        log at a fraction of the memory.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Algorithm</th><th>Memory</th><th>Accuracy</th><th>Burst behaviour</th><th>Best for</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Fixed window</td>
+              <td>O(1) — one counter per key</td>
+              <td>Low — boundary burst allowed</td>
+              <td>Up to 2× the limit at the boundary</td>
+              <td>Simple cases; approximate limits</td>
+            </tr>
+            <tr>
+              <td>Sliding window log</td>
+              <td>O(N) — every request timestamp</td>
+              <td>Exact</td>
+              <td>Strict — no boundary burst</td>
+              <td>Low-volume, strict limits (login attempts)</td>
+            </tr>
+            <tr>
+              <td>Sliding window counter</td>
+              <td>O(1) — two counters per key</td>
+              <td>High (approximation)</td>
+              <td>Smoothed — no 2× burst</td>
+              <td>High-volume APIs — the pragmatic default</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Fixed window</h4>
+      <p>The simplest algorithm. Divide time into fixed buckets (e.g., a minute), and keep one counter per key per
+      bucket. On each request, increment the counter; if it exceeds the limit, reject. When the bucket rolls over,
+      the counter resets.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Pros</th><th>Cons</th></tr></thead>
+          <tbody>
+            <tr><td>Trivial to implement and reason about</td><td>The boundary burst problem</td></tr>
+            <tr><td>One counter per key, O(1) memory</td><td>Imprecise limits — actual rate can reach 2×</td></tr>
+            <tr><td>Cheap to compute</td><td>Does not smoothly distribute load</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p><strong>The boundary burst.</strong> With a limit of 100 per minute, a client can send 100 requests at
+      59.999s and 100 more at 60.001s — 200 requests in 2 milliseconds, while technically satisfying "100 per
+      minute". This is fine for approximate limits, and catastrophic for strict ones (e.g., login attempts).</p>
+
+      <h4>Sliding window log</h4>
+      <p>Store every request's timestamp in a log (usually a sorted set, or a Redis sorted set with timestamp
+      scores). On each request, remove entries older than the window, count what remains, and compare to the limit.
+      Accurate but memory-proportional to the limit — a limit of 10,000 per hour needs up to 10,000 timestamps per
+      key.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Pros</th><th>Cons</th></tr></thead>
+          <tbody>
+            <tr><td>Exact — no boundary burst</td><td>Memory grows with the limit</td></tr>
+            <tr><td>Handles variable windows easily</td><td>Each request needs a write + range delete</td></tr>
+            <tr><td>Useful for logging rejected requests too</td><td>Not scalable to millions of keys at high limits</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>This is the algorithm of choice for strict, low-volume limits — password attempts, SMS sends, expensive
+      operations. For an API that allows millions of requests per hour, storing a timestamp per request is too much
+      memory.</p>
+
+      <h4>Sliding window counter (the pragmatic default)</h4>
+      <p>An approximation that is accurate to within a few percent while using O(1) memory. The idea: keep two
+      fixed-window counters — the current window and the previous window. On each request, compute a weighted count
+      based on how far into the current window you are:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Step</th><th>Computation</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr><td>Current time</td><td><code>t</code></td><td>45 seconds into a 60-second window</td></tr>
+            <tr><td>Current window count</td><td><code>curr</code></td><td>40 requests</td></tr>
+            <tr><td>Previous window count</td><td><code>prev</code></td><td>80 requests</td></tr>
+            <tr><td>Weight of previous</td><td><code>(window_seconds − t) / window_seconds</code></td><td>(60 − 45) / 60 = 0.25</td></tr>
+            <tr><td>Estimated total</td><td><code>curr + prev × weight</code></td><td>40 + 80 × 0.25 = 60</td></tr>
+            <tr><td>Decision</td><td>Compare to the limit</td><td>If limit is 100, allow</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>This estimates the count in the "sliding" window ending at <code>t</code>: the current window's counts,
+      plus a fraction of the previous window's counts proportional to how much of it still lies in the past 60
+      seconds. It is a linear interpolation, not exact, but the error is small (a few percent) and it is O(1) per
+      key — two counters, one per window.</p>
+      <p>This is the algorithm used by most production rate limiters (Cloudflare, Redis-backed limiters, Stripe's
+      published design). It gives smooth limits without the boundary burst and without the memory cost of the log.</p>
+
+      <h4>The burst question</h4>
+      <p>None of these algorithms handle "bursts" gracefully in the way clients actually behave. A client that
+      sends 100 requests over 60 seconds may send them in 10 seconds (a 10x burst) and then be idle. Fixed and
+      sliding windows see "100 in the minute" and allow it; the momentary load spike still hits the backend.
+      This is why token bucket (Question 3) exists — it allows a burst up to the bucket size while enforcing an
+      average rate over time.</p>
+
+      <h4>The decision</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>If you need…</th><th>Use</th></tr></thead>
+          <tbody>
+            <tr><td>The simplest possible implementation</td><td>Fixed window</td></tr>
+            <tr><td>Exact enforcement at low volume</td><td>Sliding window log</td></tr>
+            <tr><td>Smooth enforcement at high volume</td><td>Sliding window counter</td></tr>
+            <tr><td>Burst allowance with a rate cap</td><td>Token bucket (Question 3)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Using fixed windows for security-sensitive limits (login attempts, SMS sends). The 2× boundary burst means
+        an attacker can make twice the allowed attempts per period by timing the request around the boundary — which
+        for a limit of 5 attempts per minute means 10 attempts per minute, enough for a much faster brute-force.
+        Use sliding window log for these.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q3 -->
+  <article class="q" id="q3">
+    <div class="q-head">
+      <div class="q-num">3</div>
+      <h3>Compare token bucket and leaky bucket.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p><strong>Token bucket</strong> refills a bucket of tokens at a fixed rate and consumes one per request.
+        It allows a burst up to the bucket size, then enforces the rate — good for real client behaviour.
+        <strong>Leaky bucket</strong> drains a queue at a fixed rate; incoming requests either fill the queue or
+        are rejected — good for smoothing output. Token bucket limits <em>input rate</em> with bursts; leaky
+        bucket shapes <em>output rate</em>.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Algorithm</th><th>Shape</th><th>Burst allowed?</th><th>Rate enforced</th><th>Best for</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Token bucket</td>
+              <td>Refill at rate R, up to capacity B; consume 1 per request</td>
+              <td>Yes, up to B</td>
+              <td>Average R, instantaneous up to B</td>
+              <td>API rate limits — bursts are normal client behaviour</td>
+            </tr>
+            <tr>
+              <td>Leaky bucket</td>
+              <td>Queue of capacity B; drain at rate R</td>
+              <td>No — output is strictly at R</td>
+              <td>Strict R</td>
+              <td>Smoothing traffic to a downstream (e.g., a third-party API)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Token bucket — the API rate limiter</h4>
+      <p>The metaphor: a bucket holds tokens. Tokens are added at a fixed rate (say, 10 per second) up to a maximum
+      (say, 100). Each request consumes one token. If the bucket is empty, the request is rejected. If the bucket
+      is full, extra tokens are discarded — the rate is capped, not the burst.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>State</th><th>Behaviour</th></tr></thead>
+          <tbody>
+            <tr><td>Bucket full, no recent traffic</td><td>The client can burst up to the bucket size (100 requests immediately)</td></tr>
+            <tr><td>Bucket empty after a burst</td><td>Requests are rejected until tokens accumulate</td></tr>
+            <tr><td>Steady traffic at rate R</td><td>The bucket stays full; no rejections</td></tr>
+            <tr><td>Traffic above rate R</td><td>The bucket drains; after B tokens, rejections start</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>This is why token bucket is the default for APIs: real clients are bursty. A mobile app loading a screen
+      sends 10 requests in 200 ms, then nothing for a minute. Fixed and sliding windows would reject the burst
+      (10 in 200 ms violates "10 per minute"), which frustrates the client. Token bucket allows the burst (10 ≤
+      100), and the bucket refills over the next minute, ready for the next screen.</p>
+
+      <h4>Leaky bucket — the output shaper</h4>
+      <p>The metaphor: a bucket with a hole in the bottom. Requests pour in; the bucket drains at a fixed rate
+      (say, 10 per second). If the bucket is full, incoming requests are rejected (or queued, depending on the
+      variant). The output is always at the drain rate — no bursts ever reach the downstream.</p>
+      <p>This is the right tool when the downstream <em>cannot</em> handle bursts. A third-party API that allows
+      100 requests per second but rejects bursts above 10 in any 100 ms window needs leaky bucket shaping — the
+      client must present a smooth rate, not a burst.</p>
+
+      <h4>The two bucket variants</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Variant</th><th>Behaviour</th><th>Use</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Leaky bucket as a queue</td>
+              <td>Requests wait in the queue and are processed at the drain rate; the queue is bounded; overflow is rejected</td>
+              <td>Smoothing with latency tolerance — the client waits</td>
+            </tr>
+            <tr>
+              <td>Leaky bucket as a meter</td>
+              <td>The bucket is a counter that drains; requests are rejected when the meter is full</td>
+              <td>Rate limiting without queueing — the client is told to retry later</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The queue variant introduces latency (requests wait), which is usually unacceptable for a synchronous API.
+      The meter variant is what most APIs actually use, and it behaves similarly to token bucket with zero burst
+      capacity.</p>
+
+      <h4>When each is the right answer</h4>
+      <ul>
+        <li><strong>API rate limiting (per client):</strong> token bucket. Bursts are normal; the limit should allow
+        them up to a reasonable size while capping the average.</li>
+        <li><strong>Protecting a downstream that cannot handle bursts:</strong> leaky bucket (meter variant). Smooth
+        the rate to exactly what the downstream can handle.</li>
+        <li><strong>Protecting against scraping or enumeration:</strong> token bucket with a small bucket. The
+        attacker cannot exploit bursts because the bucket is tiny.</li>
+        <li><strong>Queueing with bounded latency:</strong> leaky bucket as a queue, with a max wait time. Useful
+        for batch processing where the client tolerates waiting.</li>
+      </ul>
+
+      <h4>The combined token-bucket-plus-concurrency approach</h4>
+      <p>For high-performance APIs, a token bucket alone is not enough. A client with a bucket of 100 tokens can
+      send 100 concurrent requests, which may overload the backend even though the rate is fine. The complete
+      design combines two limits:</p>
+      <ul>
+        <li><strong>Rate limit</strong> (token bucket) — caps requests per second per client.</li>
+        <li><strong>Concurrency limit</strong> (Question 7) — caps requests in flight per client, so no client can
+        saturate the thread pool.</li>
+      </ul>
+      <p>Both are necessary. The rate limit protects against sustained over-use; the concurrency limit protects
+      against momentary bursts of parallel requests.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Token bucket allows bursts — good for user experience, but a client can briefly exceed the average rate.
+        Leaky bucket strictly limits the rate — good for downstream protection, but rejects the bursts real clients
+        send. Choose based on what you are protecting: the API from the client (token bucket) or the downstream
+        from the API (leaky bucket).</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART B ================= -->
+  <div class="part-band slate">
+    <div class="bar"></div>
+    <h2>Part B — Implementation
+      <span class="sub">Distributed state, keying, and the client contract</span>
+    </h2>
+  </div>
+
+  <!-- Q4 -->
+  <article class="q slate" id="q4">
+    <div class="q-head">
+      <div class="q-num">4</div>
+      <h3>How do you implement a distributed rate limiter without a single point of failure?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Store the counters in a shared, fast, durable store — usually Redis, sometimes a specialized service like
+        Envoy's rate limit or Cloudflare's edge counters. Use atomic operations (<code>INCR</code>, Lua scripts,
+        or token bucket scripts) so concurrent requests see a consistent view. Shard by key to avoid a single hot
+        instance, and accept eventual consistency across shards as the trade-off for scale.</p>
+      </div>
+
+      <h4>Why distributed is hard</h4>
+      <p>A single-server rate limiter is trivial: a hash map in memory. A distributed limiter has three problems:</p>
+      <ul>
+        <li><strong>Shared state.</strong> Every instance must see the same counter. Two instances that each allow
+        "50 per second" without sharing state effectively allow 100 — the limit is multiplied by the fleet size.</li>
+        <li><strong>Atomicity.</strong> The check-and-decrement must be atomic. A naive "read counter, compare to
+        limit, increment" race allows a burst through if two requests read the same value.</li>
+        <li><strong>Latency.</strong> Every request now requires a call to the limiter store, adding a network hop
+        to the hot path. At high volume, that hop is significant.</li>
+      </ul>
+
+      <h4>The Redis approach</h4>
+      <p>Redis is the standard because it is fast, supports atomic operations, and is widely available. Two common
+      patterns:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Pattern</th><th>Commands</th><th>Pros</th><th>Cons</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Fixed window with INCR + EXPIRE</td>
+              <td><code>INCR key</code>, <code>EXPIRE key window</code></td>
+              <td>Simple, one round trip if pipelined</td>
+              <td>Fixed window limitations</td>
+            </tr>
+            <tr>
+              <td>Token bucket via Lua script</td>
+              <td>A single <code>EVAL</code> that reads, refills, checks, and decrements atomically</td>
+              <td>Atomic; token bucket semantics; one round trip</td>
+              <td>Lua complexity; script maintenance</td>
+            </tr>
+            <tr>
+              <td>Sliding window via sorted set</td>
+              <td><code>ZADD</code>, <code>ZREMRANGEBYSCORE</code>, <code>ZCARD</code></td>
+              <td>Exact sliding window</td>
+              <td>Memory proportional to limit; multiple commands</td>
+            </tr>
+            <tr>
+              <td>Sliding window counter via Lua</td>
+              <td>Two counters, interpolated</td>
+              <td>O(1) memory; smooth</td>
+              <td>Approximate</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The Lua script pattern is the standard for token bucket and sliding window counter, because it gives
+      atomicity without a transaction protocol. The script reads the current state, computes the refill, checks the
+      limit, and updates — all in one atomic operation on the Redis server.</p>
+
+      <h4>The hot key problem</h4>
+      <p>A single Redis instance handling all rate limit keys becomes a hotspot. A popular API key (a public
+      integration used by millions) can hit the same Redis shard with thousands of requests per second, saturating
+      it. The mitigations:</p>
+      <ul>
+        <li><strong>Shard by key.</strong> Redis Cluster distributes keys across shards; a single key still hits
+        one shard, so a single popular key is still a hotspot.</li>
+        <li><strong>Local approximation with periodic sync.</strong> Each instance holds a local token bucket and
+        periodically (every 100 ms) syncs its consumption to Redis. The local limiter allows bursts up to its own
+        capacity; the global limiter corrects over time. This trades exactness for speed.</li>
+        <li><strong>Two-tier limits.</strong> A per-instance limit (local, fast) plus a global limit (Redis,
+        authoritative). The local limit prevents any one instance from over-consuming; the global limit enforces the
+        tenant-wide cap.</li>
+        <li><strong>Cache the decision.</strong> For the "allow" case, cache the decision for a few milliseconds —
+        if a burst of requests for the same key arrives within 10 ms, use the cached decision instead of re-querying
+        Redis. The cost is that the limit is approximate within that window.</li>
+      </ul>
+
+      <h4>The failure mode question</h4>
+      <p>What happens when the rate limiter store is down? Two policies:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Policy</th><th>Behaviour</th><th>Trade-off</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Fail-open</strong></td>
+              <td>Allow all requests when the limiter is unavailable</td>
+              <td>Availability preserved; the system is unprotected during the outage</td>
+            </tr>
+            <tr>
+              <td><strong>Fail-closed</strong></td>
+              <td>Reject all requests when the limiter is unavailable</td>
+              <td>Protection preserved; the entire API is down because of the limiter</td>
+            </tr>
+            <tr>
+              <td><strong>Fail-degraded</strong></td>
+              <td>Use a local fallback limiter (each instance limits independently, without global coordination)</td>
+              <td>Some protection, some availability — the pragmatic answer</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Fail-open is the right default for most APIs: a rate limiter outage should not become an API outage. The
+      risk (temporary over-use) is smaller than the cost (total unavailability). Fail-closed is only right if the
+      limit protects a resource that would be catastrophically damaged by over-use — which is rarely the case for
+      an API.</p>
+
+      <h4>The local fallback</h4>
+      <p>The best of both worlds: each instance runs its own token bucket locally, and syncs consumption to Redis
+      every 100 ms or so. When Redis is available, the global limit is enforced (within the sync window). When Redis
+      is down, the local limit still caps each instance — so the fleet can over-consume by at most <code>N ×
+      local_limit</code>, which is degraded but not catastrophic. This is how most production rate limiters work.</p>
+
+      <h4>The alternative: dedicated rate limit services</h4>
+      <p>For very high scale or very strict requirements, a dedicated rate limit service — Google's Cloud Armor,
+      Cloudflare's edge rate limiting, Envoy's rate limit service, or a custom gRPC service — is the right design.
+      It scales independently of the API, is optimised for the limiter workload, and centralises the policy. The
+      cost is an extra service to operate.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Implementing rate limiting with a non-atomic read-modify-write on Redis (e.g., <code>GET</code>,
+        then <code>SET</code>). Two concurrent requests both read the same counter, both increment to the same value,
+        and the effective limit is doubled. Redis <code>INCR</code> and Lua scripts are atomic; anything built on
+        separate commands is not.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q5 -->
+  <article class="q slate" id="q5">
+    <div class="q-head">
+      <div class="q-num">5</div>
+      <h3>What do you rate limit on — IP, user, tenant, endpoint, or something else?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>The key should match the unit of fairness you care about. <strong>Per API key</strong> for machine clients,
+        <strong>per user</strong> for authenticated humans, <strong>per tenant</strong> for a SaaS,
+        <strong>per IP</strong> for unauthenticated traffic. In practice you layer several: a coarse per-IP limit
+        at the edge (DDoS), a per-API-key limit at the gateway, a per-user limit in the service, and a per-endpoint
+        limit for expensive operations.</p>
+      </div>
+
+      <h4>The possible keys</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Key</th><th>What it protects</th><th>Weakness</th><th>Use when</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>IP address</strong></td>
+              <td>The network; unauthenticated traffic</td>
+              <td>NAT and mobile carriers share IPs; a single IP can represent thousands of users</td>
+              <td>Unauthenticated endpoints (login, signup, public search)</td>
+            </tr>
+            <tr>
+              <td><strong>API key</strong></td>
+              <td>The application</td>
+              <td>One key can be shared by an entire tenant — the limit is per application, not per user</td>
+              <td>Machine-to-machine; public APIs</td>
+            </tr>
+            <tr>
+              <td><strong>User ID</strong></td>
+              <td>The individual authenticated user</td>
+              <td>Requires authentication; an attacker can create many accounts</td>
+              <td>Authenticated user-facing endpoints</td>
+            </tr>
+            <tr>
+              <td><strong>Tenant ID</strong></td>
+              <td>The organisation</td>
+              <td>Does not distinguish noisy users within a tenant</td>
+              <td>SaaS billing, fair-share across customers</td>
+            </tr>
+            <tr>
+              <td><strong>Endpoint / operation</strong></td>
+              <td>A specific expensive operation</td>
+              <td>Not an identity — must be combined with an identity key</td>
+              <td>Expensive operations (search, export, report)</td>
+            </tr>
+            <tr>
+              <td><strong>Composite key</strong></td>
+              <td>E.g., user × endpoint, tenant × endpoint</td>
+              <td>Combinatorial explosion of counters</td>
+              <td>Per-user limits on each expensive operation</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Why IP alone is insufficient</h4>
+      <p>IP-based rate limiting has two well-known problems:</p>
+      <ul>
+        <li><strong>NAT and carrier-grade NAT.</strong> A thousand users behind one corporate NAT share one IP.
+        A per-IP limit of 100/minute means 100 users get the whole quota and the other 900 get 429s. The limit
+        punishes the whole group for one user's behaviour.</li>
+        <li><strong>Distributed attacks.</strong> A botnet with 10,000 IPs each sending 10 requests per minute
+        easily exceeds a per-IP limit without any individual IP triggering it. IP rate limiting is not DDoS
+        protection.</li>
+      </ul>
+      <p>IP is still useful as the <em>outermost</em> layer for unauthenticated endpoints (login, signup, public
+      search), where it is the only identity available. But it is a blunt instrument, and it should not be the
+      primary limiter for authenticated traffic.</p>
+
+      <h4>Layering the keys</h4>
+      <p>Real APIs use multiple limits at multiple layers:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Layer</th><th>Key</th><th>Typical limit</th><th>Protects</th></tr></thead>
+          <tbody>
+            <tr><td>Edge / CDN</td><td>IP</td><td>Thousands/minute</td><td>Network bandwidth; basic DDoS</td></tr>
+            <tr><td>Gateway</td><td>API key</td><td>Hundreds–thousands/minute</td><td>The API surface</td></tr>
+            <tr><td>Gateway</td><td>Tenant</td><td>Per plan</td><td>Fair share across customers</td></tr>
+            <tr><td>Service</td><td>User</td><td>Tens–hundreds/minute</td><td>Individual user behaviour</td></tr>
+            <tr><td>Service</td><td>User × operation</td><td>Per operation</td><td>Expensive operations</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>A request must pass every layer. A single user can have 100/minute (their user limit) but also be subject
+      to a 1000/minute API key limit shared with their whole company — if the company's collective traffic exceeds
+      that, everyone in the company gets 429s regardless of their individual limit.</p>
+
+      <h4>The expensive-operation dimension</h4>
+      <p>Some endpoints cost 100× more than others. A simple <code>GET /users/{id}</code> might take 5 ms and hit
+      one database row; a <code>POST /search</code> might take 500 ms and scan millions of rows. Applying the same
+      rate to both means either the simple one is under-limited (wasting capacity) or the expensive one is
+      over-limited (rejecting reasonable use). The answer is <strong>per-operation limits</strong>:</p>
+      <ul>
+        <li><code>GET /users/{id}</code> — 1000/min per user</li>
+        <li><code>POST /search</code> — 60/min per user</li>
+        <li><code>POST /export</code> — 5/hour per user</li>
+        <li><code>POST /reports</code> — 10/day per user</li>
+      </ul>
+      <p>The limits reflect the cost of the operation, not a single global rate. This is also the foundation of
+      usage-based billing (Question 8) — the meter counts per operation, not just requests.</p>
+
+      <h4>The multi-dimensional key</h4>
+      <p>For a SaaS API, the most useful limit is often a composite: <code>(tenant_id, endpoint)</code>. This gives
+      each tenant a fair share of each operation's capacity. Tenant A cannot exhaust the search quota for tenant B,
+      and a noisy tenant cannot degrade the experience of a quiet one. The composite key is the design that makes
+      multi-tenant fairness work — Question 8 covers the details.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "I'll layer limits — per-IP at the edge for unauthenticated traffic, per-API-key at the gateway,
+        per-tenant for fair share, per-user for the individual, and per-operation for expensive endpoints. Each
+        layer protects a different resource." That demonstrates the multi-layer design and why no single key is
+        sufficient.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q6 -->
+  <article class="q slate" id="q6">
+    <div class="q-head">
+      <div class="q-num">6</div>
+      <h3>How do you communicate rate limits to clients — headers, 429, and Retry-After?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Return rate limit information in <strong>response headers</strong> on every request (not just when
+        rejecting), and return <code>429 Too Many Requests</code> with a <code>Retry-After</code> header when the
+        limit is exceeded. The headers should tell the client the limit, the remaining budget, and when the window
+        resets — so well-behaved clients can self-throttle before they hit the wall.</p>
+      </div>
+
+      <h4>The standard headers</h4>
+      <p>There are three conventions in the wild, and the industry is slowly converging on the third:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Convention</th><th>Headers</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>GitHub / Twitter style</td>
+              <td><code>X-RateLimit-Limit</code>, <code>X-RateLimit-Remaining</code>, <code>X-RateLimit-Reset</code></td>
+              <td>Widely understood; the <code>Reset</code> is usually a Unix timestamp</td>
+            </tr>
+            <tr>
+              <td>IETF draft (RateLimit-*)</td>
+              <td><code>RateLimit-Limit</code>, <code>RateLimit-Remaining</code>, <code>RateLimit-Reset</code>, <code>RateLimit-Policy</code></td>
+              <td>Standardised draft; no <code>X-</code> prefix; supports multiple policies</td>
+            </tr>
+            <tr>
+              <td>RFC 9331 (combined)</td>
+              <td><code>RateLimit: limit=100, remaining=50, reset=30</code></td>
+              <td>Single header; newer; less tooling support</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The IETF draft headers are the future, but the <code>X-RateLimit-*</code> headers are what most tools,
+      clients, and SDKs understand today. Many APIs send both — the standard ones for compatibility, the
+      <code>X-</code> ones for the ecosystem.</p>
+
+      <h4>What each header means</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Header</th><th>Meaning</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr><td><code>Limit</code></td><td>The maximum requests allowed in the current window</td><td><code>100</code></td></tr>
+            <tr><td><code>Remaining</code></td><td>How many requests are left in the window</td><td><code>37</code></td></tr>
+            <tr><td><code>Reset</code></td><td>Seconds until the window resets (or a Unix timestamp, depending on the convention)</td><td><code>23</code> (seconds) or <code>1705314600</code> (timestamp)</td></tr>
+            <tr><td><code>Policy</code></td><td>The limit's scope and window</td><td><code>100;w=60</code> (100 per 60 seconds)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The <code>Remaining</code> header is the most actionable — a client that sees <code>remaining: 5</code> with
+      <code>reset: 2</code> can wait 2 seconds and continue, instead of blasting requests and getting rejected. This
+      is the "self-throttling" use case that makes the headers valuable: well-behaved clients stay under the limit
+      without ever hitting a 429.</p>
+
+      <h4>The 429 response</h4>
+      <p>When the client exceeds the limit, return <code>429 Too Many Requests</code> with a body that explains the
+      rejection and a <code>Retry-After</code> header:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Header / field</th><th>Content</th></tr></thead>
+          <tbody>
+            <tr><td>Status</td><td><code>429 Too Many Requests</code></td></tr>
+            <tr><td><code>Retry-After</code></td><td>Seconds to wait, or an HTTP date: <code>Retry-After: 30</code></td></tr>
+            <tr><td><code>RateLimit-Reset</code></td><td>When the limit resets (same as on the success response)</td></tr>
+            <tr><td>Body (RFC 7807)</td><td><code>{"type": ".../rate-limited", "title": "Too many requests", "detail": "Rate limit of 100/min exceeded. Retry after 30 seconds.", "status": 429}</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The <code>Retry-After</code> header is the critical piece. Without it, the client has no idea when to retry
+      and will either give up or retry immediately (making the problem worse). With it, a well-written client can
+      wait exactly as long as needed.</p>
+
+      <h4>Which convention for Reset</h4>
+      <p>The <code>X-RateLimit-Reset</code> header has two interpretations in the wild:</p>
+      <ul>
+        <li><strong>Seconds remaining</strong> (a small integer, e.g., <code>23</code>) — easier to use, but the
+        client's clock is irrelevant.</li>
+        <li><strong>Unix timestamp</strong> (e.g., <code>1705314600</code>) — the client computes
+        <code>reset - now</code>, which is subject to clock skew.</li>
+      </ul>
+      <p>Use seconds remaining. It is unambiguous, immune to clock skew, and what the IETF draft specifies. Document
+      it clearly — the same header with different semantics across APIs is a source of bugs.</p>
+
+      <h4>Headers on success, not just on failure</h4>
+      <p>A common mistake is returning rate limit headers only on 429. This means the client has no idea what its
+      limit is until it has already exceeded it. Return the headers on every response — success and failure — so a
+      well-behaved client can self-throttle from the first request.</p>
+      <p>The cost is a few bytes per response, negligible. The benefit is that clients that read the headers can
+      avoid hitting the limit at all, which is better for the client (no 429s, no retry logic) and for the server
+      (no wasted rejection work).</p>
+
+      <h4>The multi-policy case</h4>
+      <p>A request may be subject to several limits at once — per-user, per-tenant, per-operation. When any is
+      exceeded, return 429 with the headers for the <em>tightest</em> limit (the one that triggered the rejection).
+      The IETF <code>RateLimit-Policy</code> header supports listing multiple policies, but the client's decision
+      should be based on the most restrictive one.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Returning 429 without a <code>Retry-After</code> header. The client does not know how long to wait, so it
+        either gives up (bad UX) or retries immediately (worse — it makes the rate limit problem worse). Every 429
+        must tell the client when to come back.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Every response carries RateLimit-Limit, Remaining, and Reset, so well-behaved clients self-throttle.
+        On 429 I add Retry-After so the client knows exactly when to retry." That covers both the success path and
+        the failure path in two sentences.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q7 -->
+  <article class="q slate" id="q7">
+    <div class="q-head">
+      <div class="q-num">7</div>
+      <h3>What is the difference between rate limiting, concurrency limiting, and load shedding?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p><strong>Rate limiting</strong> caps requests per unit time (per client). <strong>Concurrency
+        limiting</strong> caps requests in flight at any instant (per client or per service). <strong>Load
+        shedding</strong> rejects requests when the system is overloaded, regardless of who is asking. Rate limiting
+        is a policy on the caller; concurrency limiting protects a resource; load shedding is a last-resort defence
+        of the whole system.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Mechanism</th><th>What it caps</th><th>Protects</th><th>Behaviour under load</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Rate limiting</td>
+              <td>Requests per second per client</td>
+              <td>Fairness; sustained capacity</td>
+              <td>429 per client over its limit; others unaffected</td>
+            </tr>
+            <tr>
+              <td>Concurrency limiting</td>
+              <td>Requests in flight per client or per service</td>
+              <td>Memory, thread pools, connection pools</td>
+              <td>Queue or 503 when concurrency is at the cap</td>
+            </tr>
+            <tr>
+              <td>Load shedding</td>
+              <td>Total load on the system</td>
+              <td>The system itself (from overload)</td>
+              <td>Reject based on priority, endpoint, or random sampling — even for callers under their rate limit</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Rate limiting</h4>
+      <p>Requests per second. The classic limiter from Question 2. Protects against sustained over-use by one
+      client and enforces fairness. Applied per API key, per user, per tenant, per operation. It does <em>not</em>
+      protect against a momentary burst of parallel requests — 100 tokens allow 100 concurrent requests in
+      milliseconds, which a rate limit alone cannot prevent.</p>
+
+      <h4>Concurrency limiting</h4>
+      <p>Requests in flight. Each service has a finite thread pool, connection pool, and memory budget. A
+      concurrency limit — enforced by a semaphore or a queue — ensures that no more than N requests are being
+      processed at once. When N are in flight, the next request waits (bounded queue) or is rejected (503).</p>
+      <p>The concurrency limit is what protects the actual resource — the database connection pool (10 connections
+      per instance), the thread pool (200 threads), the memory for request bodies (100 MB). A rate limit of 1000
+      per second means nothing if the service can only handle 50 concurrent requests — the 51st will queue, latency
+      will spike, and the whole service will collapse.</p>
+      <p>The implementation is a bulkhead pattern: each client or each operation gets a bounded number of concurrent
+      slots. A slow client exhausting its own slots does not affect others — they have their own bulkhead. This is
+      the mechanism that prevents the "one slow dependency takes down the whole service" failure.</p>
+
+      <h4>Load shedding</h4>
+      <p>When the system is overloaded, <em>something</em> must be rejected, or everything fails. Load shedding
+      decides what to reject, based on priority:</p>
+      <ul>
+        <li><strong>Priority.</strong> Reject low-priority traffic (analytics, background jobs) first; keep
+        critical traffic (checkout, authentication) flowing.</li>
+        <li><strong>Endpoint.</strong> Reject expensive endpoints first; keep cheap ones.</li>
+        <li><strong>Random sampling.</strong> Reject a random fraction of requests — simple, fair, and effective at
+        reducing load below capacity.</li>
+        <li><strong>Per-client.</strong> Reject the clients that are consuming the most — the ones most likely to be
+        abusive or runaway.</li>
+      </ul>
+      <p>The classic techniques are <strong>deadline propagation</strong> (if a request has already consumed 80%
+      of its latency budget and is still queued, shed it — the client will time out anyway) and <strong>CPU-based
+      shedding</strong> (if CPU is above 90%, shed a proportional fraction of requests).</p>
+
+      <h4>How they compose</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Layer</th><th>Mechanism</th><th>Fails with</th></tr></thead>
+          <tbody>
+            <tr><td>Edge</td><td>Rate limit per IP</td><td>429</td></tr>
+            <tr><td>Gateway</td><td>Rate limit per API key; concurrency limit per tenant</td><td>429 / 503</td></tr>
+            <tr><td>Service</td><td>Concurrency limit per operation; load shedding when CPU high</td><td>503</td></tr>
+            <tr><td>Downstream</td><td>Circuit breaker; timeout; bulkhead</td><td>fallback / error</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Each layer catches what the others miss. Rate limiting catches the abusive client; concurrency limiting
+      catches the burst that a rate limit allows; load shedding catches the general overload that no per-client
+      limit can prevent (e.g., a sudden 10× surge from all clients at once). Together they form the complete
+      overload protection.</p>
+
+      <h4>The failure ordering question</h4>
+      <p>Which mechanism should fire first? The answer is: <strong>rate limit before concurrency before load
+      shedding</strong>. A client should be told "you are over your rate" (429) before being told "the server is
+      busy" (503). Load shedding is the last resort — it should only fire when the system is genuinely near
+      collapse, because it rejects requests that the other mechanisms would have allowed.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Rate limiting is precise but does not protect against bursts. Concurrency limiting protects the
+        resource but adds latency (queueing). Load shedding is a blunt instrument that rejects indiscriminately.
+        Use all three, in that order, with the coarsest at the outside and the finest at the resource boundary.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART C ================= -->
+  <div class="part-band emerald">
+    <div class="bar"></div>
+    <h2>Part C — Quotas &amp; Abuse
+      <span class="sub">Multi-tenant fairness and the bypass problem</span>
+    </h2>
+  </div>
+
+  <!-- Q8 -->
+  <article class="q emerald" id="q8">
+    <div class="q-head">
+      <div class="q-num">8</div>
+      <h3>How do you design quotas for a multi-tenant SaaS?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A quota is a <strong>usage allowance over a billing period</strong> — millions of requests per month,
+        storage gigabytes, API calls per tier. It is different from a rate limit (which caps instantaneous rate):
+        quotas are about total consumption, not speed. The design has four parts: a tier model, a metering system,
+        enforcement at multiple windows (per-second, per-day, per-month), and a clear client-facing contract for
+        what happens at overage.</p>
+      </div>
+
+      <h4>Rate limit vs quota</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Dimension</th><th>Rate limit</th><th>Quota</th></tr></thead>
+          <tbody>
+            <tr><td>Time window</td><td>Seconds to minutes</td><td>Day, month, billing period</td></tr>
+            <tr><td>Purpose</td><td>Protect against bursts and abuse</td><td>Price usage; bound total consumption</td></tr>
+            <tr><td>Response on exceed</td><td>429 with retry-after</td><td>429, or overage billing, or feature lockout</td></tr>
+            <tr><td>Reset</td><td>Continuously (rolling) or per window</td><td>Periodically (monthly, on billing date)</td></tr>
+            <tr><td>Measured in</td><td>Requests/second</td><td>Requests, bytes, compute, storage</td></tr>
+            <tr><td>Configurable by</td><td>Ops/platform</td><td>Product/pricing; often customer-self-serve</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Both are needed: a tenant on the "Pro" plan might have a quota of 10 million requests per month
+      <em>and</em> a rate limit of 1,000 requests per minute. The quota is about how much; the rate limit is about
+      how fast. Exceeding the rate is temporary (wait and retry); exceeding the quota is persistent (upgrade or wait
+      for the billing period).</p>
+
+      <h4>The tier model</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Tier</th><th>Monthly requests</th><th>Rate limit</th><th>Overage</th></tr></thead>
+          <tbody>
+            <tr><td>Free</td><td>10,000</td><td>10/min</td><td>Hard cap — 429 after quota</td></tr>
+            <tr><td>Pro</td><td>1,000,000</td><td>1,000/min</td><td>$0.01 per 1,000 extra; no hard cap</td></tr>
+            <tr><td>Enterprise</td><td>Custom</td><td>Negotiated</td><td>Negotiated</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The free tier is usually hard-capped (to prevent abuse); the paid tiers allow overage with billing (so the
+      customer's service does not break at the quota boundary); the enterprise tier is custom. This is the
+      standard model, and it aligns with what customers expect.</p>
+
+      <h4>Metering</h4>
+      <p>Every billable operation must be counted and attributed to a tenant. The meter must be:</p>
+      <ul>
+        <li><strong>Accurate.</strong> Every billable request is counted exactly once. This is an idempotency
+        problem (Volume 5) — a retried request must not be billed twice, or a client retrying a timeout is charged
+        extra for the retry.</li>
+        <li><strong>Timely.</strong> The meter is updated within seconds, so the quota enforcement reflects current
+        usage. A daily batch is too slow — a tenant can exceed its quota by millions of requests before the meter
+        catches up.</li>
+        <li><strong>Durable.</strong> The meter is stored in a durable store (database, not just Redis), so a crash
+        does not lose billing data.</li>
+        <li><strong>Attributable.</strong> Every count maps to a tenant, an operation, and a timestamp — for billing,
+        for analytics, and for resolving disputes.</li>
+      </ul>
+      <p>The standard implementation is an event stream: every request emits a usage event, which is aggregated into
+      a per-tenant, per-period counter. The aggregation can be real-time (Redis + periodic flush to DB) or
+      near-real-time (a streaming pipeline like Kafka + ClickHouse).</p>
+
+      <h4>Enforcement at multiple windows</h4>
+      <p>A complete quota system enforces at several windows simultaneously:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Window</th><th>Enforced where</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td>Per second / minute</td><td>Rate limiter (Redis, in-memory)</td><td>Burst and abuse protection</td></tr>
+            <tr><td>Per day</td><td>Quota counter (Redis or DB)</td><td>Prevent a single day's runaway</td></tr>
+            <tr><td>Per month</td><td>Quota counter (DB)</td><td>Billing period total</td></tr>
+            <tr><td>Per feature</td><td>Per-operation quota</td><td>Bound use of expensive features</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>A request must pass all windows. The per-second limit is checked cheaply (in Redis); the per-month limit
+      is checked against a cached counter that is refreshed periodically. The multi-window enforcement prevents both
+      momentary bursts and long-term over-use.</p>
+
+      <h4>The client-facing contract</h4>
+      <p>The quota must be expressed clearly in the API contract:</p>
+      <ul>
+        <li><strong>Response headers</strong> — <code>Quota-Limit</code>, <code>Quota-Remaining</code>,
+        <code>Quota-Reset</code> — analogous to rate limit headers.</li>
+        <li><strong>Usage endpoint</strong> — <code>GET /usage</code> returns current consumption per feature,
+        the billing period, and the projected end-of-period.</li>
+        <li><strong>Approaching-quota alerts</strong> — a webhook or email at 80% and 95% of quota, so the customer
+        can act before the service stops.</li>
+        <li><strong>Overage policy</strong> — documented clearly: hard cap (429), soft cap with billing, or grace
+        period. The customer must know what happens when they exceed the quota.</li>
+      </ul>
+      <p>The alerting is critical. A customer that hits the quota unexpectedly sees their service break with no
+      warning. A customer that was told at 80% and 95% has time to upgrade or reduce usage. The alerts convert a
+      customer-service problem into a self-service action.</p>
+
+      <h4>Fairness across wildly different tenant sizes</h4>
+      <p>A shared-schema SaaS has tenants ranging from 10 requests/day to 10 million. The rate limits and quotas
+      must be tiered so that the large tenant does not exhaust shared capacity while the small tenant gets a
+      reasonable share. The design:</p>
+      <ul>
+        <li><strong>Per-tenant rate limits</strong> — the "Pro" tier gets 1,000/min, the "Free" tier gets 10/min.
+        The large tenant cannot consume the shared capacity beyond its tier.</li>
+        <li><strong>Per-tenant quotas</strong> — the billing period is per tenant, so one tenant's over-use does not
+        consume another's allowance.</li>
+        <li><strong>Shared infrastructure caps</strong> — beyond per-tenant limits, the system as a whole has a
+        capacity limit. If the sum of per-tenant limits exceeds the infrastructure, a global fallback limiter (or
+        load shedding) protects the shared resource.</li>
+      </ul>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Hard caps are simple and protect infrastructure, but they break customer trust at the quota boundary.
+        Soft caps with overage billing preserve the customer's service but expose them to unexpected costs. The
+        pragmatic answer: soft caps for paid tiers (with alerts), hard caps for free tiers (with upgrade prompts),
+        and clear documentation of the policy for each tier.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Quotas are per-tenant, per-billing-period, metered accurately and attributed to the tenant. Rate
+        limits are separate — per minute, per API key. I'll alert the customer at 80% and 95% of quota, and the
+        overage policy is documented per tier." That demonstrates the full lifecycle: metering, enforcement,
+        contract, and alerts.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q9 -->
+  <article class="q emerald" id="q9">
+    <div class="q-head">
+      <div class="q-num">9</div>
+      <h3>What is the difference between throttling and rejection, and when do you delay instead of deny?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p><strong>Rejection</strong> refuses the request immediately with a 429 (or 503). <strong>Throttling</strong>
+        (also called <em>shaping</em> or <em>delay</em>) holds the request and processes it later, within a bounded
+        wait. Rejection is better for synchronous APIs (the client can retry with a known delay); throttling is
+        better for async work (the client tolerates latency) and for protecting a downstream that must see a smooth
+        rate.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Aspect</th><th>Rejection (429)</th><th>Throttling (delay)</th></tr></thead>
+          <tbody>
+            <tr><td>Client experience</td><td>Immediate error; the client must retry</td><td>Slower response; no error</td></tr>
+            <tr><td>Connection hold</td><td>Released immediately</td><td>Held for the wait duration</td></tr>
+            <tr><td>Server resources</td><td>Minimal — the request is not processed</td><td>A queue slot and a thread/connection during the wait</td></tr>
+            <tr><td>Best for</td><td>Synchronous APIs, high-latency operations, abuse prevention</td><td>Batch processing, async APIs, downstream smoothing</td></tr>
+            <tr><td>Latency impact</td><td>None (the request fails fast)</td><td>Adds wait time to the response</td></tr>
+            <tr><td>Timeout risk</td><td>Low</td><td>High — a long wait may exceed the client's timeout</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Why rejection is the default for synchronous APIs</h4>
+      <p>A synchronous HTTP request has a latency budget (typically 1–30 seconds at the client, with intermediate
+      timeouts at proxies and load balancers). Holding a request for even a few seconds risks exceeding those
+      timeouts: the client times out, retries, and now two copies of the request are in flight. The result is worse
+      than rejection.</p>
+      <p>Additionally, holding connections consumes server resources. A hundred held requests occupy a hundred
+      connections, a hundred threads, a hundred queue slots — each of which could have served a request that was
+      actually going to be processed. At scale, holding is more expensive than rejecting.</p>
+      <p>Rejection gives the client control: it gets a clear 429 with <code>Retry-After</code> and can decide
+      whether to wait, back off, or give up. This is the right contract for a synchronous API.</p>
+
+      <h4>When throttling is the right answer</h4>
+      <ul>
+        <li><strong>Async APIs.</strong> The client has submitted a job and is polling for the result; a small delay
+        in processing is invisible. Throttling the job queue to protect the workers is standard.</li>
+        <li><strong>Batch processing.</strong> A batch import that is throttled to 1,000 rows per second protects
+        the database without failing the batch. The batch takes longer but succeeds.</li>
+        <li><strong>Downstream smoothing.</strong> When a third-party API rejects bursts, throttling the requests
+        to that API shapes them into a smooth rate. The client experiences a longer wait, not an error.</li>
+        <li><strong>Premium tiers.</strong> A VIP client's requests can be queued (throttled) rather than rejected,
+        preserving their experience at the cost of latency. Non-VIP clients are rejected.</li>
+      </ul>
+
+      <h4>The hybrid: bounded wait, then reject</h4>
+      <p>The pragmatic middle ground: hold the request for a bounded wait (say, 100 ms to 1 second), then reject if
+      the rate is still exceeded. This gives a brief smoothing benefit without the risk of long-held connections.
+      The pattern is used for rate limiters where the traffic is bursty but the bursts are short:</p>
+      <ul>
+        <li>If a token is available now, process immediately.</li>
+        <li>If not, wait up to N milliseconds for a token to refill.</li>
+        <li>If no token arrives within N, reject with 429 and Retry-After.</li>
+      </ul>
+      <p>This handles the common case (a client sends 110 requests in a second with a limit of 100/second — the
+      first 100 are immediate, the next 10 wait a few milliseconds and then succeed). It avoids the pathological
+      case (a client sends 10,000 requests — most are rejected after the brief wait).</p>
+
+      <h4>Throttling via async APIs</h4>
+      <p>The cleanest form of throttling is to make the operation async (Volume 1, Question 13). Instead of
+      holding the request, return <code>202 Accepted</code> with a job ID, and let the client poll or receive a
+      webhook. The server processes the job at its own pace, throttled as needed. The client's HTTP connection is
+      released immediately, and the latency of the wait does not affect any timeout.</p>
+      <p>This is the standard design for batch operations, exports, and any work that might take more than a few
+      seconds. It gives the server the freedom to throttle without penalty, and the client the clarity of knowing
+      the operation is queued.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Rejection is faster and cheaper but worse for the client. Throttling is slower and more resource-heavy
+        but preserves the client's experience. For sync APIs, default to rejection; for async, default to
+        throttling; for batch or downstream smoothing, throttle. Never throttle a sync request beyond a second —
+        the risk of timeouts outweighs the benefit.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q10 -->
+  <article class="q emerald" id="q10">
+    <div class="q-head">
+      <div class="q-num">10</div>
+      <h3>How do you prevent rate-limit bypass and abuse?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Rate limits are only effective if the key cannot be trivially changed. Prevent bypass by rate limiting
+        on <strong>multiple keys simultaneously</strong> (IP + API key + user + tenant), by limiting
+        <strong>account creation</strong> (to prevent account farming), by detecting <strong>distributed
+        patterns</strong> (many IPs, same user agent), and by layering <strong>anomaly detection</strong> on top of
+        the fixed rules. Rate limits are a floor on abuse cost, not a guarantee of safety.</p>
+      </div>
+
+      <h4>The common bypass techniques</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Bypass</th><th>How it works</th><th>Countermeasure</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Account farming</td>
+              <td>Create many accounts; each has its own per-user limit</td>
+              <td>Limit signups per IP/device; require email or phone verification; flag new accounts for elevated scrutiny</td>
+            </tr>
+            <tr>
+              <td>API key rotation</td>
+              <td>Create many API keys; each has its own per-key limit</td>
+              <td>Limit keys per tenant; rate limit on tenant, not just key; require approval for new keys</td>
+            </tr>
+            <tr>
+              <td>Distributed IPs</td>
+              <td>Send from many IPs (botnet, cloud proxies); each is under the per-IP limit</td>
+              <td>Rate limit on user/tenant as well as IP; detect patterns across IPs</td>
+            </tr>
+            <tr>
+              <td>Parameter manipulation</td>
+              <td>Use a different header, endpoint, or query to hit a different counter</td>
+              <td>Rate limit on the operation, not on the URL surface; normalize aliases</td>
+            </tr>
+            <tr>
+              <td>Slow drip</td>
+              <td>Send just under the limit, continuously — never triggering a burst detection</td>
+              <td>Rate limit over multiple windows (per second, per day, per month); detect sustained patterns</td>
+            </tr>
+            <tr>
+              <td>Client spoofing</td>
+              <td>Fake the user agent, the IP, or the API key</td>
+              <td>Authenticate the key at every layer; use mTLS or signed requests for high-value endpoints</td>
+            </tr>
+            <tr>
+              <td>Multi-tenant abuse</td>
+              <td>One attacker creates multiple tenants</td>
+              <td>Rate limit on multiple axes; verify tenant creation with payment or identity</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Multiple simultaneous keys</h4>
+      <p>The single most effective countermeasure: rate limit on every dimension at once. A request is rejected if
+      it exceeds <em>any</em> of:</p>
+      <ul>
+        <li>Per-IP limit</li>
+        <li>Per-user limit</li>
+        <li>Per-tenant limit</li>
+        <li>Per-API-key limit</li>
+        <li>Per-operation limit</li>
+      </ul>
+      <p>An attacker who farms accounts hits the per-IP limit. An attacker who distributes across IPs hits the
+      per-user limit (if they are using one user) or the signup limit (if they are creating many users). An attacker
+      who rotates API keys hits the per-tenant limit. Each bypass is closed by a different key.</p>
+
+      <h4>Account creation limits</h4>
+      <p>Account farming is the most common bypass for per-user rate limits. The countermeasures:</p>
+      <ul>
+        <li><strong>Per-IP signup limit.</strong> Limit signups from a single IP to a small number per day. This
+        alone blocks most automated farming.</li>
+        <li><strong>Email verification.</strong> Require a verified email; throwaway domains are blocked or
+        flagged.</li>
+        <li><strong>Phone verification.</strong> For high-value endpoints, require a phone number; SMS-based
+        verification is harder to farm than email.</li>
+        <li><strong>CAPTCHA / proof-of-work.</strong> For signup and for password reset, add a human-verification
+        challenge.</li>
+        <li><strong>Payment method.</strong> Require a credit card on file for accounts that need elevated limits —
+        a real payment method is expensive to farm.</li>
+        <li><strong>Device fingerprinting.</strong> Combine IP, user agent, and browser characteristics to detect
+        multiple accounts on the same device.</li>
+      </ul>
+      <p>No single measure is sufficient; the layering makes farming expensive. The goal is not to prevent every
+      fake account but to make the cost of creating one exceed the value of the abuse.</p>
+
+      <h4>Anomaly detection</h4>
+      <p>Fixed rate limits catch the obvious patterns. Anomaly detection catches the subtle ones:</p>
+      <ul>
+        <li><strong>Sudden rate increase.</strong> A user whose traffic is normally 10 requests/minute suddenly
+        sends 500 — flag for review or apply a temporary lower limit.</li>
+        <li><strong>Distributed pattern.</strong> Many IPs, same user agent, same request signature — likely a botnet
+        or a scraping service.</li>
+        <li><strong>Endpoint targeting.</strong> A user who suddenly hits a single expensive endpoint repeatedly —
+        likely scraping or a runaway script.</li>
+        <li><strong>Geographic anomalies.</strong> Requests from a country the user has never used the API from —
+        possible compromised account.</li>
+        <li><strong>Repeated 429s.</strong> A user who consistently hits the limit — either a buggy client or a
+        deliberate over-user; either way, worth flagging.</li>
+      </ul>
+      <p>Anomaly detection complements fixed limits: the fixed limit catches the known patterns, the anomaly
+      detection catches the unknown ones. The result is a system that is resilient to both naive and sophisticated
+      abuse.</p>
+
+      <h4>The abuse escalation ladder</h4>
+      <p>Rate limiting should escalate, not just reject:</p>
+      <ol>
+        <li><strong>Warning</strong> — return rate limit headers on every request, alert at 80% and 95%.</li>
+        <li><strong>Throttle</strong> — reduce the rate for the specific client (Question 9) before rejecting.</li>
+        <li><strong>Reject</strong> — 429 with Retry-After.</li>
+        <li><strong>Temporary ban</strong> — block the client for minutes or hours after repeated over-use.</li>
+        <li><strong>Permanent ban</strong> — disable the API key or account after egregious abuse; require a human
+        to review.</li>
+      </ol>
+      <p>Each step is more severe; escalation is based on the pattern and persistence of the over-use, not on a
+      single violation. A client that hits the limit once gets a 429; a client that hits it continuously gets
+      throttled; a client that bypasses the limit gets banned.</p>
+
+      <h4>Rate limiting is not security</h4>
+      <p>The most important point: rate limiting raises the cost of abuse; it does not prevent it. An attacker
+      who is willing to spend enough (compute, accounts, proxies) will bypass any rate limit. The complete defence
+      requires:</p>
+      <ul>
+        <li>Rate limiting (this volume).</li>
+        <li>Authentication and authorization (Volume 6).</li>
+        <li>Input validation and injection prevention (Volume 14).</li>
+        <li>Encryption in transit and at rest.</li>
+        <li>Monitoring and anomaly detection.</li>
+        <li>Incident response for active attacks.</li>
+      </ul>
+      <p>Each layer contributes. Rate limiting is one layer in a defence-in-depth strategy, not a substitute for
+      the others.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Rate limiting only on the API key. An attacker who creates a new API key (or a new account) gets a fresh
+        limit, bypassing the rate entirely. Always layer: per IP, per user, per tenant, per key — and limit account
+        creation itself.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Rate limiting on multiple axes — IP, user, tenant, key, operation — so no single bypass works. Limit
+        account creation so farming is expensive. Layer anomaly detection for patterns the fixed limits miss. And
+        remember: rate limiting raises the cost of abuse; it does not prevent it." That covers the strategy and the
+        limitation in one sentence.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- NEXT PART -->
+  <section class="next-part">
+    <h3>Coming in Volume 8 — Error Handling &amp; Status Codes</h3>
+    <p>Volume 8 turns to the failure contract: what each HTTP status code means and when to use it, how to design
+    RFC 7807 error bodies, how to classify retryable vs non-retryable errors, how to communicate partial success
+    in batch operations, and how to make errors actionable so clients can actually recover.</p>
+    <ul class="next-list">
+      <li>Status codes: 2xx, 3xx, 4xx, 5xx — the definitive guide</li>
+      <li>400 vs 422, 401 vs 403, 404 vs 410, 409 vs 412</li>
+      <li>500 vs 502 vs 503 vs 504</li>
+      <li>RFC 7807 Problem Details</li>
+      <li>Machine-readable error codes</li>
+      <li>Validation error responses</li>
+      <li>Retryable vs non-retryable errors</li>
+      <li>Partial success in batches</li>
+      <li>Error responses for async operations</li>
+      <li>Making errors actionable</li>
+    </ul>
+  </section>
+
+</div>
+</body>
+</html>
