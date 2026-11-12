@@ -1,0 +1,1624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API Design — Volume 6: Authentication &amp; Authorization</title>
+<style>
+  :root{
+    --ink:#0d1f17;
+    --ink-soft:#274a3c;
+    --muted:#5f7d6e;
+    --line:#d6ebe0;
+    --bg:#f4fbf7;
+    --card:#ffffff;
+    --emerald:#047857;
+    --emerald-soft:#d1fae5;
+    --emerald-deep:#064e3b;
+    --teal:#0d9488;
+    --teal-soft:#ccfbf1;
+    --amber:#b45309;
+    --rose:#be123c;
+    --blue:#1d4ed8;
+    --shadow:0 1px 2px rgba(6,78,59,.06), 0 8px 24px -8px rgba(6,78,59,.14);
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 8% -10%, #d1fae5 0%, transparent 60%),
+      radial-gradient(1000px 500px at 100% 0%, #ccfbf1 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:"Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    line-height:1.72;
+    font-size:16.5px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px 90px;}
+
+  header.hero{
+    background:linear-gradient(135deg,#022c22 0%, #064e3b 45%, #065f46 100%);
+    color:#ecfdf5;
+    padding:64px 22px 56px;
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::after{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      radial-gradient(600px 300px at 85% 15%, rgba(16,185,129,.4), transparent 70%),
+      radial-gradient(520px 280px at 12% 92%, rgba(20,184,166,.38), transparent 70%);
+    pointer-events:none;
+  }
+  .hero-inner{max-width:1080px;margin:0 auto;position:relative;z-index:2;}
+  .eyebrow{
+    display:inline-block;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;
+    font-weight:700;padding:7px 15px;border-radius:999px;
+    background:rgba(52,211,153,.18);border:1px solid rgba(52,211,153,.5);
+    color:#6ee7b7;margin-bottom:20px;
+  }
+  header.hero h1{
+    font-size:clamp(1.9rem, 4.4vw, 3rem);line-height:1.15;margin:0 0 16px;
+    font-weight:800;letter-spacing:-.02em;
+  }
+  header.hero h1 span{
+    background:linear-gradient(90deg,#6ee7b7,#5eead4);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  header.hero p.lede{font-size:1.06rem;color:#a7f3d0;max-width:780px;margin:0 0 26px;}
+  .meta-chips{display:flex;flex-wrap:wrap;gap:10px;}
+  .chip{
+    font-size:.78rem;font-weight:600;padding:7px 14px;border-radius:999px;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#d1fae5;
+  }
+
+  .roadmap{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:26px 28px;margin-top:-34px;position:relative;z-index:5;
+  }
+  .roadmap h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 16px;font-weight:700;
+  }
+  .roadmap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;}
+  .roadmap-item{
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:.86rem;
+    background:#fbfefd;opacity:.7;
+  }
+  .roadmap-item.done{
+    border-color:#6ee7b7;background:linear-gradient(180deg,#ecfdf5,#ffffff);opacity:1;
+  }
+  .roadmap-item.current{
+    border-color:#10b981;background:linear-gradient(180deg,#d1fae5,#ffffff);opacity:1;
+    box-shadow:0 0 0 3px rgba(4,120,87,.14);
+  }
+  .roadmap-item .tag{
+    display:inline-block;font-size:.64rem;font-weight:800;letter-spacing:.08em;
+    padding:2px 8px;border-radius:999px;margin-bottom:6px;
+  }
+  .tag-done{background:var(--emerald-soft);color:var(--emerald-deep);}
+  .tag-now{background:#a7f3d0;color:#065f46;}
+  .tag-next{background:#e2e8f0;color:#475569;}
+  .roadmap-item strong{display:block;color:var(--ink);font-size:.89rem;}
+
+  nav.toc{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:22px 26px;margin:26px 0 44px;
+  }
+  nav.toc h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 14px;font-weight:700;
+  }
+  nav.toc ol{
+    margin:0;padding-left:0;list-style:none;counter-reset:toc;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:8px 26px;
+  }
+  nav.toc li{
+    counter-increment:toc;font-size:.93rem;padding:6px 0 6px 34px;
+    position:relative;border-bottom:1px dashed #e6f4ee;
+  }
+  nav.toc li::before{
+    content:counter(toc);position:absolute;left:0;top:7px;width:22px;height:22px;
+    border-radius:7px;background:var(--emerald-soft);color:var(--emerald);
+    font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center;
+  }
+  nav.toc a{color:var(--ink-soft);text-decoration:none;font-weight:500;}
+  nav.toc a:hover{color:var(--emerald);}
+
+  .part-band{display:flex;align-items:center;gap:16px;margin:56px 0 26px;}
+  .part-band .bar{
+    width:5px;height:44px;border-radius:99px;
+    background:linear-gradient(180deg,var(--emerald),#34d399);
+  }
+  .part-band.teal .bar{background:linear-gradient(180deg,var(--teal),#2dd4bf);}
+  .part-band.amber .bar{background:linear-gradient(180deg,var(--amber),#f59e0b);}
+  .part-band h2{margin:0;font-size:1.5rem;letter-spacing:-.01em;font-weight:800;}
+  .part-band .sub{
+    display:block;font-size:.82rem;font-weight:600;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.12em;margin-top:2px;
+  }
+
+  article.q{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:0 0 26px;margin-bottom:28px;overflow:hidden;
+    scroll-margin-top:24px;
+  }
+  .q-head{
+    display:flex;gap:16px;align-items:flex-start;padding:22px 28px 18px;
+    border-bottom:1px solid #edf8f2;background:linear-gradient(180deg,#f9fefb,#ffffff);
+  }
+  .q-num{
+    flex:none;width:42px;height:42px;border-radius:12px;display:flex;
+    align-items:center;justify-content:center;font-weight:800;font-size:.92rem;color:#fff;
+    background:linear-gradient(135deg,#047857,#10b981);
+    box-shadow:0 6px 14px -6px rgba(4,120,87,.7);
+  }
+  .teal .q-num{background:linear-gradient(135deg,#0d9488,#14b8a6);box-shadow:0 6px 14px -6px rgba(13,148,136,.7);}
+  .amber .q-num{background:linear-gradient(135deg,#b45309,#f59e0b);box-shadow:0 6px 14px -6px rgba(180,83,9,.7);}
+  .q-head h3{margin:0;font-size:1.14rem;font-weight:700;line-height:1.4;letter-spacing:-.01em;}
+  .q-body{padding:22px 28px 0;}
+  .q-body p{margin:0 0 15px;color:var(--ink-soft);}
+  .q-body p:last-child{margin-bottom:0;}
+  .q-body h4{margin:24px 0 10px;font-size:.95rem;font-weight:800;color:var(--ink);}
+  .q-body h4::before{content:"▹";color:var(--emerald);margin-right:8px;font-size:.85rem;}
+  .teal .q-body h4::before{color:var(--teal);}
+  .amber .q-body h4::before{color:var(--amber);}
+  .q-body ul,.q-body ol{margin:0 0 16px;padding-left:22px;color:var(--ink-soft);}
+  .q-body li{margin-bottom:8px;}
+  .q-body li::marker{color:var(--emerald);}
+  .teal .q-body li::marker{color:var(--teal);}
+  .amber .q-body li::marker{color:var(--amber);}
+  strong{color:var(--ink);font-weight:700;}
+  code{
+    background:#f0fdf7;border:1px solid #d6ebe0;border-radius:6px;padding:1px 6px;
+    font-size:.87em;font-family:"SFMono-Regular",Consolas,monospace;color:#047857;
+  }
+
+  .callout{border-radius:12px;padding:14px 18px;margin:18px 0 4px;font-size:.93rem;border-left:4px solid;}
+  .callout .label{
+    display:block;font-size:.68rem;font-weight:800;letter-spacing:.13em;
+    text-transform:uppercase;margin-bottom:5px;
+  }
+  .callout p{margin:0 0 8px;font-size:.93rem;}
+  .callout p:last-child{margin-bottom:0;}
+  .answer{background:linear-gradient(180deg,#ecfdf5,#ffffff);border-color:var(--emerald);}
+  .answer .label{color:var(--emerald-deep);}
+  .tip{background:linear-gradient(180deg,#eff6ff,#ffffff);border-color:var(--blue);}
+  .tip .label{color:#1d4ed8;}
+  .tradeoff{background:linear-gradient(180deg,#fffbeb,#ffffff);border-color:var(--amber);}
+  .tradeoff .label{color:#b45309;}
+  .pitfall{background:linear-gradient(180deg,#fff1f2,#ffffff);border-color:var(--rose);}
+  .pitfall .label{color:#be123c;}
+
+  .table-scroll{overflow-x:auto;margin:18px 0;border-radius:12px;border:1px solid var(--line);}
+  table{width:100%;border-collapse:collapse;font-size:.87rem;background:#fff;}
+  thead th{
+    background:#f6fef9;text-align:left;padding:11px 14px;font-weight:800;
+    font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+    border-bottom:2px solid var(--line);white-space:nowrap;
+  }
+  tbody td{padding:11px 14px;border-bottom:1px solid #f0faf4;color:var(--ink-soft);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:nth-child(even){background:#fbfefd;}
+  tbody td:first-child{font-weight:700;color:var(--ink);}
+
+  .next-part{
+    background:linear-gradient(135deg,#022c22,#065f46);color:#d1fae5;
+    border-radius:var(--radius);padding:32px 34px;margin-top:50px;box-shadow:var(--shadow);
+  }
+  .next-part h3{margin:0 0 12px;font-size:1.2rem;color:#fff;font-weight:800;}
+  .next-part p{margin:0 0 16px;color:#a7f3d0;font-size:.95rem;}
+  .next-list{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:10px;list-style:none;padding:0;margin:0;
+  }
+  .next-list li{
+    background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
+    border-radius:10px;padding:10px 14px;font-size:.86rem;color:#d1fae5;
+  }
+
+  @media (max-width:640px){
+    .q-head{padding:18px 18px 15px;}
+    .q-body{padding:18px 18px 0;}
+    header.hero{padding:44px 18px 46px;}
+    .roadmap{padding:20px;}
+    nav.toc{padding:18px;}
+    nav.toc ol{grid-template-columns:1fr;}
+  }
+  @media print{
+    body{background:#fff;}
+    article.q, nav.toc, .roadmap{box-shadow:none;page-break-inside:avoid;}
+    header.hero{background:#022c22 !important;-webkit-print-color-adjust:exact;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Volume 6 · Section 6 of 18</span>
+    <h1>API Design for System Interviews<br><span>Authentication &amp; Authorization</span></h1>
+    <p class="lede">
+      The security boundary that every API must get right. How identity is established (API keys, OAuth 2.0, JWT,
+      mTLS), how permissions are enforced (RBAC, ABAC, ReBAC, scopes), how tokens live and die (rotation, revocation,
+      logout), and how the OWASP API Top 10 vulnerabilities actually appear in production.
+    </p>
+    <div class="meta-chips">
+      <span class="chip">10 Questions</span>
+      <span class="chip">500+ words each</span>
+      <span class="chip">Security-focused</span>
+      <span class="chip">OWASP API Top 10</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ROADMAP -->
+  <section class="roadmap">
+    <h2>Answer-Series Roadmap</h2>
+    <div class="roadmap-grid">
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 1 — Complete</span>
+        <strong>Fundamentals &amp; Style Selection</strong>
+        API vs protocol vs service, contracts, styles, paradigms
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 2 — Complete</span>
+        <strong>Resource Modeling &amp; REST Design</strong>
+        Resources, URLs, nesting, HTTP methods, representations
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 3 — Complete</span>
+        <strong>Contracts, Versioning &amp; Evolution</strong>
+        Breaking changes, versioning, deprecation, schema evolution
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 4 — Complete</span>
+        <strong>Request/Response Design</strong>
+        Pagination, filtering, sorting, field selection, envelopes
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 5 — Complete</span>
+        <strong>Idempotency &amp; Correctness</strong>
+        Idempotency keys, ETags, optimistic concurrency, retries
+      </div>
+      <div class="roadmap-item current">
+        <span class="tag tag-now">Volume 6 — You are here</span>
+        <strong>Authentication &amp; Authorization</strong>
+        API keys, OAuth, JWT, mTLS, RBAC, ABAC, BOLA, IDOR
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 7</span>
+        <strong>Rate Limiting &amp; Quotas</strong>
+        Algorithms, distributed enforcement, headers
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 8</span>
+        <strong>Error Handling &amp; Status Codes</strong>
+        RFC 7807, retryability, partial failures
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 9</span>
+        <strong>API Gateways &amp; Management</strong>
+        Routing, BFF, canary, gateway vs mesh
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 10</span>
+        <strong>Performance &amp; Caching</strong>
+        HTTP caching, compression, HTTP/2 and HTTP/3
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 11</span>
+        <strong>Async APIs &amp; Webhooks</strong>
+        202 Accepted, callbacks, signatures, SSE
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 12–13</span>
+        <strong>GraphQL &amp; gRPC Deep Dives</strong>
+        N+1, DataLoader, streaming RPCs, gRPC-Web
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 14</span>
+        <strong>Security &amp; Abuse Prevention</strong>
+        OWASP API Top 10, injection, SSRF, enumeration
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 15</span>
+        <strong>Observability &amp; Operations</strong>
+        Metrics, tracing, deployment, incidents
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 16–17</span>
+        <strong>Lifecycle, Governance &amp; 17 Problems</strong>
+        Design reviews, DX, classic API prompts
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 18</span>
+        <strong>Senior &amp; Staff Trade-offs</strong>
+        Choosing between every pair of options
+      </div>
+    </div>
+  </section>
+
+  <!-- TOC -->
+  <nav class="toc">
+    <h2>Questions Answered in This Volume</h2>
+    <ol>
+      <li><a href="#q1">Authentication vs authorization — what's the difference?</a></li>
+      <li><a href="#q2">API keys — how they work, and what they cannot do</a></li>
+      <li><a href="#q3">OAuth 2.0 flows — which one, and when</a></li>
+      <li><a href="#q4">JWT vs opaque tokens — the stateless illusion</a></li>
+      <li><a href="#q5">mTLS — machine-to-machine identity</a></li>
+      <li><a href="#q6">RBAC, ABAC, and ReBAC — authorization models compared</a></li>
+      <li><a href="#q7">OAuth scopes — designing for least privilege</a></li>
+      <li><a href="#q8">Multi-tenant authorization — enforcing isolation</a></li>
+      <li><a href="#q9">Token rotation, revocation, and logout</a></li>
+      <li><a href="#q10">BOLA, IDOR, mass assignment — the OWASP API Top 10</a></li>
+    </ol>
+  </nav>
+
+  <!-- ================= PART A ================= -->
+  <div class="part-band">
+    <div class="bar"></div>
+    <h2>Part A — Authentication
+      <span class="sub">Establishing identity: who is calling?</span>
+    </h2>
+  </div>
+
+  <!-- Q1 -->
+  <article class="q" id="q1">
+    <div class="q-head">
+      <div class="q-num">1</div>
+      <h3>What is the difference between authentication and authorization?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p><strong>Authentication</strong> answers "who are you?" — it verifies the identity of the caller.
+        <strong>Authorization</strong> answers "what may you do?" — it verifies that the identified caller has
+        permission for the specific action. Authentication happens first, always; authorization happens after, on
+        every request. Confusing the two is the root cause of the OWASP API Top 10 number-one risk.</p>
+      </div>
+
+      <h4>The two questions, separately</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Dimension</th><th>Authentication</th><th>Authorization</th></tr></thead>
+          <tbody>
+            <tr><td>Question</td><td>Who is this?</td><td>May they do this?</td></tr>
+            <tr><td>When</td><td>Once per session (or per token issuance)</td><td>Every request, for every resource</td></tr>
+            <tr><td>Failure response</td><td><code>401 Unauthorized</code></td><td><code>403 Forbidden</code></td></tr>
+            <tr><td>Mechanism</td><td>Password, API key, OAuth, mTLS, JWT</td><td>RBAC, ABAC, ReBAC, scopes, ownership checks</td></tr>
+            <tr><td>Wrong question</td><td>"Is this user allowed?"</td><td>"Is this user who they say?"</td></tr>
+            <tr><td>Example</td><td>"I am user 42"</td><td>"User 42 may read order 1001, but not order 1002"</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Why the distinction matters in API design</h4>
+      <p>In a simple system, the distinction is obvious. In a real API, it is constantly blurred:</p>
+      <ul>
+        <li>A <strong>JWT</strong> is signed by the issuer, so presenting a valid JWT <em>authenticates</em> the
+        holder. But the JWT's claims also say what the holder <em>may do</em> — so it is authentication and
+        authorization in one artifact. That is convenient and also dangerous: a stolen JWT gives an attacker both.</li>
+        <li>An <strong>API key</strong> identifies the calling application. It does not identify the user of that
+        application. If the API needs per-user permissions, the API key authenticates the app and a separate
+        mechanism (an OAuth token, a session cookie) authenticates the user. Two-layer authentication.</li>
+        <li><strong>Scopes</strong> in OAuth say what an application <em>may do</em> on behalf of a user, but the
+        actual authorization decision ("may Alice read Bob's order?") is a resource-level check that scopes cannot
+        express.</li>
+      </ul>
+      <p>Each layer must be designed explicitly. A system that "authenticates with an API key" but has no
+      authorization logic is a system where every API key can do everything — which is the classic OWASP API1
+      vulnerability (Broken Object Level Authorization, Question 10).</p>
+
+      <h4>The 401 vs 403 distinction</h4>
+      <p>This is the most common interview question on the topic, and it maps directly to the two concepts:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Code</th><th>Meaning</th><th>Who is at fault</th><th>Client action</th></tr></thead>
+          <tbody>
+            <tr><td><code>401 Unauthorized</code></td><td>You are not authenticated (or your token is invalid/expired)</td><td>Authentication problem</td><td>Log in again, refresh the token, or present credentials</td></tr>
+            <tr><td><code>403 Forbidden</code></td><td>You are authenticated, but not allowed to do this</td><td>Authorization problem</td><td>Do not retry — the action is not permitted. Show an error.</td></tr>
+            <tr><td><code>404 Not Found</code></td><td>The resource does not exist — or you are not allowed to know it exists</td><td>Ambiguous by design</td><td>Treat as not found; do not leak existence</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The 401 response should include a <code>WWW-Authenticate</code> header describing what credentials are
+      expected. The 403 response should not tell the client <em>why</em> — that would leak the authorization model
+      and help an attacker map the permissions.</p>
+
+      <h4>The "404 instead of 403" pattern</h4>
+      <p>If a client is not allowed to see that a resource exists, returning 403 leaks information: "this resource
+      exists, you just cannot access it." For sensitive resources (other users' data, internal-only records), many
+      APIs return 404 instead of 403 — pretending the resource does not exist. This trades clarity for privacy,
+      and it is the right trade-off for anything where existence itself is sensitive. Document the choice — a 404
+      that might mean "forbidden" is confusing to legitimate clients debugging a problem.</p>
+
+      <h4>The layering in practice</h4>
+      <p>A well-designed API has three layers, in order:</p>
+      <ol>
+        <li><strong>Authentication at the edge</strong> (API gateway or auth service) — verify the token, resolve
+        the identity, attach it to the request. Fails with 401.</li>
+        <li><strong>Coarse authorization at the edge</strong> — check that the token's scopes permit the
+        <em>operation class</em> (e.g., "write:orders"). Fails with 403.</li>
+        <li><strong>Fine authorization at the service</strong> — check that the resolved identity owns or can access
+        the <em>specific resource</em>. Fails with 403 or 404 (per the pattern above).</li>
+      </ol>
+      <p>Every layer is necessary. Skipping the first means unauthenticated traffic reaches services. Skipping the
+      third means any authenticated caller can access any resource — the BOLA vulnerability. The layers are not
+      redundant; they answer different questions.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Authentication is at the edge — token validation, identity resolution, 401. Authorization is
+        per-resource in the service — ownership checks, role checks, 403 or 404 depending on whether existence is
+        sensitive." That demonstrates the layering, the 401/403 split, and the 404 pattern in one sentence.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q2 -->
+  <article class="q" id="q2">
+    <div class="q-head">
+      <div class="q-num">2</div>
+      <h3>What are API keys, how do you design them, and what can they not do?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>An API key is a long random string that identifies an application (not a user). The server issues it once,
+        stores only a hash of it, and looks it up on every request. API keys are simple and useful for machine-to-machine
+        authentication and for metering (rate limits, billing), but they are <strong>not</strong> a user
+        authentication mechanism, they cannot express per-user permissions, and they are dangerous when leaked.</p>
+      </div>
+
+      <h4>What an API key actually is</h4>
+      <p>An API key is a bearer token — anyone who has it can use it. It is typically:</p>
+      <ul>
+        <li><strong>Random and high-entropy</strong> — at least 128 bits, generated with a cryptographically secure
+        random number generator. Never derived from a user ID or timestamp.</li>
+        <li><strong>Prefixed</strong> — e.g., <code>sk_live_abc123...</code> — so secret scanners (GitHub, GitGuardian)
+        can detect leaked keys and so the key's environment (test/live) is visible at a glance.</li>
+        <li><strong>Stored hashed</strong> — the server stores SHA-256(key), never the key itself. If the database is
+        compromised, the attacker gets hashes, not usable keys.</li>
+        <li><strong>Scoped and labelled</strong> — associated with an application, an environment (test/production),
+        a set of permissions, and a human-readable label ("CI pipeline", "Mobile app v2").</li>
+        <li><strong>Rotatable and revocable</strong> — the user can generate a new key and revoke the old one without
+        downtime (Question 9).</li>
+      </ul>
+
+      <h4>The key's lifecycle</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Stage</th><th>What happens</th><th>Security note</th></tr></thead>
+          <tbody>
+            <tr><td>Generate</td><td>Server creates a random key, hashes it, stores the hash with metadata, returns the plaintext key to the user once</td><td>This is the only time the plaintext key is shown</td></tr>
+            <tr><td>Distribute</td><td>User stores the key in their environment (secret manager, CI/CD secrets, server config)</td><td>Never commit to git, never log, never email</td></tr>
+            <tr><td>Present</td><td>Client sends <code>Authorization: Bearer sk_...</code> or a custom header</td><td>Always over TLS</td></tr>
+            <tr><td>Validate</td><td>Server hashes the presented key and looks up the hash</td><td>Constant-time comparison to prevent timing attacks</td></tr>
+            <tr><td>Rotate</td><td>User generates a new key, updates the client, revokes the old one</td><td>Both keys valid during the overlap window</td></tr>
+            <tr><td>Revoke</td><td>User marks the key as revoked; the server rejects it immediately</td><td>For incident response and employee offboarding</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>What API keys are good for</h4>
+      <ul>
+        <li><strong>Machine-to-machine authentication.</strong> A CI pipeline, a backend service, or a script
+        authenticates as an application, not a user. There is no user session, no browser, no OAuth dance — a key
+        is the right primitive.</li>
+        <li><strong>Metering and rate limiting.</strong> The key identifies the application for per-app quotas,
+        billing, and abuse detection. Usage dashboards are per-key.</li>
+        <li><strong>Low-friction developer onboarding.</strong> A developer can make their first call in minutes
+        without OAuth setup. Stripe, SendGrid, and most developer APIs offer API keys for exactly this reason.</li>
+        <li><strong>Public read-only data.</strong> A public API (weather data, financial data) that any app can
+        call can use a key to track usage and throttle abuse.</li>
+      </ul>
+
+      <h4>What API keys cannot do</h4>
+      <ul>
+        <li><strong>Authenticate a user.</strong> A key identifies the application, not the person using it. If
+        two users of the same app share a key, the API cannot tell them apart, cannot apply per-user permissions,
+        cannot show per-user data. This is why "user-facing apps with API keys" always end up in the BOLA
+        vulnerability (Question 10).</li>
+        <li><strong>Express fine-grained permissions.</strong> A key can be scoped (read-only, read-write), but it
+        cannot express "Alice may read Bob's orders, but not Carol's." That requires a user-level authorization
+        model.</li>
+        <li><strong>Be safely embedded in client-side code.</strong> A key in a mobile app, a JavaScript bundle, or a
+        desktop binary is visible to anyone who inspects the app. It will be extracted and abused. Client-side apps
+        must use OAuth or a backend-for-frontend (BFF) that holds the key server-side.</li>
+        <li><strong>Be revoked granularly.</strong> Revoking a key invalidates all uses of it. If the key is shared
+        across many users (which it should not be), revocation logs everyone out at once.</li>
+        <li><strong>Provide replay protection.</strong> A stolen key can be used from anywhere; there is no binding to
+        a device or session.</li>
+      </ul>
+
+      <h4>The common API key mistakes</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Mistake</th><th>Consequence</th><th>Fix</th></tr></thead>
+          <tbody>
+            <tr><td>Storing keys in plaintext</td><td>A database leak exposes every key</td><td>Store SHA-256 hashes; the plaintext is shown once at issuance</td></tr>
+            <tr><td>Keys in git or logs</td><td>Leaked within hours; botnets scan GitHub</td><td>Secret scanners in CI; never log the <code>Authorization</code> header</td></tr>
+            <tr><td>Keys in client-side code</td><td>Extractable from any mobile app or web bundle</td><td>Use OAuth or a BFF; never ship a key in a client</td></tr>
+            <tr><td>No rotation</td><td>A leaked key stays valid forever</td><td>Support key rotation with an overlap window; expire keys after N days</td></tr>
+            <tr><td>One key per organisation</td><td>Cannot revoke one integration without revoking all</td><td>One key per application/integration; label keys</td></tr>
+            <tr><td>Unscoped keys</td><td>Read-only integrations get write access</td><td>Scope keys to the minimum permissions needed</td></tr>
+            <tr><td>Key in query parameter</td><td>Leaked in logs, browser history, referer headers</td><td>Always in the <code>Authorization</code> header</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>When to use API keys vs OAuth</h4>
+      <p>The rule: <strong>API keys for applications, OAuth for users.</strong> If the API caller is a machine
+      acting on its own behalf (a cron job, a backend integration, a public data consumer), an API key is
+      sufficient. If the caller is acting on behalf of a user (a mobile app reading "my orders", a third-party app
+      accessing "your Google Calendar"), OAuth is required — because only OAuth can express "this app, acting for
+      this user, with these scopes" and allow the user to revoke access without changing their password.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Using API keys as user authentication. The API cannot distinguish two users of the same app, so any
+        per-user authorization is either missing (BOLA) or implemented by trusting a client-supplied user ID (a
+        privilege escalation). If the API returns "my data", it needs to know who "my" is — and an API key does not
+        answer that question.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q3 -->
+  <article class="q" id="q3">
+    <div class="q-head">
+      <div class="q-num">3</div>
+      <h3>What are the OAuth 2.0 flows, and when do you use each?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>OAuth 2.0 defines several flows ("grant types") for obtaining an access token. The two you should know
+        for APIs are <strong>authorization code + PKCE</strong> (for user-facing apps — web, mobile, SPA) and
+        <strong>client credentials</strong> (for machine-to-machine). Implicit and password grants are deprecated and
+        should not be used. Device code is for input-constrained devices (TVs, CLI tools).</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Flow</th><th>Use case</th><th>Status</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Authorization Code + PKCE</strong></td><td>Web apps, SPAs, mobile apps — anything with a user</td><td>Current best practice</td><td>The client never sees the user's password; the token is exchanged server-side (or with a code verifier for public clients)</td></tr>
+            <tr><td><strong>Client Credentials</strong></td><td>Machine-to-machine (services, cron jobs, daemons)</td><td>Current</td><td>No user involved; the client authenticates with its own credentials</td></tr>
+            <tr><td><strong>Device Code</strong></td><td>TVs, CLI tools, input-constrained devices</td><td>Current</td><td>The user authorises on a phone while the device polls for the token</td></tr>
+            <tr><td><strong>Implicit</strong></td><td>Historical SPAs</td><td>Deprecated (OAuth 2.1 removes it)</td><td>Token exposed in URL fragment; no client authentication</td></tr>
+            <tr><td><strong>Resource Owner Password</strong></td><td>Legacy first-party apps</td><td>Deprecated (OAuth 2.1 removes it)</td><td>The client handles the password; no MFA; no consent; trains users to trust any app with credentials</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Authorization Code + PKCE — the default</h4>
+      <p>The canonical flow for any app where a user is present:</p>
+      <ol>
+        <li><strong>Authorisation request.</strong> The client redirects the user to the authorisation server with
+        <code>client_id</code>, <code>redirect_uri</code>, <code>scope</code>, <code>state</code>, and — for PKCE —
+        a <code>code_challenge</code> (a hash of a random <code>code_verifier</code> the client generated).</li>
+        <li><strong>User authentication and consent.</strong> The authorisation server authenticates the user (password,
+        MFA, SSO) and shows a consent screen listing the requested scopes.</li>
+        <li><strong>Redirect with code.</strong> The server redirects back to <code>redirect_uri</code> with a
+        short-lived <code>code</code> and the same <code>state</code> (which the client checks to prevent CSRF).</li>
+        <li><strong>Token exchange.</strong> The client POSTs the <code>code</code> and the <code>code_verifier</code>
+        to the token endpoint. The server verifies the verifier hashes to the challenge, and returns the
+        <code>access_token</code>, <code>refresh_token</code>, and (optionally) an <code>id_token</code>.</li>
+        <li><strong>Use the token.</strong> The client sends <code>Authorization: Bearer {access_token}</code> to the
+        API.</li>
+      </ol>
+      <p><strong>Why PKCE matters.</strong> Without PKCE, a public client (SPA, mobile app) has no client secret —
+      anyone who can intercept the code can exchange it for a token. PKCE binds the code to the client: only the
+      client that generated the <code>code_verifier</code> can complete the exchange. This makes authorisation code
+      safe for public clients, which is why PKCE is now required for all clients, not just public ones.</p>
+
+      <h4>Client Credentials — for machines</h4>
+      <p>When there is no user — a service calling another service, a cron job, a daemon — the client authenticates
+      directly with its own credentials (client ID + secret, or a signed assertion, or mTLS) and receives a token.
+      There is no user, no consent, no redirect. The token represents the application itself, and its scopes are the
+      application's permissions.</p>
+      <p>The critical difference from authorization code: <strong>client credentials tokens should not be used for
+      user-facing APIs</strong>, because there is no user context. If the endpoint does "get my orders", a client
+      credentials token has no "my" — the authorisation fails, or worse, the API trusts a client-supplied user ID
+      and returns anything (BOLA, Question 10).</p>
+
+      <h4>Device Code — for constrained devices</h4>
+      <p>A smart TV or CLI tool cannot render a login page. The device code flow:</p>
+      <ol>
+        <li>The device requests a device code and a user code from the authorisation server.</li>
+        <li>It displays the user code ("go to example.com/activate and enter ABC-123").</li>
+        <li>The user enters the code on their phone or laptop, authenticates, and approves.</li>
+        <li>The device polls the token endpoint until the user has approved, then receives the token.</li>
+      </ol>
+      <p>This is the only safe way to authenticate on a device that has no keyboard, no browser, and no way to keep
+      a secret.</p>
+
+      <h4>Why implicit and password are deprecated</h4>
+      <ul>
+        <li><strong>Implicit</strong> puts the access token in the URL fragment (accessible to JavaScript,
+        browser history, referrer headers). It has no client authentication, no refresh tokens, and no way to bind
+        the token to the client. PKCE solves all of these for public clients, making implicit obsolete.</li>
+        <li><strong>Password</strong> requires the client to handle the user's password directly, which trains users
+        to give their password to any app, defeats MFA, and gives the client permanent credential access. Modern
+        applications use a redirect-based flow with the identity provider handling the password.</li>
+      </ul>
+
+      <h4>The scopes and consent dimension</h4>
+      <p>Every OAuth flow requests <strong>scopes</strong> — the permissions the token will have (Question 7). The
+      user (in authorization code and device flows) sees the scopes on the consent screen and can reject. The
+      authorisation server issues a token limited to the granted scopes, and the API enforces them at every
+      request. This is the mechanism by which OAuth provides least privilege.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Using authorization code without PKCE for a SPA or mobile app. The code is exposed in the redirect URL,
+        and without the code verifier binding, an attacker who intercepts it can exchange it for a token. OAuth 2.1
+        makes PKCE mandatory for all clients precisely because this mistake was so common.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "User-facing clients use authorization code with PKCE; machine-to-machine uses client credentials.
+        Implicit and password grants are deprecated — I would not use them." That covers the current state of the
+        art in two sentences.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q4 -->
+  <article class="q" id="q4">
+    <div class="q-head">
+      <div class="q-num">4</div>
+      <h3>What is the difference between JWT and opaque tokens?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A <strong>JWT</strong> is a self-contained, signed token whose claims can be verified without a database
+        lookup. An <strong>opaque token</strong> is a random string whose meaning is stored server-side; every
+        request requires a lookup. JWT is faster to verify and scales without a shared store, but cannot be revoked
+        easily. Opaque tokens are revocable instantly but require a lookup per request and a shared session store.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Aspect</th><th>JWT</th><th>Opaque token</th></tr></thead>
+          <tbody>
+            <tr><td>Format</td><td>Base64url header.payload.signature</td><td>Random string</td></tr>
+            <tr><td>Verification</td><td>Signature check — no lookup</td><td>Lookup in a database or cache</td></tr>
+            <tr><td>Scalability</td><td>Excellent — stateless</td><td>Requires shared state</td></tr>
+            <tr><td>Revocation</td><td>Hard — must wait for expiry or maintain a blocklist</td><td>Instant — delete the row</td></tr>
+            <tr><td>Size</td><td>Large (hundreds of bytes)</td><td>Small (32–64 bytes)</td></tr>
+            <tr><td>Claims</td><td>Embedded (user ID, roles, scopes)</td><td>Looked up per request</td></tr>
+            <tr><td>Leak impact</td><td>Claims visible to the holder (not the secret)</td><td>Only the token value is leaked</td></tr>
+            <tr><td>Best for</td><td>Stateless APIs, microservices, short-lived tokens</td><td>Revocable sessions, high-security flows</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>What a JWT actually contains</h4>
+      <p>A JWT has three base64url-encoded parts, separated by dots:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Part</th><th>Content</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr><td>Header</td><td>Algorithm and token type</td><td><code>{"alg": "RS256", "typ": "JWT"}</code></td></tr>
+            <tr><td>Payload</td><td>Claims — the data</td><td><code>{"sub": "user_42", "scope": "read:orders", "exp": 1705314600, "iss": "https://auth.example.com"}</code></td></tr>
+            <tr><td>Signature</td><td>Cryptographic proof of integrity</td><td>RSA/ECDSA/HMAC signature over the first two parts</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The critical property: the payload is <strong>readable by anyone</strong> (base64 is not encryption), but
+      <strong>not modifiable</strong> (the signature would fail). A JWT is a signed document, not an encrypted one.
+      Never put secrets in a JWT — only claims that are safe to be public.</p>
+
+      <h4>Standard claims</h4>
+      <ul>
+        <li><code>iss</code> — issuer (who created the token)</li>
+        <li><code>sub</code> — subject (who the token is about)</li>
+        <li><code>aud</code> — audience (who the token is for)</li>
+        <li><code>exp</code> — expiration time</li>
+        <li><code>nbf</code> — not before</li>
+        <li><code>iat</code> — issued at</li>
+        <li><code>jti</code> — unique token ID (for revocation)</li>
+        <li><code>scope</code> — permissions (OAuth-specific)</li>
+      </ul>
+      <p>The verifier must check <code>iss</code> and <code>aud</code> against expected values, and must reject
+      tokens where <code>exp &lt; now</code> or <code>nbf &gt; now</code>. A token with valid signature but wrong
+      audience is valid for a different service, not this one.</p>
+
+      <h4>The revocation problem</h4>
+      <p>This is the fundamental limitation of JWT and the reason most production systems use a hybrid. A
+      self-contained JWT cannot be invalidated before its expiry — the verifier has no way to know that the
+      user has logged out, the password has changed, the account has been disabled, or the token has been stolen.
+      The token is valid until <code>exp</code>.</p>
+      <p>The mitigations:</p>
+      <ul>
+        <li><strong>Short expiry.</strong> Set <code>exp</code> to 5–15 minutes. A stolen token is usable for at
+        most that long. The cost is that the user must refresh frequently.</li>
+        <li><strong>Refresh tokens.</strong> The short-lived access token is refreshed using a long-lived
+        refresh token that <em>is</em> checked against a store. Logout revokes the refresh token; the access token
+        expires shortly after.</li>
+        <li><strong>Blocklist.</strong> Maintain a list of revoked <code>jti</code> values. Every verifier checks it.
+        This reintroduces the lookup that JWT was supposed to avoid — but the lookup is only for revoked tokens
+        (usually a small list), so it can be cached aggressively.</li>
+        <li><strong>Token version.</strong> Store a "token version" per user; embed it in the JWT; on revocation
+        (logout, password change), increment it. Verifiers check the version against a cached value. This is a
+        blocklist for the user level rather than the token level.</li>
+      </ul>
+
+      <h4>The hybrid in practice</h4>
+      <p>The standard production architecture uses both:</p>
+      <ol>
+        <li><strong>Access token</strong> — a short-lived JWT (5–15 minutes). Verified locally, no lookup. Contains
+        the user ID and scopes.</li>
+        <li><strong>Refresh token</strong> — a long-lived opaque token (days to weeks). Stored server-side, checked
+        on each refresh, revocable instantly.</li>
+        <li><strong>Revocation</strong> — logout deletes the refresh token. The access token remains valid for up
+        to 15 minutes, but the user cannot get a new one. Password changes and account disables increment the user's
+        token version, invalidating all access tokens within 15 minutes.</li>
+      </ol>
+      <p>This gives the scalability of JWT for the hot path (verification) and the revocability of opaque tokens for
+      the cold path (refresh). It is what Auth0, Okta, Cognito, and most identity providers implement.</p>
+
+      <h4>JWT signing algorithms</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Algorithm</th><th>Type</th><th>Use</th></tr></thead>
+          <tbody>
+            <tr><td><code>HS256</code></td><td>HMAC (symmetric)</td><td>Single service that both signs and verifies. Simple, but shares the secret.</td></tr>
+            <tr><td><code>RS256</code></td><td>RSA (asymmetric)</td><td>Issuer signs, verifiers hold only the public key. Standard for OAuth.</td></tr>
+            <tr><td><code>ES256</code></td><td>ECDSA (asymmetric)</td><td>Same as RS256 but smaller keys/signatures. Modern choice.</td></tr>
+            <tr><td><code>none</code></td><td>No signature</td><td>Never. This is a historical vulnerability (CVE-2015-9235). Always reject <code>alg: none</code>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The verifier must reject tokens whose <code>alg</code> is not in the expected set. A token with
+      <code>alg: none</code> and no signature is trivially forged; a verifier that accepts it is compromised.
+      This is the most common JWT vulnerability in the wild.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Putting sensitive data in the JWT payload. The payload is base64-encoded, not encrypted — anyone with the
+        token can decode it. Never put passwords, PII, or internal IDs that should not be visible. Only put claims
+        that are safe to be public.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q5 -->
+  <article class="q" id="q5">
+    <div class="q-head">
+      <div class="q-num">5</div>
+      <h3>What is mTLS, and when should you use it for machine-to-machine authentication?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Mutual TLS (mTLS) is TLS where both the client and the server present certificates and verify each other.
+        Regular TLS only verifies the server (so the client knows it is talking to the real server); mTLS also
+        verifies the client (so the server knows who is calling). It is the standard for service-to-service
+        authentication in a zero-trust network, and the basis of SPIFFE/SPIRE and service mesh identity.</p>
+      </div>
+
+      <h4>How it works</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Step</th><th>Client</th><th>Server</th></tr></thead>
+          <tbody>
+            <tr><td>1. ClientHello</td><td>Sends supported TLS versions and ciphers</td><td>—</td></tr>
+            <tr><td>2. ServerHello + certificate</td><td>—</td><td>Sends its certificate</td></tr>
+            <tr><td>3. Client verifies server</td><td>Checks the server's certificate against a trusted CA</td><td>—</td></tr>
+            <tr><td>4. CertificateRequest</td><td>—</td><td>Asks the client for its certificate</td></tr>
+            <tr><td>5. Client certificate</td><td>Sends its certificate</td><td>—</td></tr>
+            <tr><td>6. Server verifies client</td><td>—</td><td>Checks the client's certificate against a trusted CA, and maps the identity to a policy</td></tr>
+            <tr><td>7. Key exchange</td><td colspan="2">Both derive a shared session key; the channel is now encrypted and mutually authenticated</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The critical part is step 6: the server maps the client certificate's identity (its Subject or a SPIFFE ID)
+      to an authorisation policy. "This certificate is for <code>orders-service</code>, so it may call
+      <code>GET /inventory</code>." The policy is enforced at the network layer, not by the application.</p>
+
+      <h4>SPIFFE — the standard for workload identity</h4>
+      <p>SPIFFE (Secure Production Identity Framework for Everyone) defines a standard for issuing identities to
+      workloads. The identity is a URI — <code>spiffe://example.com/ns/production/sa/orders-service</code> — encoded
+      in a short-lived X.509 certificate. The SPIFFE Verifiable Identity Document (SVID) is the certificate, and the
+      SPIFFE Workload API is how the workload obtains it.</p>
+      <p>SPIRE is the reference implementation. The workload proves its identity (via a Kubernetes service account,
+      a cloud instance identity, or a metadata service), and SPIRE issues a short-lived certificate bound to that
+      identity. The workload uses the certificate for mTLS to other services. Certificate rotation is automatic —
+      the SVID is renewed well before expiry, typically every few hours.</p>
+
+      <h4>Why mTLS in a service mesh</h4>
+      <p>In a service mesh (Istio, Linkerd, Consul Connect), the sidecar proxy handles mTLS transparently. The
+      application does not know or care — it makes plain HTTP calls, the sidecar upgrades them to mTLS, the
+      receiving sidecar verifies the certificate, and the request is delivered. The benefits:</p>
+      <ul>
+        <li><strong>Zero application changes.</strong> The mesh handles identity and encryption; every service gets
+        mTLS without writing crypto code.</li>
+        <li><strong>Encryption in transit everywhere.</strong> Even "internal" traffic is encrypted, which is
+        essential in zero-trust networks where the internal network is not trusted.</li>
+        <li><strong>Identity-based authorisation.</strong> Policies like "only <code>frontend</code> may call
+        <code>backend</code>" are enforced by the mesh, not the application.</li>
+        <li><strong>Automatic rotation.</strong> The mesh's CA rotates certificates every few hours; there is no
+        manual key management.</li>
+      </ul>
+
+      <h4>What mTLS does not solve</h4>
+      <ul>
+        <li><strong>User authentication.</strong> mTLS authenticates the workload, not the user. A user's request
+        flowing through a service still needs user identity (a JWT or a session) propagated through the call
+        chain.</li>
+        <li><strong>Authorization logic.</strong> mTLS says "this is orders-service"; it does not say "orders-service
+        may read inventory" — that is a policy decision that must be expressed and enforced (by the mesh's
+        AuthorizationPolicy, or by the application).</li>
+        <li><strong>Compromised workloads.</strong> If a service is compromised, its mTLS certificate is valid, and
+        the attacker can call everything the service could call. mTLS limits the blast radius to the service's
+        permissions, not beyond.</li>
+        <li><strong>End-user threat.</strong> mTLS protects the channel between services. It does not protect
+        against a malicious user exploiting the application's logic.</li>
+      </ul>
+
+      <h4>When to use mTLS</h4>
+      <ul>
+        <li><strong>Service-to-service in a zero-trust network.</strong> All internal traffic is encrypted and
+        authenticated. This is the standard in modern microservice deployments.</li>
+        <li><strong>Regulated industries</strong> where encryption in transit is a compliance requirement, including
+        for internal traffic.</li>
+        <li><strong>Partners or B2B integrations</strong> where both sides need cryptographic proof of identity —
+        much stronger than an API key, which can be leaked.</li>
+        <li><strong>IoT and device authentication.</strong> Each device has a unique certificate; the server knows
+        exactly which device is calling.</li>
+        <li><strong>High-value machine-to-machine</strong> (financial transfers, administrative operations) where
+        an API key is not sufficient assurance.</li>
+      </ul>
+
+      <h4>When not to use mTLS</h4>
+      <ul>
+        <li><strong>Browser clients.</strong> mTLS with client certificates is painful in browsers (installation,
+        selection dialogs, no mobile support). Use OAuth or session cookies for user-facing.</li>
+        <li><strong>Public APIs</strong> where developers need to onboard easily. API keys or OAuth are friendlier.</li>
+        <li><strong>Small systems</strong> without a service mesh or a CA. Setting up mTLS from scratch is a real
+        operational burden; a shared secret in a sealed secret manager may be enough.</li>
+      </ul>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>mTLS gives the strongest machine identity (cryptographic, not bearer), but requires a certificate
+        authority, a rotation mechanism, and either application-level or mesh-level integration. A service mesh
+        amortises the cost across many services; doing mTLS manually for a few services is expensive relative to
+        the benefit.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "For service-to-service I'll use mTLS with SPIFFE identities, either via a service mesh or a
+        workload identity system. It gives cryptographic identity, automatic rotation, and encryption in transit —
+        with no application changes if the mesh handles it." That demonstrates understanding of both the mechanism
+        and its operational reality.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART B ================= -->
+  <div class="part-band teal">
+    <div class="bar"></div>
+    <h2>Part B — Authorization
+      <span class="sub">Enforcing permissions: what may they do?</span>
+    </h2>
+  </div>
+
+  <!-- Q6 -->
+  <article class="q teal" id="q6">
+    <div class="q-head">
+      <div class="q-num">6</div>
+      <h3>What is the difference between RBAC, ABAC, and ReBAC?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p><strong>RBAC</strong> assigns permissions to roles, and roles to users — simple and good for stable
+        organisational structures. <strong>ABAC</strong> evaluates policies over attributes of the user, the
+        resource, and the environment — more flexible, more complex. <strong>ReBAC</strong> evaluates relationships
+        between the user and the resource ("is this user an editor of this document?") — the model behind Google
+        Docs, GitHub permissions, and Google's Zanzibar.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Model</th><th>Question it answers</th><th>Strength</th><th>Weakness</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>RBAC</strong></td>
+              <td>"Does the user have role X?"</td>
+              <td>Simple, auditable, well-understood</td>
+              <td>Cannot express per-resource permissions; role explosion for fine-grained needs</td>
+            </tr>
+            <tr>
+              <td><strong>ABAC</strong></td>
+              <td>"Do the attributes satisfy the policy?"</td>
+              <td>Flexible, can express context (time, location, resource attributes)</td>
+              <td>Complex policies, hard to audit, hard to reason about</td>
+            </tr>
+            <tr>
+              <td><strong>ReBAC</strong></td>
+              <td>"Is there a relationship path from user to resource?"</td>
+              <td>Natural for nested resources (docs in folders, orgs, teams)</td>
+              <td>Graph traversal cost, requires a relationship store</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>RBAC — role-based access control</h4>
+      <p>The classic model. Define roles (<code>admin</code>, <code>editor</code>, <code>viewer</code>), assign
+      permissions to roles, assign roles to users. The check is: "does the user have a role that grants the
+      required permission?"</p>
+      <p><strong>Strengths:</strong> simple to understand, easy to audit ("who has admin?"), well-supported by every
+      framework. It maps naturally to organisational roles.</p>
+      <p><strong>Weakness:</strong> it is global. "Editor" means "can edit everything" — there is no way to say
+      "Alice is an editor of this document but a viewer of that one." The standard workaround is to create roles
+      per resource ("editor_of_doc_42"), which leads to role explosion: thousands of roles, most used by one person.
+      This is the well-known problem that ReBAC solves.</p>
+
+      <h4>ABAC — attribute-based access control</h4>
+      <p>Policies are expressions over attributes: subject attributes (department, clearance level), resource
+      attributes (classification, owner, creation date), action attributes, and environment attributes (time, IP,
+      location). The check is: "evaluate the policy against the attributes."</p>
+      <p><strong>Strengths:</strong> extremely flexible — "managers can approve expenses up to $10k during business
+      hours from the corporate network" is directly expressible. Context-aware decisions (location, time) work
+      naturally.</p>
+      <p><strong>Weakness:</strong> policies become complex and hard to audit. "Why was this request denied?" is a
+      hard question when the policy is a tree of expressions. Attribute sources must be trusted and up to date.
+      Tooling is less mature than RBAC.</p>
+
+      <h4>ReBAC — relationship-based access control</h4>
+      <p>Permissions are derived from the graph of relationships between users and resources. "Alice is an editor
+      of document 42" is a relationship. "Editors of a document can read it" is a permission rule. The check is:
+      "is there a path from Alice to document 42 through relationships that grant read?"</p>
+      <p>ReBAC naturally handles:</p>
+      <ul>
+        <li><strong>Nested resources.</strong> "Editors of a folder are editors of everything in it." The check
+        traverses the folder → document relationship.</li>
+        <li><strong>Group membership.</strong> "Members of the engineering group are viewers of the design doc
+        group." The check traverses group membership.</li>
+        <li><strong>Delegation.</strong> "Anyone Alice has shared the document with can reshare it." Recursion
+        follows the sharing relationship.</li>
+      </ul>
+      <p><strong>Strengths:</strong> the natural model for document collaboration, multi-tenant SaaS, and any
+      domain with hierarchies and sharing. Permissions are expressed as relationships, which mirror how humans think
+      about access.</p>
+      <p><strong>Weakness:</strong> requires a relationship store (a graph or a carefully indexed relational table),
+      and the check is a graph traversal. Google's Zanzibar paper describes the system that handles Google's
+      ReBAC at scale; OpenFGA and SpiceDB are open-source implementations.</p>
+
+      <h4>The Zanzibar model</h4>
+      <p>Zanzibar encodes permissions as tuples: <code>(object, relation, subject)</code>. For example:
+      <code>(doc:42, editor, user:alice)</code>. A permission rule is a union/intersection of relations:
+      <code>can_read = owner ∪ editor ∪ viewer ∪ (viewer of parent folder)</code>. The check is a recursive graph
+      traversal against these rules. Zanzibar handles billions of tuples and millions of checks per second with
+      a combination of caching, sharding, and clever indexing.</p>
+      <p>OpenFGA (CNCF) and SpiceDB (AuthZed) implement the Zanzibar model. They are the right tools when you need
+      ReBAC at scale and do not want to build a graph store yourself.</p>
+
+      <h4>The hybrid reality</h4>
+      <p>Most systems use a combination. A typical SaaS app:</p>
+      <ul>
+        <li><strong>RBAC for platform roles</strong> — "admin", "support", "billing" — who can access the admin
+        console.</li>
+        <li><strong>ReBAC for customer content</strong> — "Alice can edit this document because she is an editor
+        of the folder it is in."</li>
+        <li><strong>ABAC for context</strong> — "Only during business hours from an internal IP" for sensitive
+        operations.</li>
+      </ul>
+      <p>Each model is used where it is strongest. The mistake is to try to express all three in one model — a
+      role explosion in RBAC, or an unmaintainable policy in ABAC, is the result.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>RBAC is simple but global. ABAC is flexible but complex. ReBAC is natural for hierarchies but needs a
+        relationship store. Start with RBAC for organisational permissions; add ReBAC when per-resource sharing
+        becomes a requirement; add ABAC only for specific context-dependent rules. Most systems need less than
+        they think.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Platform roles are RBAC — admin, support, billing. Customer content is ReBAC — Alice is an editor
+        of this folder, so she can edit everything in it. That's the Zanzibar model, and I'd use OpenFGA or a
+        relational equivalent." That names the models and their boundaries in one sentence.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q7 -->
+  <article class="q teal" id="q7">
+    <div class="q-head">
+      <div class="q-num">7</div>
+      <h3>How do you design OAuth scopes for least privilege?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Scopes are the permissions an OAuth token carries. Design them as <strong>resource:action</strong>
+        strings (<code>read:orders</code>, <code>write:orders</code>), keep them coarse enough to be usable and
+        fine enough to be meaningful, avoid scope explosion, and never grant wildcard access. Every scope should
+        map to a user-facing consent decision — if the user cannot understand what a scope grants, the scope is
+        designed wrong.</p>
+      </div>
+
+      <h4>What scopes are</h4>
+      <p>A scope is a string the client requests, the user approves, the authorisation server embeds in the token,
+      and the API enforces. It answers a coarse authorization question: "may this application do this class of
+      operation on behalf of this user?" — not "may this user access this specific order?" (that is a resource-level
+      check).</p>
+
+      <h4>Design principles</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Principle</th><th>Meaning</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Resource:action</strong></td>
+              <td>Name the resource and the operation</td>
+              <td><code>read:orders</code>, <code>write:orders</code>, <code>read:profile</code>, <code>delete:account</code></td>
+            </tr>
+            <tr>
+              <td><strong>Least privilege</strong></td>
+              <td>Each scope grants the minimum necessary</td>
+              <td>Separate <code>read:orders</code> from <code>read:order_items</code> if they are genuinely different</td>
+            </tr>
+            <tr>
+              <td><strong>User-understandable</strong></td>
+              <td>The consent screen can explain what it grants</td>
+              <td>"View your orders" — not "scope:orders:*:read"</td>
+            </tr>
+            <tr>
+              <td><strong>Not too fine</strong></td>
+              <td>Scope explosion makes clients request everything</td>
+              <td>Do not create <code>read:orders:2024</code> and <code>read:orders:2025</code> — use a filter at the resource layer</td>
+            </tr>
+            <tr>
+              <td><strong>Not too coarse</strong></td>
+              <td>Wildcard scopes defeat the purpose</td>
+              <td>Do not offer <code>*</code> or <code>admin</code> for general use</td>
+            </tr>
+            <tr>
+              <td><strong>Stable</strong></td>
+              <td>Scope names are part of the contract</td>
+              <td>Renaming a scope is a breaking change (Volume 3)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The resource:action convention</h4>
+      <p>The most common convention is <code>{action}:{resource}</code> — <code>read:orders</code> rather than
+      <code>orders:read</code>. The action first reads naturally ("read orders") and sorts scopes by operation in
+      the consent screen (all the <code>read:*</code> together). Some APIs use <code>{resource}:{action}</code>
+      (<code>orders:read</code>) — either is fine; pick one and be consistent.</p>
+      <p>Common actions:</p>
+      <ul>
+        <li><code>read</code> — list and get</li>
+        <li><code>write</code> — create, update, delete (or split into <code>create</code>, <code>update</code>,
+        <code>delete</code> for finer control)</li>
+        <li><code>admin</code> — configuration, permissions, webhooks</li>
+      </ul>
+
+      <h4>Scopes vs roles</h4>
+      <p>They are different layers and both may be needed:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Aspect</th><th>Scope</th><th>Role</th></tr></thead>
+          <tbody>
+            <tr><td>Who defines</td><td>The API (resource server)</td><td>The application (or the identity provider)</td></tr>
+            <tr><td>What it says</td><td>"This app may do X on behalf of the user"</td><td>"This user is an admin"</td></tr>
+            <tr><td>Granularity</td><td>Per operation class</td><td>Per organisational role</td></tr>
+            <tr><td>Example</td><td><code>read:orders</code></td><td><code>role:admin</code></td></tr>
+            <tr><td>Enforced by</td><td>The API (per operation)</td><td>The API (per action), often in addition to scope checks</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>A token may have both: <code>scope: "read:orders write:profile"</code> and
+      <code>role: "customer"</code>. The API checks the scope first (does this app have permission for this
+      operation?) and then the role/ownership (does this user have permission for this specific resource?). Both
+      must pass.</p>
+
+      <h4>Scope enforcement</h4>
+      <p>The API must enforce scopes on every request, in the service, not just at the gateway. A gateway can reject
+      requests whose token lacks the required scope, but the service must also verify — defense in depth, and
+      because the gateway may not know the fine-grained mapping between endpoints and scopes.</p>
+      <p>The check is mechanical: for each endpoint, declare the required scope. For
+      <code>GET /orders</code>, require <code>read:orders</code>. For <code>POST /orders</code>, require
+      <code>write:orders</code>. Enforce it in middleware so no endpoint is forgotten.</p>
+
+      <h4>Scope creep</h4>
+      <p>The failure mode: over time, every endpoint gets its own scope, the list grows to hundreds, and clients
+      cannot reasonably pick the right one — so they request everything. The mitigation: keep scopes at the level
+      of user-understandable permission groups ("view your orders", "manage your profile"), and use resource-level
+      checks for the finer distinctions. A scope should be something a user can decide "yes, that makes sense" or
+      "no, that app should not be able to do that."</p>
+
+      <h4>Revocation via scopes</h4>
+      <p>Scopes give the user a way to revoke partially: revoke the <code>read:orders</code> scope but keep the
+      <code>read:profile</code> one. The user's OAuth consent screen shows which apps have which scopes and lets
+      them revoke individually. This is far more usable than "revoke all or nothing", and it depends on scopes being
+      meaningful and well-separated.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Treating scopes as the only authorization mechanism. Scopes say "this app may read orders"; they do not
+        say "this app may read <em>this user's</em> orders." That is a resource-level check, and skipping it is the
+        BOLA vulnerability (Question 10). Scopes are necessary but not sufficient.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q8 -->
+  <article class="q teal" id="q8">
+    <div class="q-head">
+      <div class="q-num">8</div>
+      <h3>How do you enforce multi-tenant authorization and prevent cross-tenant access?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Every tenant's data is isolated at the storage and API layers. The tenant identity is derived from the
+        authentication token (never from a client-supplied parameter), and every query is scoped to that tenant.
+        Cross-tenant access is prevented by a combination of <strong>tenant-scoped tokens</strong>,
+        <strong>row-level filtering</strong> (in the query or via row-level security), and <strong>integration
+        tests</strong> that verify a request from tenant A cannot touch tenant B's data.</p>
+      </div>
+
+      <h4>The three isolation models</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Model</th><th>Isolation</th><th>Cost</th><th>Best for</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Shared schema</strong> (tenant_id column)</td>
+              <td>Logical — all tenants in one table with a tenant_id column</td>
+              <td>Lowest — one database, easy to manage</td>
+              <td>Most SaaS; small-to-medium tenants</td>
+            </tr>
+            <tr>
+              <td><strong>Schema per tenant</strong></td>
+              <td>Logical — separate schemas in one database</td>
+              <td>Medium — per-tenant migrations, more objects</td>
+              <td>Tenants needing some isolation (custom schemas)</td>
+            </tr>
+            <tr>
+              <td><strong>Database per tenant</strong></td>
+              <td>Physical — separate databases</td>
+              <td>Highest — per-tenant provisioning, backups, cost</td>
+              <td>Enterprise tenants with compliance requirements</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The shared-schema model is the default because it is the cheapest and simplest to operate. Its isolation
+      is entirely logical — the tenant_id column and the query filter are the only thing separating tenants. That
+      makes the application responsible for enforcing the filter on every query, which is exactly where bugs happen
+      (BOLA, Question 10).</p>
+
+      <h4>The token carries the tenant</h4>
+      <p>The tenant identity must be derived from the token, never from a request parameter. A JWT for Alice should
+      include her tenant: <code>{"sub": "user_42", "tenant_id": "acme", "scope": "read:orders"}</code>. The API
+      extracts the tenant from the token and uses it for every query — <code>WHERE tenant_id = 'acme' AND
+      id = ?</code>. A client-supplied <code>tenant_id</code> parameter is either ignored or used only for a
+      user who has access to multiple tenants (and then must be validated against the user's memberships).</p>
+      <p>If the client can supply the tenant ID, the API must verify the user is a member of that tenant before
+      proceeding. This is the "tenant switching" feature for users who belong to multiple organisations. The check
+      is a membership lookup, and it must happen before any data access.</p>
+
+      <h4>Enforcing the filter — three approaches</h4>
+      <ol>
+        <li><strong>Application-level</strong> — every query includes <code>WHERE tenant_id = ?</code>. Simple,
+        but one forgotten filter leaks everything. The mitigation is a data access layer that requires the tenant
+        context and refuses to issue a query without it.</li>
+        <li><strong>Row-level security (RLS)</strong> — the database enforces the filter. PostgreSQL's
+        <code>ROW LEVEL SECURITY</code> policy applies automatically based on a session variable set at connection
+        time. The application cannot forget the filter — the database adds it. This is the strongest defense.</li>
+        <li><strong>Separate database per tenant</strong> — the isolation is physical; there is no cross-tenant query
+        possible. The cost is per-tenant operations (migrations, backups, scaling).</li>
+      </ol>
+      <p>The strongest practical design is RLS for the shared-schema model. The application sets
+      <code>SET LOCAL app.tenant_id = 'acme'</code> at the start of each transaction, and RLS policies automatically
+      filter every query. A developer who forgets the filter in code still gets correct isolation, because the
+      database enforced it.</p>
+
+      <h4>Cross-tenant access in resource-level checks</h4>
+      <p>Even with tenant filtering on list endpoints, resource-level endpoints need explicit checks. A request for
+      <code>GET /orders/123</code> must verify that order 123 belongs to the caller's tenant. The query is
+      <code>WHERE tenant_id = 'acme' AND id = 123</code> — if the order belongs to a different tenant, the query
+      returns no rows and the API returns 404 (Question 1 — hiding existence).</p>
+      <p>The bug to avoid: <code>SELECT * FROM orders WHERE id = 123</code> followed by a check in application code.
+      This is the classic BOLA — the query fetched the row, the check was forgotten or wrong, and the row was
+      returned. The fix is to put the tenant filter in the query, not after it.</p>
+
+      <h4>Authorization for cross-tenant features</h4>
+      <p>Some features genuinely need cross-tenant access:</p>
+      <ul>
+        <li><strong>Support impersonation</strong> — a support engineer from the platform team needs to see a
+        customer's data to resolve a ticket. The impersonation must be explicit, logged, time-limited, and require
+        elevated permissions.</li>
+        <li><strong>Shared resources</strong> — a document shared across organisations (a joint project). The
+        ReBAC model (Question 6) expresses this: "Alice has viewer access on doc 42, regardless of tenant."</li>
+        <li><strong>Platform admin</strong> — the operator of the SaaS needs aggregate access for operations and
+        billing. This must be a separate authentication path, not the customer's token with a magic scope.</li>
+      </ul>
+      <p>Each of these is a deliberate exception with its own audit trail. The general rule is "tenant isolation by
+      default, explicit exceptions with audit."</p>
+
+      <h4>Testing tenant isolation</h4>
+      <p>Cross-tenant bugs are silent — they work in normal use and fail catastrophically in production. The
+      defense is a test suite that, for every endpoint, creates two tenants with data and verifies that a request
+      from tenant A cannot access tenant B's data. This is one of the highest-ROI test suites for a multi-tenant
+      SaaS — it catches the missing filter, the wrong token claim, the bypassed RLS policy.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Trusting a client-supplied tenant ID. If the API accepts <code>?tenant_id=acme</code> and uses it for the
+        query without checking that the caller belongs to acme, any authenticated user can access any tenant's data
+        by changing the parameter. The tenant must come from the token, and any client-supplied tenant must be
+        validated against the caller's memberships.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "The tenant comes from the JWT — never from a request parameter. Every query filters by tenant, and I
+        enforce it with row-level security so the filter cannot be forgotten. Resource-level endpoints filter by
+        tenant in the query, so cross-tenant access returns 404." That covers token, RLS, and the 404 pattern in one
+        sentence.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART C ================= -->
+  <div class="part-band amber">
+    <div class="bar"></div>
+    <h2>Part C — Token Lifecycle &amp; Abuse
+      <span class="sub">Revocation, rotation, and the OWASP API Top 10</span>
+    </h2>
+  </div>
+
+  <!-- Q9 -->
+  <article class="q amber" id="q9">
+    <div class="q-head">
+      <div class="q-num">9</div>
+      <h3>How do you implement token rotation, revocation, and logout across a distributed system?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Use short-lived access tokens (5–15 min) plus long-lived refresh tokens stored server-side. Rotation
+        means issuing a new refresh token on each refresh and invalidating the old one. Revocation means deleting
+        or blocklisting the token so it cannot be used. Logout revokes the refresh token; the access token expires
+        on its own within minutes. For JWT access tokens, a per-user token version or a short blocklist handles
+        immediate revocation.</p>
+      </div>
+
+      <h4>The two-token architecture</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Token</th><th>Lifetime</th><th>Storage</th><th>Verification</th><th>Revocable?</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Access token (JWT)</td>
+              <td>5–15 min</td>
+              <td>Client memory</td>
+              <td>Signature check — no lookup</td>
+              <td>Indirect — via refresh revoke + short expiry</td>
+            </tr>
+            <tr>
+              <td>Refresh token (opaque)</td>
+              <td>Days to weeks</td>
+              <td>HttpOnly cookie, secure storage</td>
+              <td>Lookup in DB or cache</td>
+              <td>Yes — delete the row</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The access token is fast because it is stateless. The refresh token is revocable because it is stored. The
+      combination gives both properties: scalable verification on the hot path, revocable sessions on the cold
+      path. This is what every identity provider implements, and it is the right architecture.</p>
+
+      <h4>Refresh token rotation</h4>
+      <p>Rotation means every time a refresh token is used, it is replaced with a new one, and the old one is
+      invalidated. This limits the damage if a refresh token is stolen:</p>
+      <ol>
+        <li>Client sends the refresh token to the token endpoint.</li>
+        <li>Server verifies it, marks it used (or deletes it), and issues a new refresh token plus a new access
+        token.</li>
+        <li>Client stores the new refresh token, discards the old one.</li>
+        <li>If the old token is used again (replay), the server detects the reuse and revokes the entire token family
+        — an attacker who stole the old token will trigger this on their next attempt.</li>
+      </ol>
+      <p>The <strong>reuse detection</strong> is the point. If an attacker steals a refresh token and uses it, they
+      get a new pair; the legitimate user also gets a new pair; when the attacker's next use comes, the server sees
+      the reuse and revokes everything — which logs the legitimate user out, but denies the attacker. The user must
+      re-authenticate, but the attacker is stopped.</p>
+
+      <h4>Revocation</h4>
+      <p>Revocation is the ability to invalidate a token before its natural expiry. There are three mechanisms:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Mechanism</th><th>Latency</th><th>Scope</th><th>Trade-off</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Delete refresh token</td>
+              <td>Instant for refresh, ≤ access TTL for access</td>
+              <td>One session</td>
+              <td>Simple; access token remains valid briefly</td>
+            </tr>
+            <tr>
+              <td>Token version (per user)</td>
+              <td>≤ cache TTL (seconds)</td>
+              <td>All sessions of one user</td>
+              <td>Requires a version in the JWT and a cache of current versions</td>
+            </tr>
+            <tr>
+              <td>JWT blocklist (<code>jti</code>)</td>
+              <td>Instant, if cache is shared</td>
+              <td>One specific token</td>
+              <td>Reintroduces a lookup; the blocklist grows until tokens expire</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Logout</h4>
+      <p>Logout must do two things:</p>
+      <ol>
+        <li><strong>Revoke the refresh token.</strong> Delete it from the store. The user can no longer obtain new
+        access tokens.</li>
+        <li><strong>Invalidate the access token.</strong> Since the access token is a JWT with a short expiry, the
+        simplest approach is to let it expire (5–15 minutes). For immediate logout, either bump the user's token
+        version (which invalidates all their access tokens on the next check) or add the token's <code>jti</code> to
+        a blocklist.</li>
+      </ol>
+      <p>The UX question: should logout be instant everywhere (all devices) or just this device? Most apps support
+      both:</p>
+      <ul>
+        <li><strong>Logout this device</strong> — revoke this refresh token. Other devices keep working.</li>
+        <li><strong>Logout all devices</strong> — bump the token version, which invalidates every access token
+        and refresh token for the user.</li>
+      </ul>
+
+      <h4>Revocation in a distributed system</h4>
+      <p>If the API is served by many services, a JWT can be verified locally without a shared store. But revocation
+      requires shared state. The design:</p>
+      <ul>
+        <li><strong>Short access TTL</strong> is the primary defence — a stolen token is useless after 15 minutes.</li>
+        <li><strong>Refresh revocation</strong> is checked centrally — the token endpoint is a single service.</li>
+        <li><strong>User-level revocation</strong> (logout all, password change, account disable) propagates via a
+        cache of user token versions. Each service caches the version with a short TTL (5–30 seconds); on
+        revocation, the version is incremented in the store, and services see the new version within the TTL.</li>
+        <li><strong>Token-level revocation</strong> (specific <code>jti</code>) uses a Redis blocklist, shared by
+        all services. The list is small (only revoked tokens within their expiry window) and can be cached
+        aggressively.</li>
+      </ul>
+
+      <h4>The "logout does not work" bug</h4>
+      <p>The classic bug: a user logs out, but their JWT is still valid, so they can still use it. This happens
+      because the logout only cleared the client-side token — the server has no idea it should be rejected. The
+      fix is one of the three revocation mechanisms above. In practice, short access TTL + refresh revocation covers
+      most cases; a user who logs out will find that any active request fails within 15 minutes, and their
+      ability to get a new one is gone immediately.</p>
+
+      <h4>The token theft scenario</h4>
+      <p>An attacker who steals an access token can use it until it expires. An attacker who steals a refresh token
+      can get new access tokens until the refresh token is revoked or rotated. This is why:</p>
+      <ul>
+        <li>Refresh tokens should be bound to the client (DPoP, or a sender-constrained token). A stolen refresh
+        token cannot be used from a different device.</li>
+        <li>Refresh tokens should be stored in HttpOnly, Secure cookies (for browsers) so XSS cannot read them.</li>
+        <li>Rotation + reuse detection catches the theft within one refresh cycle.</li>
+      </ul>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Storing refresh tokens in localStorage. Any XSS on the page can read them and exfiltrate them, giving
+        the attacker a long-lived session. Refresh tokens must be in HttpOnly cookies (not readable by JavaScript)
+        or in a native secure store (iOS Keychain, Android Keystore). Access tokens can live in memory, but refresh
+        tokens must be protected from XSS.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q10 -->
+  <article class="q amber" id="q10">
+    <div class="q-head">
+      <div class="q-num">10</div>
+      <h3>What are the OWASP API Top 10, and how do you prevent BOLA, IDOR, and mass assignment?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>The OWASP API Security Top 10 lists the most critical API vulnerabilities. The three most common are:
+        <strong>BOLA</strong> (Broken Object Level Authorization — no check that the caller owns the specific
+        resource), <strong>IDOR</strong> (Insecure Direct Object Reference — a client-supplied ID exposes another
+        user's data), and <strong>mass assignment</strong> (accepting more fields than the client should control).
+        All three are authorization bugs, and all three are prevented by explicit, per-resource permission checks.</p>
+      </div>
+
+      <h4>The OWASP API Top 10 (2023)</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>#</th><th>Vulnerability</th><th>One-line description</th></tr></thead>
+          <tbody>
+            <tr><td>API1</td><td>Broken Object Level Authorization (BOLA)</td><td>The API does not check that the caller may access this specific object</td></tr>
+            <tr><td>API2</td><td>Broken Authentication</td><td>Weak login, credential stuffing, missing MFA, exposed tokens</td></tr>
+            <tr><td>API3</td><td>Broken Object Property Level Authorization</td><td>Mass assignment or excessive data exposure</td></tr>
+            <tr><td>API4</td><td>Unrestricted Resource Consumption</td><td>No rate limits, no result caps, expensive queries</td></tr>
+            <tr><td>API5</td><td>Broken Function Level Authorization</td><td>Missing role checks; users can call admin endpoints</td></tr>
+            <tr><td>API6</td><td>Unrestricted Access to Sensitive Business Flows</td><td>No protection against abuse (scraping, hoarding, spam)</td></tr>
+            <tr><td>API7</td><td>Server-Side Request Forgery (SSRF)</td><td>The server fetches a client-supplied URL, reaching internal services</td></tr>
+            <tr><td>API8</td><td>Security Misconfiguration</td><td>Default creds, open CORS, verbose errors, unpatched software</td></tr>
+            <tr><td>API9</td><td>Improper Inventory Management</td><td>Forgotten endpoints, old versions, shadow APIs</td></tr>
+            <tr><td>API10</td><td>Unsafe Consumption of APIs</td><td>Trusting third-party API responses without validation</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>BOLA — Broken Object Level Authorization</h4>
+      <p>The number-one API vulnerability, and the one that every API team eventually creates. The bug: the API
+      authenticates the caller (valid token) and authorizes the operation (has <code>read:orders</code> scope),
+      but never checks that the caller may access <em>this specific order</em>.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Endpoint</th><th>Vulnerable code</th><th>Attack</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>GET /orders/{id}</code></td>
+              <td><code>SELECT * FROM orders WHERE id = ?</code></td>
+              <td>Alice changes <code>id</code> to Bob's order ID and gets Bob's order</td>
+            </tr>
+            <tr>
+              <td><code>GET /users/{id}/profile</code></td>
+              <td><code>SELECT * FROM users WHERE id = ?</code></td>
+              <td>Alice enumerates IDs and reads every user's profile</td>
+            </tr>
+            <tr>
+              <td><code>DELETE /documents/{id}</code></td>
+              <td><code>DELETE FROM documents WHERE id = ?</code></td>
+              <td>Alice deletes Bob's documents</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The fix is to always filter by the caller's identity in the query:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Fixed code</th></tr></thead>
+          <tbody>
+            <tr><td><code>SELECT * FROM orders WHERE id = ? AND user_id = ?</code> (the caller's user_id)</td></tr>
+            <tr><td>Or <code>SELECT * FROM orders WHERE id = ? AND tenant_id = ?</code> (the caller's tenant)</td></tr>
+            <tr><td>Or a ReBAC check: "does the caller have <code>read</code> on <code>order:{id}</code>?"</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The critical insight: the check must be in the query, not after it. Fetching the row and then checking in
+      application code is a bug waiting to happen — one branch that forgets the check leaks the row. Filtering in
+      the query means the row is never fetched unless the caller is authorized.</p>
+
+      <h4>IDOR — Insecure Direct Object Reference</h4>
+      <p>IDOR is the client-facing manifestation of BOLA. The client sends a direct reference to an object
+      (<code>/orders/123</code>) and the server returns the object without checking that the client is allowed.
+      The two terms are often used interchangeably; BOLA is the category, IDOR is the specific attack pattern.</p>
+      <p>The classic IDOR test: create two accounts, log in as account A, request an object belonging to account B
+      by changing the ID. If the response is the object, the API has an IDOR. This is the first test in any API
+      security assessment.</p>
+      <p>The mitigation is the same as BOLA: filter by the caller's identity, and return 404 (not 403) when the
+      object exists but the caller cannot see it — so the attacker cannot use response codes to enumerate which
+      IDs exist.</p>
+
+      <h4>Mass assignment</h4>
+      <p>The bug: the API accepts a JSON body and maps it directly to an object, allowing the client to set fields
+      it should not control.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Client sends</th><th>What the server does</th><th>Impact</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>{"name": "Alice", "is_admin": true}</code></td>
+              <td>Maps all fields to the user object</td>
+              <td>Alice becomes an admin — privilege escalation</td>
+            </tr>
+            <tr>
+              <td><code>{"email": "x@y.com", "role": "owner"}</code></td>
+              <td>Updates the role field</td>
+              <td>The user grants themselves higher permissions</td>
+            </tr>
+            <tr>
+              <td><code>{"amount": 100, "status": "paid"}</code></td>
+              <td>Sets status directly</td>
+              <td>Bypasses payment and marks the order paid</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The fix: never map the raw request body to the object. Define an explicit allowlist of fields the client
+      may set, and copy only those:</p>
+      <ul>
+        <li><strong>DTO (Data Transfer Object).</strong> A separate class with only the allowed fields. The request
+        body is deserialized into the DTO, and the DTO's fields are copied to the entity.</li>
+        <li><strong>Explicit field mapping.</strong> <code>user.name = body.name; user.email = body.email;</code> —
+        never <code>Object.assign(user, body)</code> or a reflection-based mapper without an allowlist.</li>
+        <li><strong>Read-only fields.</strong> Mark fields like <code>id</code>, <code>created_at</code>,
+        <code>role</code>, <code>is_admin</code> as read-only in the schema, so an update can never change them.</li>
+      </ul>
+
+      <h4>Broken function level authorization</h4>
+      <p>The cousin of BOLA: the endpoint itself should be restricted to a role, but the check is missing. A
+      <code>DELETE /users/{id}</code> endpoint that any authenticated user can call is broken function-level
+      authorization — a customer can delete other customers. The fix is a role check on the endpoint
+      (RBAC, Question 6) in addition to the resource check. Both are needed: role check on the operation, resource
+      check on the object.</p>
+
+      <h4>Defense in depth</h4>
+      <p>No single check prevents these vulnerabilities. The design:</p>
+      <ol>
+        <li><strong>Authentication middleware</strong> — every request has a verified identity.</li>
+        <li><strong>Scope check middleware</strong> — the token has the scope required for the operation class.</li>
+        <li><strong>Role check</strong> — the user has the role required for this endpoint (function-level).</li>
+        <li><strong>Resource check</strong> — the query filters by the caller's identity (object-level).</li>
+        <li><strong>Response shaping</strong> — the DTO controls which fields are returned, and the request DTO
+        controls which fields can be set.</li>
+        <li><strong>Tests</strong> — a two-account test for every endpoint verifies that account A cannot touch
+        account B's data.</li>
+      </ol>
+      <p>Each layer catches what the others miss. The tests are the final safety net — they catch the forgotten
+      check, the wrong query, the new endpoint that was added without the pattern.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "BOLA is the number-one API vulnerability, and the fix is to put the caller's identity in the query
+        — <code>WHERE id = ? AND user_id = ?</code> — never fetch and then check. Mass assignment is prevented by a
+        request DTO with an allowlist, never <code>Object.assign</code> from the raw body." That names the two
+        vulnerabilities and the two fixes in one sentence.</p>
+      </div>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Assuming that "the client would never send that" is a defense against mass assignment. Automated scanners
+        and attackers will send every field to see what sticks. The field must be explicitly rejected by the server,
+        not left to the client's goodwill.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- NEXT PART -->
+  <section class="next-part">
+    <h3>Coming in Volume 7 — Rate Limiting &amp; Quotas</h3>
+    <p>Volume 7 turns to the abuse-prevention layer: the algorithms (token bucket, leaky bucket, fixed and sliding
+    windows), where to enforce (gateway vs service vs client), how to return limits to clients (headers, 429,
+    Retry-After), how to implement distributed rate limiting without a single point of failure, and how to design
+    quotas for a multi-tenant SaaS.</p>
+    <ul class="next-list">
+      <li>Token bucket vs leaky bucket vs sliding window</li>
+      <li>Distributed rate limiting with Redis</li>
+      <li>Rate limit headers (RateLimit-*, X-RateLimit-*)</li>
+      <li>429 and Retry-After</li>
+      <li>Per-client vs per-user vs per-tenant</li>
+      <li>Rate limiting vs concurrency limiting</li>
+      <li>Quotas: usage-based, tiered, and overages</li>
+      <li>Throttling vs rejection</li>
+      <li>Handling bursts and fairness</li>
+      <li>Preventing rate-limit bypass</li>
+    </ul>
+  </section>
+
+</div>
+</body>
+</html>
