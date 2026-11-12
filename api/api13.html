@@ -1,0 +1,1996 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API Design — Volume 13: gRPC Deep Dive</title>
+<style>
+  :root{
+    --ink:#061a17;
+    --ink-soft:#1c3d36;
+    --muted:#4e7a70;
+    --line:#cfe6e0;
+    --bg:#f2fbf8;
+    --card:#ffffff;
+    --teal:#0f766e;
+    --teal-soft:#ccfbf1;
+    --teal-deep:#134e4a;
+    --emerald:#047857;
+    --emerald-soft:#d1fae5;
+    --cyan:#0891b2;
+    --lime:#4d7c0f;
+    --amber:#b45309;
+    --rose:#be123c;
+    --blue:#1d4ed8;
+    --shadow:0 1px 2px rgba(6,60,50,.06), 0 8px 24px -8px rgba(6,60,50,.14);
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 8% -10%, #ccfbf1 0%, transparent 60%),
+      radial-gradient(1000px 500px at 100% 0%, #d1fae5 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:"Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    line-height:1.72;
+    font-size:16.5px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px 90px;}
+
+  header.hero{
+    background:linear-gradient(135deg,#04120f 0%, #134e4a 45%, #0f766e 100%);
+    color:#f0fdfa;
+    padding:64px 22px 56px;
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::after{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      radial-gradient(600px 300px at 85% 15%, rgba(20,184,166,.42), transparent 70%),
+      radial-gradient(520px 280px at 12% 92%, rgba(5,150,105,.4), transparent 70%);
+    pointer-events:none;
+  }
+  .hero-inner{max-width:1080px;margin:0 auto;position:relative;z-index:2;}
+  .eyebrow{
+    display:inline-block;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;
+    font-weight:700;padding:7px 15px;border-radius:999px;
+    background:rgba(45,212,191,.18);border:1px solid rgba(45,212,191,.5);
+    color:#5eead4;margin-bottom:20px;
+  }
+  header.hero h1{
+    font-size:clamp(1.9rem, 4.4vw, 3rem);line-height:1.15;margin:0 0 16px;
+    font-weight:800;letter-spacing:-.02em;
+  }
+  header.hero h1 span{
+    background:linear-gradient(90deg,#5eead4,#6ee7b7);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  header.hero p.lede{font-size:1.06rem;color:#99f6e4;max-width:780px;margin:0 0 26px;}
+  .meta-chips{display:flex;flex-wrap:wrap;gap:10px;}
+  .chip{
+    font-size:.78rem;font-weight:600;padding:7px 14px;border-radius:999px;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#ccfbf1;
+  }
+
+  .roadmap{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:26px 28px;margin-top:-34px;position:relative;z-index:5;
+  }
+  .roadmap h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 16px;font-weight:700;
+  }
+  .roadmap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;}
+  .roadmap-item{
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:.86rem;
+    background:#fbfefd;opacity:.7;
+  }
+  .roadmap-item.done{
+    border-color:#5eead4;background:linear-gradient(180deg,#f0fdfa,#ffffff);opacity:1;
+  }
+  .roadmap-item.current{
+    border-color:#2dd4bf;background:linear-gradient(180deg,#ccfbf1,#ffffff);opacity:1;
+    box-shadow:0 0 0 3px rgba(15,118,110,.14);
+  }
+  .roadmap-item .tag{
+    display:inline-block;font-size:.64rem;font-weight:800;letter-spacing:.08em;
+    padding:2px 8px;border-radius:999px;margin-bottom:6px;
+  }
+  .tag-done{background:var(--teal-soft);color:var(--teal-deep);}
+  .tag-now{background:#a7f3d0;color:#065f46;}
+  .tag-next{background:#e2e8f0;color:#475569;}
+  .roadmap-item strong{display:block;color:var(--ink);font-size:.89rem;}
+
+  nav.toc{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:22px 26px;margin:26px 0 44px;
+  }
+  nav.toc h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 14px;font-weight:700;
+  }
+  nav.toc ol{
+    margin:0;padding-left:0;list-style:none;counter-reset:toc;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:8px 26px;
+  }
+  nav.toc li{
+    counter-increment:toc;font-size:.93rem;padding:6px 0 6px 34px;
+    position:relative;border-bottom:1px dashed #e4f5f1;
+  }
+  nav.toc li::before{
+    content:counter(toc);position:absolute;left:0;top:7px;width:22px;height:22px;
+    border-radius:7px;background:var(--teal-soft);color:var(--teal);
+    font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center;
+  }
+  nav.toc a{color:var(--ink-soft);text-decoration:none;font-weight:500;}
+  nav.toc a:hover{color:var(--teal);}
+
+  .part-band{display:flex;align-items:center;gap:16px;margin:56px 0 26px;}
+  .part-band .bar{
+    width:5px;height:44px;border-radius:99px;
+    background:linear-gradient(180deg,var(--teal),#2dd4bf);
+  }
+  .part-band.emerald .bar{background:linear-gradient(180deg,var(--emerald),#34d399);}
+  .part-band.cyan .bar{background:linear-gradient(180deg,var(--cyan),#22d3ee);}
+  .part-band h2{margin:0;font-size:1.5rem;letter-spacing:-.01em;font-weight:800;}
+  .part-band .sub{
+    display:block;font-size:.82rem;font-weight:600;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.12em;margin-top:2px;
+  }
+
+  article.q{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:0 0 26px;margin-bottom:28px;overflow:hidden;
+    scroll-margin-top:24px;
+  }
+  .q-head{
+    display:flex;gap:16px;align-items:flex-start;padding:22px 28px 18px;
+    border-bottom:1px solid #eaf7f3;background:linear-gradient(180deg,#f8fefc,#ffffff);
+  }
+  .q-num{
+    flex:none;width:42px;height:42px;border-radius:12px;display:flex;
+    align-items:center;justify-content:center;font-weight:800;font-size:.92rem;color:#fff;
+    background:linear-gradient(135deg,#0f766e,#14b8a6);
+    box-shadow:0 6px 14px -6px rgba(15,118,110,.7);
+  }
+  .emerald .q-num{background:linear-gradient(135deg,#047857,#34d399);box-shadow:0 6px 14px -6px rgba(4,120,87,.7);}
+  .cyan .q-num{background:linear-gradient(135deg,#0891b2,#22d3ee);box-shadow:0 6px 14px -6px rgba(8,145,178,.7);}
+  .q-head h3{margin:0;font-size:1.14rem;font-weight:700;line-height:1.4;letter-spacing:-.01em;}
+  .q-body{padding:22px 28px 0;}
+  .q-body p{margin:0 0 15px;color:var(--ink-soft);}
+  .q-body p:last-child{margin-bottom:0;}
+  .q-body h4{margin:24px 0 10px;font-size:.95rem;font-weight:800;color:var(--ink);}
+  .q-body h4::before{content:"▹";color:var(--teal);margin-right:8px;font-size:.85rem;}
+  .emerald .q-body h4::before{color:var(--emerald);}
+  .cyan .q-body h4::before{color:var(--cyan);}
+  .q-body ul,.q-body ol{margin:0 0 16px;padding-left:22px;color:var(--ink-soft);}
+  .q-body li{margin-bottom:8px;}
+  .q-body li::marker{color:var(--teal);}
+  .emerald .q-body li::marker{color:var(--emerald);}
+  .cyan .q-body li::marker{color:var(--cyan);}
+  strong{color:var(--ink);font-weight:700;}
+  code{
+    background:#f0fdfa;border:1px solid #cfe6e0;border-radius:6px;padding:1px 6px;
+    font-size:.87em;font-family:"SFMono-Regular",Consolas,monospace;color:#0f766e;
+  }
+
+  .callout{border-radius:12px;padding:14px 18px;margin:18px 0 4px;font-size:.93rem;border-left:4px solid;}
+  .callout .label{
+    display:block;font-size:.68rem;font-weight:800;letter-spacing:.13em;
+    text-transform:uppercase;margin-bottom:5px;
+  }
+  .callout p{margin:0 0 8px;font-size:.93rem;}
+  .callout p:last-child{margin-bottom:0;}
+  .answer{background:linear-gradient(180deg,#f0fdfa,#ffffff);border-color:var(--teal);}
+  .answer .label{color:var(--teal-deep);}
+  .tip{background:linear-gradient(180deg,#eff6ff,#ffffff);border-color:var(--blue);}
+  .tip .label{color:#1d4ed8;}
+  .tradeoff{background:linear-gradient(180deg,#fffbeb,#ffffff);border-color:var(--amber);}
+  .tradeoff .label{color:#b45309;}
+  .pitfall{background:linear-gradient(180deg,#fff1f2,#ffffff);border-color:var(--rose);}
+  .pitfall .label{color:#be123c;}
+
+  .table-scroll{overflow-x:auto;margin:18px 0;border-radius:12px;border:1px solid var(--line);}
+  table{width:100%;border-collapse:collapse;font-size:.87rem;background:#fff;}
+  thead th{
+    background:#f7fefb;text-align:left;padding:11px 14px;font-weight:800;
+    font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+    border-bottom:2px solid var(--line);white-space:nowrap;
+  }
+  tbody td{padding:11px 14px;border-bottom:1px solid #f0faf6;color:var(--ink-soft);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:nth-child(even){background:#fbfefd;}
+  tbody td:first-child{font-weight:700;color:var(--ink);}
+
+  pre{
+    margin:0;
+    white-space:pre-wrap;
+    font-family:"SFMono-Regular",Consolas,monospace;
+    font-size:.83rem;
+    line-height:1.55;
+  }
+
+  .next-part{
+    background:linear-gradient(135deg,#04120f,#0f766e);color:#ccfbf1;
+    border-radius:var(--radius);padding:32px 34px;margin-top:50px;box-shadow:var(--shadow);
+  }
+  .next-part h3{margin:0 0 12px;font-size:1.2rem;color:#fff;font-weight:800;}
+  .next-part p{margin:0 0 16px;color:#99f6e4;font-size:.95rem;}
+  .next-list{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:10px;list-style:none;padding:0;margin:0;
+  }
+  .next-list li{
+    background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
+    border-radius:10px;padding:10px 14px;font-size:.86rem;color:#ccfbf1;
+  }
+
+  @media (max-width:640px){
+    .q-head{padding:18px 18px 15px;}
+    .q-body{padding:18px 18px 0;}
+    header.hero{padding:44px 18px 46px;}
+    .roadmap{padding:20px;}
+    nav.toc{padding:18px;}
+    nav.toc ol{grid-template-columns:1fr;}
+  }
+  @media print{
+    body{background:#fff;}
+    article.q, nav.toc, .roadmap{box-shadow:none;page-break-inside:avoid;}
+    header.hero{background:#04120f !important;-webkit-print-color-adjust:exact;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Volume 13 · Section 13 of 18</span>
+    <h1>API Design for System Interviews<br><span>gRPC Deep Dive</span></h1>
+    <p class="lede">
+      gRPC beyond the buzzword: Protocol Buffers and their compatibility rules, the four RPC types and when each
+      applies, interceptors and middleware, deadline propagation and cancellation, the structured error model,
+      gRPC-Web and the proxy layer, load balancing, and the honest comparison against REST and GraphQL.
+    </p>
+    <div class="meta-chips">
+      <span class="chip">10 Questions</span>
+      <span class="chip">500+ words each</span>
+      <span class="chip">Protocol-level detail</span>
+      <span class="chip">Protobuf + streaming</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ROADMAP -->
+  <section class="roadmap">
+    <h2>Answer-Series Roadmap</h2>
+    <div class="roadmap-grid">
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 1–10 — Complete</span>
+        <strong>Foundations through Performance</strong>
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 11 — Complete</span>
+        <strong>Async APIs &amp; Webhooks</strong>
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 12 — Complete</span>
+        <strong>GraphQL Deep Dive</strong>
+        Schema, N+1, complexity, caching, authorization, subscriptions
+      </div>
+      <div class="roadmap-item current">
+        <span class="tag tag-now">Volume 13 — You are here</span>
+        <strong>gRPC Deep Dive</strong>
+        Protobuf, RPC types, interceptors, deadlines, gRPC-Web, LB
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 14</span>
+        <strong>Security &amp; Abuse Prevention</strong>
+        OWASP API Top 10, injection, SSRF, enumeration
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 15</span>
+        <strong>Observability &amp; Operations</strong>
+        Metrics, tracing, deployment, incidents
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 16–17</span>
+        <strong>Lifecycle, Governance &amp; 17 Problems</strong>
+        Design reviews, DX, classic API prompts
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 18</span>
+        <strong>Senior &amp; Staff Trade-offs</strong>
+        Choosing between every pair of options
+      </div>
+    </div>
+  </section>
+
+  <!-- TOC -->
+  <nav class="toc">
+    <h2>Questions Answered in This Volume</h2>
+    <ol>
+      <li><a href="#q1">What is gRPC, and why is it faster than REST/JSON?</a></li>
+      <li><a href="#q2">How do Protocol Buffers work, and what are the compatibility rules?</a></li>
+      <li><a href="#q3">The four RPC types — unary, server-streaming, client-streaming, bidirectional</a></li>
+      <li><a href="#q4">Interceptors and middleware in gRPC</a></li>
+      <li><a href="#q5">Deadlines, cancellation, and propagation</a></li>
+      <li><a href="#q6">Error handling with google.rpc.Status</a></li>
+      <li><a href="#q7">How do you use gRPC from a browser? gRPC-Web and grpc-gateway</a></li>
+      <li><a href="#q8">How does load balancing work for gRPC?</a></li>
+      <li><a href="#q9">How do you observe and debug a gRPC service?</a></li>
+      <li><a href="#q10">gRPC vs REST vs GraphQL — when does each win?</a></li>
+    </ol>
+  </nav>
+
+  <!-- ================= PART A ================= -->
+  <div class="part-band">
+    <div class="bar"></div>
+    <h2>Part A — The Foundation
+      <span class="sub">Why gRPC is fast, and the schema that makes it work</span>
+    </h2>
+  </div>
+
+  <!-- Q1 -->
+  <article class="q" id="q1">
+    <div class="q-head">
+      <div class="q-num">1</div>
+      <h3>What is gRPC, and why is it faster than REST/JSON?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>gRPC is an RPC framework from Google that uses <strong>Protocol Buffers</strong> for binary
+        serialization and <strong>HTTP/2</strong> for transport. It is faster than REST/JSON because binary
+        payloads are 3–10× smaller than JSON, HTTP/2 multiplexes many concurrent streams over one connection
+        without head-of-line blocking at the HTTP layer, and Protobuf decoding is significantly cheaper than JSON
+        parsing. It also generates strongly-typed clients from a <code>.proto</code> file, so schema drift is
+        impossible.</p>
+      </div>
+
+      <h4>The three performance reasons</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Reason</th><th>Mechanism</th><th>Typical gain</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Binary serialization</strong></td>
+              <td>Protobuf encodes fields as tag-value pairs with length-prefixed varints</td>
+              <td>3–10× smaller payload than JSON</td>
+            </tr>
+            <tr>
+              <td><strong>Faster decoding</strong></td>
+              <td>Length-prefixed binary format with generated decoders; no string parsing</td>
+              <td>5–10× faster deserialization</td>
+            </tr>
+            <tr>
+              <td><strong>HTTP/2 multiplexing</strong></td>
+              <td>Many concurrent streams on one TCP connection; no HTTP-level HOL blocking</td>
+              <td>Eliminates connection setup; 2–5× throughput improvement</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Payload size — the concrete comparison</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Format</th><th>Example payload</th><th>Size</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>JSON</td>
+              <td><code>{"id": 42, "name": "Alice", "active": true}</code></td>
+              <td>~44 bytes</td>
+            </tr>
+            <tr>
+              <td>Protobuf</td>
+              <td>Field 1 (id) = 42, Field 2 (name) = "Alice", Field 3 (active) = true</td>
+              <td>~12 bytes</td>
+            </tr>
+            <tr>
+              <td>Protobuf with int64 ID</td>
+              <td>Field 1 = 42 (varint, 1 byte), Field 2 = "Alice" (5 bytes), Field 3 = true (2 bytes)</td>
+              <td>~8 bytes</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The savings come from three things: field names are not sent (only field numbers), integers are
+      variable-length (small values take fewer bytes), and there is no whitespace or punctuation. For a large
+      list of small objects, the compression ratio is dramatic.</p>
+
+      <h4>HTTP/2 — why the transport matters</h4>
+      <p>HTTP/1.1 serializes requests on a connection: the next request waits for the previous response. The
+      workaround is multiple connections (browsers use 6 per host), but that is expensive and still caps
+      concurrency.</p>
+      <p>HTTP/2 introduces streams: many requests can be in flight on one connection, interleaved and prioritized.
+      For gRPC, this means thousands of concurrent RPCs share one TCP connection — no handshake per call, no
+      connection pool exhaustion, no per-request overhead.</p>
+      <p>HTTP/2 also has header compression (HPACK), which matters for gRPC because every call carries metadata
+      (content-type, grpc-timeout, authorization, trace headers). Without HPACK, the header overhead would
+      dominate for small messages.</p>
+
+      <h4>Code generation and schema</h4>
+      <p>The <code>.proto</code> file is the source of truth. It defines services, methods, and message types.
+      <code>protoc</code> generates:</p>
+      <ul>
+        <li>Client stubs — typed methods for calling the service.</li>
+        <li>Server interfaces — the methods to implement.</li>
+        <li>Message classes — typed data classes for the payloads.</li>
+      </ul>
+      <p>Because both sides generate from the same schema, field renames, type mismatches, and missing fields
+      are compile-time errors, not runtime bugs. This is a significant advantage over REST, where the contract is
+      documentation that must be tested separately.</p>
+
+      <h4>What gRPC gives beyond speed</h4>
+      <ul>
+        <li><strong>Streaming</strong> — unary, server-streaming, client-streaming, and bidirectional-streaming
+        RPCs are first-class.</li>
+        <li><strong>Deadlines and cancellation</strong> — every call carries a deadline; the framework propagates
+        it and cancels work when exceeded.</li>
+        <li><strong>Rich error model</strong> — <code>google.rpc.Status</code> with error codes, messages, and
+        structured details.</li>
+        <li><strong>Interceptors</strong> — middleware for auth, logging, tracing, retries.</li>
+        <li><strong>Reflection</strong> — servers can describe their own schema at runtime (useful for tooling).</li>
+      </ul>
+
+      <h4>What gRPC costs</h4>
+      <ul>
+        <li><strong>Browser support is limited</strong> — gRPC-Web requires a proxy and does not support
+        bidirectional streaming. For browser clients, REST or GraphQL is usually easier.</li>
+        <li><strong>Debugging is harder</strong> — binary payloads are opaque; you need <code>grpcurl</code> and
+        the <code>.proto</code> file. <code>curl</code> and browser dev tools do not work.</li>
+        <li><strong>Caching is harder</strong> — HTTP caching (ETag, Cache-Control) does not apply to gRPC. If
+        you need CDN caching, you need a REST layer.</li>
+        <li><strong>Schema changes are visible</strong> — adding a field is backward-compatible, but removing one
+        or changing its type requires a new field number; a discipline many teams get wrong.</li>
+        <li><strong>Operational complexity</strong> — load balancers must support HTTP/2; some firewalls block
+        it; the tooling ecosystem is smaller than HTTP/JSON.</li>
+      </ul>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "gRPC is binary Protobuf over HTTP/2. Smaller payloads, faster decoding, multiplexed connections,
+        and typed schemas. Best for internal service-to-service — the public API stays REST or GraphQL." That
+        covers the mechanism and the placement in the architecture.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q2 -->
+  <article class="q" id="q2">
+    <div class="q-head">
+      <div class="q-num">2</div>
+      <h3>How do Protocol Buffers work, and what are the compatibility rules?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Protobuf encodes messages as a sequence of tag-value pairs: the tag is <code>(field_number &lt;&lt; 3) |
+        wire_type</code>, and the value depends on the field's type. Compatibility is defined by field numbers —
+        <strong>adding a field with a new number is backward-compatible</strong>;
+        <strong>changing a field's number or type breaks compatibility</strong>;
+        <strong>removing a field requires reserving its number</strong> so it is never reused.</p>
+      </div>
+
+      <h4>The wire format</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Wire type</th><th>Used for</th><th>Encoding</th></tr></thead>
+          <tbody>
+            <tr><td>0 (Varint)</td><td>int32, int64, uint32, uint64, sint32, sint64, bool, enum</td><td>Variable-length integer</td></tr>
+            <tr><td>1 (64-bit)</td><td>fixed64, sfixed64, double</td><td>8 bytes, little-endian</td></tr>
+            <tr><td>2 (Length-delimited)</td><td>string, bytes, embedded messages, packed repeated</td><td>Length varint, then bytes</td></tr>
+            <tr><td>5 (32-bit)</td><td>fixed32, sfixed32, float</td><td>4 bytes, little-endian</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Example: <code>{"id": 42, "name": "Alice"}</code> with the schema <code>{int32 id = 1; string name = 2;}</code>
+      encodes as:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Bytes</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>0x08</code></td><td>Tag: field 1, wire type 0 (varint)</td></tr>
+            <tr><td><code>0x2A</code></td><td>Varint value 42</td></tr>
+            <tr><td><code>0x12</code></td><td>Tag: field 2, wire type 2 (length-delimited)</td></tr>
+            <tr><td><code>0x05</code></td><td>Length: 5 bytes</td></tr>
+            <tr><td><code>0x41 0x6C 0x69 0x63 0x65</code></td><td>"Alice"</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Total: 9 bytes. The JSON equivalent is 27 bytes. The savings are from removing field names, punctuation,
+      and — for small integers — the fixed 4-byte representation JSON uses implicitly.</p>
+
+      <h4>Field numbers, not names</h4>
+      <p>The wire format uses field numbers, not field names. Renaming a field in the <code>.proto</code> file is
+      a no-op on the wire — the bytes are identical. This is why Protobuf is so flexible for schema evolution:
+      the field name is a code-level concern, not a wire-level one.</p>
+      <p>But it also means that once a field number is used, it can never be reused for a different field.
+      If field 3 used to be <code>user_id</code> and is removed, adding a new field with number 3 breaks every
+      old client and every persisted message — the field 3 will be decoded as the new field's type, producing
+      garbage.</p>
+
+      <h4>The compatibility rules</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Change</th><th>Compatible?</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>Add a field (new number)</td><td>Yes</td><td>Old clients ignore it; new clients decode it if present</td></tr>
+            <tr><td>Remove a field</td><td>Yes (with reserve)</td><td>Reserve the number and name so it is never reused</td></tr>
+            <tr><td>Rename a field</td><td>Yes</td><td>Wire format uses numbers, not names</td></tr>
+            <tr><td>Change a field's number</td><td>No</td><td>Wire format depends on the number</td></tr>
+            <tr><td>Change int32 to int64</td><td>Yes (usually)</td><td>Both varints; values > 2³² may be truncated by old clients</td></tr>
+            <tr><td>Change int32 to string</td><td>No</td><td>Wire type changes (varint → length-delimited)</td></tr>
+            <tr><td>Change a singular field to repeated</td><td>No (usually)</td><td>Different encoding; some cases work, but risky</td></tr>
+            <tr><td>Add a new enum value</td><td>Yes</td><td>Old clients must handle unknown values</td></tr>
+            <tr><td>Remove an enum value</td><td>No</td><td>Old clients may still send it</td></tr>
+            <tr><td>Change a required field to optional</td><td>Yes (proto3)</td><td>proto3 has no required; proto2 semantics differ</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Reserved fields</h4>
+      <p>When removing a field, reserve its number and name so a future developer cannot reuse them:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Syntax</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>reserved 3, 5, 7;</code></td><td>Reserve specific field numbers</td></tr>
+            <tr><td><code>reserved 9 to 11;</code></td><td>Reserve a range of numbers</td></tr>
+            <tr><td><code>reserved "old_field_name";</code></td><td>Reserve a field name</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Reserving a field number prevents a future developer from accidentally reusing it. Without this, a
+      seemingly harmless addition (a new field with number 3) breaks every old client, every persisted message,
+      and every stored event — a silent, catastrophic bug.</p>
+
+      <h4>proto2 vs proto3</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Aspect</th><th>proto2</th><th>proto3</th></tr></thead>
+          <tbody>
+            <tr><td>Required fields</td><td>Supported (<code>required</code>)</td><td>Not supported</td></tr>
+            <tr><td>Optional fields</td><td>Supported (<code>optional</code>)</td><td>Implicit; added back in proto3 v3.15 for presence</td></tr>
+            <tr><td>Presence</td><td>Explicit — you can distinguish absent from default</td><td>Implicit by default; must use <code>optional</code> to distinguish</td></tr>
+            <tr><td>Default values</td><td>Explicit</td><td>Implicit — 0, "", false, empty list</td></tr>
+            <tr><td>Syntax</td><td><code>syntax = "proto2";</code></td><td><code>syntax = "proto3";</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>proto3 is the current default and the recommended choice. The lack of <code>required</code> is deliberate
+      — required fields are a compatibility hazard (removing the requirement is a breaking change). The
+      <code>optional</code> keyword was added back to proto3 to support explicit presence, which is needed for
+      distinguishing "absent" from "default".</p>
+
+      <h4>The schema registry and buf</h4>
+      <p>For organizations with many services, a schema registry is essential: a central store of <code>.proto</code>
+      files, with versioning and validation. <strong>buf</strong> is the standard tool — it lints the schema,
+      checks for breaking changes (compared to a baseline), and publishes the generated code.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>buf command</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td><code>buf lint</code></td><td>Enforces naming and style conventions</td></tr>
+            <tr><td><code>buf breaking</code></td><td>Fails if the schema introduces a breaking change</td></tr>
+            <tr><td><code>buf generate</code></td><td>Generates code from the schema</td></tr>
+            <tr><td><code>buf push</code></td><td>Publishes to the BSR (Buf Schema Registry)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The breaking-change check is the Protobuf equivalent of contract testing (Volume 3, Question 9) — it
+      fails CI when a change would break existing clients.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Reusing a field number after removing a field. The new field appears compatible (it uses a number that
+        is "free"), but old clients decode the bytes as the old field's type — corrupting the data. The fix:
+        reserve the number when removing the field, and enforce it with <code>buf breaking</code>.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Protobuf uses field numbers, not names, on the wire. Adding a field is compatible; removing one
+        requires reserving the number. Changing a field's number or type breaks compatibility. buf breaking
+        enforces this in CI." That covers the format, the rules, and the discipline.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q3 -->
+  <article class="q" id="q3">
+    <div class="q-head">
+      <div class="q-num">3</div>
+      <h3>What are the four RPC types in gRPC, and when do you use each?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>gRPC defines four RPC types: <strong>unary</strong> (one request, one response — the classic RPC),
+        <strong>server-streaming</strong> (one request, many responses — the server pushes a stream),
+        <strong>client-streaming</strong> (many requests, one response — the client uploads a stream), and
+        <strong>bidirectional streaming</strong> (many requests, many responses — both sides stream concurrently).
+        The choice depends on the data flow pattern: is the payload small, or is it a stream that should not be
+        buffered?</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Type</th><th>Request</th><th>Response</th><th>Use case</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Unary</strong></td>
+              <td>One message</td>
+              <td>One message</td>
+              <td>Classic request/response — get user, create order</td>
+            </tr>
+            <tr>
+              <td><strong>Server streaming</strong></td>
+              <td>One message</td>
+              <td>Stream of messages</td>
+              <td>Server pushes data — logs, events, progress updates, large result sets</td>
+            </tr>
+            <tr>
+              <td><strong>Client streaming</strong></td>
+              <td>Stream of messages</td>
+              <td>One message</td>
+              <td>Client uploads data — batch uploads, telemetry, file chunks</td>
+            </tr>
+            <tr>
+              <td><strong>Bidirectional streaming</strong></td>
+              <td>Stream of messages</td>
+              <td>Stream of messages</td>
+              <td>Chat, real-time collaboration, interactive protocols</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Unary — the classic RPC</h4>
+      <p>The most common type, equivalent to REST's request/response. The client sends one message, waits, and
+      receives one message. The schema:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Proto</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre>service UserService {
+  rpc GetUser(GetUserRequest) returns (User);
+  rpc CreateUser(CreateUserRequest) returns (User);
+}</pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Use unary when: the request and response are both small, the operation completes in a bounded time, and
+      there is no need to stream. This is the default — 90% of gRPC calls are unary.</p>
+
+      <h4>Server streaming</h4>
+      <p>The client sends one request; the server sends a stream of responses. The client reads them as they
+      arrive. The schema:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Proto</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre>service OrderService {
+  rpc WatchOrders(WatchRequest) returns (stream OrderEvent);
+  rpc ListOrders(ListRequest) returns (stream Order);
+}</pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Use server streaming when:</p>
+      <ul>
+        <li><strong>Pushing real-time events</strong> — the server sends new orders as they are created, the
+        client processes them incrementally.</li>
+        <li><strong>Large result sets</strong> — instead of returning a million rows in one response (which the
+        client must buffer), the server streams them one by one; the client processes each and does not hold the
+        whole list in memory.</li>
+        <li><strong>Progress updates</strong> — a long-running operation streams its progress (0%, 10%, ..., 100%).</li>
+      </ul>
+
+      <h4>Client streaming</h4>
+      <p>The client sends a stream of messages; the server processes them and sends one response. The schema:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Proto</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre>service UploadService {
+  rpc UploadFile(stream FileChunk) returns (UploadResult);
+  rpc SendTelemetry(stream Metric) returns (Ack);
+}</pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Use client streaming when:</p>
+      <ul>
+        <li><strong>Uploading data</strong> — a large file is sent in chunks; the server assembles them and
+        returns the result.</li>
+        <li><strong>Batching data</strong> — the client sends 10,000 records in a stream, the server inserts them
+        in bulk, returns a summary.</li>
+        <li><strong>Real-time input</strong> — a device sends sensor readings continuously, the server aggregates
+        them and responds with a summary on stream end.</li>
+      </ul>
+
+      <h4>Bidirectional streaming</h4>
+      <p>Both sides send streams concurrently. The client and server exchange messages freely. The schema:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Proto</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre>service ChatService {
+  rpc Chat(stream ChatMessage) returns (stream ChatMessage);
+}
+service EditorService {
+  rpc Collaborate(stream Edit) returns (stream Edit);
+}</pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Use bidirectional streaming when:</p>
+      <ul>
+        <li><strong>Real-time chat</strong> — the client sends messages and receives others, both streams open
+        simultaneously.</li>
+        <li><strong>Collaborative editing</strong> — both sides send edits and receive the other's edits.</li>
+        <li><strong>Interactive protocols</strong> — a protocol with back-and-forth (a game, a live control
+        interface, a trading system).</li>
+        <li><strong>Server push with client input</strong> — the server streams data, the client streams
+        acknowledgements or commands on the same connection.</li>
+      </ul>
+
+      <h4>The performance characteristics</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Type</th><th>Latency</th><th>Throughput</th><th>Memory</th></tr></thead>
+          <tbody>
+            <tr><td>Unary</td><td>Low per call</td><td>Limited by connection concurrency</td><td>Constant</td></tr>
+            <tr><td>Server streaming</td><td>Low first byte; streamed as available</td><td>High — one connection, many messages</td><td>Constant on both sides (streaming)</td></tr>
+            <tr><td>Client streaming</td><td>One response at end</td><td>High — upload over one connection</td><td>Constant on client; server buffers or processes incrementally</td></tr>
+            <tr><td>Bidirectional</td><td>Lowest — no round-trip wait</td><td>Highest</td><td>Constant if processing incrementally</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>When NOT to use streaming</h4>
+      <ul>
+        <li><strong>If the response is small</strong> — a unary call is simpler and faster to code.</li>
+        <li><strong>If the client cannot process incrementally</strong> — a client that needs the whole list to
+        render a page gains nothing from streaming.</li>
+        <li><strong>If the client is a browser</strong> — gRPC-Web supports only unary and server streaming; client
+        and bidirectional streaming require WebSocket, which is a different protocol.</li>
+        <li><strong>If the stream can be unbounded</strong> — a stream that never ends (a live event feed) requires
+        the client to handle reconnection and gap-filling (like subscriptions).</li>
+      </ul>
+
+      <h4>The flow control mechanism</h4>
+      <p>All streaming RPCs use HTTP/2 flow control — the receiver tells the sender how many bytes/streams it can
+      handle. This is backpressure at the transport layer: a slow client causes the server to pause sending until
+      the client catches up. The application does not need to implement flow control; the transport does it.</p>
+      <p>But application-level backpressure is still the application's responsibility — if the server produces data
+      faster than the client can process it, the transport flow control will pause the server, but the server's
+      buffers may grow. The application should have its own buffer limits and its own backpressure signals.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Streaming is more powerful but more complex: connection lifetime, flow control, error handling,
+        partial failures, client reconnection. For most APIs, unary is the right default — use streaming only
+        when the data flow genuinely requires it (large payloads, real-time push, bidirectional protocols).</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Unary for classic request/response, server-streaming for push and large result sets, client-streaming
+        for uploads, bidirectional for chat and collaboration. Streaming for large payloads and real-time; unary
+        otherwise." That covers the four types and the choice.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART B ================= -->
+  <div class="part-band emerald">
+    <div class="bar"></div>
+    <h2>Part B — Middleware, Errors &amp; Deadlines
+      <span class="sub">Interceptors, cancellation, and the structured error model</span>
+    </h2>
+  </div>
+
+  <!-- Q4 -->
+  <article class="q emerald" id="q4">
+    <div class="q-head">
+      <div class="q-num">4</div>
+      <h3>How do interceptors work in gRPC, and what middleware should every service have?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>An interceptor is gRPC's middleware — a hook that wraps the RPC handler, allowing cross-cutting
+        concerns (auth, logging, tracing, retries, metrics) to be implemented once and applied to every call.
+        There are two kinds: <strong>client interceptors</strong> (run on the calling side) and
+        <strong>server interceptors</strong> (run on the receiving side). Both have access to the metadata
+        (headers) and the request/response, and can short-circuit the call.</p>
+      </div>
+
+      <h4>The interceptor chain</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Side</th><th>Direction</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Client interceptor</strong></td>
+              <td>Runs before the request goes out</td>
+              <td>Attach the auth token, add trace headers, measure latency, retry on failure</td>
+            </tr>
+            <tr>
+              <td><strong>Server interceptor</strong></td>
+              <td>Runs before the handler</td>
+              <td>Validate the token, log the request, start a trace span, enforce rate limits</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Interceptors compose: multiple interceptors form a chain, each wrapping the next. The order matters —
+      an auth interceptor should run before a logging interceptor (so the log includes the authenticated user),
+      and a recovery interceptor should run outermost (so it catches panics from any inner interceptor).</p>
+
+      <h4>The essential server interceptors</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Interceptor</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Recovery</strong></td>
+              <td>Catches panics; returns a structured error instead of crashing the server</td>
+            </tr>
+            <tr>
+              <td><strong>Request ID</strong></td>
+              <td>Generates (or propagates) a unique ID per request; adds it to logs and traces</td>
+            </tr>
+            <tr>
+              <td><strong>Logging</strong></td>
+              <td>Logs the method, duration, status, and relevant metadata</td>
+            </tr>
+            <tr>
+              <td><strong>Tracing</strong></td>
+              <td>Starts a span for the RPC; propagates the trace context</td>
+            </tr>
+            <tr>
+              <td><strong>Authentication</strong></td>
+              <td>Validates the token (from metadata); resolves the identity</td>
+            </tr>
+            <tr>
+              <td><strong>Authorization</strong></td>
+              <td>Checks the identity has permission for the method</td>
+            </tr>
+            <tr>
+              <td><strong>Rate limiting</strong></td>
+              <td>Checks per-client limits; returns RESOURCE_EXHAUSTED if exceeded</td>
+            </tr>
+            <tr>
+              <td><strong>Metrics</strong></td>
+              <td>Records latency histograms, error counts, in-flight requests</td>
+            </tr>
+            <tr>
+              <td><strong>Deadline enforcement</strong></td>
+              <td>Propagates the deadline to downstream calls; cancels if exceeded</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The essential client interceptors</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Interceptor</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Auth</strong></td>
+              <td>Attaches the token to every request</td>
+            </tr>
+            <tr>
+              <td><strong>Trace propagation</strong></td>
+              <td>Injects the trace context into the metadata (W3C traceparent)</td>
+            </tr>
+            <tr>
+              <td><strong>Deadline</strong></td>
+              <td>Sets a default deadline; propagates the remaining time</td>
+            </tr>
+            <tr>
+              <td><strong>Retry</strong></td>
+              <td>Retries on transient errors with backoff (Volume 5, Question 10)</td>
+            </tr>
+            <tr>
+              <td><strong>Circuit breaker</strong></td>
+              <td>Stops calling a failing service; fails fast</td>
+            </tr>
+            <tr>
+              <td><strong>Metrics</strong></td>
+              <td>Records latency and errors for the client</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The metadata — gRPC's headers</h4>
+      <p>Interceptors communicate via metadata — the gRPC equivalent of HTTP headers. Metadata is a set of
+      key-value pairs, sent with every call. The standard use cases:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Metadata key</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>authorization</code></td><td>Bearer token or other credentials</td></tr>
+            <tr><td><code>grpc-timeout</code></td><td>The deadline (set by the gRPC framework)</td></tr>
+            <tr><td><code>x-request-id</code></td><td>Correlation ID</td></tr>
+            <tr><td><code>traceparent</code></td><td>W3C trace context</td></tr>
+            <tr><td><code>x-b3-traceid</code></td><td>Zipkin B3 trace context</td></tr>
+            <tr><td><code>user-agent</code></td><td>Client identity</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Metadata keys are case-insensitive, and custom keys should be lowercase with hyphens (matching HTTP
+      conventions). Binary metadata is also supported (with the <code>-bin</code> suffix), for cases where the
+      value is not a UTF-8 string.</p>
+
+      <h4>The interceptor implementation</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Server interceptor (Go-style pseudocode)</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre>func LoggingInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+  start := time.Now()
+  resp, err := handler(ctx, req)
+  duration := time.Since(start)
+  log.Infof("method=%s duration=%v error=%v", info.FullMethod, duration, err)
+  return resp, err
+}</pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The interceptor receives the context, the request, the method info, and the handler. It can inspect and
+      modify the context and request, call the handler, and inspect and modify the response and error.</p>
+
+      <h4>The interceptor chain ordering</h4>
+      <p>The order matters because interceptors can short-circuit. The standard order (outermost to innermost):</p>
+      <ol>
+        <li><strong>Recovery</strong> — catches panics from everything inside.</li>
+        <li><strong>Request ID</strong> — generates the correlation ID used by all subsequent log lines.</li>
+        <li><strong>Metrics</strong> — records latency for every request, including auth failures.</li>
+        <li><strong>Tracing</strong> — starts a span that covers the whole request.</li>
+        <li><strong>Logging</strong> — logs the request; will include the correlation ID.</li>
+        <li><strong>Authentication</strong> — validates the token; if it fails, the request never reaches the
+        handler.</li>
+        <li><strong>Authorization</strong> — checks the identity's permissions.</li>
+        <li><strong>Rate limiting</strong> — checks the client's quota.</li>
+        <li><strong>Handler</strong> — the actual RPC method.</li>
+      </ol>
+      <p>This ordering means: a panicked handler is caught; every request has a correlation ID; every request is
+      measured and traced; auth failures are logged and metered; the handler only runs for authenticated,
+      authorized, rate-limited requests.</p>
+
+      <h4>Where interceptors do not apply</h4>
+      <p>Interceptors run per-RPC, not per-stream-message. For streaming RPCs, a unary interceptor sees the
+      stream's creation and completion, but not each message. Streaming interceptors are more complex — they
+      wrap the stream itself, allowing per-message observation, but this is less commonly used.</p>
+      <p>Interceptors also do not run for the gRPC connection setup (the HTTP/2 handshake) — that is a transport
+      concern, handled by TLS and connection-level auth (mTLS).</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Placing the auth interceptor inside the logging interceptor. The log will contain every request, but
+        the authenticated identity is not available in the log — because the logging interceptor runs before auth
+        has resolved it. The fix: auth before logging, or have the log read the identity from the context after
+        auth.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Interceptors are the middleware — recovery, tracing, logging, auth, rate limiting — applied as a
+        chain. The order matters: recovery outermost, auth before the handler. Metadata is how interceptors
+        communicate the request context." That covers the mechanism and the essential interceptors.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q5 -->
+  <article class="q emerald" id="q5">
+    <div class="q-head">
+      <div class="q-num">5</div>
+      <h3>How do deadlines and cancellation work in gRPC?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Every gRPC call carries a <strong>deadline</strong> — an absolute time by which the call must complete.
+        The client sets it; the framework propagates it to the server and to any downstream calls the server makes.
+        If the deadline is exceeded, the call is cancelled (both sides stop working) and the client receives
+        <code>DEADLINE_EXCEEDED</code>. Cancellation is the mechanism: a client can cancel an in-flight call, and
+        the cancellation propagates through the chain.</p>
+      </div>
+
+      <h4>Why deadlines matter</h4>
+      <p>Without deadlines, a slow call can hold resources indefinitely. The server thread blocks, the connection
+      holds, the client waits — and eventually someone gives up. Deadlines bound this worst case, and propagation
+      ensures that a deadline set at the edge limits the whole call chain, not just the first hop.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Without deadlines</th><th>With deadlines</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>A slow dependency stalls the whole chain</td>
+              <td>The deadline limits the chain — if downstream is slow, the whole call fails fast</td>
+            </tr>
+            <tr>
+              <td>Threads and connections held indefinitely</td>
+              <td>Resources are released when the deadline fires</td>
+            </tr>
+            <tr>
+              <td>Client waits forever, retries, retries again</td>
+              <td>Client gets a clear DEADLINE_EXCEEDED, can decide to retry or give up</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Setting a deadline</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Language</th><th>How to set</th></tr></thead>
+          <tbody>
+            <tr><td>Go</td><td><code>ctx, cancel := context.WithTimeout(ctx, 5*time.Second)</code></td></tr>
+            <tr><td>Java</td><td><code>stub.withDeadlineAfter(5, TimeUnit.SECONDS)</code></td></tr>
+            <tr><td>Python</td><td><code>stub.GetUser(request, timeout=5)</code></td></tr>
+            <tr><td>Node.js</td><td><code>client.getUser(request, {deadline: Date.now() + 5000})</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The deadline is usually set at the top — the API gateway or the client — and propagated. Each layer
+      passes the remaining time to the next, so the deadline is consistent across the chain. A service that
+      receives a call with 4 seconds remaining should not make a downstream call with a 30-second deadline — the
+      downstream should get a deadline within the remaining 4 seconds (or less, to leave time for the response
+      to propagate).</p>
+
+      <h4>Propagation — the key mechanism</h4>
+      <p>The deadline is carried in the <code>grpc-timeout</code> metadata header, set by the client. The server
+      reads it, and its context has the same deadline. When the server makes downstream calls, it passes the
+      remaining time. This is why a deadline set at the edge bounds the whole call chain, no matter how many hops
+      it takes.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Hop</th><th>Deadline</th><th>Remaining</th></tr></thead>
+          <tbody>
+            <tr><td>Client</td><td>10 seconds from now</td><td>10s</td></tr>
+            <tr><td>Service A</td><td>Same absolute time</td><td>~9.5s (after network)</td></tr>
+            <tr><td>Service A → Service B</td><td>Same absolute time, minus a small buffer</td><td>~9s</td></tr>
+            <tr><td>Service B → Service C</td><td>Same absolute time, minus a small buffer</td><td>~8.5s</td></tr>
+            <tr><td>Service C → Database</td><td>Same absolute time, minus a small buffer</td><td>~8s</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Each hop reserves a small buffer (say, 100ms) so that the response can propagate back before the deadline
+      fires. Without the buffer, service B's response might arrive at service A after service A has already
+      cancelled — wasted work.</p>
+
+      <h4>Cancellation</h4>
+      <p>Cancellation is the client's mechanism to stop an in-flight call. It can be explicit (the client calls
+      <code>cancel()</code> on the context) or implicit (the deadline fires). The cancellation propagates:</p>
+      <ol>
+        <li>Client cancels the call.</li>
+        <li>The server's context is cancelled.</li>
+        <li>The server's handler sees the cancellation (via <code>ctx.Done()</code> or an exception).</li>
+        <li>Any downstream calls the server made are also cancelled (if the server propagated the context).</li>
+        <li>The server returns early — no response is sent.</li>
+      </ol>
+      <p>The cancellation saves work: a server that sees its context cancelled should stop processing, release
+      resources, and return immediately. This is particularly important for streaming RPCs — a client that
+      disconnects should not leave the server streaming forever.</p>
+
+      <h4>The cancellation discipline</h4>
+      <p>The server-side code must check for cancellation:</p>
+      <ul>
+        <li><strong>Long-running loops</strong> — check <code>ctx.Done()</code> at the top of each iteration.</li>
+        <li><strong>Database queries</strong> — pass the context to the query; the database client will cancel
+        the query if the context is cancelled.</li>
+        <li><strong>External calls</strong> — pass the context; the gRPC client will cancel the call if the
+        context is cancelled.</li>
+        <li><strong>Streaming handlers</strong> — check the context between messages; if cancelled, return early.</li>
+      </ul>
+      <p>A server that ignores cancellation continues to consume resources for a request nobody is waiting for.
+      This is a resource leak, and it accumulates — the dead requests pile up until the server is overwhelmed.</p>
+
+      <h4>The status code on deadline</h4>
+      <p>When a deadline fires, the client receives <code>DEADLINE_EXCEEDED</code> (gRPC status code 4). This is
+      distinct from <code>CANCELLED</code> (status code 1, when the client explicitly cancelled) and from
+      <code>UNAVAILABLE</code> (status code 14, when the server is unreachable).</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Status code</th><th>Meaning</th><th>Client action</th></tr></thead>
+          <tbody>
+            <tr><td><code>CANCELLED</code></td><td>The caller cancelled</td><td>Do not retry — the cancellation was intentional</td></tr>
+            <tr><td><code>DEADLINE_EXCEEDED</code></td><td>The deadline passed</td><td>Retry with a longer deadline, or give up</td></tr>
+            <tr><td><code>UNAVAILABLE</code></td><td>The server is unreachable or overloaded</td><td>Retry with backoff</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The "retry amplification" problem</h4>
+      <p>A client with a short deadline retries aggressively. The server sees many retries, all with short
+      deadlines. The server is now processing the same request multiple times. The fix: retries must be budgeted
+      (Volume 5, Question 10) and the deadline must be long enough to allow the retries — a 100ms deadline with
+      three retries gives the server a 100ms window per attempt, which may be too short for any attempt to
+      succeed.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Setting a deadline only at the client, without propagating it. The client gives up after 5 seconds,
+        but the server continues processing — because it never saw a deadline. The fix: propagate the context
+        (which carries the deadline) to every downstream call; do not create a fresh context with a new deadline
+        in the middle of the chain.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Every call has a deadline that propagates through the chain — a 10-second deadline at the edge
+        limits every hop. The server checks the context for cancellation, stops work when it fires, and returns
+        DEADLINE_EXCEEDED. Without propagation, the server keeps working on a request nobody is waiting for." That
+        covers the mechanism and the discipline.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q6 -->
+  <article class="q emerald" id="q6">
+    <div class="q-head">
+      <div class="q-num">6</div>
+      <h3>How does error handling work in gRPC — status codes and google.rpc.Status?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>gRPC has its own status code set (16 codes, distinct from HTTP), carried in trailers or headers. The
+        basic codes (OK, NOT_FOUND, INVALID_ARGUMENT, etc.) cover the common cases. For richer errors, gRPC uses
+        <code>google.rpc.Status</code> — a message with a code, a message, and a list of <code>Any</code>-encoded
+        details. The details carry structured error information (validation failures, retry guidance, error
+        codes) that the client can parse.</p>
+      </div>
+
+      <h4>The 16 gRPC status codes</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Code</th><th>Number</th><th>Meaning</th><th>HTTP analogue</th></tr></thead>
+          <tbody>
+            <tr><td><code>OK</code></td><td>0</td><td>Success</td><td>200</td></tr>
+            <tr><td><code>CANCELLED</code></td><td>1</td><td>The call was cancelled</td><td>499 (client closed)</td></tr>
+            <tr><td><code>UNKNOWN</code></td><td>2</td><td>Unknown error</td><td>500</td></tr>
+            <tr><td><code>INVALID_ARGUMENT</code></td><td>3</td><td>Invalid input</td><td>400</td></tr>
+            <tr><td><code>DEADLINE_EXCEEDED</code></td><td>4</td><td>The deadline was exceeded</td><td>504</td></tr>
+            <tr><td><code>NOT_FOUND</code></td><td>5</td><td>The resource does not exist</td><td>404</td></tr>
+            <tr><td><code>ALREADY_EXISTS</code></td><td>6</td><td>The resource already exists</td><td>409</td></tr>
+            <tr><td><code>PERMISSION_DENIED</code></td><td>7</td><td>Not authorized</td><td>403</td></tr>
+            <tr><td><code>RESOURCE_EXHAUSTED</code></td><td>8</td><td>Rate limit or quota exceeded</td><td>429</td></tr>
+            <tr><td><code>FAILED_PRECONDITION</code></td><td>9</td><td>The system is not in the required state</td><td>400 or 412</td></tr>
+            <tr><td><code>ABORTED</code></td><td>10</td><td>Concurrency conflict; retry</td><td>409</td></tr>
+            <tr><td><code>OUT_OF_RANGE</code></td><td>11</td><td>Operation out of the valid range</td><td>400</td></tr>
+            <tr><td><code>UNIMPLEMENTED</code></td><td>12</td><td>The method is not implemented</td><td>501</td></tr>
+            <tr><td><code>INTERNAL</code></td><td>13</td><td>Internal error</td><td>500</td></tr>
+            <tr><td><code>UNAVAILABLE</code></td><td>14</td><td>The server is unavailable</td><td>503</td></tr>
+            <tr><td><code>DATA_LOSS</code></td><td>15</td><td>Unrecoverable data loss</td><td>500</td></tr>
+            <tr><td><code>UNAUTHENTICATED</code></td><td>16</td><td>Not authenticated</td><td>401</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The basic error response</h4>
+      <p>The simplest error response is a status code and a message:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Conceptual response</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre>status: NOT_FOUND
+message: "User 42 not found"</pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The client can check <code>status</code> and display <code>message</code>. This is fine for simple cases,
+      but the <code>message</code> is a human-readable string — the client cannot parse it reliably. For
+      machine-readable error classification, use the details.</p>
+
+      <h4>google.rpc.Status — the structured error</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>code</code></td><td>int32</td><td>The gRPC status code (e.g., 5 for NOT_FOUND)</td></tr>
+            <tr><td><code>message</code></td><td>string</td><td>Human-readable error description</td></tr>
+            <tr><td><code>details</code></td><td>repeated Any</td><td>Structured error details (see below)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The <code>details</code> is a list of <code>Any</code>-encoded messages — each is a protobuf message of
+      a specific type, serialized with its type URL. This lets the server send rich structured errors that the
+      client can decode if it knows the type.</p>
+
+      <h4>The standard detail types</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Type</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>BadRequest</code></td>
+              <td>Validation failures — a list of <code>FieldViolation</code> (field path + description)</td>
+            </tr>
+            <tr>
+              <td><code>ErrorInfo</code></td>
+              <td>Machine-readable error code (like a REST error code) with a documentation URL</td>
+            </tr>
+            <tr>
+              <td><code>RetryInfo</code></td>
+              <td>How long to wait before retrying (the equivalent of Retry-After)</td>
+            </tr>
+            <tr>
+              <td><code>QuotaFailure</code></td>
+              <td>Which quota was exceeded and by how much</td>
+            </tr>
+            <tr>
+              <td><code>PreconditionFailure</code></td>
+              <td>Which precondition failed — for state conflicts</td>
+            </tr>
+            <tr>
+              <td><code>DebugInfo</code></td>
+              <td>Stack trace or debug details (for internal APIs, not public)</td>
+            </tr>
+            <tr>
+              <td><code>Help</code></td>
+              <td>Links to documentation for resolving the error</td>
+            </tr>
+            <tr>
+              <td><code>LocalizedMessage</code></td>
+              <td>Localized error message (for i18n)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>A structured error example</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Error response</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre>status:
+  code: INVALID_ARGUMENT (3)
+  message: "Validation failed"
+  details:
+    - type: "type.googleapis.com/google.rpc.BadRequest"
+      value:
+        field_violations:
+          - field: "email"
+            description: "must be a valid email address"
+          - field: "age"
+            description: "must be greater than 0"
+    - type: "type.googleapis.com/google.rpc.ErrorInfo"
+      value:
+        reason: "INVALID_EMAIL_FORMAT"
+        domain: "api.example.com"
+        metadata:
+          email: "foo"
+    - type: "type.googleapis.com/google.rpc.Help"
+      value:
+        links:
+          - description: "Email validation rules"
+            url: "https://docs.example.com/validation/email"</pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>This gives the client everything it needs: the field names and messages (for form display), the
+      machine-readable reason (for conditional logic), the metadata (for debugging), and the documentation link
+      (for the developer).</p>
+
+      <h4>Why this matters</h4>
+      <p>The <code>google.rpc.Status</code> model is the gRPC equivalent of RFC 7807 (Volume 8, Question 5).
+      It solves the same problem: a structured error that both a machine and a human can understand, with
+      extensibility for domain-specific details.</p>
+      <p>Without it, an error is a code and a string — the client can display the string but cannot act on it.
+      With it, the client can distinguish "retry this" from "fix the input" from "contact support" without
+      parsing the string.</p>
+
+      <h4>The error code mapping</h4>
+      <p>The gRPC codes map cleanly to HTTP codes, which is important when a REST gateway wraps a gRPC service
+      (Question 7). The <code>grpc-gateway</code> does this mapping automatically:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>gRPC status</th><th>HTTP status</th></tr></thead>
+          <tbody>
+            <tr><td><code>OK</code></td><td>200</td></tr>
+            <tr><td><code>CANCELLED</code></td><td>499</td></tr>
+            <tr><td><code>INVALID_ARGUMENT</code></td><td>400</td></tr>
+            <tr><td><code>NOT_FOUND</code></td><td>404</td></tr>
+            <tr><td><code>ALREADY_EXISTS</code></td><td>409</td></tr>
+            <tr><td><code>PERMISSION_DENIED</code></td><td>403</td></tr>
+            <tr><td><code>UNAUTHENTICATED</code></td><td>401</td></tr>
+            <tr><td><code>RESOURCE_EXHAUSTED</code></td><td>429</td></tr>
+            <tr><td><code>UNAVAILABLE</code></td><td>503</td></tr>
+            <tr><td><code>UNIMPLEMENTED</code></td><td>501</td></tr>
+            <tr><td><code>DEADLINE_EXCEEDED</code></td><td>504</td></tr>
+            <tr><td><code>INTERNAL</code></td><td>500</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Error handling in the client</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Client action</th><th>Triggered by</th></tr></thead>
+          <tbody>
+            <tr><td>Retry with backoff</td><td><code>UNAVAILABLE</code>, <code>DEADLINE_EXCEEDED</code></td></tr>
+            <tr><td>Retry with the value from RetryInfo</td><td><code>RESOURCE_EXHAUSTED</code> + <code>RetryInfo</code></td></tr>
+            <tr><td>Show validation errors</td><td><code>INVALID_ARGUMENT</code> + <code>BadRequest</code></td></tr>
+            <tr><td>Prompt the user to log in</td><td><code>UNAUTHENTICATED</code></td></tr>
+            <tr><td>Show forbidden</td><td><code>PERMISSION_DENIED</code></td></tr>
+            <tr><td>Refresh the resource</td><td><code>NOT_FOUND</code>, <code>ABORTED</code></td></tr>
+            <tr><td>Contact support</td><td><code>INTERNAL</code>, <code>UNKNOWN</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Returning only a message string. The client cannot distinguish "email is invalid" from "email is
+        already taken" from "email domain is blocked" — three errors with the same status code and different
+        resolutions. The fix: use <code>BadRequest</code> with per-field codes, and <code>ErrorInfo</code> with
+        a machine-readable reason.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "gRPC has 16 status codes, distinct from HTTP. For richer errors, google.rpc.Status with
+        BadRequest for validation, ErrorInfo for machine-readable codes, RetryInfo for retry guidance, and Help
+        for documentation links. It maps cleanly to HTTP when a gateway wraps the service." That covers the model
+        and the mapping.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART C ================= -->
+  <div class="part-band cyan">
+    <div class="bar"></div>
+    <h2>Part C — Edge, Operations &amp; Trade-offs
+      <span class="sub">Browser support, load balancing, observability, and the choice</span>
+    </h2>
+  </div>
+
+  <!-- Q7 -->
+  <article class="q cyan" id="q7">
+    <div class="q-head">
+      <div class="q-num">7</div>
+      <h3>How do you use gRPC from a browser? gRPC-Web and grpc-gateway?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Browsers cannot speak native gRPC — they cannot access HTTP/2 trailers, which gRPC requires for status.
+        Two solutions: <strong>gRPC-Web</strong> (a protocol adaptation that encodes status in trailers-as-headers,
+        supported by all modern browsers via a proxy) and <strong>grpc-gateway</strong> (a reverse proxy that
+        translates REST/JSON to gRPC, so the browser speaks REST). gRPC-Web is better for gRPC-native clients
+        that happen to run in a browser; grpc-gateway is better when the browser needs a normal HTTP API.</p>
+      </div>
+
+      <h4>Why browsers cannot speak native gRPC</h4>
+      <p>gRPC depends on HTTP/2 features that browsers do not expose to JavaScript:</p>
+      <ul>
+        <li><strong>Trailers</strong> — gRPC sends the status in HTTP trailers (after the body); browsers do not
+        expose trailers to fetch/XHR.</li>
+        <li><strong>Streaming request bodies</strong> — gRPC can stream from client to server; browsers cannot
+        (the full body is sent at once).</li>
+        <li><strong>Fine-grained flow control</strong> — gRPC uses HTTP/2 flow control per stream; browsers do not
+        expose this.</li>
+        <li><strong>Binary framing</strong> — gRPC messages are length-prefixed binary frames; JavaScript would
+        need a custom parser.</li>
+      </ul>
+
+      <h4>gRPC-Web — the protocol adaptation</h4>
+      <p>gRPC-Web is a variant of gRPC that works over HTTP/1.1 and HTTP/2 by moving status information into
+      headers (which browsers expose) and constraining streaming to server-push only. The browser uses a
+      gRPC-Web client (a JavaScript library); a proxy on the server side (Envoy, grpc-web-proxy) translates
+      gRPC-Web to gRPC.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Feature</th><th>gRPC</th><th>gRPC-Web</th></tr></thead>
+          <tbody>
+            <tr><td>Unary RPC</td><td>Yes</td><td>Yes</td></tr>
+            <tr><td>Server streaming</td><td>Yes</td><td>Yes</td></tr>
+            <tr><td>Client streaming</td><td>Yes</td><td>No</td></tr>
+            <tr><td>Bidirectional streaming</td><td>Yes</td><td>No</td></tr>
+            <tr><td>Status location</td><td>Trailers</td><td>Headers</td></tr>
+            <tr><td>Protocol</td><td>HTTP/2</td><td>HTTP/1.1 or HTTP/2</td></tr>
+            <tr><td>Browser support</td><td>No (needs proxy)</td><td>Yes (with proxy)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The gRPC-Web architecture:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Component</th><th>Responsibility</th></tr></thead>
+          <tbody>
+            <tr><td>Browser</td><td>Uses gRPC-Web client library; sends gRPC-Web requests</td></tr>
+            <tr><td>gRPC-Web proxy (Envoy)</td><td>Translates gRPC-Web to gRPC; forwards to the backend</td></tr>
+            <tr><td>gRPC server</td><td>Speaks native gRPC; handles the request as usual</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The proxy is the trade-off — an extra hop, an extra component to operate. For teams already running
+      Envoy (from a service mesh), the proxy is already there; for others, it is additional infrastructure.</p>
+
+      <h4>grpc-gateway — REST to gRPC translation</h4>
+      <p>grpc-gateway is a different approach: it exposes the gRPC service as a REST API, so the browser speaks
+      normal HTTP/JSON. The gateway is generated from the <code>.proto</code> file, with annotations specifying
+      the REST mappings:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Proto annotation</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre>service UserService {
+  rpc GetUser(GetUserRequest) returns (User) {
+    option (google.api.http) = {
+      get: "/v1/users/{id}"
+    };
+  }
+}</pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The gateway generates a Go (or other language) server that translates <code>GET /v1/users/42</code>
+      into <code>GetUser{id: 42}</code>, calls the gRPC service, and translates the response back to JSON. The
+      browser sees a normal REST API; the backend speaks gRPC.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Advantage</th><th>Trade-off</th></tr></thead>
+          <tbody>
+            <tr><td>Browser speaks normal HTTP/JSON</td><td>Extra proxy hop</td></tr>
+            <tr><td>Standard HTTP caching works</td><td>JSON is larger than Protobuf</td></tr>
+            <tr><td>Tooling (curl, Postman) works</td><td>Two APIs to maintain (gRPC and REST)</td></tr>
+            <tr><td>Public clients can consume it</td><td>Streaming is limited (server-streaming only)</td></tr>
+            <tr><td>Existing auth middleware applies</td><td>Generated code must be maintained</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Which to choose</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Requirement</th><th>Recommendation</th></tr></thead>
+          <tbody>
+            <tr><td>Web app already using gRPC internally; wants the same protocol end-to-end</td><td>gRPC-Web</td></tr>
+            <tr><td>Public API for third-party developers</td><td>grpc-gateway (or a REST API alongside gRPC)</td></tr>
+            <tr><td>Mobile app with native gRPC support</td><td>Native gRPC (mobile platforms support it)</td></tr>
+            <tr><td>Simple admin dashboard calling an internal service</td><td>grpc-gateway or a BFF</td></tr>
+            <tr><td>Streaming to a browser</td><td>gRPC-Web (server-streaming) or SSE/WebSocket</td></tr>
+            <tr><td>Bidirectional streaming in a browser</td><td>Not possible with gRPC-Web — use WebSocket</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The hybrid architecture</h4>
+      <p>In practice, many systems use both: the public REST API is exposed via grpc-gateway (for browsers and
+      third parties); the internal services speak native gRPC to each other; the mobile apps use native gRPC
+      (which is faster and more battery-efficient than REST/JSON).</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Client</th><th>Protocol</th></tr></thead>
+          <tbody>
+            <tr><td>Browser (web app)</td><td>REST via grpc-gateway, or gRPC-Web</td></tr>
+            <tr><td>Mobile app</td><td>Native gRPC</td></tr>
+            <tr><td>Service-to-service</td><td>Native gRPC</td></tr>
+            <tr><td>Third-party partner</td><td>REST via grpc-gateway</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The alternative: don't use gRPC for the browser</h4>
+      <p>Sometimes the simplest answer is: don't expose gRPC to browsers at all. Build a REST API for the browser
+      (or GraphQL), and use gRPC only for service-to-service. This avoids the proxy, the two-API maintenance, and
+      the gRPC-Web limitations. The cost: two API surfaces (REST for external, gRPC for internal), but the two
+      are documented separately, and the trade-off is accepted.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Assuming gRPC-Web supports bidirectional streaming. It does not — only unary and server-streaming.
+        A browser app that needs bidirectional (chat, collaboration) must use WebSocket, not gRPC-Web.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Browsers cannot speak native gRPC. Two options: gRPC-Web with a proxy for gRPC-native clients
+        in a browser, or grpc-gateway for a REST API over the gRPC service. For most cases, a REST API for the
+        browser and gRPC for internal is simpler." That covers the two mechanisms and the pragmatic answer.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q8 -->
+  <article class="q cyan" id="q8">
+    <div class="q-head">
+      <div class="q-num">8</div>
+      <h3>How does load balancing work for gRPC, and why is it different from HTTP?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>gRPC uses HTTP/2 with long-lived connections, so per-request load balancing at an L4 proxy does not
+        work — the client holds one connection to one backend, and all requests go there. The solutions are:
+        <strong>client-side load balancing</strong> (the client knows the backends and picks per-request),
+        <strong>L7 proxies that understand HTTP/2</strong> (Envoy, Linkerd), and <strong>service mesh sidecars</strong>
+        (which handle the load balancing transparently). The problem is fundamentally different from HTTP/1.1,
+        where each request is a new connection.</p>
+      </div>
+
+      <h4>Why gRPC breaks L4 load balancers</h4>
+      <p>An L4 load balancer (AWS NLB, IPVS) routes based on the connection's IP/port. With HTTP/1.1, each
+      request is a separate connection (or a small pool), so the L4 balancer distributes them across backends. With
+      gRPC, the client opens one connection and multiplexes all requests over it — the L4 balancer sees one
+      connection and routes it to one backend. Every request goes to that backend.</p>
+      <p>Consequences:</p>
+      <ul>
+        <li><strong>Uneven distribution</strong> — one backend gets all the client's traffic.</li>
+        <li><strong>No failover</strong> — if the backend dies, the client's connection breaks, and the client
+        must reconnect (potentially to the same dead backend).</li>
+        <li><strong>Hot spots</strong> — a client with high traffic concentrates on one backend.</li>
+      </ul>
+
+      <h4>Client-side load balancing</h4>
+      <p>The client knows the list of backends and picks one per request (or per call). The client uses a load
+      balancing policy:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Policy</th><th>Behaviour</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Round-robin</strong></td><td>Cycle through backends per RPC</td></tr>
+            <tr><td><strong>Pick-first</strong></td><td>Use the first healthy backend; fail over on error</td></tr>
+            <tr><td><strong>Least-request</strong></td><td>Pick the backend with the fewest in-flight requests</td></tr>
+            <tr><td><strong>Consistent hash</strong></td><td>Hash the request key to pick the backend (for affinity)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The client must discover the backends — via DNS, a service registry (Consul, etcd), or the Kubernetes
+      API. The discovery is usually handled by the gRPC client library's resolver, which watches the registry and
+      updates the backend list when it changes.</p>
+      <p>The advantages: accurate per-request distribution, low latency (no extra hop), no central load balancer
+      to bottleneck. The cost: every client must implement the load balancing logic (usually via the gRPC library
+      — it is built-in), and the discovery must be correct.</p>
+
+      <h4>L7 proxy load balancing</h4>
+      <p>An L7 proxy (Envoy, NGINX with HTTP/2 support) understands HTTP/2 and can route per-stream, not per-
+      connection. The client opens one connection to the proxy; the proxy opens connections to each backend and
+      routes each RPC to the appropriate backend.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Aspect</th><th>L4 LB</th><th>L7 proxy</th></tr></thead>
+          <tbody>
+            <tr><td>Routing unit</td><td>Connection</td><td>Stream (request)</td></tr>
+            <tr><td>HTTP/2 support</td><td>Pass-through (connection)</td><td>Native</td></tr>
+            <tr><td>gRPC load balancing</td><td>Broken (all to one backend)</td><td>Works — per-RPC distribution</td></tr>
+            <tr><td>Extra hop</td><td>No</td><td>Yes (proxy)</td></tr>
+            <tr><td>Latency</td><td>Minimal</td><td>Small overhead (1–3 ms)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Envoy is the standard for gRPC load balancing — it is HTTP/2-native, supports per-stream routing, and
+      integrates with service discovery. NGINX with <code>grpc_pass</code> works too, but is less capable for
+      advanced routing.</p>
+
+      <h4>Service mesh sidecars</h4>
+      <p>In a service mesh (Istio, Linkerd), each service has a sidecar proxy. The client sends gRPC to its
+      sidecar; the sidecar discovers the destination's sidecars and load-balances per-request. From the
+      application's perspective, it is calling a single endpoint; the mesh handles the distribution.</p>
+      <p>The mesh gives:</p>
+      <ul>
+        <li><strong>Transparent load balancing</strong> — the application does not implement it.</li>
+        <li><strong>mTLS</strong> — every call is encrypted and authenticated.</li>
+        <li><strong>Retries, timeouts, circuit breakers</strong> — uniform policy.</li>
+        <li><strong>Observability</strong> — metrics and traces per call.</li>
+      </ul>
+      <p>The cost: the sidecar adds a hop and resource overhead; the mesh is a control plane to operate. For
+      organizations with many services, the operational cost is amortized; for small deployments, it is
+      over-engineering.</p>
+
+      <h4>The Kubernetes special case</h4>
+      <p>Kubernetes Services (ClusterIP) use kube-proxy at L4 — the gRPC load balancing problem is inherent. The
+      workarounds:</p>
+      <ul>
+        <li><strong>Headless service + client-side LB</strong> — the service returns the pod IPs; the client load
+        balances.</li>
+        <li><strong>L7 ingress</strong> — an Ingress controller (Envoy, Traefik, NGINX) that handles HTTP/2.</li>
+        <li><strong>Service mesh</strong> — Istio, Linkerd, Consul Connect.</li>
+      </ul>
+      <p>The default Kubernetes Service is not suitable for gRPC without one of these. This surprises teams new
+      to gRPC on Kubernetes — the connections all go to one pod.</p>
+
+      <h4>The health check integration</h4>
+      <p>gRPC has a standard health checking protocol (the <code>grpc.health.v1.Health</code> service). The load
+      balancer (client or proxy) can query it to determine whether a backend is healthy:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Service</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>Check</code></td><td>Query the health of a specific service</td></tr>
+            <tr><td><code>Watch</code></td><td>Subscribe to health changes</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The client-side balancer uses this to remove unhealthy backends from rotation. The server must implement
+      the health service (the gRPC library provides the boilerplate) and wire it to the actual health status
+      (database connectivity, dependency health).</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Deploying gRPC behind a default Kubernetes Service (ClusterIP) without client-side load balancing or
+        an L7 ingress. All requests go to one pod — the other pods idle, and the hot pod saturates. The fix:
+        headless service + client LB, or an L7 proxy, or a service mesh.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "gRPC uses HTTP/2 with long-lived connections, so an L4 load balancer routes the whole connection
+        to one backend. The solutions are client-side LB with service discovery, an L7 proxy like Envoy, or a
+        service mesh. On Kubernetes, the default Service is not enough — use a headless service or an L7
+        ingress." That covers the problem and the solutions.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q9 -->
+  <article class="q cyan" id="q9">
+    <div class="q-head">
+      <div class="q-num">9</div>
+      <h3>How do you observe and debug a gRPC service in production?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>gRPC observability uses the same three pillars as any service: <strong>metrics</strong> (per-RPC
+        latency, error rate, in-flight count, message sizes), <strong>tracing</strong> (spans across the call chain,
+        with the trace context propagated in metadata), and <strong>logging</strong> (structured logs with the
+        correlation ID and method). The additional gRPC-specific tools: <strong>channelz</strong> (per-connection
+        and per-channel stats), <strong>grpcurl</strong> (a command-line client), <strong>reflection</strong>
+        (the schema over the wire), and the <strong>health service</strong>.</p>
+      </div>
+
+      <h4>The standard gRPC metrics</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Metric</th><th>Labels</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>grpc_server_started_total</code></td><td>method, service</td><td>RPCs started</td></tr>
+            <tr><td><code>grpc_server_handled_total</code></td><td>method, code</td><td>RPCs completed, by status code</td></tr>
+            <tr><td><code>grpc_server_handling_seconds</code></td><td>method, code</td><td>Latency histogram</td></tr>
+            <tr><td><code>grpc_server_msg_received_total</code></td><td>method</td><td>Messages received (streaming)</td></tr>
+            <tr><td><code>grpc_server_msg_sent_total</code></td><td>method</td><td>Messages sent (streaming)</td></tr>
+            <tr><td><code>grpc_client_started_total</code></td><td>method, target</td><td>Client calls started</td></tr>
+            <tr><td><code>grpc_client_handled_total</code></td><td>method, code, target</td><td>Client calls completed</td></tr>
+            <tr><td><code>grpc_client_roundtrip_seconds</code></td><td>method, code, target</td><td>Client round-trip latency</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>These are the standard metrics from the OpenTelemetry gRPC instrumentation. The <code>code</code> label
+      is critical — it distinguishes success from each error status. A high rate of <code>UNAVAILABLE</code> is a
+      different problem from a high rate of <code>INVALID_ARGUMENT</code>.</p>
+
+      <h4>Tracing with context propagation</h4>
+      <p>The trace context is carried in metadata (W3C <code>traceparent</code> header or the legacy B3 headers).
+      The client interceptor injects it; the server interceptor extracts it and starts a child span. For
+      streaming RPCs, the span covers the whole stream; each message may have its own span (for detailed
+      tracing).</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Span</th><th>What it shows</th></tr></thead>
+          <tbody>
+            <tr><td>Client span (unary)</td><td>Request sent, response received, duration</td></tr>
+            <tr><td>Server span (unary)</td><td>Request received, handler duration, response sent</td></tr>
+            <tr><td>Stream span</td><td>The whole stream's lifetime</td></tr>
+            <tr><td>Message span (optional)</td><td>Per-message send/receive</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Structured logging</h4>
+      <p>Every log line includes:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Field</th><th>Content</th></tr></thead>
+          <tbody>
+            <tr><td><code>trace_id</code></td><td>The distributed trace ID</td></tr>
+            <tr><td><code>span_id</code></td><td>The current span</td></tr>
+            <tr><td><code>method</code></td><td>The full RPC method (<code>users.UserService/GetUser</code>)</td></tr>
+            <tr><td><code>status_code</code></td><td>The gRPC status</td></tr>
+            <tr><td><code>duration_ms</code></td><td>The RPC duration</td></tr>
+            <tr><td><code>request_id</code></td><td>The correlation ID</td></tr>
+            <tr><td><code>client_id</code></td><td>The authenticated identity</td></tr>
+            <tr><td><code>error_message</code></td><td>The error (if any)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>grpcurl — the command-line client</h4>
+      <p><code>grpcurl</code> is the gRPC equivalent of <code>curl</code>. It speaks gRPC, uses reflection to
+      discover the schema (or takes a <code>.proto</code> file), and prints the response:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Command</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td><code>grpcurl -plaintext localhost:50051 list</code></td><td>List all services</td></tr>
+            <tr><td><code>grpcurl -plaintext localhost:50051 list users.UserService</code></td><td>List methods of a service</td></tr>
+            <tr><td><code>grpcurl -plaintext -d '{"id": 42}' localhost:50051 users.UserService/GetUser</code></td><td>Call a method</td></tr>
+            <tr><td><code>grpcurl -plaintext -d @ localhost:50051 users.UserService/Chat</code></td><td>Bidirectional streaming (reads from stdin)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>grpcurl requires the schema — either via reflection (the server exposes it) or a <code>.proto</code>
+      file (with <code>-proto</code>). In production, reflection is often disabled for security; the
+      <code>.proto</code> file is used instead.</p>
+
+      <h4>Reflection — the schema over the wire</h4>
+      <p>gRPC reflection is a service (the <code>grpc.reflection.v1alpha.ServerReflection</code> service) that
+      lets a client query the server's schema at runtime. It enables:</p>
+      <ul>
+        <li><strong>grpcurl without a .proto file</strong> — the tool discovers the schema.</li>
+        <li><strong>Documentation tools</strong> — generate API docs from the live schema.</li>
+        <li><strong>Debugging</strong> — a developer can explore the schema without the source code.</li>
+      </ul>
+      <p>But reflection is also an information disclosure risk — an attacker can enumerate every method, message,
+      and field. In production, reflection should be disabled (or restricted to internal networks).</p>
+
+      <h4>channelz — the connection inspector</h4>
+      <p>channelz is a gRPC-specific diagnostic service that exposes per-channel, per-connection, and per-server
+      stats. It is the equivalent of "show me the connection state" for gRPC:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Channelz query</th><th>What it reveals</th></tr></thead>
+          <tbody>
+            <tr><td>List servers</td><td>All servers on this process, with stats</td></tr>
+            <tr><td>List channels</td><td>All channels (client connections), with state (CONNECTING, READY, TRANSIENT_FAILURE)</td></tr>
+            <tr><td>Describe a channel</td><td>Target, state, sub-channels, calls started/succeeded/failed</td></tr>
+            <tr><td>Describe a socket</td><td>The underlying TCP socket (addresses, bytes, options)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>channelz is useful for debugging connection issues — a channel stuck in <code>TRANSIENT_FAILURE</code>
+      means the client cannot connect to any backend. It is exposed as a gRPC service or via a web UI (usually
+      only in development/staging).</p>
+
+      <h4>The health service</h4>
+      <p>The standard <code>grpc.health.v1.Health</code> service reports the health of the server. The
+      Kubernetes liveness and readiness probes can call it (via a <code>grpc_health_probe</code> binary). The
+      service returns <code>SERVING</code>, <code>NOT_SERVING</code>, or <code>UNKNOWN</code> per service.</p>
+      <p>Wiring the health service to the actual dependencies (database, cache, downstream services) gives the
+      load balancer an accurate signal — a backend that cannot reach its database reports
+      <code>NOT_SERVING</code> and is removed from rotation.</p>
+
+      <h4>The streaming-specific observability</h4>
+      <p>For streaming RPCs, the standard metrics capture the stream's lifetime, but not the per-message
+      behavior. Additional metrics:</p>
+      <ul>
+        <li><strong>Messages per stream</strong> — a stream that sends 1 message vs 10,000 is very different.</li>
+        <li><strong>Stream duration</strong> — a long-lived stream (chat) vs a short one (upload) has different
+        expectations.</li>
+        <li><strong>Flow control stalls</strong> — the stream paused waiting for the peer to consume.</li>
+        <li><strong>Client cancellations</strong> — the client disconnected before the stream ended.</li>
+      </ul>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Enabling reflection in production without authentication. The schema is exposed to anyone who can
+        reach the server — including attackers. The fix: disable reflection in production, or restrict it to
+        internal networks / authenticated users.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "The three pillars — metrics with the status code label, trace context in metadata, structured
+        logs with method and trace ID. Plus grpcurl for debugging, channelz for connection state, and the health
+        service for readiness. Reflection off in production." That covers the stack.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q10 -->
+  <article class="q cyan" id="q10">
+    <div class="q-head">
+      <div class="q-num">10</div>
+      <h3>gRPC vs REST vs GraphQL — when does each actually win?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p><strong>gRPC</strong> wins for internal service-to-service — performance, typed contracts, streaming, and
+        code generation across languages. <strong>REST</strong> wins for public APIs — universal tooling, HTTP
+        caching, and zero learning curve. <strong>GraphQL</strong> wins for client-driven product surfaces with
+        heterogeneous clients — flexible queries and rapid frontend iteration. Most large systems use all three at
+        different layers.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Dimension</th><th>gRPC</th><th>REST</th><th>GraphQL</th></tr></thead>
+          <tbody>
+            <tr><td>Wire format</td><td>Protobuf (binary)</td><td>JSON (text)</td><td>JSON (text)</td></tr>
+            <tr><td>Transport</td><td>HTTP/2</td><td>HTTP/1.1 or 2</td><td>HTTP (usually POST)</td></tr>
+            <tr><td>Contract</td><td>.proto (typed, codegen)</td><td>OpenAPI (documentation)</td><td>SDL (typed, codegen)</td></tr>
+            <tr><td>Browser native</td><td>No (needs proxy)</td><td>Yes</td><td>Yes</td></tr>
+            <tr><td>Streaming</td><td>Native, four types</td><td>SSE, WebSocket</td><td>Subscriptions</td></tr>
+            <tr><td>HTTP caching</td><td>No</td><td>Native</td><td>Hard (persisted queries help)</td></tr>
+            <tr><td>Payload size</td><td>Smallest</td><td>Largest</td><td>Medium</td></tr>
+            <tr><td>Learning curve</td><td>Medium</td><td>Low</td><td>High</td></tr>
+            <tr><td>Tooling</td><td>Protoc, grpcurl, reflection</td><td>Universal (curl, Postman)</td><td>Apollo, GraphiQL</td></tr>
+            <tr><td>Best for</td><td>Internal service-to-service</td><td>Public APIs, CRUD, browsers</td><td>Client-driven apps, aggregation</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Where gRPC wins</h4>
+      <ul>
+        <li><strong>Internal microservices</strong> — performance, typed contracts, and code generation across
+        languages. The .proto file is the contract; buf breaking enforces compatibility.</li>
+        <li><strong>Streaming</strong> — server-streaming for large result sets, client-streaming for uploads,
+        bidirectional for real-time protocols. REST requires separate SSE/WebSocket infrastructure; GraphQL
+        subscriptions are less flexible.</li>
+        <li><strong>Low-latency services</strong> — a 3–5× serialization speedup matters when a service handles
+        100,000 RPCs per second.</li>
+        <li><strong>Polyglot environments</strong> — Go, Java, Python, C++, Rust — codegen generates consistent
+        clients in every language.</li>
+        <li><strong>Mobile clients</strong> — native gRPC on Android and iOS; smaller payloads, less battery
+        consumption.</li>
+      </ul>
+
+      <h4>Where REST wins</h4>
+      <ul>
+        <li><strong>Public APIs</strong> — Stripe, GitHub, Twilio. Universal: every developer, every tool, every
+        client.</li>
+        <li><strong>HTTP caching</strong> — a CDN caches GET requests natively. No extra configuration.</li>
+        <li><strong>Browser clients</strong> — no proxy needed; fetch/XHR works.</li>
+        <li><strong>Simple CRUD</strong> — a handful of resources, one client, straightforward shapes. gRPC's
+        complexity is not justified.</li>
+        <li><strong>File uploads and downloads</strong> — multipart forms and binary streaming work
+        naturally.</li>
+        <li><strong>Service-to-service for simpler cases</strong> — REST over HTTP with JSON is fine for
+        moderate-volume internal APIs; gRPC's benefits are smaller when the volume is not extreme.</li>
+      </ul>
+
+      <h4>Where GraphQL wins</h4>
+      <ul>
+        <li><strong>Multiple heterogeneous clients</strong> — mobile, web, partner apps each need different
+        shapes; GraphQL lets each query its shape from one schema.</li>
+        <li><strong>Rapid frontend iteration</strong> — the frontend adds a field to the query without a backend
+        change, decoupling release cadences.</li>
+        <li><strong>Complex data models</strong> — deeply nested data is one query in GraphQL, several in REST.</li>
+        <li><strong>Aggregation over services</strong> — one GraphQL gateway over many microservices.</li>
+        <li><strong>Real-time UI</strong> — subscriptions integrated into the same schema.</li>
+      </ul>
+
+      <h4>The standard architecture</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Layer</th><th>Protocol</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr><td>External public API</td><td>REST</td><td>Universal, cacheable, simple</td></tr>
+            <tr><td>Web/mobile client → BFF</td><td>GraphQL</td><td>Flexibility, one round trip</td></tr>
+            <tr><td>BFF → services</td><td>gRPC</td><td>Performance, typed, streaming</td></tr>
+            <tr><td>Service → service</td><td>gRPC</td><td>Performance, typed contracts</td></tr>
+            <tr><td>Service → service (async)</td><td>Message queue</td><td>Decoupling, buffering (Volume 11)</td></tr>
+            <tr><td>Mobile native clients</td><td>gRPC</td><td>Payload size, battery</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The pattern: REST for public and browser; gRPC for internal; GraphQL for the client's aggregation. Each
+      is used where its strengths dominate.</p>
+
+      <h4>The migration considerations</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>From → To</th><th>When it makes sense</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>REST → gRPC (internal)</td>
+              <td>The internal API is high-volume, has streaming needs, or spans many languages</td>
+            </tr>
+            <tr>
+              <td>REST → GraphQL</td>
+              <td>The frontend iterates faster than the backend, or the client set is heterogeneous and growing</td>
+            </tr>
+            <tr>
+              <td>gRPC → REST (public surface)</td>
+              <td>When the API needs to be consumable by browsers and third parties without a proxy</td>
+            </tr>
+            <tr>
+              <td>GraphQL → REST (public surface)</td>
+              <td>When the query language is a barrier for partners, or when caching is the dominant requirement</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The honest assessment</h4>
+      <p>Each protocol is a tool with a real cost. gRPC requires Protobuf discipline, buf breaking, load-balancing
+      configuration, and a proxy for browsers. REST requires careful API design, versioning, and documentation.
+      GraphQL requires schema design, DataLoader, complexity limits, and a client cache.</p>
+      <p>The mistake is choosing based on trend. The right choice is: which protocol makes the application's data
+      flow simplest, given the client's needs and the team's expertise? A team that knows REST well and has a
+      simple product should build REST. A team that needs streaming and has polyglot services should build gRPC.
+      A team with heterogeneous clients iterating fast should build GraphQL.</p>
+      <p>Most mature systems converge on a mix — REST at the edge, gRPC inside, GraphQL where the client's needs
+      demand it. The boundary is the client: if the client is a browser and the data is simple, REST; if the
+      client is a product surface with varied needs, GraphQL; if the client is a service, gRPC.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>gRPC trades ecosystem for performance and typing. REST trades performance for universality. GraphQL
+        trades server complexity for client flexibility. The right answer is driven by the audience — internal
+        services, public developers, or the product frontend — not by which is "best".</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "gRPC for internal service-to-service — performance, streaming, typed. REST for public APIs —
+        universal, cacheable, simple. GraphQL for client-driven product surfaces — flexible queries. Most
+        systems use all three at different layers." That demonstrates judgment and the standard architecture in
+        one sentence.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- NEXT PART -->
+  <section class="next-part">
+    <h3>Coming in Volume 14 — Security &amp; Abuse Prevention</h3>
+    <p>Volume 14 is the security volume: the OWASP API Top 10 in depth, injection (SQL, NoSQL, command, LDAP),
+    SSRF, XXE, deserialization attacks, mass assignment, enumeration, race conditions, and the input validation
+    and output encoding discipline that prevents them.</p>
+    <ul class="next-list">
+      <li>OWASP API Top 10 — each category</li>
+      <li>Injection: SQL, NoSQL, command, LDAP</li>
+      <li>SSRF — beyond webhooks</li>
+      <li>XXE and XML parsing</li>
+      <li>Deserialization attacks</li>
+      <li>Mass assignment</li>
+      <li>Enumeration and information disclosure</li>
+      <li>Race conditions</li>
+      <li>Input validation and output encoding</li>
+      <li>Security testing in CI</li>
+    </ul>
+  </section>
+
+</div>
+</body>
+</html>
