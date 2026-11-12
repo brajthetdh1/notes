@@ -1,0 +1,2114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API Design — Volume 12: GraphQL Deep Dive</title>
+<style>
+  :root{
+    --ink:#150a1e;
+    --ink-soft:#2e1a42;
+    --muted:#6a4e88;
+    --line:#e4d5f2;
+    --bg:#faf5ff;
+    --card:#ffffff;
+    --magenta:#a21caf;
+    --magenta-soft:#fae8ff;
+    --magenta-deep:#701a75;
+    --pink:#db2777;
+    --pink-soft:#fce7f3;
+    --violet:#6d28d9;
+    --teal:#0f766e;
+    --amber:#b45309;
+    --rose:#be123c;
+    --blue:#1d4ed8;
+    --shadow:0 1px 2px rgba(80,15,80,.06), 0 8px 24px -8px rgba(80,15,80,.14);
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 8% -10%, #fae8ff 0%, transparent 60%),
+      radial-gradient(1000px 500px at 100% 0%, #fce7f3 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:"Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    line-height:1.72;
+    font-size:16.5px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px 90px;}
+
+  header.hero{
+    background:linear-gradient(135deg,#150a1e 0%, #701a75 45%, #a21caf 100%);
+    color:#fdf4ff;
+    padding:64px 22px 56px;
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::after{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      radial-gradient(600px 300px at 85% 15%, rgba(219,39,119,.42), transparent 70%),
+      radial-gradient(520px 280px at 12% 92%, rgba(162,28,175,.4), transparent 70%);
+    pointer-events:none;
+  }
+  .hero-inner{max-width:1080px;margin:0 auto;position:relative;z-index:2;}
+  .eyebrow{
+    display:inline-block;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;
+    font-weight:700;padding:7px 15px;border-radius:999px;
+    background:rgba(232,121,249,.18);border:1px solid rgba(232,121,249,.5);
+    color:#f0abfc;margin-bottom:20px;
+  }
+  header.hero h1{
+    font-size:clamp(1.9rem, 4.4vw, 3rem);line-height:1.15;margin:0 0 16px;
+    font-weight:800;letter-spacing:-.02em;
+  }
+  header.hero h1 span{
+    background:linear-gradient(90deg,#f0abfc,#f9a8d4);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  header.hero p.lede{font-size:1.06rem;color:#f5d0fe;max-width:780px;margin:0 0 26px;}
+  .meta-chips{display:flex;flex-wrap:wrap;gap:10px;}
+  .chip{
+    font-size:.78rem;font-weight:600;padding:7px 14px;border-radius:999px;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#fae8ff;
+  }
+
+  .roadmap{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:26px 28px;margin-top:-34px;position:relative;z-index:5;
+  }
+  .roadmap h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 16px;font-weight:700;
+  }
+  .roadmap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;}
+  .roadmap-item{
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:.86rem;
+    background:#fefbff;opacity:.7;
+  }
+  .roadmap-item.done{
+    border-color:#f0abfc;background:linear-gradient(180deg,#fdf4ff,#ffffff);opacity:1;
+  }
+  .roadmap-item.current{
+    border-color:#e879f9;background:linear-gradient(180deg,#fae8ff,#ffffff);opacity:1;
+    box-shadow:0 0 0 3px rgba(162,28,175,.14);
+  }
+  .roadmap-item .tag{
+    display:inline-block;font-size:.64rem;font-weight:800;letter-spacing:.08em;
+    padding:2px 8px;border-radius:999px;margin-bottom:6px;
+  }
+  .tag-done{background:var(--pink-soft);color:var(--magenta-deep);}
+  .tag-now{background:var(--magenta-soft);color:var(--magenta);}
+  .tag-next{background:#e2e8f0;color:#475569;}
+  .roadmap-item strong{display:block;color:var(--ink);font-size:.89rem;}
+
+  nav.toc{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:22px 26px;margin:26px 0 44px;
+  }
+  nav.toc h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 14px;font-weight:700;
+  }
+  nav.toc ol{
+    margin:0;padding-left:0;list-style:none;counter-reset:toc;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:8px 26px;
+  }
+  nav.toc li{
+    counter-increment:toc;font-size:.93rem;padding:6px 0 6px 34px;
+    position:relative;border-bottom:1px dashed #f7ebfb;
+  }
+  nav.toc li::before{
+    content:counter(toc);position:absolute;left:0;top:7px;width:22px;height:22px;
+    border-radius:7px;background:var(--magenta-soft);color:var(--magenta);
+    font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center;
+  }
+  nav.toc a{color:var(--ink-soft);text-decoration:none;font-weight:500;}
+  nav.toc a:hover{color:var(--magenta);}
+
+  .part-band{display:flex;align-items:center;gap:16px;margin:56px 0 26px;}
+  .part-band .bar{
+    width:5px;height:44px;border-radius:99px;
+    background:linear-gradient(180deg,var(--magenta),#e879f9);
+  }
+  .part-band.pink .bar{background:linear-gradient(180deg,var(--pink),#f472b6);}
+  .part-band.violet .bar{background:linear-gradient(180deg,var(--violet),#a78bfa);}
+  .part-band h2{margin:0;font-size:1.5rem;letter-spacing:-.01em;font-weight:800;}
+  .part-band .sub{
+    display:block;font-size:.82rem;font-weight:600;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.12em;margin-top:2px;
+  }
+
+  article.q{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:0 0 26px;margin-bottom:28px;overflow:hidden;
+    scroll-margin-top:24px;
+  }
+  .q-head{
+    display:flex;gap:16px;align-items:flex-start;padding:22px 28px 18px;
+    border-bottom:1px solid #f9effc;background:linear-gradient(180deg,#fffafd,#ffffff);
+  }
+  .q-num{
+    flex:none;width:42px;height:42px;border-radius:12px;display:flex;
+    align-items:center;justify-content:center;font-weight:800;font-size:.92rem;color:#fff;
+    background:linear-gradient(135deg,#a21caf,#db2777);
+    box-shadow:0 6px 14px -6px rgba(162,28,175,.7);
+  }
+  .pink .q-num{background:linear-gradient(135deg,#db2777,#f472b6);box-shadow:0 6px 14px -6px rgba(219,39,119,.7);}
+  .violet .q-num{background:linear-gradient(135deg,#6d28d9,#a78bfa);box-shadow:0 6px 14px -6px rgba(109,40,217,.7);}
+  .q-head h3{margin:0;font-size:1.14rem;font-weight:700;line-height:1.4;letter-spacing:-.01em;}
+  .q-body{padding:22px 28px 0;}
+  .q-body p{margin:0 0 15px;color:var(--ink-soft);}
+  .q-body p:last-child{margin-bottom:0;}
+  .q-body h4{margin:24px 0 10px;font-size:.95rem;font-weight:800;color:var(--ink);}
+  .q-body h4::before{content:"▹";color:var(--magenta);margin-right:8px;font-size:.85rem;}
+  .pink .q-body h4::before{color:var(--pink);}
+  .violet .q-body h4::before{color:var(--violet);}
+  .q-body ul,.q-body ol{margin:0 0 16px;padding-left:22px;color:var(--ink-soft);}
+  .q-body li{margin-bottom:8px;}
+  .q-body li::marker{color:var(--magenta);}
+  .pink .q-body li::marker{color:var(--pink);}
+  .violet .q-body li::marker{color:var(--violet);}
+  strong{color:var(--ink);font-weight:700;}
+  code{
+    background:#fdf4ff;border:1px solid #e4d5f2;border-radius:6px;padding:1px 6px;
+    font-size:.87em;font-family:"SFMono-Regular",Consolas,monospace;color:#a21caf;
+  }
+
+  .callout{border-radius:12px;padding:14px 18px;margin:18px 0 4px;font-size:.93rem;border-left:4px solid;}
+  .callout .label{
+    display:block;font-size:.68rem;font-weight:800;letter-spacing:.13em;
+    text-transform:uppercase;margin-bottom:5px;
+  }
+  .callout p{margin:0 0 8px;font-size:.93rem;}
+  .callout p:last-child{margin-bottom:0;}
+  .answer{background:linear-gradient(180deg,#fdf4ff,#ffffff);border-color:var(--magenta);}
+  .answer .label{color:var(--magenta-deep);}
+  .tip{background:linear-gradient(180deg,#eff6ff,#ffffff);border-color:var(--blue);}
+  .tip .label{color:#1d4ed8;}
+  .tradeoff{background:linear-gradient(180deg,#fffbeb,#ffffff);border-color:var(--amber);}
+  .tradeoff .label{color:#b45309;}
+  .pitfall{background:linear-gradient(180deg,#fff1f2,#ffffff);border-color:var(--rose);}
+  .pitfall .label{color:#be123c;}
+
+  .table-scroll{overflow-x:auto;margin:18px 0;border-radius:12px;border:1px solid var(--line);}
+  table{width:100%;border-collapse:collapse;font-size:.87rem;background:#fff;}
+  thead th{
+    background:#fef9ff;text-align:left;padding:11px 14px;font-weight:800;
+    font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+    border-bottom:2px solid var(--line);white-space:nowrap;
+  }
+  tbody td{padding:11px 14px;border-bottom:1px solid #faf1fd;color:var(--ink-soft);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:nth-child(even){background:#fefbff;}
+  tbody td:first-child{font-weight:700;color:var(--ink);}
+
+  pre{
+    margin:0;
+    white-space:pre-wrap;
+    font-family:"SFMono-Regular",Consolas,monospace;
+    font-size:.83rem;
+    line-height:1.55;
+  }
+
+  .next-part{
+    background:linear-gradient(135deg,#150a1e,#a21caf);color:#fae8ff;
+    border-radius:var(--radius);padding:32px 34px;margin-top:50px;box-shadow:var(--shadow);
+  }
+  .next-part h3{margin:0 0 12px;font-size:1.2rem;color:#fff;font-weight:800;}
+  .next-part p{margin:0 0 16px;color:#f5d0fe;font-size:.95rem;}
+  .next-list{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:10px;list-style:none;padding:0;margin:0;
+  }
+  .next-list li{
+    background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
+    border-radius:10px;padding:10px 14px;font-size:.86rem;color:#fae8ff;
+  }
+
+  @media (max-width:640px){
+    .q-head{padding:18px 18px 15px;}
+    .q-body{padding:18px 18px 0;}
+    header.hero{padding:44px 18px 46px;}
+    .roadmap{padding:20px;}
+    nav.toc{padding:18px;}
+    nav.toc ol{grid-template-columns:1fr;}
+  }
+  @media print{
+    body{background:#fff;}
+    article.q, nav.toc, .roadmap{box-shadow:none;page-break-inside:avoid;}
+    header.hero{background:#150a1e !important;-webkit-print-color-adjust:exact;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Volume 12 · Section 12 of 18</span>
+    <h1>API Design for System Interviews<br><span>GraphQL Deep Dive</span></h1>
+    <p class="lede">
+      GraphQL beyond the brochure: schema design that survives a real product, the N+1 problem and the DataLoader
+      discipline that fixes it, query complexity limits as a security mechanism, persisted queries for caching,
+      per-field authorization, subscriptions, and the honest trade-offs of GraphQL versus REST in production.
+    </p>
+    <div class="meta-chips">
+      <span class="chip">10 Questions</span>
+      <span class="chip">500+ words each</span>
+      <span class="chip">Production-focused</span>
+      <span class="chip">N+1 and security included</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ROADMAP -->
+  <section class="roadmap">
+    <h2>Answer-Series Roadmap</h2>
+    <div class="roadmap-grid">
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 1–10 — Complete</span>
+        <strong>Foundations through Performance</strong>
+        Fundamentals, resources, versioning, requests, idempotency, auth, rate limits, errors, gateways, caching
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 11 — Complete</span>
+        <strong>Async APIs &amp; Webhooks</strong>
+        202 Accepted, webhooks, outbox, SSE, SSRF
+      </div>
+      <div class="roadmap-item current">
+        <span class="tag tag-now">Volume 12 — You are here</span>
+        <strong>GraphQL Deep Dive</strong>
+        Schema, N+1, complexity, caching, authorization, subscriptions
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 13</span>
+        <strong>gRPC Deep Dive</strong>
+        Protobuf, streaming RPCs, interceptors, gRPC-Web
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 14</span>
+        <strong>Security &amp; Abuse Prevention</strong>
+        OWASP API Top 10, injection, SSRF, enumeration
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 15</span>
+        <strong>Observability &amp; Operations</strong>
+        Metrics, tracing, deployment, incidents
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 16–17</span>
+        <strong>Lifecycle, Governance &amp; 17 Problems</strong>
+        Design reviews, DX, classic API prompts
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 18</span>
+        <strong>Senior &amp; Staff Trade-offs</strong>
+        Choosing between every pair of options
+      </div>
+    </div>
+  </section>
+
+  <!-- TOC -->
+  <nav class="toc">
+    <h2>Questions Answered in This Volume</h2>
+    <ol>
+      <li><a href="#q1">How do you design a GraphQL schema that survives a real product?</a></li>
+      <li><a href="#q2">What is the N+1 problem, and how does DataLoader solve it?</a></li>
+      <li><a href="#q3">How do you protect a GraphQL endpoint from expensive queries?</a></li>
+      <li><a href="#q4">How do you cache GraphQL responses?</a></li>
+      <li><a href="#q5">Persisted queries and CDN caching for GraphQL</a></li>
+      <li><a href="#q6">How do you do per-field authorization in GraphQL?</a></li>
+      <li><a href="#q7">How do you handle errors in GraphQL?</a></li>
+      <li><a href="#q8">How do GraphQL subscriptions work?</a></li>
+      <li><a href="#q9">Pagination, connections, and cursor patterns in GraphQL</a></li>
+      <li><a href="#q10">GraphQL vs REST — when does each actually win?</a></li>
+    </ol>
+  </nav>
+
+  <!-- ================= PART A ================= -->
+  <div class="part-band">
+    <div class="bar"></div>
+    <h2>Part A — Schema &amp; Execution
+      <span class="sub">Designing the graph, and the N+1 trap that follows</span>
+    </h2>
+  </div>
+
+  <!-- Q1 -->
+  <article class="q" id="q1">
+    <div class="q-head">
+      <div class="q-num">1</div>
+      <h3>How do you design a GraphQL schema that survives a real product?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A GraphQL schema is the API contract — it defines every type, field, and operation the client can
+        perform. Good schema design is <strong>client-oriented but not client-driven</strong>: design for the
+        queries the clients actually make, but keep the schema coherent and evolvable rather than accreting
+        fields per request. The three principles: types represent domain concepts, mutations represent actions,
+        and every field has clear semantics and a clear owner.</p>
+      </div>
+
+      <h4>The three roots</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Root</th><th>Purpose</th><th>Rules</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Query</strong></td>
+              <td>Read operations — the entry points for fetching data</td>
+              <td>No side effects; every field should be safe to call from any client, any time</td>
+            </tr>
+            <tr>
+              <td><strong>Mutation</strong></td>
+              <td>Write operations — the entry points for changing data</td>
+              <td>Serial execution (top-level mutations in a single request run in order); return the changed
+              resource so the client can update its cache</td>
+            </tr>
+            <tr>
+              <td><strong>Subscription</strong></td>
+              <td>Real-time operations — server-push of events</td>
+              <td>Long-lived; the client subscribes to specific events and receives updates</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Types represent concepts, not tables</h4>
+      <p>The most common schema mistake: mirroring the database schema in GraphQL. The database has
+      <code>users</code> and <code>user_profiles</code> and <code>user_settings</code>; the GraphQL schema should
+      have <code>User</code> with fields that span all three tables. The client does not know about the split;
+      the resolvers stitch them together.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Database</th><th>GraphQL</th></tr></thead>
+          <tbody>
+            <tr><td><code>users</code> table</td><td><code>User</code> type</td></tr>
+            <tr><td><code>user_profiles</code> table</td><td><code>User.profile</code> field (returns a <code>Profile</code> type)</td></tr>
+            <tr><td><code>user_settings</code> table</td><td><code>User.settings</code> field (returns a <code>Settings</code> type)</td></tr>
+            <tr><td><code>orders</code> table with <code>user_id</code></td><td><code>User.orders</code> field (returns a list of <code>Order</code>)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The schema represents what clients need to know; the database is an implementation detail. This is why
+      GraphQL can be a stable interface over a changing persistence layer — the resolvers do the mapping.</p>
+
+      <h4>Nullability — the hardest decision</h4>
+      <p>Every field in GraphQL is nullable by default; you add <code>!</code> to make it non-null. This choice
+      has real consequences:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Field</th><th>Client effect</th></tr></thead>
+          <tbody>
+            <tr><td><code>name: String</code> (nullable)</td><td>The client must handle null — null checks everywhere</td></tr>
+            <tr><td><code>name: String!</code> (non-null)</td><td>The client can rely on the value; but if the
+            resolver fails, the error propagates up to the nearest nullable parent</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The non-null field is a promise, and breaking it — a resolver that returns null for a non-null field —
+      causes the error to bubble up. If <code>User.name</code> is <code>String!</code> and the resolver returns
+      null, the entire <code>User</code> becomes null, and if the query fetches a list of users, the entire list
+      fails. This is the "null propagation" behavior that frustrates teams new to GraphQL.</p>
+      <p>The pragmatic rule: mark as non-null only what is truly guaranteed — an ID, a required field that the
+      domain enforces. For everything else, nullable is safer, and the client's types reflect the actual
+      reality.</p>
+
+      <h4>Mutations — actions with payloads</h4>
+      <p>A mutation that returns only <code>true</code> or <code>void</code> is useless to a GraphQL client — the
+      client's cache cannot update without the resulting data. Every mutation should return the resource it
+      affected:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Bad mutation</th><th>Better mutation</th></tr></thead>
+          <tbody>
+            <tr><td><code>updateUser(id: ID!, name: String!): Boolean!</code></td><td><code>updateUser(input: UpdateUserInput!): UpdateUserPayload!</code></td></tr>
+            <tr><td>Returns true or false</td><td>Returns the updated <code>user</code>, plus any errors</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The <strong>payload pattern</strong>: a mutation returns a wrapper type with the changed data and
+      per-field errors. This lets the client update its cache in one round trip and handle partial failures.</p>
+
+      <h4>Input types and the schema contract</h4>
+      <p>Mutations take an <code>input</code> type rather than many arguments. This is more evolvable — adding a
+      new field to the input type is non-breaking; adding an argument to a mutation requires changing every
+      caller.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Anti-pattern</th><th>Better</th></tr></thead>
+          <tbody>
+            <tr><td><code>createOrder(userId: ID!, items: [ItemInput!]!, promo: String, notes: String)</code></td><td><code>createOrder(input: CreateOrderInput!): CreateOrderPayload!</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The interface and union types</h4>
+      <p>GraphQL supports interfaces and unions, which allow polymorphic types:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Construct</th><th>When to use</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Interface</strong></td><td>Multiple types share common fields — <code>Node</code> interface with <code>id</code>, <code>User</code> and <code>Post</code> both implement it</td></tr>
+            <tr><td><strong>Union</strong></td><td>One field returns different types with no common fields — <code>search(query): [User | Post | Comment]</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Use them sparingly — every polymorphic type complicates the client's query and the schema evolution. But
+      for genuinely polymorphic domains (search results, feed items, notifications), they are the right
+      abstraction.</p>
+
+      <h4>Schema evolution</h4>
+      <p>GraphQL has no version in the URL. Evolution is additive:</p>
+      <ul>
+        <li><strong>Add</strong> new fields and types — non-breaking.</li>
+        <li><strong>Deprecate</strong> old fields with <code>@deprecated</code> — the field still works; clients
+        are warned to migrate.</li>
+        <li><strong>Remove</strong> fields only after a deprecation window and confirming no client queries them
+        (requires field usage tracking, Volume 3 Question 8).</li>
+        <li><strong>Change</strong> a field's type or arguments — breaking; add a new field instead.</li>
+      </ul>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Types represent domain concepts, not tables. Mutations return a payload with the changed
+        resource. Nullability is a deliberate choice, not a default. Evolution is additive with @deprecated, not
+        versioned URLs." That covers the schema discipline in one sentence.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q2 -->
+  <article class="q" id="q2">
+    <div class="q-head">
+      <div class="q-num">2</div>
+      <h3>What is the N+1 problem, and how does DataLoader solve it?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>The N+1 problem: a query fetches N items (one query), then for each item, the client's fields trigger
+        a separate lookup (N queries) — N+1 total. In GraphQL, this happens naturally because every field is
+        resolved independently. <strong>DataLoader</strong> solves it by batching the N lookups into one query
+        per field, using a per-request cache and a batching window.</p>
+      </div>
+
+      <h4>The problem in concrete form</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Query</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre>query {
+  posts(first: 100) {
+    id
+    title
+    author {
+      name
+    }
+  }
+}</pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Without batching:</p>
+      <ol>
+        <li>1 query for the 100 posts.</li>
+        <li>For each post, a query to fetch its author — 100 queries.</li>
+        <li>Total: 101 queries.</li>
+      </ol>
+      <p>At 5 ms per query, that is ~505 ms of database time for a single GraphQL request. At scale, this
+      destroys the database — the query count is proportional to the list size, and the list size is controlled
+      by the client.</p>
+
+      <h4>Why it happens in GraphQL</h4>
+      <p>The resolver architecture makes N+1 natural. Each field has its own resolver, and each resolver runs
+      independently — the <code>author</code> resolver on <code>Post</code> fires once per post, with no
+      awareness that 100 siblings are also requesting authors. In REST, the endpoint is designed as one query
+      that returns the full shape; in GraphQL, the shape is composed at query time, so the resolver cannot assume
+      it is the only consumer.</p>
+
+      <h4>DataLoader — the batching layer</h4>
+      <p>DataLoader is a small utility that batches individual key lookups into a single query, per tick of the
+      event loop. The pattern:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Step</th><th>What happens</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>The resolver calls <code>authorLoader.load(post.authorId)</code> — it does not query yet; it registers the key</td></tr>
+            <tr><td>2</td><td>All 100 resolver calls happen in the same event-loop tick</td></tr>
+            <tr><td>3</td><td>At the end of the tick, DataLoader has 100 unique author IDs</td></tr>
+            <tr><td>4</td><td>It calls the batch function once: <code>batchLoadAuthors([...100 ids])</code></td></tr>
+            <tr><td>5</td><td>The batch function runs a single database query: <code>SELECT * FROM authors WHERE id IN (...)</code></td></tr>
+            <tr><td>6</td><td>The 100 resolvers each receive their author</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Total queries: 2 (posts + authors). The pattern is general — any field that does a per-item lookup can
+      be batched this way.</p>
+
+      <h4>The per-request cache</h4>
+      <p>DataLoader also caches within a single request. If the same author is requested twice (because two posts
+      share an author, or a fragment queries it twice), the second request is served from the cache — no
+      additional batch call. This matters because a single GraphQL query often needs the same entity from
+      multiple paths.</p>
+      <p>The cache is <strong>per-request</strong>, not global — the loader is created fresh for each GraphQL
+      request, so a stale cache does not leak between clients. A global cache would require invalidation; a
+      per-request cache is simpler and correct by construction.</p>
+
+      <h4>Batching depth — the deeper problem</h4>
+      <p>A single DataLoader solves one level. A query that fetches <code>posts → author → company → address</code>
+      has four levels of N+1:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Level</th><th>Without DataLoader</th><th>With DataLoader per level</th></tr></thead>
+          <tbody>
+            <tr><td>Posts</td><td>1</td><td>1</td></tr>
+            <tr><td>Authors</td><td>N</td><td>1 (batch)</td></tr>
+            <tr><td>Companies</td><td>N × M</td><td>1 (batch)</td></tr>
+            <tr><td>Addresses</td><td>N × M × K</td><td>1 (batch)</td></tr>
+            <tr><td>Total</td><td>1 + N + NM + NMK</td><td>4</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Every field that does per-item lookup needs its own DataLoader. This is the discipline that separates
+      a working GraphQL server from one that melts the database.</p>
+
+      <h4>Where else N+1 happens</h4>
+      <ul>
+        <li><strong>Database queries</strong> — the classic case; covered above.</li>
+        <li><strong>HTTP calls</strong> — fetching user data from an external service, once per item.</li>
+        <li><strong>Cache lookups</strong> — 100 cache gets for 100 items; a multi-get could do it in one
+        call.</li>
+        <li><strong>File reads</strong> — fetching metadata from a file system, once per file.</li>
+      </ul>
+      <p>DataLoader works for all of them, because the batch function is user-supplied — it can call the
+      database, an HTTP API, or a cache.</p>
+
+      <h4>The alternatives</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Approach</th><th>Pros</th><th>Cons</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>DataLoader</strong></td>
+              <td>Per-field batching; works with any backend</td>
+              <td>Requires discipline — one loader per field</td>
+            </tr>
+            <tr>
+              <td><strong>Join in the resolver</strong></td>
+              <td>Single query, no N+1</td>
+              <td>Requires the parent to know its children's needs — breaks the resolver model</td>
+            </tr>
+            <tr>
+              <td><strong>Look-ahead / selection set</strong></td>
+              <td>The resolver inspects the query to decide what to fetch</td>
+              <td>Couples the resolver to the query AST; complex</td>
+            </tr>
+            <tr>
+              <td><strong>GraphQL-to-SQL (Hasura, PostGraphile)</strong></td>
+              <td>Generates SQL from the query; no N+1 by design</td>
+              <td>Limited to SQL-backed domains; less flexible</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>DataLoader is the standard for application-built GraphQL servers. GraphQL-to-SQL tools solve it
+      differently, by construction, at the cost of flexibility.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Creating a new DataLoader instance per resolver call instead of per request. If each resolver creates
+        its own loader, there is no batching — each loader sees one key and issues one query. The loader must be
+        created once per request and passed through the context to all resolvers.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "N+1 is fundamental to GraphQL — every field is resolved independently. DataLoader batches the
+        lookups per field, per request. Every field that does a per-item lookup needs its own DataLoader, created
+        per request." That covers the problem and its solution.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q3 -->
+  <article class="q" id="q3">
+    <div class="q-head">
+      <div class="q-num">3</div>
+      <h3>How do you protect a GraphQL endpoint from expensive or malicious queries?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>GraphQL's flexibility is its vulnerability — a client can craft a query that traverses the schema
+        deeply, requests enormous lists, or hits the most expensive resolvers, all in one request. The defenses:
+        <strong>depth limits</strong>, <strong>complexity limits</strong> (a cost score per query),
+        <strong>pagination limits</strong> (maximum page size), <strong>timeouts</strong>, and
+        <strong>persisted queries</strong> (only pre-approved queries are executed). The combination makes the
+        worst case predictable.</p>
+      </div>
+
+      <h4>The attack vectors</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Attack</th><th>How it works</th><th>Defense</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Deep nesting</strong></td>
+              <td>A query that traverses the graph 20 levels deep — each level triggers a resolver</td>
+              <td>Depth limit (10 is typical)</td>
+            </tr>
+            <tr>
+              <td><strong>Wide fan-out</strong></td>
+              <td>A query that requests 1000 items, each with 10 fields, each triggering a resolver</td>
+              <td>Pagination limit + complexity score</td>
+            </tr>
+            <tr>
+              <td><strong>Expensive fields</strong></td>
+              <td>A field that runs a slow query, called 1000 times in one request</td>
+              <td>Complexity score that weights the field heavily</td>
+            </tr>
+            <tr>
+              <td><strong>Alias abuse</strong></td>
+              <td>The same field with 1000 different aliases — the resolver runs 1000 times</td>
+              <td>Complexity score counts aliases; or limit the number of fields</td>
+            </tr>
+            <tr>
+              <td><strong>Fragments and cycles</strong></td>
+              <td>A recursive fragment that expands exponentially</td>
+              <td>Disable fragment cycles; or depth limit</td>
+            </tr>
+            <tr>
+              <td><strong>Introspection</strong></td>
+              <td>Query the entire schema in production</td>
+              <td>Disable introspection in production (or restrict to authenticated users)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Depth limiting</h4>
+      <p>A depth limit rejects queries whose nested-field depth exceeds a threshold. Ten levels is a common
+      default — the typical legitimate query is 3–5 levels deep. The implementation walks the query AST and
+      counts the depth:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Depth</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td><code>{ user { name } }</code></td></tr>
+            <tr><td>2</td><td><code>{ user { posts { title } } }</code></td></tr>
+            <tr><td>3</td><td><code>{ user { posts { author { name } } } }</code></td></tr>
+            <tr><td>10</td><td>Likely legitimate — a complex query</td></tr>
+            <tr><td>20+</td><td>Likely attack or a badly-designed client</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Depth limiting is cheap and catches the obvious attacks. It does not catch wide fan-out — a shallow
+      query that requests 1000 items is still expensive.</p>
+
+      <h4>Complexity scoring</h4>
+      <p>A complexity score assigns a cost to each field and rejects queries whose total cost exceeds a budget.
+      The score approximates the actual work:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Field type</th><th>Cost</th></tr></thead>
+          <tbody>
+            <tr><td>Scalar field (name, id)</td><td>1</td></tr>
+            <tr><td>Object field (one lookup)</td><td>5</td></tr>
+            <tr><td>List field (lookup + multiply by page size)</td><td>10 × <code>first</code></td></tr>
+            <tr><td>Expensive field (search, aggregation)</td><td>50 or custom</td></tr>
+            <tr><td>Mutation (write)</td><td>20</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>A query's cost is the sum of its fields' costs, multiplied at each level. A budget of 1000 means a query
+      requesting 100 posts with their authors costs 100 × 10 × 5 = 5000 — rejected. The client must reduce the
+      page size or narrow the query.</p>
+
+      <h4>Pagination limits</h4>
+      <p>Every list field must enforce a maximum page size:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Field</th><th>Limit</th></tr></thead>
+          <tbody>
+            <tr><td><code>posts(first: Int!)</code></td><td>Maximum <code>first: 100</code>; reject > 100</td></tr>
+            <tr><td><code>search(query: String!, limit: Int)</code></td><td>Maximum <code>limit: 50</code></td></tr>
+            <tr><td><code>orders(first: Int!)</code></td><td>Maximum <code>first: 200</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The limit is enforced by the resolver, not just documented. A client that requests <code>first: 10000</code>
+      gets an error, not 10,000 rows.</p>
+
+      <h4>Alias abuse prevention</h4>
+      <p>GraphQL allows aliases — <code>a: user(id: 1) { name } b: user(id: 2) { name }</code> — which are
+      legitimate but can be abused:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Alias</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>u1: user(id: 1) { name }</code></td><td>A legitimate batch — fetch 3 users in one query</td></tr>
+            <tr><td><code>u1: user(id: 1) ... u1000: user(id: 1000)</code></td><td>Abuse — 1000 lookups in one query</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The complexity score must include aliases — the query above has 1000 fields and a cost of 1000 × 5 =
+      5000, which exceeds the budget. Alternatively, limit the number of top-level fields.</p>
+
+      <h4>Timeout and resource limits</h4>
+      <ul>
+        <li><strong>Per-query timeout</strong> — the entire GraphQL request must complete within, say, 10 seconds.
+        A query that exceeds this is killed (the resolvers see a cancelled context).</li>
+        <li><strong>Per-resolver timeout</strong> — each resolver has its own timeout; a slow resolver does not
+        block the whole query indefinitely.</li>
+        <li><strong>Memory limits</strong> — the container's memory limit, plus a hard cap on the response size.</li>
+        <li><strong>Concurrency limits</strong> — per-client, limit concurrent requests.</li>
+      </ul>
+
+      <h4>Persisted queries — the strongest defense</h4>
+      <p>Instead of accepting arbitrary queries, the server accepts only pre-approved queries identified by a
+      hash:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Without persisted queries</th><th>With persisted queries</th></tr></thead>
+          <tbody>
+            <tr><td>Client sends the full query in the request body</td><td>Client sends a hash: <code>{"sha256Hash": "abc123..."}</code></td></tr>
+            <tr><td>Server parses and executes whatever is sent</td><td>Server looks up the hash; if it knows the query, executes it; if not, rejects</td></tr>
+            <tr><td>Attack surface: any query the schema allows</td><td>Attack surface: only the queries in the approved list</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The approved queries are the ones the client actually uses — registered at build time, or learned
+      during a warm-up phase. Attackers cannot send arbitrary queries because the server rejects unknown hashes.
+      This eliminates complexity attacks entirely — the approved queries are known to be safe.</p>
+      <p>The trade-off: the client cannot execute ad-hoc queries (which is fine for production apps, annoying for
+      debugging). The workaround is a development mode where arbitrary queries are allowed, and production mode
+      where they are not.</p>
+
+      <h4>Introspection in production</h4>
+      <p>Introspection lets a client query the schema itself — useful for development, dangerous in production
+      (an attacker learns every field, every mutation, every type). The default: disable introspection in
+      production, or restrict it to authenticated users.</p>
+      <p>Most GraphQL servers support this out of the box. It is a one-line config; forgetting it is a common
+      security oversight.</p>
+
+      <h4>The layered defense</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Layer</th><th>Catches</th></tr></thead>
+          <tbody>
+            <tr><td>Depth limit</td><td>Deeply nested queries</td></tr>
+            <tr><td>Complexity score</td><td>Wide fan-out, expensive fields, alias abuse</td></tr>
+            <tr><td>Pagination limits</td><td>Oversized lists</td></tr>
+            <tr><td>Timeouts</td><td>Any query that exceeds the budget</td></tr>
+            <tr><td>Persisted queries</td><td>Any query not on the approved list</td></tr>
+            <tr><td>Rate limiting</td><td>Repeated expensive queries (Volume 7)</td></tr>
+            <tr><td>Introspection off</td><td>Schema enumeration</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Each layer catches what the previous misses. Persisted queries are the strongest single defense — they
+      make arbitrary queries impossible — but require the client to be built with the approved query set.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Implementing a depth limit without a complexity limit. A query like
+        <code>{ posts(first: 10000) { title } }</code> is only 2 levels deep — the depth limit allows it — but
+        requests 10,000 rows in one query. Depth limits catch nesting, not fan-out; both are needed.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Depth limit for nesting, complexity score for fan-out and expensive fields, page-size limits for
+        lists, timeouts for anything that slips through, and persisted queries as the strongest defense. Disable
+        introspection in production." That covers the layered defense in one sentence.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART B ================= -->
+  <div class="part-band pink">
+    <div class="bar"></div>
+    <h2>Part B — Caching &amp; Authorization
+      <span class="sub">The two hardest problems in GraphQL, and how to solve them</span>
+    </h2>
+  </div>
+
+  <!-- Q4 -->
+  <article class="q pink" id="q4">
+    <div class="q-head">
+      <div class="q-num">4</div>
+      <h3>How do you cache GraphQL responses?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>HTTP caching does not work for GraphQL — every request is <code>POST /graphql</code> with a body, so
+        the URL does not identify the response. The four approaches: <strong>client-side normalized cache</strong>
+        (Apollo Client, Relay) — the dominant pattern; <strong>server-side per-field cache</strong> — cache
+        individual resolver results; <strong>persisted queries + GET</strong> — turn the query into a GET with a
+        cacheable URL; <strong>CDN caching of persisted queries</strong> — the edge caches the whole response for
+        a known query + variables.</p>
+      </div>
+
+      <h4>Why HTTP caching fails</h4>
+      <p>HTTP caching is based on the URL: the same URL returns the same response (within its freshness). GraphQL
+      uses one URL (<code>/graphql</code>) and varies the meaning by the request body — the query string. The
+      cache cannot distinguish "query for user 1" from "query for user 2" because the URL is identical.</p>
+      <p>The consequences:</p>
+      <ul>
+        <li>A CDN cannot cache GraphQL responses by default — the URL is not the cache key.</li>
+        <li>Browsers cannot cache — the same URL means different queries.</li>
+        <li>Conditional requests (ETag, If-None-Match) do not help — the client is not asking about a resource;
+        it is composing a query.</li>
+      </ul>
+
+      <h4>Client-side normalized cache</h4>
+      <p>Apollo Client and Relay maintain a normalized cache on the client — a local store keyed by entity
+      (<code>User:1</code>, <code>Post:42</code>) that the client populates from query results and reads from
+      for subsequent queries. When a query asks for user 1, and the client already has user 1, no request is
+      sent — the data comes from the cache.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Feature</th><th>Behaviour</th></tr></thead>
+          <tbody>
+            <tr><td>Normalization</td><td>Each entity is stored once, keyed by <code>__typename + id</code></td></tr>
+            <tr><td>Query resolution</td><td>The client checks if it has all the fields; if yes, no request</td></tr>
+            <tr><td>Mutation updates</td><td>Mutations return the changed entity; the cache updates automatically</td></tr>
+            <tr><td>Partial cache</td><td>A query needing fields the cache has plus fields it does not sends a
+            request only for the missing</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The client cache is the primary GraphQL caching mechanism — it eliminates many network requests and
+      makes the UI feel instant. It requires:</p>
+      <ul>
+        <li><strong>Stable IDs</strong> — every entity must have an <code>id</code> (or a <code>__typename +
+        key</code> combination) so the cache can normalize.</li>
+        <li><strong>Mutations that return the changed entity</strong> — so the cache can update.</li>
+        <li><strong>Consistent field naming</strong> — so a field queried in one place matches the field queried
+        in another.</li>
+      </ul>
+
+      <h4>Server-side per-field caching</h4>
+      <p>Cache individual resolver results rather than whole responses. The pattern:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Field</th><th>Cache strategy</th></tr></thead>
+          <tbody>
+            <tr><td><code>User.profile</code></td><td>Redis cache keyed by user ID, TTL 5 min</td></tr>
+            <tr><td><code>Post.likeCount</code></td><td>Redis counter, TTL 30 sec</td></tr>
+            <tr><td><code>Product.price</code></td><td>Redis cache keyed by product ID, invalidated on write</td></tr>
+            <tr><td><code>Search.results</code></td><td>Redis cache keyed by query hash, TTL 1 min</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>This caches at the resolver level, not the response level — the query is still executed, but the
+      expensive resolvers are served from cache. It does not eliminate the network round trip to the GraphQL
+      server, but it does eliminate the expensive downstream calls (database queries, API calls).</p>
+      <p>DataLoader's per-request cache is a form of this — it caches for the duration of one request. To cache
+      across requests, the resolver needs a longer-lived cache (Redis, Memcached).</p>
+
+      <h4>Persisted queries + GET</h4>
+      <p>If every query the client uses is registered (persisted, Question 3), it can be addressed by hash in a
+      GET request:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Without persisted</th><th>With persisted</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre>POST /graphql
+{"query": "query { user(id: 1) { name } }"}</pre>
+              </td>
+              <td>
+                <pre>GET /graphql?hash=abc123&amp;variables={"id":1}</pre>
+              </td>
+            </tr>
+            <tr><td>Not cacheable (POST + body)</td><td>Cacheable (GET + URL with hash and variables)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The GET URL is unique per query + variables combination. A CDN can cache it, keyed by the full URL. For
+      a query that many users request with the same variables (a public page, a shared resource), the CDN serves
+      the cached response — the GraphQL server is not even hit.</p>
+      <p>The limitation: the cache key includes the variables. A query with user-specific variables (user: 42) is
+      unique per user; the CDN does not help. But a query for public data (the trending feed, the product
+      catalogue) is cached for everyone.</p>
+
+      <h4>CDN caching of persisted queries</h4>
+      <p>The full pattern:</p>
+      <ol>
+        <li>Queries are persisted at build time; the client knows only the hashes.</li>
+        <li>The client sends <code>GET /graphql?hash=abc&amp;variables={...}</code>.</li>
+        <li>The CDN receives the request; the URL is the cache key.</li>
+        <li>If cached and fresh, the CDN serves it — the GraphQL server is not hit.</li>
+        <li>If not cached, the CDN forwards to the GraphQL server, which executes the query and returns the
+        response; the CDN caches it with a TTL.</li>
+      </ol>
+      <p>This gives GraphQL the CDN caching that REST has natively. It requires the query to be:
+      <ul>
+        <li><strong>Public</strong> — the same response for any user with the same variables.</li>
+        <li><strong>Idempotent</strong> — GET, not POST; no mutations.</li>
+        <li><strong>Cacheable</strong> — the response's freshness is acceptable.</li>
+      </ul>
+      </p>
+
+      <h4>What about mutations and private data?</h4>
+      <p>Mutations are POST and cannot be cached. Private data (per-user) has a cache key per user, which
+      fragments the CDN cache; usually, private data is not cached at the CDN, only in the client cache and
+      the resolver cache.</p>
+      <p>The layered design:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Layer</th><th>Caches</th></tr></thead>
+          <tbody>
+            <tr><td>Client normalized cache</td><td>Entities across queries; eliminates many network requests</td></tr>
+            <tr><td>CDN (persisted queries)</td><td>Whole responses for public, cacheable queries</td></tr>
+            <tr><td>Resolver cache (Redis)</td><td>Expensive field results; shared across requests</td></tr>
+            <tr><td>DataLoader (per request)</td><td>Duplicate lookups within one request</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Each layer catches what the one above misses. The client cache is the biggest win — most queries are
+      served without a network call; the CDN is the second; the resolver cache is the third; DataLoader is the
+      last.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Assuming GraphQL cannot be cached. It cannot be cached by URL (the default HTTP mechanism), but it
+        can be cached at every layer above HTTP — the client, the CDN (with persisted queries), and the
+        resolver. The choice is architectural, not a limitation of GraphQL.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "The client normalized cache is the primary — it eliminates most network requests. For public
+        data, persisted queries + GET make the CDN cacheable. For expensive resolvers, Redis at the resolver
+        level. DataLoader handles within-request duplication." That covers the four layers.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q5 -->
+  <article class="q pink" id="q5">
+    <div class="q-head">
+      <div class="q-num">5</div>
+      <h3>What are persisted queries, and how do they enable CDN caching?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A persisted query replaces the full query string with a hash. The client sends
+        <code>{"sha256": "abc123...", "variables": {...}}</code>; the server looks up the hash in a registered
+        list and executes the corresponding query. The benefits: smaller request bodies, no arbitrary queries
+        (security, Question 3), and — critically — the query can be a GET with the hash in the URL, making it
+        cacheable by a CDN.</p>
+      </div>
+
+      <h4>The problem it solves</h4>
+      <p>GraphQL requests are POSTs with the query in the body. The URL is always <code>/graphql</code>. This
+      breaks HTTP caching: a CDN cannot distinguish one query from another because the URL is the same.</p>
+      <p>Persisted queries flip the model: the query is a named resource with a hash, and the hash goes in the
+      URL. Now the CDN can cache by URL.</p>
+
+      <h4>How it works</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Step</th><th>Action</th></tr></thead>
+          <tbody>
+            <tr><td>1. Register</td><td>At build time, the client extracts all queries and mutations, hashes them, and uploads the map to the server</td></tr>
+            <tr><td>2. Store</td><td>The server stores the hash → query map in a persistent store</td></tr>
+            <tr><td>3. Client request</td><td>The client sends <code>GET /graphql?sha=abc123&amp;variables={...}</code></td></tr>
+            <tr><td>4. Server lookup</td><td>The server looks up the hash; if found, executes the query; if not, rejects</td></tr>
+            <tr><td>5. CDN cache</td><td>For public, cacheable queries, the CDN caches the response by the full URL (hash + variables)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The request format</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Before persistence</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre>POST /graphql HTTP/1.1
+Content-Type: application/json
+
+{
+  "query": "query GetProduct($id: ID!) { product(id: $id) { name price } }",
+  "variables": {"id": "42"}
+}</pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>After persistence</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre>GET /graphql?sha=abc123&amp;variables=%7B%22id%22%3A%2242%22%7D HTTP/1.1
+
+# Or with a header:
+GET /graphql HTTP/1.1
+X-APQ-Sha: abc123
+X-APQ-Variables: eyJpZCI6IjQyIn0=</pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The GET form puts the hash and variables in the URL. The URL is unique per query + variables, so the CDN
+      can cache it exactly like a REST URL.</p>
+
+      <h4>The variants</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Variant</th><th>Mechanism</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>APQ (Automatic Persisted Queries)</strong></td>
+              <td>Apollo's pattern: the client sends the hash first; if the server does not know it, the client sends the full query and the server stores it. Zero build-time setup, but the first request is not cached.</td>
+            </tr>
+            <tr>
+              <td><strong>Trusted documents</strong></td>
+              <td>The query set is uploaded to the server at build time; only those queries are accepted. Strictest; best for security.</td>
+            </tr>
+            <tr>
+              <td><strong>Signed persisted queries</strong></td>
+              <td>The hash is signed with a key; the server verifies the signature. Prevents tampering with the query map.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The choice depends on the goal: APQ for convenience (automatic, minimal setup), trusted documents for
+      security (only known queries), signed for high-security environments (verify the source of the query).</p>
+
+      <h4>The CDN cache key</h4>
+      <p>The cache key must include:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Component</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr><td>The query hash</td><td>Different queries return different data</td></tr>
+            <tr><td>The variables</td><td><code>product(id: 42)</code> and <code>product(id: 43)</code> are
+            different responses</td></tr>
+            <tr><td>Auth context (if any)</td><td>Different users may see different data — but if the query is
+            public, no auth is needed</td></tr>
+            <tr><td>Accept-Language (if the response varies)</td><td>Localisation</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The full URL (<code>/graphql?sha=abc&amp;variables={...}</code>) is the natural cache key — every
+      component is in the URL. The CDN hashes it as usual.</p>
+
+      <h4>When the CDN caches</h4>
+      <p>Persisted queries enable caching, but the server decides whether to cache:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Query</th><th>Cacheable?</th></tr></thead>
+          <tbody>
+            <tr><td>Public product catalogue</td><td>Yes — same for all users</td></tr>
+            <tr><td>User's own orders</td><td>No — per-user, would need per-user cache key</td></tr>
+            <tr><td>Trending posts (updated every minute)</td><td>Yes with short TTL (e.g., 60 sec)</td></tr>
+            <tr><td>Real-time stock quotes</td><td>No — too volatile</td></tr>
+            <tr><td>Search results (query varies)</td><td>Cacheable per query + variables; high cardinality</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The server sets <code>Cache-Control</code> on the response; the CDN respects it. A query that returns
+      per-user data sets <code>private, no-store</code> — the CDN does not cache it. A query that returns public
+      data sets <code>public, max-age=60</code> — the CDN caches it for 60 seconds.</p>
+
+      <h4>The client-side persistence</h4>
+      <p>For the client to use persisted queries, its build process must:</p>
+      <ol>
+        <li>Extract every query string in the codebase.</li>
+        <li>Hash each (SHA-256).</li>
+        <li>Generate a map from hash → query.</li>
+        <li>Upload the map to the server (trusted documents), or ship the hash to the client for APQ.</li>
+        <li>Replace the query in the client code with the hash.</li>
+      </ol>
+      <p>Apollo, Relay, GraphQL Codegen, and other tools support this out of the box. The setup is not trivial
+      (build pipeline changes), but the payoff — security, smaller requests, CDN caching — is substantial.</p>
+
+      <h4>What does not cache</h4>
+      <p>Persisted queries enable caching, but not everything is cacheable:</p>
+      <ul>
+        <li><strong>Mutations</strong> — POST, state-changing, never cached.</li>
+        <li><strong>Per-user queries</strong> — cache key would include the user, fragmenting the cache to a
+        per-user partition, with no benefit over not caching.</li>
+        <li><strong>Queries with sensitive data</strong> — the response contains PII; caching it at the CDN is a
+        data leak risk.</li>
+        <li><strong>Queries with no stable variables</strong> — a query that includes a timestamp or random ID in
+        the variables is a cache miss every time.</li>
+      </ul>
+
+      <h4>The comprehensive pattern</h4>
+      <p>The production GraphQL CDN setup:</p>
+      <ol>
+        <li>Extract and hash all queries at build time (trusted documents).</li>
+        <li>The client sends GET requests with the hash + variables in the URL.</li>
+        <li>The CDN's cache key is the full URL.</li>
+        <li>The server sets <code>Cache-Control</code> per query — public for shared, private for per-user.</li>
+        <li>The CDN caches the public ones; the private ones bypass the cache.</li>
+        <li>For uncached or private requests, the GraphQL server executes normally.</li>
+      </ol>
+      <p>This gives GraphQL the CDN benefit of REST, without losing the flexibility of GraphQL for interactive
+      clients.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Using persisted queries but not setting Cache-Control headers. The CDN sees a GET with a unique URL
+        but has no instruction to cache it — it may apply a heuristic or not cache at all. The server must
+        explicitly set <code>Cache-Control: public, max-age=60, s-maxage=300</code> (or similar) for the CDN to
+        cache.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Persisted queries turn a POST with a body into a GET with a hash — the URL becomes unique per
+        query + variables, so the CDN can cache it. The server sets Cache-Control per query, and private data
+        uses no-store." That covers the mechanism and the caching policy.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q6 -->
+  <article class="q pink" id="q6">
+    <div class="q-head">
+      <div class="q-num">6</div>
+      <h3>How do you do per-field authorization in GraphQL?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>GraphQL authorization happens at two levels: <strong>operation-level</strong> (can this user run this
+        query or mutation?) and <strong>field-level</strong> (can this user see this field on this object?).
+        Field-level is where GraphQL is subtle — a single query can traverse many objects, and each field may have
+        different requirements. The mechanisms: <strong>resolver-level checks</strong>,
+        <strong>middleware/directives</strong>, and <strong>field-level policies</strong>.</p>
+      </div>
+
+      <h4>Why field-level authorization is hard in GraphQL</h4>
+      <p>In REST, an endpoint is one resource; if you can call it, you can see what it returns. In GraphQL, a
+      query can request any field on any reachable object. The <code>User</code> type has <code>email</code>
+      (visible to the user), <code>salary</code> (visible to HR), <code>phone</code> (visible to the user and
+      their team). The same query fetches all three; the server must decide per-field, per-user, per-object.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Field</th><th>Who can see it</th></tr></thead>
+          <tbody>
+            <tr><td><code>User.name</code></td><td>Anyone</td></tr>
+            <tr><td><code>User.email</code></td><td>The user, their org admins</td></tr>
+            <tr><td><code>User.phone</code></td><td>The user, their team</td></tr>
+            <tr><td><code>User.salary</code></td><td>HR only</td></tr>
+            <tr><td><code>User.socialSecurityNumber</code></td><td>The user only</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>A single query for a team's users can traverse all of these. The server must filter the fields per
+      requesting user and per target user — a matrix of permissions.</p>
+
+      <h4>Level 1 — Operation-level authorization</h4>
+      <p>Before any resolver runs, check: is this user allowed to run this operation? This is the analogue of
+      REST's "is this endpoint authorized". The check:</p>
+      <ul>
+        <li><strong>Parse the operation.</strong> Is it a query, mutation, or subscription?</li>
+        <li><strong>Look at the root fields.</strong> A <code>listAllUsers</code> mutation is admin-only; a
+        <code>me</code> query is any authenticated user.</li>
+        <li><strong>Check role/scope.</strong> Does the user have the required role or scope?</li>
+        <li><strong>Reject 403.</strong> If not allowed, return an error before any resolver.</li>
+      </ul>
+
+      <h4>Level 2 — Field-level authorization</h4>
+      <p>Inside the resolver, after fetching the data, check whether the user may see each field. Three patterns:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Pattern</th><th>How it works</th><th>Pros</th><th>Cons</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Resolver-level check</strong></td>
+              <td>Each field's resolver checks the user's permission before returning the value</td>
+              <td>Explicit; clear at the field level</td>
+              <td>Duplicated across resolvers; easy to forget one</td>
+            </tr>
+            <tr>
+              <td><strong>Directive</strong></td>
+              <td><code>@auth(requires: HR)</code> on the field; the directive enforces it before the resolver runs</td>
+              <td>Declarative; visible in the schema</td>
+              <td>Requires a directive implementation</td>
+            </tr>
+            <tr>
+              <td><strong>Middleware</strong></td>
+              <td>A wrapper around every resolver checks permissions based on a policy map</td>
+              <td>Centralised policy; hard to bypass</td>
+              <td>Policy map must stay in sync with the schema</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The directive pattern</h4>
+      <p>A custom directive on the schema declares the permission requirement:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Schema</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre>type User {
+  id: ID!
+  name: String!
+  email: String! @auth(requires: SELF_OR_ADMIN)
+  salary: Int @auth(requires: HR)
+  ssn: String @auth(requires: SELF)
+}</pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The directive implementation intercepts the resolver, checks the user's permissions against the
+      requirement and the current object, and either returns the value or null (or an error). The advantage is
+      that the policy is visible in the schema — a reviewer can see which fields are restricted.</p>
+
+      <h4>The policy middleware</h4>
+      <p>A wrapper around all resolvers, checking a centralised policy map:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Map</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre>{
+  "User.email": "self_or_admin",
+  "User.salary": "hr",
+  "User.ssn": "self",
+  "Order.paymentMethod": "owner",
+  "Order.refundStatus": "admin"
+}</pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The middleware uses the resolver's path (e.g., <code>User.email</code>) to look up the policy and
+      enforce it. The advantage is that all policies are in one place — easy to audit, easy to review, easy to
+      change without touching every resolver.</p>
+
+      <h4>Object-level authorization (BOLA)</h4>
+      <p>Field-level is one dimension; object-level is the other. Even if a user can see <code>User.salary</code>
+      in general, they cannot see it for <em>another user's</em> salary. The check is per-object:</p>
+      <ul>
+        <li><strong>If the requesting user is the target user</strong> — allow (self-access).</li>
+        <li><strong>If the requesting user is the target user's manager</strong> — allow (for some fields).</li>
+        <li><strong>If the requesting user is an admin</strong> — allow (for some fields, with audit).</li>
+        <li><strong>Otherwise</strong> — return null (not the field, not the object, not an error).</li>
+      </ul>
+      <p>The return-null choice: for a restricted field, returning null (with the field present in the schema)
+      tells the client "you cannot see this" without leaking whether the data exists. Returning an error tells
+      the client "this exists but you cannot see it", which is information disclosure (the pattern of 404 vs 403
+      from Volume 6). For GraphQL, null is usually the right answer for field-level restrictions — the object is
+      still returned, the field is just missing.</p>
+
+      <h4>The N+1 of authorization</h4>
+      <p>Authorization can be expensive — checking the user's role for each object may require a database lookup.
+      The pattern mirrors DataLoader:</p>
+      <ul>
+        <li><strong>Cache the user's roles/permissions</strong> — load once per request, not per field.</li>
+        <li><strong>Batch the object-level checks</strong> — if the query fetches 100 users and each needs an
+        ownership check, batch the checks into one query.</li>
+        <li><strong>DataLoader for permissions</strong> — same batching discipline as for data.</li>
+      </ul>
+
+      <h4>The "silent filter" pattern</h4>
+      <p>For list fields (e.g., <code>User.salary</code> for a list of users), field-level authorization is not
+      enough — some items are visible to this user, some are not. The pattern:</p>
+      <ul>
+        <li><strong>Filter the list at the resolver</strong> — the resolver fetches only the items the user can
+        see, not all items then filters in memory.</li>
+        <li><strong>The filter is in the query</strong> — <code>WHERE owner_id = current_user</code>, not
+        <code>WHERE 1=1</code> then filter in code (which is the BOLA bug from Volume 6).</li>
+        <li><strong>For nested fields</strong>, the field-level check applies per item — the item is present, the
+        field is null for items the user cannot see.</li>
+      </ul>
+
+      <h4>The testing discipline</h4>
+      <p>Authorization bugs in GraphQL are subtle — they only appear when the attacker queries the restricted
+      field. The defense: a test suite that, for every restricted field, verifies that:
+      <ul>
+        <li>The field is visible to the allowed user.</li>
+        <li>The field is null (or absent) for the disallowed user.</li>
+        <li>The field is null (or absent) for the disallowed object.</li>
+        <li>Attempting to query the field for a disallowed object does not leak its existence.</li>
+      </ul>
+      </p>
+      <p>Without this test suite, the schema is a maze of fields, and one missing check is a data leak.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Checking authorization at the resolver's top level but not for nested fields. A query that fetches
+        <code>user { posts { author { salary } } }</code> — the top-level <code>user</code> is authorized, but
+        <code>author.salary</code> is a different user, and it must be checked independently. The nested check is
+        where BOLA happens.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Two levels — operation-level (can you run this query?) and field-level (can you see this field on
+        this object?). Field-level uses a directive or middleware that declares the requirement in the schema.
+        Lists are filtered at the resolver, not in memory. Every restricted field gets a test." That covers the
+        layers and the discipline.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART C ================= -->
+  <div class="part-band violet">
+    <div class="bar"></div>
+    <h2>Part C — Errors, Subscriptions &amp; Trade-offs
+      <span class="sub">Error handling, real-time, pagination, and when to use GraphQL</span>
+    </h2>
+  </div>
+
+  <!-- Q7 -->
+  <article class="q violet" id="q7">
+    <div class="q-head">
+      <div class="q-num">7</div>
+      <h3>How do you handle errors in GraphQL?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>GraphQL has two error categories: <strong>transport errors</strong> (invalid JSON, server crash, auth
+        failure — HTTP status like 400 or 401) and <strong>GraphQL errors</strong> (errors in execution — the
+        query is valid, but a resolver failed or a validation rule was violated; the HTTP status is often still
+        200, with errors in the <code>errors</code> array). The <code>data</code> and <code>errors</code> fields
+        can both be present — partial success is normal.</p>
+      </div>
+
+      <h4>The response shape</h4>
+      <p>A GraphQL response always has the same structure:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Field</th><th>Content</th></tr></thead>
+          <tbody>
+            <tr><td><code>data</code></td><td>The requested data; null if the operation failed entirely</td></tr>
+            <tr><td><code>errors</code></td><td>An array of errors; absent if no errors occurred</td></tr>
+            <tr><td><code>extensions</code></td><td>Optional metadata — tracing, cost, cache hints</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The three cases</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Case</th><th><code>data</code></th><th><code>errors</code></th><th>HTTP status</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Full success</td>
+              <td>Populated</td>
+              <td>Absent</td>
+              <td>200</td>
+            </tr>
+            <tr>
+              <td>Partial success</td>
+              <td>Populated with null for the failing fields</td>
+              <td>Present, with paths to the failing fields</td>
+              <td>200 (typically)</td>
+            </tr>
+            <tr>
+              <td>Complete failure</td>
+              <td>null</td>
+              <td>Present</td>
+              <td>200 or 4xx/5xx, depending on the failure class</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>This is fundamentally different from REST, where a response is either a success (2xx) or an error
+      (4xx/5xx). In GraphQL, a single response can contain both successes and failures for different fields.</p>
+
+      <h4>Transport errors vs GraphQL errors</h4>
+      <p>The distinction matters because the client's handling differs:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Type</th><th>HTTP status</th><th>Client action</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Transport errors</strong></td>
+              <td>4xx or 5xx</td>
+              <td>Retry, refresh auth, show error — standard HTTP handling</td>
+            </tr>
+            <tr>
+              <td><strong>GraphQL errors — validation</strong></td>
+              <td>200 with <code>errors</code></td>
+              <td>The query is malformed; the client has a bug</td>
+            </tr>
+            <tr>
+              <td><strong>GraphQL errors — resolver</strong></td>
+              <td>200 with <code>errors</code></td>
+              <td>The resolver failed; the client handles per-path</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The HTTP status is often 200 even when errors exist — because the request itself succeeded (the server
+      received and parsed it), and the errors are at the data level. Some GraphQL servers return 400 for
+      validation errors and 500 for any resolver error; others return 200 for all GraphQL errors. The choice is
+      a design decision, documented for the client.</p>
+
+      <h4>The error object</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Field</th><th>Content</th></tr></thead>
+          <tbody>
+            <tr><td><code>message</code></td><td>Human-readable — for logs and debugging</td></tr>
+            <tr><td><code>locations</code></td><td>Where in the query the error occurred (line, column)</td></tr>
+            <tr><td><code>path</code></td><td>The path to the failing field (<code>["user", "posts", 0, "title"]</code>)</td></tr>
+            <tr><td><code>extensions</code></td><td>Custom metadata — error code, category, retryable flag, documentation URL</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The <code>path</code> is critical — it tells the client which field failed, so the client can render
+      partial UI (show the successful fields, mark the failed ones). Without the path, the client does not know
+      which part of the response is missing.</p>
+
+      <h4>The extensions field — the machine-readable part</h4>
+      <p>The <code>extensions.code</code> is the machine-readable error code (Volume 8, Question 6 applied to
+      GraphQL):</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Extensions</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre>{
+  "message": "User not found",
+  "path": ["user"],
+  "extensions": {
+    "code": "USER_NOT_FOUND",
+    "retryable": false,
+    "documentation": "https://api.example.com/errors/user-not-found"
+  }
+}</pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The client switches on <code>extensions.code</code> — the same pattern as REST's error code. The
+      <code>message</code> is for humans; the code is for machines.</p>
+
+      <h4>Partial success — the "errors do not null the response" rule</h4>
+      <p>A common confusion: when a field's resolver fails, the entire response does not become null. Instead:</p>
+      <ul>
+        <li>If the field is nullable, that field becomes null in the data; the error is recorded.</li>
+        <li>If the field is non-null, the error bubbles up to the nearest nullable parent; that parent becomes
+        null.</li>
+        <li>If the whole query is non-null at the root (rare), the entire response is null.</li>
+      </ul>
+      <p>This is why nullability is so consequential (Question 1): a non-null field whose resolver fails takes
+      down its parent, and if that parent is a list element, the whole element becomes null. A single bad
+      resolver can make half the response null.</p>
+      <p>The discipline: use nullable fields for anything that can fail, so a failure is contained to one field.
+      Reserve non-null for guaranteed fields (an ID, a required domain value).</p>
+
+      <h4>Where errors should come from</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Source</th><th>Error type</th></tr></thead>
+          <tbody>
+            <tr><td>Syntax errors (invalid query)</td><td>Validation error, 400</td></tr>
+            <tr><td>Unknown fields</td><td>Validation error, 400</td></tr>
+            <tr><td>Type mismatches</td><td>Validation error, 400</td></tr>
+            <tr><td>Authentication missing/invalid</td><td>UNAUTHENTICATED, 401</td></tr>
+            <tr><td>Authorization denied</td><td>FORBIDDEN, 403</td></tr>
+            <tr><td>Resource not found</td><td>NOT_FOUND, 200 with null + error</td></tr>
+            <tr><td>Validation of input (business rules)</td><td>BAD_USER_INPUT, 200 with error</td></tr>
+            <tr><td>Resolver throws</td><td>INTERNAL_SERVER_ERROR, 200 with error</td></tr>
+            <tr><td>Timeout</td><td>TIMEOUT, 200 or 504</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Mutation errors — the payload pattern</h4>
+      <p>For mutations, the <code>errors</code> array is coarse — it does not tell the client which input field
+      was invalid. The payload pattern wraps the result:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Mutation response</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre>mutation {
+  createUser(input: {email: "bad"}) {
+    user { id }
+    errors {
+      field
+      code
+      message
+    }
+  }
+}</pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The response has the created user (null if failed) and a per-field errors array. This is GraphQL's
+      equivalent of the validation error response from Volume 8, Question 7 — the client can map each error to
+      the corresponding form field.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Returning <code>data: null</code> for any error. In GraphQL, a failure in one field should make only
+        that field null (if nullable) — the successful fields are still in <code>data</code>. Returning null for
+        the whole response throws away the successful work and forces the client to re-request.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "GraphQL errors are in the errors array with a path to the failing field and a machine-readable
+        code in extensions. Partial success is normal — the successful fields are in data, the failing ones are
+        null with a recorded error. Mutations use a payload pattern with per-field errors." That covers the model
+        and the mutations.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q8 -->
+  <article class="q violet" id="q8">
+    <div class="q-head">
+      <div class="q-num">8</div>
+      <h3>How do GraphQL subscriptions work, and when do you use them?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A subscription is a long-lived operation — the client subscribes to an event
+        (<code>subscription { orderUpdated(id: 42) { status } }</code>), and the server pushes updates as the
+        event occurs. The transport is WebSocket (or SSE). The implementation: the client subscribes with the
+        server, the server registers the subscription, and the resolver publishes messages from a pub/sub system
+        (Redis, Kafka) when the event fires.</p>
+      </div>
+
+      <h4>The subscription model</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Phase</th><th>What happens</th></tr></thead>
+          <tbody>
+            <tr><td>Subscribe</td><td>Client sends <code>subscription { orderUpdated(id: 42) { status } }</code></td></tr>
+            <tr><td>Register</td><td>The server records the subscription and the client's connection</td></tr>
+            <tr><td>Event fires</td><td>The business logic publishes <code>order.42.updated</code> to the pub/sub system</td></tr>
+            <tr><td>Resolve</td><td>The subscription resolver receives the event, resolves the requested fields, and pushes to the client</td></tr>
+            <tr><td>Repeat</td><td>Every event matching the subscription triggers a push</td></tr>
+            <tr><td>Unsubscribe</td><td>Client closes the connection or sends an unsubscribe message</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The transport</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Transport</th><th>Pros</th><th>Cons</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>WebSocket</strong> (graphql-ws protocol)</td>
+              <td>Bidirectional; supports queries, mutations, and subscriptions over one connection</td>
+              <td>Stateful connections; scaling requires sticky routing or a pub/sub layer</td>
+            </tr>
+            <tr>
+              <td><strong>SSE</strong></td>
+              <td>Simpler; works over HTTP/2 with automatic reconnection</td>
+              <td>Unidirectional; the client uses HTTP for queries/mutations</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>WebSocket is the dominant choice for GraphQL subscriptions because it carries the full GraphQL protocol
+      over one connection. SSE is sometimes used for the subscription stream specifically, with queries and
+      mutations over HTTP.</p>
+
+      <h4>The pub/sub architecture</h4>
+      <p>The subscription resolver is not the source of truth — it is the delivery mechanism. The source is the
+      business logic that publishes events:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Component</th><th>Role</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Business logic</strong></td>
+              <td>Publishes an event when something happens (<code>order.updated</code>)</td>
+            </tr>
+            <tr>
+              <td><strong>Pub/sub system</strong> (Redis, Kafka, NATS)</td>
+              <td>Delivers the event to subscribers — the bridge between business logic and GraphQL servers</td>
+            </tr>
+            <tr>
+              <td><strong>Subscription resolver</strong></td>
+              <td>Subscribes to the topic on behalf of the client; transforms events into the GraphQL shape</td>
+            </tr>
+            <tr>
+              <td><strong>GraphQL server</strong></td>
+              <td>Holds the client connections; pushes the resolved data</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>In a multi-server deployment (multiple GraphQL servers behind a load balancer), a client's connection
+      may be on server A, but the event fires on server B. The pub/sub system is what connects them — server B
+      publishes, the pub/sub delivers to all servers (or the relevant ones), and server A pushes to the client.
+      Redis pub/sub is the standard for this; Kafka for high-volume or durable delivery.</p>
+
+      <h4>Subscription scaling</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Challenge</th><th>Solution</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Many concurrent connections</td>
+              <td>Stateless transport (SSE over HTTP/2), or connection-aware load balancing (sticky sessions)</td>
+            </tr>
+            <tr>
+              <td>Server holds connections</td>
+              <td>Horizontal scale; each server handles a subset of connections</td>
+            </tr>
+            <tr>
+              <td>Events fan out to many clients</td>
+              <td>Pub/sub system distributes the event; each server pushes to its own connected clients</td>
+            </tr>
+            <tr>
+              <td>Server restart drops connections</td>
+              <td>Client auto-reconnect (with subscription replay if the protocol supports it)</td>
+            </tr>
+            <tr>
+              <td>Subscription for one entity gets 1M subscribers</td>
+              <td>Fan-out per server; each server pushes to its subset</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>When to use subscriptions</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Use case</th><th>Good fit?</th></tr></thead>
+          <tbody>
+            <tr><td>Chat messages</td><td>Yes</td></tr>
+            <tr><td>Live notifications</td><td>Yes</td></tr>
+            <tr><td>Real-time collaborative editing</td><td>Yes (though CRDTs handle conflicts)</td></tr>
+            <tr><td>Live dashboards</td><td>Yes, if the update rate is manageable</td></tr>
+            <tr><td>Stock prices</td><td>Yes (with throttling)</td></tr>
+            <tr><td>Long-polling scenarios</td><td>Subscriptions are better than polling</td></tr>
+            <tr><td>Once-per-day email confirmation</td><td>No — a webhook or email is simpler</td></tr>
+            <tr><td>Order status page</td><td>Polling is fine; subscriptions are overkill</td></tr>
+            <tr><td>Admin dashboards updated on demand</td><td>Polling with cache is simpler</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The alternative: polling</h4>
+      <p>Subscriptions are complex to build and operate. The alternative — polling the query at an interval —
+      is often sufficient:</p>
+      <ul>
+        <li><strong>Polling</strong> — the client queries every N seconds; simpler, no stateful connection, works
+        with any client. Worse for high-frequency updates (wasted queries on no change) and for large user bases
+        (the server handles N requests per client per interval).</li>
+        <li><strong>Subscriptions</strong> — the server pushes only when there is a change; more efficient for
+        high-frequency, but requires WebSocket infrastructure and a pub/sub system.</li>
+      </ul>
+      <p>The rule: if the update frequency is high or the user base is large, subscriptions are worth the
+      complexity. If the update frequency is low (order status, once-a-minute dashboard), polling is
+      simpler and sufficient.</p>
+
+      <h4>Authentication in subscriptions</h4>
+      <p>The connection must be authenticated — a WebSocket handshake carries the token, and the server
+      validates it before accepting the subscription. If the token expires during the subscription, the server
+      may close the connection (requiring the client to reconnect with a fresh token) or continue (accepting
+      the token's permissions for the lifetime of the subscription). The first is safer; the second is more
+      convenient.</p>
+
+      <h4>The "lost updates" problem</h4>
+      <p>If the connection drops, the client misses any events that occurred during the gap. On reconnect, the
+      client must reconcile — fetch the current state, or query for events since the last seen timestamp.
+      Subscriptions do not guarantee delivery; the client must handle the gap with a query on reconnect.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Using subscriptions for everything — including low-frequency events that polling handles fine. The
+        subscription infrastructure (WebSocket servers, pub/sub, connection management) is expensive to build
+        and operate. Use it only for the events where it is genuinely better than polling.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Subscriptions are WebSocket-based — the client subscribes, the server registers, events are
+        published through Redis pub/sub to all servers, each server pushes to its connected clients. On
+        disconnect, the client reconciles with a query." That covers the model and the failure handling.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q9 -->
+  <article class="q violet" id="q9">
+    <div class="q-head">
+      <div class="q-num">9</div>
+      <h3>How do you design pagination in GraphQL — offsets, cursors, and connections?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>GraphQL uses the <strong>Relay Connection</strong> pattern: a list is wrapped in a connection type with
+        <code>edges</code> (each edge has a <code>node</code> and a <code>cursor</code>) and <code>pageInfo</code>
+        (<code>hasNextPage</code>, <code>hasPreviousPage</code>, <code>startCursor</code>,
+        <code>endCursor</code>). The client pages with <code>after</code> / <code>before</code> cursors — keyset
+        pagination, the same design as REST cursor pagination (Volume 4, Question 1).</p>
+      </div>
+
+      <h4>Why cursors, not offsets</h4>
+      <p>Offsets are simpler but break under writes — page 2 shifts when items are inserted before it. Cursors
+      are stable because they reference the last item seen, not a position. In GraphQL, cursors are the standard
+      because they fit the pattern of "give me the next N after this point".</p>
+
+      <h4>The Connection structure</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Type</th><th>Fields</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>UserConnection</code></td>
+              <td><code>edges: [UserEdge!]!</code>, <code>pageInfo: PageInfo!</code>, <code>totalCount: Int</code></td>
+            </tr>
+            <tr>
+              <td><code>UserEdge</code></td>
+              <td><code>node: User!</code>, <code>cursor: String!</code></td>
+            </tr>
+            <tr>
+              <td><code>PageInfo</code></td>
+              <td><code>hasNextPage: Boolean!</code>, <code>hasPreviousPage: Boolean!</code>,
+              <code>startCursor: String</code>, <code>endCursor: String</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The connection type wraps the list with the metadata a client needs for pagination. The <code>edges</code>
+      hold the individual items (the <code>node</code>) and their cursors. The <code>pageInfo</code> holds the
+      navigation state.</p>
+
+      <h4>The query</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>First page</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre>query {
+  users(first: 20) {
+    edges {
+      node { id name }
+      cursor
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}</pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Next page</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre>query {
+  users(first: 20, after: "eyJpZCI6IjIwIn0=") {
+    edges {
+      node { id name }
+      cursor
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}</pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The client sends <code>after</code> with the <code>endCursor</code> from the previous page. The server
+      returns the next 20 items after that cursor.</p>
+
+      <h4>The arguments</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Argument</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>first</code></td><td>Fetch the first N items (forward pagination)</td></tr>
+            <tr><td><code>after</code></td><td>Start after this cursor</td></tr>
+            <tr><td><code>last</code></td><td>Fetch the last N items (backward pagination)</td></tr>
+            <tr><td><code>before</code></td><td>End before this cursor</td></tr>
+            <tr><td><code>filter</code></td><td>Optional — filter the items</td></tr>
+            <tr><td><code>orderBy</code></td><td>Optional — sort order</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The Relay spec requires either <code>first</code> or <code>last</code> on every connection — never both,
+      never neither. The server can require <code>first: Int!</code> with a max (100) to enforce a page size.</p>
+
+      <h4>The cursor encoding</h4>
+      <p>The cursor is opaque — usually base64-encoded JSON of the last item's sort key:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Cursor</th><th>Decoded</th></tr></thead>
+          <tbody>
+            <tr><td><code>eyJpZCI6IjIwIn0=</code></td><td><code>{"id": "20"}</code></td></tr>
+            <tr><td><code>eyJjcmVhdGVkX2F0IjoiMjAyNi0xMS0xMlQxMDowMDowMFoiLCJpZCI6IjQyIn0=</code></td><td><code>{"created_at": "2026-11-12T10:00:00Z", "id": "42"}</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The client must not parse the cursor — it is opaque, and its format can change. The client just passes
+      <code>endCursor</code> back as <code>after</code>.</p>
+      <p>The composite cursor (with a tiebreaker) handles the same problem as REST — multiple items with the same
+      sort key. The cursor contains both the sort key and the unique ID, so the next page starts after the exact
+      position.</p>
+
+      <h4>The totalCount field</h4>
+      <p>The Relay spec allows a <code>totalCount</code> on the connection, which the client uses for
+      "showing 1–20 of 1,234". But <code>totalCount</code> is expensive — a full count of the filtered list.
+      Some servers omit it or compute it lazily (only when the client requests it). For large lists, the client
+      should use <code>hasNextPage</code> instead.</p>
+
+      <h4>The "first N" problem</h4>
+      <p>The client must provide <code>first</code> or <code>last</code> — there is no "give me all". This is
+      deliberate: the server cannot return an unbounded list, because it would exhaust memory. The client always
+      pages; the server always limits.</p>
+      <p>The server should also cap the max — a request for <code>first: 10000</code> should be rejected. The cap
+      is documented (the schema can express it via validation) and enforced in the resolver.</p>
+
+      <h4>Connections for non-list fields</h4>
+      <p>The Relay connection pattern applies to any field that returns a list of items with pagination. A user's
+      <code>posts</code> field returns a <code>PostConnection</code>; a product's <code>reviews</code> returns
+      a <code>ReviewConnection</code>. The pattern is uniform — one shape for all paginated lists.</p>
+
+      <h4>Offset pagination in GraphQL</h4>
+      <p>Some teams use offset pagination in GraphQL (<code>users(offset: 0, limit: 20)</code>) — simpler, but
+      the same problems as REST: inconsistency under writes, slow at deep offsets. The Relay connection exists
+      precisely to make cursor pagination the standard. For a new GraphQL API, use connections.</p>
+
+      <h4>The overhead</h4>
+      <p>The connection pattern is verbose — 10 lines of query for what REST expresses in one URL. The verbosity
+      is the cost of the flexibility (the client can request specific fields per edge). Tools like fragments
+      reduce the verbosity:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Fragment</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre>fragment UserFields on User { id name avatar }
+fragment PageInfoFields on PageInfo { hasNextPage endCursor }
+
+query {
+  users(first: 20) {
+    edges { node { ...UserFields } }
+    pageInfo { ...PageInfoFields }
+  }
+}</pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Exposing the raw cursor to the client as a parsed value. The client should treat it as opaque — storing
+        it, passing it back, never inspecting it. If the client parses it, changing the cursor format becomes a
+        breaking change. Document the opacity; enforce it by encoding the cursor as base64 (which the client
+        cannot "accidentally" understand).</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "The Relay connection pattern — edges, node, cursor, pageInfo. The client pages with after and
+        before cursors; cursors are opaque. The server caps the page size and requires first or last, so no
+        unbounded queries." That covers the design and the constraints.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q10 -->
+  <article class="q violet" id="q10">
+    <div class="q-head">
+      <div class="q-num">10</div>
+      <h3>GraphQL vs REST — when does each actually win?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>GraphQL wins when clients need flexible, nested data shapes and iterate faster than the backend —
+        mobile apps, complex UIs, aggregating multiple services, reducing round trips. REST wins when the API is
+        resource-oriented, cacheable at the HTTP layer, simple for public consumption, or has a small client set.
+        Most mature systems use both — GraphQL at the edge for the product surface, REST/gRPC internally for
+        service-to-service.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Dimension</th><th>GraphQL</th><th>REST</th></tr></thead>
+          <tbody>
+            <tr><td>Shape of response</td><td>Client-defined — asks for exactly what it needs</td><td>Server-defined — fixed per endpoint</td></tr>
+            <tr><td>Over-fetching</td><td>Eliminated (client asks only for fields it uses)</td><td>Common — the server returns all fields</td></tr>
+            <tr><td>Under-fetching</td><td>Eliminated (one query fetches nested data)</td><td>Requires multiple round trips</td></tr>
+            <tr><td>Number of round trips</td><td>Often one (for a screen)</td><td>Often several</td></tr>
+            <tr><td>Caching</td><td>Client normalized cache; server-side caching is complex</td><td>HTTP caching (CDN, browser) is native</td></tr>
+            <tr><td>Learning curve</td><td>Steep — schema, resolvers, DataLoader, complexity limits</td><td>Shallow — HTTP and JSON, universally known</td></tr>
+            <tr><td>Tooling</td><td>Rich (Apollo, Relay, GraphiQL)</td><td>Universal (curl, Postman, OpenAPI)</td></tr>
+            <tr><td>Real-time</td><td>Native subscriptions</td><td>Requires WebSocket or SSE separately</td></tr>
+            <tr><td>Versioning</td><td>Additive via @deprecated (Volume 3, Question 8)</td><td>URL or header versioning (Volume 3, Question 2)</td></tr>
+            <tr><td>Rate limiting</td><td>Complexity scoring per query</td><td>Per endpoint, simpler</td></tr>
+            <tr><td>Public API</td><td>Less common — the query language is a barrier for partners</td><td>The standard — any developer can consume it</td></tr>
+            <tr><td>Aggregation</td><td>Natural — one graph over many services</td><td>Requires a BFF or gateway</td></tr>
+            <tr><td>Streaming</td><td>Subscriptions</td><td>SSE, WebSocket, or HTTP streaming</td></tr>
+            <tr><td>File uploads</td><td>Awkward — usually a REST endpoint alongside</td><td>Native — multipart form data</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Where GraphQL wins</h4>
+      <ul>
+        <li><strong>Heterogeneous client set</strong> — mobile, web, partner apps all need different shapes of the
+        same data. GraphQL lets each ask for its shape without per-client endpoints.</li>
+        <li><strong>Rapid frontend iteration</strong> — the frontend team can add a field to the query without a
+        backend change, decoupling release cadences.</li>
+        <li><strong>Complex data models</strong> — deeply nested data (user → posts → comments → reactions) is one
+        query in GraphQL, several in REST.</li>
+        <li><strong>Aggregation over services</strong> — a single GraphQL gateway over many microservices; the
+        client sees one graph, the services are independent.</li>
+        <li><strong>Reducing round trips on mobile</strong> — every extra round trip on mobile is 100+ ms. One
+        query replacing 5 round trips is a 4× speedup.</li>
+        <li><strong>Real-time UI</strong> — subscriptions are integrated into the same schema as queries and
+        mutations.</li>
+      </ul>
+
+      <h4>Where REST wins</h4>
+      <ul>
+        <li><strong>Public APIs</strong> — Stripe, GitHub, Twilio are REST. The universal language (HTTP, JSON)
+        has zero learning curve; every developer, every tool, every client supports it.</li>
+        <li><strong>HTTP caching</strong> — a CDN caches GET requests by URL natively. GraphQL needs persisted
+        queries + CDN configuration to match (Question 5).</li>
+        <li><strong>Simple CRUD</strong> — a handful of resources, one client, straightforward shapes. GraphQL's
+        complexity is not justified.</li>
+        <li><strong>File uploads and downloads</strong> — REST handles multipart forms and binary streaming
+        naturally; GraphQL requires a separate mechanism.</li>
+        <li><strong>Operational simplicity</strong> — REST has no resolvers, no DataLoader, no complexity scoring,
+        no query parsing. The monitoring, caching, and debugging are all well-understood.</li>
+        <li><strong>Service-to-service</strong> — gRPC is better than GraphQL for internal calls (performance,
+        typing, streaming); REST is fine for simpler cases. Neither REST nor GraphQL is the right tool for
+        internal APIs at scale — gRPC usually wins there (Volume 13).</li>
+      </ul>
+
+      <h4>The hybrid reality</h4>
+      <p>Most large systems use both, at different layers:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Layer</th><th>Protocol</th></tr></thead>
+          <tbody>
+            <tr><td>Web/mobile client → BFF</td><td>GraphQL (flexibility, one round trip)</td></tr>
+            <tr><td>BFF → services</td><td>gRPC (performance, typing)</td></tr>
+            <tr><td>External partner → API</td><td>REST (universal, cacheable)</td></tr>
+            <tr><td>Service → service</td><td>gRPC (Volume 13) or message queue (Volume 11)</td></tr>
+            <tr><td>Public data → CDN</td><td>REST (native HTTP caching)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The pattern: GraphQL where the client's needs vary and the schema is complex; REST where the resource is
+      simple and public; gRPC where the call is internal and performance matters.</p>
+
+      <h4>The migration question</h4>
+      <p>Migrating from REST to GraphQL is expensive — a new schema, new resolvers, new clients. The triggers:</p>
+      <ul>
+        <li><strong>Multi-client complexity</strong> — REST's fixed shapes force per-client endpoints
+        (or per-client filtering), and the endpoints multiply.</li>
+        <li><strong>Round trip pain</strong> — a screen requires 10 sequential requests, and the latency is
+        killing the UX.</li>
+        <li><strong>Frontend velocity</strong> — the frontend team is blocked by backend changes for every new
+        field, and the release cadence is suffering.</li>
+        <li><strong>Aggregation need</strong> — the client talks to 5 services, and the routing is complex.</li>
+      </ul>
+      <p>If none of these applies, GraphQL is premature. REST is fine; adding GraphQL because it is fashionable
+      is a common and expensive mistake.</p>
+
+      <h4>The honest assessment</h4>
+      <p>GraphQL is neither a superset of REST nor a replacement. It is a different tool for a different problem.
+      The problem it solves is "the client's data needs are diverse and evolving faster than the server can
+      expose". If that is your problem, GraphQL is worth the complexity. If it is not, REST is simpler, faster to
+      build, easier to operate, and better for public consumption.</p>
+      <p>The complexity cost of GraphQL is real: N+1, query complexity attacks, caching, schema design,
+      per-field authorization, resolvers, DataLoader, persisted queries, subscriptions. A team that adopts
+      GraphQL without adopting these disciplines will have a slower, less secure, less reliable API than the
+      REST API it replaced.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>GraphQL trades server complexity for client flexibility. REST trades client flexibility for server
+        simplicity. The right answer depends on which side needs the flexibility more — a team with many clients
+        that change rapidly should pay the GraphQL cost; a team with one client and stable needs should not.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "GraphQL for the product surface where the client's needs vary and iterate fast. REST for public
+        APIs where caching and simplicity matter. gRPC internally for service-to-service. Most systems use all
+        three at different layers." That demonstrates judgment without dogma.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- NEXT PART -->
+  <section class="next-part">
+    <h3>Coming in Volume 13 — gRPC Deep Dive</h3>
+    <p>Volume 13 turns to gRPC: Protocol Buffers (schema, field numbers, compatibility), the four RPC types
+    (unary, server-streaming, client-streaming, bidirectional), interceptors and middleware, deadlines and
+    cancellation, error handling with google.rpc.Status, gRPC-Web and the proxy layer, and the operational
+    reality of running gRPC in production.</p>
+    <ul class="next-list">
+      <li>Protobuf schema and compatibility rules</li>
+      <li>The four RPC types</li>
+      <li>Interceptors and middleware</li>
+      <li>Deadlines, cancellation, and propagation</li>
+      <li>Error handling with google.rpc.Status</li>
+      <li>gRPC-Web and grpc-gateway</li>
+      <li>Load balancing and client-side LB</li>
+      <li>Reflection and tooling</li>
+      <li>Observability and tracing</li>
+      <li>When gRPC beats REST and GraphQL</li>
+    </ul>
+  </section>
+
+</div>
+</body>
+</html>
