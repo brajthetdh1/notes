@@ -1,0 +1,1890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API Design — Volume 11: Async APIs &amp; Webhooks</title>
+<style>
+  :root{
+    --ink:#0a1420;
+    --ink-soft:#1e3448;
+    --muted:#587a92;
+    --line:#cfe2ee;
+    --bg:#f2f9fd;
+    --card:#ffffff;
+    --violet:#5b21b6;
+    --violet-soft:#ede9fe;
+    --violet-deep:#2e1065;
+    --purple:#7c3aed;
+    --teal:#0f766e;
+    --teal-soft:#ccfbf1;
+    --indigo:#3730a3;
+    --amber:#b45309;
+    --rose:#be123c;
+    --blue:#1d4ed8;
+    --shadow:0 1px 2px rgba(6,25,60,.06), 0 8px 24px -8px rgba(6,25,60,.14);
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 8% -10%, #ede9fe 0%, transparent 60%),
+      radial-gradient(1000px 500px at 100% 0%, #ccfbf1 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:"Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    line-height:1.72;
+    font-size:16.5px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px 90px;}
+
+  header.hero{
+    background:linear-gradient(135deg,#0a1420 0%, #2e1065 45%, #5b21b6 100%);
+    color:#f5f3ff;
+    padding:64px 22px 56px;
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::after{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      radial-gradient(600px 300px at 85% 15%, rgba(139,92,246,.42), transparent 70%),
+      radial-gradient(520px 280px at 12% 92%, rgba(20,184,166,.35), transparent 70%);
+    pointer-events:none;
+  }
+  .hero-inner{max-width:1080px;margin:0 auto;position:relative;z-index:2;}
+  .eyebrow{
+    display:inline-block;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;
+    font-weight:700;padding:7px 15px;border-radius:999px;
+    background:rgba(167,139,250,.18);border:1px solid rgba(167,139,250,.5);
+    color:#c4b5fd;margin-bottom:20px;
+  }
+  header.hero h1{
+    font-size:clamp(1.9rem, 4.4vw, 3rem);line-height:1.15;margin:0 0 16px;
+    font-weight:800;letter-spacing:-.02em;
+  }
+  header.hero h1 span{
+    background:linear-gradient(90deg,#c4b5fd,#5eead4);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  header.hero p.lede{font-size:1.06rem;color:#ddd6fe;max-width:780px;margin:0 0 26px;}
+  .meta-chips{display:flex;flex-wrap:wrap;gap:10px;}
+  .chip{
+    font-size:.78rem;font-weight:600;padding:7px 14px;border-radius:999px;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#ede9fe;
+  }
+
+  .roadmap{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:26px 28px;margin-top:-34px;position:relative;z-index:5;
+  }
+  .roadmap h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 16px;font-weight:700;
+  }
+  .roadmap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;}
+  .roadmap-item{
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:.86rem;
+    background:#fbfdff;opacity:.7;
+  }
+  .roadmap-item.done{
+    border-color:#c4b5fd;background:linear-gradient(180deg,#f5f3ff,#ffffff);opacity:1;
+  }
+  .roadmap-item.current{
+    border-color:#a78bfa;background:linear-gradient(180deg,#ede9fe,#ffffff);opacity:1;
+    box-shadow:0 0 0 3px rgba(91,33,182,.14);
+  }
+  .roadmap-item .tag{
+    display:inline-block;font-size:.64rem;font-weight:800;letter-spacing:.08em;
+    padding:2px 8px;border-radius:999px;margin-bottom:6px;
+  }
+  .tag-done{background:#c7d2fe;color:#3730a3;}
+  .tag-now{background:#ede9fe;color:#5b21b6;}
+  .tag-next{background:#e2e8f0;color:#475569;}
+  .roadmap-item strong{display:block;color:var(--ink);font-size:.89rem;}
+
+  nav.toc{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:22px 26px;margin:26px 0 44px;
+  }
+  nav.toc h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 14px;font-weight:700;
+  }
+  nav.toc ol{
+    margin:0;padding-left:0;list-style:none;counter-reset:toc;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:8px 26px;
+  }
+  nav.toc li{
+    counter-increment:toc;font-size:.93rem;padding:6px 0 6px 34px;
+    position:relative;border-bottom:1px dashed #e6ebfb;
+  }
+  nav.toc li::before{
+    content:counter(toc);position:absolute;left:0;top:7px;width:22px;height:22px;
+    border-radius:7px;background:var(--violet-soft);color:var(--violet);
+    font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center;
+  }
+  nav.toc a{color:var(--ink-soft);text-decoration:none;font-weight:500;}
+  nav.toc a:hover{color:var(--violet);}
+
+  .part-band{display:flex;align-items:center;gap:16px;margin:56px 0 26px;}
+  .part-band .bar{
+    width:5px;height:44px;border-radius:99px;
+    background:linear-gradient(180deg,var(--violet),#a78bfa);
+  }
+  .part-band.teal .bar{background:linear-gradient(180deg,var(--teal),#2dd4bf);}
+  .part-band.indigo .bar{background:linear-gradient(180deg,var(--indigo),#818cf8);}
+  .part-band h2{margin:0;font-size:1.5rem;letter-spacing:-.01em;font-weight:800;}
+  .part-band .sub{
+    display:block;font-size:.82rem;font-weight:600;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.12em;margin-top:2px;
+  }
+
+  article.q{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:0 0 26px;margin-bottom:28px;overflow:hidden;
+    scroll-margin-top:24px;
+  }
+  .q-head{
+    display:flex;gap:16px;align-items:flex-start;padding:22px 28px 18px;
+    border-bottom:1px solid #f0eefb;background:linear-gradient(180deg,#fbfaff,#ffffff);
+  }
+  .q-num{
+    flex:none;width:42px;height:42px;border-radius:12px;display:flex;
+    align-items:center;justify-content:center;font-weight:800;font-size:.92rem;color:#fff;
+    background:linear-gradient(135deg,#5b21b6,#8b5cf6);
+    box-shadow:0 6px 14px -6px rgba(91,33,182,.7);
+  }
+  .teal .q-num{background:linear-gradient(135deg,#0f766e,#14b8a6);box-shadow:0 6px 14px -6px rgba(15,118,110,.7);}
+  .indigo .q-num{background:linear-gradient(135deg,#3730a3,#6366f1);box-shadow:0 6px 14px -6px rgba(55,48,163,.7);}
+  .q-head h3{margin:0;font-size:1.14rem;font-weight:700;line-height:1.4;letter-spacing:-.01em;}
+  .q-body{padding:22px 28px 0;}
+  .q-body p{margin:0 0 15px;color:var(--ink-soft);}
+  .q-body p:last-child{margin-bottom:0;}
+  .q-body h4{margin:24px 0 10px;font-size:.95rem;font-weight:800;color:var(--ink);}
+  .q-body h4::before{content:"▹";color:var(--violet);margin-right:8px;font-size:.85rem;}
+  .teal .q-body h4::before{color:var(--teal);}
+  .indigo .q-body h4::before{color:var(--indigo);}
+  .q-body ul,.q-body ol{margin:0 0 16px;padding-left:22px;color:var(--ink-soft);}
+  .q-body li{margin-bottom:8px;}
+  .q-body li::marker{color:var(--violet);}
+  .teal .q-body li::marker{color:var(--teal);}
+  .indigo .q-body li::marker{color:var(--indigo);}
+  strong{color:var(--ink);font-weight:700;}
+  code{
+    background:#f5f3ff;border:1px solid #cfe2ee;border-radius:6px;padding:1px 6px;
+    font-size:.87em;font-family:"SFMono-Regular",Consolas,monospace;color:#5b21b6;
+  }
+
+  .callout{border-radius:12px;padding:14px 18px;margin:18px 0 4px;font-size:.93rem;border-left:4px solid;}
+  .callout .label{
+    display:block;font-size:.68rem;font-weight:800;letter-spacing:.13em;
+    text-transform:uppercase;margin-bottom:5px;
+  }
+  .callout p{margin:0 0 8px;font-size:.93rem;}
+  .callout p:last-child{margin-bottom:0;}
+  .answer{background:linear-gradient(180deg,#f5f3ff,#ffffff);border-color:var(--violet);}
+  .answer .label{color:var(--violet-deep);}
+  .tip{background:linear-gradient(180deg,#eff6ff,#ffffff);border-color:var(--blue);}
+  .tip .label{color:#1d4ed8;}
+  .tradeoff{background:linear-gradient(180deg,#f0fdfa,#ffffff);border-color:var(--teal);}
+  .tradeoff .label{color:#0f766e;}
+  .pitfall{background:linear-gradient(180deg,#fff1f2,#ffffff);border-color:var(--rose);}
+  .pitfall .label{color:#be123c;}
+
+  .table-scroll{overflow-x:auto;margin:18px 0;border-radius:12px;border:1px solid var(--line);}
+  table{width:100%;border-collapse:collapse;font-size:.87rem;background:#fff;}
+  thead th{
+    background:#faf9ff;text-align:left;padding:11px 14px;font-weight:800;
+    font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+    border-bottom:2px solid var(--line);white-space:nowrap;
+  }
+  tbody td{padding:11px 14px;border-bottom:1px solid #f2f0fc;color:var(--ink-soft);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:nth-child(even){background:#fdfcff;}
+  tbody td:first-child{font-weight:700;color:var(--ink);}
+
+  pre{
+    margin:0;
+    white-space:pre-wrap;
+    font-family:"SFMono-Regular",Consolas,monospace;
+    font-size:.83rem;
+    line-height:1.55;
+  }
+
+  .next-part{
+    background:linear-gradient(135deg,#0a1420,#5b21b6);color:#ede9fe;
+    border-radius:var(--radius);padding:32px 34px;margin-top:50px;box-shadow:var(--shadow);
+  }
+  .next-part h3{margin:0 0 12px;font-size:1.2rem;color:#fff;font-weight:800;}
+  .next-part p{margin:0 0 16px;color:#ddd6fe;font-size:.95rem;}
+  .next-list{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:10px;list-style:none;padding:0;margin:0;
+  }
+  .next-list li{
+    background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
+    border-radius:10px;padding:10px 14px;font-size:.86rem;color:#ede9fe;
+  }
+
+  @media (max-width:640px){
+    .q-head{padding:18px 18px 15px;}
+    .q-body{padding:18px 18px 0;}
+    header.hero{padding:44px 18px 46px;}
+    .roadmap{padding:20px;}
+    nav.toc{padding:18px;}
+    nav.toc ol{grid-template-columns:1fr;}
+  }
+  @media print{
+    body{background:#fff;}
+    article.q, nav.toc, .roadmap{box-shadow:none;page-break-inside:avoid;}
+    header.hero{background:#0a1420 !important;-webkit-print-color-adjust:exact;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Volume 11 · Section 11 of 18</span>
+    <h1>API Design for System Interviews<br><span>Async APIs &amp; Webhooks</span></h1>
+    <p class="lede">
+      The mechanisms for work that does not fit in a request/response cycle. The 202 Accepted pattern and status
+      endpoints, webhooks with signatures and retries, streaming with SSE and long-polling, the outbox pattern for
+      reliable event delivery, and how to make async pipelines idempotent, debuggable, and safe against SSRF.
+    </p>
+    <div class="meta-chips">
+      <span class="chip">10 Questions</span>
+      <span class="chip">500+ words each</span>
+      <span class="chip">Async-first design</span>
+      <span class="chip">Reliability-focused</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ROADMAP -->
+  <section class="roadmap">
+    <h2>Answer-Series Roadmap</h2>
+    <div class="roadmap-grid">
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 1 — Complete</span>
+        <strong>Fundamentals &amp; Style Selection</strong>
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 2 — Complete</span>
+        <strong>Resource Modeling &amp; REST Design</strong>
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 3 — Complete</span>
+        <strong>Contracts, Versioning &amp; Evolution</strong>
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 4 — Complete</span>
+        <strong>Request/Response Design</strong>
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 5 — Complete</span>
+        <strong>Idempotency &amp; Correctness</strong>
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 6 — Complete</span>
+        <strong>Authentication &amp; Authorization</strong>
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 7 — Complete</span>
+        <strong>Rate Limiting &amp; Quotas</strong>
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 8 — Complete</span>
+        <strong>Error Handling &amp; Status Codes</strong>
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 9 — Complete</span>
+        <strong>API Gateways &amp; Management</strong>
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 10 — Complete</span>
+        <strong>Performance &amp; Caching</strong>
+      </div>
+      <div class="roadmap-item current">
+        <span class="tag tag-now">Volume 11 — You are here</span>
+        <strong>Async APIs &amp; Webhooks</strong>
+        202 Accepted, webhooks, outbox, SSE, SSRF
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 12–13</span>
+        <strong>GraphQL &amp; gRPC Deep Dives</strong>
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 14</span>
+        <strong>Security &amp; Abuse Prevention</strong>
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 15</span>
+        <strong>Observability &amp; Operations</strong>
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 16–17</span>
+        <strong>Lifecycle, Governance &amp; 17 Problems</strong>
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 18</span>
+        <strong>Senior &amp; Staff Trade-offs</strong>
+      </div>
+    </div>
+  </section>
+
+  <!-- TOC -->
+  <nav class="toc">
+    <h2>Questions Answered in This Volume</h2>
+    <ol>
+      <li><a href="#q1">When does an operation need to be async?</a></li>
+      <li><a href="#q2">The 202 Accepted pattern and the status endpoint</a></li>
+      <li><a href="#q3">How do you design a webhook delivery system?</a></li>
+      <li><a href="#q4">How do you sign and verify a webhook payload?</a></li>
+      <li><a href="#q5">How does the webhook receiver handle retries and ordering?</a></li>
+      <li><a href="#q6">What is the outbox pattern, and why is it essential?</a></li>
+      <li><a href="#q7">SSE vs long-polling vs WebSocket for async updates</a></li>
+      <li><a href="#q8">How do you prevent SSRF in webhook delivery?</a></li>
+      <li><a href="#q9">How do you handle idempotency in async flows?</a></li>
+      <li><a href="#q10">How do you test and debug async pipelines?</a></li>
+    </ol>
+  </nav>
+
+  <!-- ================= PART A ================= -->
+  <div class="part-band">
+    <div class="bar"></div>
+    <h2>Part A — Async Request/Response
+      <span class="sub">202 Accepted, status endpoints, and when async is necessary</span>
+    </h2>
+  </div>
+
+  <!-- Q1 -->
+  <article class="q" id="q1">
+    <div class="q-head">
+      <div class="q-num">1</div>
+      <h3>When does an operation need to be async, and what happens if you make it synchronous anyway?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>An operation needs to be async when its latency exceeds the request's timeout budget, when it depends
+        on a slow or unreliable external service, when it is bursty and would overwhelm a synchronous server, or
+        when it requires work that cannot be done within a single HTTP request. Forcing it synchronous means
+        timeouts, retries, cascade failures, and unhappy users.</p>
+      </div>
+
+      <h4>The latency budget</h4>
+      <p>Every HTTP request has a chain of timeouts:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Layer</th><th>Typical timeout</th></tr></thead>
+          <tbody>
+            <tr><td>Browser / client</td><td>30–120 seconds</td></tr>
+            <tr><td>CDN / edge</td><td>25–60 seconds</td></tr>
+            <tr><td>Load balancer / gateway</td><td>15–60 seconds</td></tr>
+            <tr><td>Application</td><td>5–30 seconds</td></tr>
+            <tr><td>Database query</td><td>1–10 seconds</td></tr>
+            <tr><td>Third-party API</td><td>1–10 seconds</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>If the operation takes longer than the tightest timeout in the chain, the client sees a timeout even
+      though the work might have completed. This is the worst-case synchronous failure: the user sees an error,
+      but the operation is happening in the background with no way to know if it succeeded.</p>
+
+      <h4>When async is necessary</h4>
+      <ul>
+        <li><strong>Long-running work</strong> — video transcoding, report generation, ML inference, batch
+        processing. Anything over a few seconds.</li>
+        <li><strong>Slow dependencies</strong> — calling a third-party API that might take 10 seconds. Holding a
+        thread for 10 seconds is expensive; on a server with 200 threads, 20 such requests exhaust the pool.</li>
+        <li><strong>Bursty work</strong> — a flash sale produces 100,000 orders in a minute. The queue absorbs the
+        burst; the workers process it over minutes.</li>
+        <li><strong>Multi-step workflows</strong> — coordinating payment, inventory, shipping, notification is a
+        saga (Volume 5 of the distributed systems series), not a synchronous call chain.</li>
+        <li><strong>External callbacks</strong> — the operation requires a human approval, a bank confirmation,
+        an offline process. There is no way to know when it will complete.</li>
+      </ul>
+
+      <h4>What happens if you force sync anyway</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Failure</th><th>Mechanism</th><th>Consequence</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Client timeouts</strong></td>
+              <td>The operation exceeds the client's timeout; the client gives up</td>
+              <td>The server continues processing, holding resources; the client does not know if it succeeded</td>
+            </tr>
+            <tr>
+              <td><strong>Thread pool exhaustion</strong></td>
+              <td>Each slow request holds a thread; new requests queue</td>
+              <td>Latency spikes; eventually the queue is full and new requests are rejected</td>
+            </tr>
+            <tr>
+              <td><strong>Cascade failure</strong></td>
+              <td>A slow dependency slows every caller</td>
+              <td>The whole system degrades because one downstream is slow (Volume 5 of the distributed series)</td>
+            </tr>
+            <tr>
+              <td><strong>Retry storms</strong></td>
+              <td>Clients retry on timeout, creating duplicate load</td>
+              <td>The overloaded service gets 3× the load from retries</td>
+            </tr>
+            <tr>
+              <td><strong>Duplicate execution</strong></td>
+              <td>The client retries a request that already succeeded</td>
+              <td>Double charges, duplicate orders — unless the operation is idempotent</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The async contract</h4>
+      <p>An async operation changes the contract between client and server:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Synchronous</th><th>Asynchronous</th></tr></thead>
+          <tbody>
+            <tr><td>Request → wait → result</td><td>Request → 202 + job ID → poll or webhook for result</td></tr>
+            <tr><td>Client holds a connection</td><td>Client's connection released immediately</td></tr>
+            <tr><td>Failure is in the response</td><td>Failure is in the status endpoint or webhook</td></tr>
+            <tr><td>Retry is dangerous (duplicate)</td><td>Retry is safe (idempotency key)</td></tr>
+            <tr><td>Latency is user-visible</td><td>Latency is absorbed by the queue</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The client is now responsible for tracking the job: it must poll the status endpoint (or receive a
+      webhook) and handle the final state. This is the cost of async — the client becomes a state machine.</p>
+
+      <h4>The hybrid: 202 with a synchronous fast-path</h4>
+      <p>Some APIs return 202 only when the operation is expected to be slow, and return 200 with the result when
+      it completes quickly. The client cannot know in advance which will happen; it must handle both. This is
+      often worse than always-async, because the client needs both code paths. The cleaner design: decide on the
+      endpoint whether it is async or sync, and stick with it.</p>
+
+      <h4>The "just make it faster" trap</h4>
+      <p>Sometimes the answer to "this is slow" is to make it faster, not async. A 3-second query that could be
+      50 ms with an index should be fixed, not made async. Async is not a fix for slow code; it is a mechanism
+      for operations that are inherently slow or externally bound. The two questions: can this be made fast? If
+      not, it should be async.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Sync is simpler for the client (one round trip, one result) but limited by the timeout budget. Async is
+        more complex (client tracks job state) but unbounded in duration and immune to the timeout chain. The
+        right answer is usually determined by the operation's inherent latency: under a second, sync; over a
+        few seconds, async.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "This operation takes 30 seconds, so it has to be async — a synchronous call would exceed every
+        timeout in the chain. The client gets a 202 with a job ID, polls the status endpoint, or receives a
+        webhook." That demonstrates the reason and the pattern in one sentence.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q2 -->
+  <article class="q" id="q2">
+    <div class="q-head">
+      <div class="q-num">2</div>
+      <h3>How does the 202 Accepted pattern work, and how do you design the status endpoint?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>The client POSTs the request; the server validates it, enqueues the work, and returns
+        <code>202 Accepted</code> with a job ID and a <code>Location</code> header pointing to the status endpoint.
+        The client polls the status endpoint (or waits for a webhook). The status endpoint returns
+        <code>200</code> with the job state — <code>pending</code>, <code>running</code>, <code>completed</code>,
+        <code>failed</code>, <code>cancelled</code> — and the result or error on completion.</p>
+      </div>
+
+      <h4>The submission</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Request</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre>POST /videos/transcode
+Idempotency-Key: abc-123
+Content-Type: application/json
+
+{"source_url": "https://...", "format": "mp4"}</pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Response</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre>HTTP/1.1 202 Accepted
+Location: /videos/transcode/jobs/job_42
+Content-Type: application/json
+
+{
+  "job_id": "job_42",
+  "status": "pending",
+  "created_at": "2026-11-12T10:30:00Z",
+  "status_url": "https://api.example.com/videos/transcode/jobs/job_42"
+}</pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The <code>Location</code> header is required for 202 — it tells the client where to check status. The
+      response body can also include the status URL and job ID, for convenience.</p>
+
+      <h4>The status endpoint</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Request</th></tr></thead>
+          <tbody>
+            <tr><td><code>GET /videos/transcode/jobs/job_42</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>State</th><th>Response</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Pending</td>
+              <td><code>{"status": "pending", "created_at": "..."}</code></td>
+            </tr>
+            <tr>
+              <td>Running</td>
+              <td><code>{"status": "running", "progress": 0.45, "started_at": "..."}</code></td>
+            </tr>
+            <tr>
+              <td>Completed</td>
+              <td><code>{"status": "completed", "result": {...}, "completed_at": "..."}</code></td>
+            </tr>
+            <tr>
+              <td>Failed</td>
+              <td><code>{"status": "failed", "error": {RFC 7807}, "failed_at": "..."}</code></td>
+            </tr>
+            <tr>
+              <td>Cancelled</td>
+              <td><code>{"status": "cancelled", "cancelled_at": "..."}</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The status endpoint always returns <code>200</code> when the job exists — the job's state is in the body.
+      A <code>404</code> means the job ID is wrong (or belongs to a different tenant); it does not mean the job
+      failed. This distinction is important: the client should not treat 404 as "job failed" — it should treat it
+      as "job not found".</p>
+
+      <h4>Polling strategy</h4>
+      <p>The client polls at an interval that depends on the expected duration:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Expected duration</th><th>Polling interval</th></tr></thead>
+          <tbody>
+            <tr><td>Seconds</td><td>Every 1 second</td></tr>
+            <tr><td>Minutes</td><td>Every 10–30 seconds</td></tr>
+            <tr><td>Hours</td><td>Every few minutes, or use a webhook</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The <code>Retry-After</code> header on the 202 response (or on the status endpoint) tells the client how
+      long to wait before the next poll. This is more efficient than a fixed interval — the server knows how long
+      the job is likely to take and can guide the client.</p>
+      <p>Polling is wasteful: each request is a full HTTP round trip, and most requests find the job unchanged.
+      For long jobs, webhooks are much better — the server pushes the result when it is ready, and the client does
+      not poll. The status endpoint remains for the cases where the webhook fails or the client prefers polling.</p>
+
+      <h4>The idempotency requirement</h4>
+      <p>The submission must be idempotent. If the client retries the initial POST (because it timed out before
+      receiving the 202), the server must return the same job ID, not create a second job. This is achieved with
+      an <code>Idempotency-Key</code> header (Volume 5, Question 2) — the client generates a unique key per logical
+      operation, and the server returns the same 202 for every retry with the same key.</p>
+      <p>Without idempotency, a retry creates a duplicate job, which does duplicate work. For a video transcoding
+      job, this doubles the compute cost; for a payment, it doubles the charge.</p>
+
+      <h4>The result retention</h4>
+      <p>How long does the status endpoint keep the result? Options:</p>
+      <ul>
+        <li><strong>Short retention</strong> — a few hours. The client must fetch the result within that window,
+        or the job's result is lost (but the work was done).</li>
+        <li><strong>Long retention</strong> — days to weeks. The client can check later, but the storage cost
+        grows.</li>
+        <li><strong>Result storage separate from status</strong> — the status endpoint returns the state, and the
+        result is stored in a durable store (S3) with its own retention. The status endpoint returns a reference
+        (URL) to the result, which the client fetches separately.</li>
+      </ul>
+      <p>The third approach is standard for large results (a transcoded video, a generated report) — the result
+      lives in object storage, and the status endpoint provides a signed URL. The status record can be cleaned up
+      after a short time; the result lives longer.</p>
+
+      <h4>Cancellation</h4>
+      <p>A job that is queued or running can be cancelled:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Request</th><th>Response</th></tr></thead>
+          <tbody>
+            <tr><td><code>POST /videos/transcode/jobs/job_42/cancel</code></td><td><code>200</code> with the updated state, or <code>409</code> if the job has already completed</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The cancellation should be best-effort — a job that has already started may or may not stop. The client
+      is told the job's state, not whether cancellation succeeded in stopping the work.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Returning 200 with the result for a long-running operation that happens to be fast. The client code
+        must handle both "202 with job ID" and "200 with result" — two different code paths. The cleaner design:
+        the endpoint is always async, always returns 202, and the client always polls. The alternative (sync fast,
+        async slow) doubles the client code for a small latency benefit.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "POST returns 202 with a Location header to the status endpoint. The status endpoint returns 200
+        with the job state — pending, running, completed, failed. The submission is idempotent with a key, so
+        retries do not create duplicate jobs." That covers the pattern and the safety in one sentence.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART B ================= -->
+  <div class="part-band teal">
+    <div class="bar"></div>
+    <h2>Part B — Webhooks
+      <span class="sub">Design, signing, retries, ordering, and SSRF</span>
+    </h2>
+  </div>
+
+  <!-- Q3 -->
+  <article class="q teal" id="q3">
+    <div class="q-head">
+      <div class="q-num">3</div>
+      <h3>How do you design a webhook delivery system that does not lose events?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A webhook system has five parts: a <strong>subscription registry</strong> (which URLs want which events),
+        a <strong>reliable event queue</strong> (persistent, survives crashes), a <strong>dispatcher</strong> (sends
+        the HTTP request, handles response codes), a <strong>retry mechanism</strong> (exponential backoff with a
+        cap), and a <strong>dead-letter queue</strong> (for events that exhaust retries). Plus a
+        <strong>reconciliation endpoint</strong> so a receiver that missed events can catch up.</p>
+      </div>
+
+      <h4>The architecture</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Component</th><th>Responsibility</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Subscription registry</strong></td><td>Stores (tenant, event_types, url, secret) per subscription; supports CRUD</td></tr>
+            <tr><td><strong>Event source</strong></td><td>Emits events when business changes occur (order.created, payment.completed)</td></tr>
+            <tr><td><strong>Outbox / queue</strong></td><td>Durably stores events for delivery; survives crashes</td></tr>
+            <tr><td><strong>Dispatcher</strong></td><td>Reads events, looks up subscribers, sends HTTP POSTs, handles responses</td></tr>
+            <tr><td><strong>Retry scheduler</strong></td><td>Re-attempts failed deliveries with backoff</td></tr>
+            <tr><td><strong>Dead-letter queue</strong></td><td>Stores deliveries that exhausted retries, for inspection and manual retry</td></tr>
+            <tr><td><strong>Reconciliation endpoint</strong></td><td>Lets a receiver list events since a timestamp, to catch up on missed webhooks</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The event envelope</h4>
+      <p>Every webhook POST carries a standard envelope:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Field</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>id</code></td><td>Unique event ID (used for idempotency on the receiver)</td></tr>
+            <tr><td><code>type</code></td><td>Event type (e.g., <code>order.created</code>)</td></tr>
+            <tr><td><code>created_at</code></td><td>When the event happened</td></tr>
+            <tr><td><code>api_version</code></td><td>The API version of the payload schema</td></tr>
+            <tr><td><code>data</code></td><td>The event payload (the business data)</td></tr>
+            <tr><td><code>previous_attributes</code></td><td>Optional — the old values, for update events</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The <code>id</code> is the critical field for idempotency. The receiver stores the IDs of events it has
+      processed; when a duplicate arrives (because the sender retried), the receiver detects it and returns 200
+      without re-processing.</p>
+
+      <h4>The delivery flow</h4>
+      <ol>
+        <li><strong>Event emitted.</strong> The business change (an order is created) publishes an event.</li>
+        <li><strong>Event stored.</strong> The event is written to a durable outbox (or a message queue) before
+        the business transaction commits — the outbox pattern (Question 6).</li>
+        <li><strong>Dispatcher reads.</strong> A worker picks up the event and looks up the subscribers.</li>
+        <li><strong>For each subscriber:</strong>
+          <ul>
+            <li>Builds the payload (usually the same for all, possibly customized).</li>
+            <li>Signs it with the subscription's secret (Question 4).</li>
+            <li>POSTs to the URL with a timeout (say, 10 seconds).</li>
+            <li>Reads the response.</li>
+          </ul>
+        </li>
+        <li><strong>Success (2xx).</strong> Mark the delivery as succeeded; move on.</li>
+        <li><strong>Retryable failure (5xx, timeout, 429).</strong> Schedule a retry with backoff.</li>
+        <li><strong>Non-retryable failure (4xx other than 429).</strong> Mark the delivery as failed; move to DLQ.</li>
+        <li><strong>Retries exhausted.</strong> Mark the delivery as failed; move to DLQ.</li>
+      </ol>
+
+      <h4>The retry policy</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Attempt</th><th>Delay</th><th>Cumulative</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>Immediate</td><td>0</td></tr>
+            <tr><td>2</td><td>1 minute</td><td>1 min</td></tr>
+            <tr><td>3</td><td>5 minutes</td><td>6 min</td></tr>
+            <tr><td>4</td><td>30 minutes</td><td>36 min</td></tr>
+            <tr><td>5</td><td>2 hours</td><td>~2.5 h</td></tr>
+            <tr><td>6</td><td>6 hours</td><td>~8.5 h</td></tr>
+            <tr><td>7</td><td>24 hours</td><td>~32 h</td></tr>
+            <tr><td>8+</td><td>DLQ</td><td>—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The window (24 hours, 7 attempts) is a design decision. Longer windows catch more failures but require
+      more storage and delay the DLQ. 24 hours is the standard (Stripe, GitHub, Twilio).</p>
+
+      <h4>The dead-letter queue</h4>
+      <p>After retries are exhausted, the delivery goes to a DLQ. The DLQ serves three purposes:</p>
+      <ul>
+        <li><strong>Inspection</strong> — the operator can see which events failed, and why (the response code,
+        the response body).</li>
+        <li><strong>Manual retry</strong> — after fixing the receiver, the operator can replay the DLQ.</li>
+        <li><strong>Reconciliation</strong> — the receiver can pull the DLQ via an API and process missed events
+        manually.</li>
+      </ul>
+      <p>Without a DLQ, exhausted retries are silently lost. The events were sent but never delivered, and
+      nobody knows. This is a data-loss bug in disguise.</p>
+
+      <h4>The reconciliation endpoint</h4>
+      <p>A receiver that was down for hours cannot rely on the webhook delivery to catch up — the retries may
+      have exhausted. The reconciliation endpoint lets the receiver pull missed events:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Request</th><th>Response</th></tr></thead>
+          <tbody>
+            <tr><td><code>GET /events?since=2026-11-12T00:00:00Z&amp;type=order.created</code></td><td>List of events that occurred since the timestamp, paginated</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The receiver stores the timestamp of the last event it processed, and on startup (or periodically) queries
+      for events after that timestamp. This guarantees eventual delivery even when webhooks fail — the receiver
+      can always catch up by pulling.</p>
+      <p>This is essential: <strong>webhooks without reconciliation are a system that silently loses events</strong>.
+      The reconciliation endpoint is the safety net.</p>
+
+      <h4>Subscription management</h4>
+      <p>A subscription is more than a URL. It includes:</p>
+      <ul>
+        <li><strong>Event types</strong> — which events the receiver wants. Subscribing to everything is noisy;
+        subscribing to specific types is better.</li>
+        <li><strong>The URL</strong> — the HTTPS endpoint to POST to.</li>
+        <li><strong>A secret</strong> — for signing (Question 4).</li>
+        <li><strong>Status</strong> — active, paused, disabled.</li>
+        <li><strong>Metadata</strong> — a description, contact info, a creation date.</li>
+      </ul>
+      <p>The subscription API supports CRUD on subscriptions; the receiver manages them programmatically or via
+      a dashboard.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Relying on webhooks alone for delivery. Webhooks fail — the receiver is down, the network is broken,
+        the secret is rotated, the URL is misconfigured. Without a reconciliation endpoint, the events are lost
+        permanently. Webhooks are a fast path; reconciliation is the guarantee.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Events go through a durable outbox, a dispatcher signs and POSTs them, retries with exponential
+        backoff, and exhausted retries go to a DLQ. A reconciliation endpoint lets receivers pull missed events —
+        webhooks alone are not reliable." That covers the pipeline and the safety net in one sentence.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q4 -->
+  <article class="q teal" id="q4">
+    <div class="q-head">
+      <div class="q-num">4</div>
+      <h3>How do you sign and verify a webhook payload, and why is signing essential?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Webhooks are HTTP POSTs to a URL the receiver registers — but the receiver must know the request
+        actually came from the sender, not an attacker. Signing solves this: the sender computes an HMAC of the
+        payload with a shared secret, sends it in a header, and the receiver computes the same HMAC and compares.
+        If they match, the request is legitimate. Without signing, anyone who knows the webhook URL can send
+        fake events.</p>
+      </div>
+
+      <h4>Why signing is necessary</h4>
+      <p>The webhook URL is not a secret — it appears in the receiver's configuration, logs, and error trackers.
+      Anyone who learns the URL can send an HTTP POST to it. Without verification, the receiver cannot distinguish
+      a legitimate event (<code>payment.succeeded</code>) from a fake one (an attacker sending a fake payment to
+      unlock a feature). Signing binds the event to the sender's secret.</p>
+
+      <h4>The HMAC mechanism</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Step</th><th>Sender</th><th>Receiver</th></tr></thead>
+          <tbody>
+            <tr><td>1. Shared secret</td><td>Issued to the receiver at subscription creation</td><td>Stored securely</td></tr>
+            <tr><td>2. Compute signature</td><td><code>HMAC-SHA256(secret, timestamp + "." + body)</code></td><td>—</td></tr>
+            <tr><td>3. Send</td><td><code>X-Webhook-Signature: t=1699999999,v1=abc123...</code></td><td>—</td></tr>
+            <tr><td>4. Verify</td><td>—</td><td>Extracts the timestamp and signature, recomputes the HMAC, compares</td></tr>
+            <tr><td>5. Accept or reject</td><td>—</td><td>Accept if equal; reject with 401 if not</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The HMAC (hash-based message authentication code) is a keyed hash — the receiver cannot compute it
+      without the secret, so an attacker without the secret cannot forge a valid signature. The receiver must
+      compare signatures in constant time (using <code>hmac.compare_digest</code> or equivalent) to prevent timing
+      attacks.</p>
+
+      <h4>Why include a timestamp</h4>
+      <p>Without a timestamp, an attacker who captured a legitimate request could replay it later — the signature
+      would still match, and the receiver would process the same event again. The timestamp lets the receiver
+      reject old requests:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Rule</th><th>Behaviour</th></tr></thead>
+          <tbody>
+            <tr><td>Timestamp within the tolerance (e.g., 5 minutes)</td><td>Accept</td></tr>
+            <tr><td>Timestamp older than the tolerance</td><td>Reject (possible replay)</td></tr>
+            <tr><td>Timestamp in the future by more than the tolerance</td><td>Reject (clock skew attack)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The signature covers the timestamp as well as the body, so an attacker cannot change the timestamp without
+      invalidating the signature. This is why the signed payload is <code>timestamp + "." + body</code>, not just
+      <code>body</code>.</p>
+
+      <h4>The signature header format</h4>
+      <p>Stripe's format is the de facto standard:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Header</th></tr></thead>
+          <tbody>
+            <tr><td><code>Stripe-Signature: t=1699999999,v1=5257a869e7ecebeda32affa62cdca3fa51cad7e77a0e56ff536d0ce8e108d8bd</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Two parts:
+      <ul>
+        <li><code>t</code> — the Unix timestamp when the event was sent.</li>
+        <li><code>v1</code> — the signature, computed over <code>t + "." + body</code>.</li>
+      </ul>
+      <p>The <code>v1</code> prefix allows versioning — if the algorithm changes, a <code>v2</code> signature can
+      be added alongside. The receiver uses whichever version it understands.</p>
+
+      <h4>Multiple signatures during rotation</h4>
+      <p>When the secret is rotated, old events may still arrive signed with the old secret. The receiver should
+      accept both secrets during the transition:</p>
+      <ul>
+        <li>The sender signs with both secrets and includes both signatures in the header
+        (<code>v1=old,v1=new</code>).</li>
+        <li>The receiver verifies against both; a match with either is accepted.</li>
+        <li>After the transition window, the old secret is removed.</li>
+      </ul>
+
+      <h4>The receiver's verification code</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Step</th><th>Code</th></tr></thead>
+          <tbody>
+            <tr><td>1. Read the header and body</td><td><code>sig_header = headers["X-Webhook-Signature"]</code>; <code>body = request.body</code></td></tr>
+            <tr><td>2. Parse the header</td><td>Extract <code>t</code> and <code>v1</code></td></tr>
+            <tr><td>3. Check the timestamp</td><td>Reject if <code>abs(now - t) &gt; 300</code></td></tr>
+            <tr><td>4. Compute the expected signature</td><td><code>expected = HMAC-SHA256(secret, t + "." + body)</code></td></tr>
+            <tr><td>5. Compare</td><td><code>constant_time_compare(expected, v1)</code></td></tr>
+            <tr><td>6. Process or reject</td><td>Process if matched; return 401 if not</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The verification must happen <strong>before</strong> any side effect — before reading the payload,
+      before updating the database, before sending an email. A forged event that was processed before
+      verification is a security incident.</p>
+
+      <h4>What signing does not protect against</h4>
+      <ul>
+        <li><strong>A compromised secret.</strong> If the secret leaks, an attacker can sign valid events. Rotate
+        secrets regularly and on suspected compromise.</li>
+        <li><strong>SSRF</strong> — signing does not prevent the sender from being tricked into POSTing to an
+        internal URL. That is a separate concern (Question 8).</li>
+        <li><strong>Replay by an attacker who captured a valid request.</strong> The timestamp tolerance limits the
+        window; strict replay prevention requires storing seen event IDs and rejecting duplicates.</li>
+      </ul>
+
+      <h4>Alternative: mTLS</h4>
+      <p>For high-security integrations, mTLS is stronger than HMAC signing — the receiver verifies the sender's
+      client certificate. But mTLS requires both parties to manage certificates, which is a heavier setup than a
+      shared secret. For most webhooks, HMAC is sufficient; for enterprise or financial integrations, mTLS may be
+      required.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Verifying the signature <em>after</em> processing the payload. The code checks "is this valid?" after
+        updating the database — a forged event was already processed. Verification must be the first step, before
+        any business logic.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Every webhook is signed with HMAC-SHA256 over timestamp + body. The receiver verifies the signature
+        before processing, and rejects timestamps older than 5 minutes to prevent replay. The secret is per
+        subscription, rotatable, and never in the URL." That covers the mechanism and the safety in one
+        sentence.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q5 -->
+  <article class="q teal" id="q5">
+    <div class="q-head">
+      <div class="q-num">5</div>
+      <h3>How does the webhook receiver handle retries, duplicates, and out-of-order events?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>The receiver must assume <strong>at-least-once delivery and no ordering guarantee</strong>. It handles
+        duplicates with idempotency (storing event IDs it has processed), handles out-of-order events with the
+        event timestamp (applying only newer events, or reconciling), and returns a fast 2xx response (within the
+        sender's timeout) so the sender does not retry. Slow receivers acknowledge quickly and process
+        asynchronously.</p>
+      </div>
+
+      <h4>The three problems the receiver faces</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Problem</th><th>Cause</th><th>Solution</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Duplicates</strong></td><td>Retries on timeout, at-least-once delivery</td><td>Idempotency — store event IDs, skip duplicates</td></tr>
+            <tr><td><strong>Out-of-order</strong></td><td>Concurrent dispatchers, retry delays</td><td>Event timestamp comparison; or accept and reconcile</td></tr>
+            <tr><td><strong>Slow processing</strong></td><td>Business logic takes longer than the sender's timeout</td><td>Acknowledge quickly, process async</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Duplicates — the receiver's idempotency</h4>
+      <p>Every event has a unique <code>id</code>. The receiver maintains a table of processed event IDs
+      (or a TTL cache if events are only repeated for a bounded window):</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Step</th><th>Action</th></tr></thead>
+          <tbody>
+            <tr><td>1. Receive event</td><td>Extract <code>id</code> from the payload</td></tr>
+            <tr><td>2. Check processed</td><td>Is <code>id</code> in the processed table?</td></tr>
+            <tr><td>3a. If yes</td><td>Return 200 immediately — do not re-process</td></tr>
+            <tr><td>3b. If no</td><td>Process the event, then insert <code>id</code> into the processed table</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The insert-and-process must be atomic — either both succeed, or neither. In practice:</p>
+      <ul>
+        <li><strong>Database-backed receiver:</strong> insert the ID and process in the same transaction. If the
+        transaction fails, nothing is recorded; the retry will succeed.</li>
+        <li><strong>Queue-backed receiver:</strong> insert the ID, then enqueue. If the enqueue fails, the ID is
+        recorded but no processing happens — the retry sees the ID and skips. This is a bug; the fix is to
+        insert and enqueue in a way that both succeed (the outbox pattern, Question 6).</li>
+        <li><strong>TTL cache:</strong> store IDs in Redis with a TTL longer than the sender's retry window.
+        Simpler, but a cache miss after the TTL causes re-processing. Only safe if processing is naturally
+        idempotent.</li>
+      </ul>
+
+      <h4>Out-of-order events</h4>
+      <p>The sender may deliver events out of order — a later event's HTTP request may complete before an earlier
+      one, or a retried earlier event may arrive after a successful later event. This is normal in distributed
+      systems.</p>
+      <p>The receiver has three strategies:</p>
+      <ol>
+        <li><strong>Ignore ordering, process all events.</strong> If the receiver's logic is commutative — "count
+        events" — order does not matter. The final state is correct regardless of order.</li>
+        <li><strong>Use the timestamp.</strong> Every event carries a <code>created_at</code>. The receiver
+        compares to the last event it applied for that entity; if the new event is older, skip it (or apply it
+        with the correct semantics). This works for "current state" updates where later events supersede earlier
+        ones.</li>
+        <li><strong>Reconcile via the API.</strong> After processing a batch of events, the receiver fetches the
+        current state from the sender's API — the reconciliation endpoint. This guarantees eventual consistency
+        regardless of order.</li>
+      </ol>
+      <p>The choice depends on the business logic:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Event type</th><th>Ordering requirement</th><th>Strategy</th></tr></thead>
+          <tbody>
+            <tr><td><code>payment.created</code></td><td>Count events</td><td>Ignore ordering — a counter is commutative</td></tr>
+            <tr><td><code>subscription.updated</code></td><td>Current state matters</td><td>Use <code>created_at</code>; apply only newer</td></tr>
+            <tr><td><code>order.cancelled</code></td><td>The order must exist first</td><td>Use timestamps; if <code>cancelled</code> arrives before <code>created</code>, buffer or apply after</td></tr>
+            <tr><td>Complex multi-event workflow</td><td>Strict ordering</td><td>Reconcile via API; use the event stream as a hint, not the source of truth</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The "respond fast, process async" pattern</h4>
+      <p>The sender waits for a response, usually with a 5–10 second timeout. If the receiver's processing takes
+      longer (a database update, an API call, an email send), the receiver must not block — the sender will time
+      out, assume failure, and retry, which causes a duplicate.</p>
+      <p>The pattern:</p>
+      <ol>
+        <li><strong>Receive the webhook.</strong> Verify the signature, parse the payload.</li>
+        <li><strong>Enqueue for async processing.</strong> Write the event to a durable queue.</li>
+        <li><strong>Return 200 immediately.</strong> The sender sees success; it does not retry.</li>
+        <li><strong>Process asynchronously.</strong> A worker reads the queue and does the actual work.</li>
+      </ol>
+      <p>The receiver's HTTP handler does almost no work — parse, verify, enqueue, respond — and all of that takes
+      milliseconds. The actual processing happens in the background, where it can take as long as needed without
+      causing the sender to time out.</p>
+
+      <h4>What to return</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Scenario</th><th>Status</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr><td>Event accepted and queued</td><td>200 or 202</td><td>2xx means "processed"; the sender stops retrying</td></tr>
+            <tr><td>Duplicate (already processed)</td><td>200</td><td>Idempotent — the sender's retry succeeded (from its perspective)</td></tr>
+            <tr><td>Signature invalid</td><td>401</td><td>Non-retryable; the sender's payload is not trusted</td></tr>
+            <tr><td>Malformed payload</td><td>400</td><td>Non-retryable; the sender has a bug</td></tr>
+            <tr><td>Transient processing error</td><td>500 or 503</td><td>Retryable; the sender retries with backoff</td></tr>
+            <tr><td>Queue unavailable</td><td>503</td><td>Retryable; the receiver will be back</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The rule: <strong>2xx means "do not retry"</strong>; <strong>5xx means "please retry"</strong>;
+      <strong>4xx means "this is broken, do not retry"</strong>. The receiver's error code drives the sender's
+      retry behaviour.</p>
+
+      <h4>The reconciliation safety net</h4>
+      <p>Even with idempotency and fast acknowledgement, a receiver can miss events — it was down for hours, its
+      queue overflowed, a bug dropped events. The reconciliation endpoint (Question 3) lets the receiver recover:
+      on startup, or periodically, it queries the sender for events since its last-processed timestamp, and
+      processes them the same way it processes webhooks.</p>
+      <p>The combination — webhooks for speed, reconciliation for completeness — is what makes the system reliable.
+      Webhooks alone are not enough.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Doing the actual processing inside the webhook handler. A database update that takes 8 seconds, followed
+        by an email that takes 3 seconds — the handler holds the connection for 11 seconds, exceeds the sender's
+        10-second timeout, and the sender retries. Now two copies of the event are being processed. The fix:
+        acknowledge in the handler (enqueue), process asynchronously.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "The receiver verifies the signature, checks if the event ID has already been processed, enqueues
+        for async processing, and returns 200 — all within milliseconds. Duplicates are handled by the ID; ordering
+        by the event timestamp or by reconciling via the API." That covers the three problems and their
+        solutions.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART C ================= -->
+  <div class="part-band indigo">
+    <div class="bar"></div>
+    <h2>Part C — Reliability &amp; Streaming
+      <span class="sub">Outbox, SSE vs WebSocket, SSRF, idempotency, debugging</span>
+    </h2>
+  </div>
+
+  <!-- Q6 -->
+  <article class="q indigo" id="q6">
+    <div class="q-head">
+      <div class="q-num">6</div>
+      <h3>What is the outbox pattern, and why is it essential for reliable async delivery?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>The outbox pattern solves the dual-write problem: you cannot atomically write to your database <em>and</em>
+        publish a message to a queue or send a webhook — one of the two will fail. The fix: write the event to an
+        <strong>outbox table</strong> in the same transaction as the business change. A separate relay process
+        reads the outbox and publishes the events. Either both the business change and the event are recorded, or
+        neither is — atomicity is preserved.</p>
+      </div>
+
+      <h4>The dual-write problem</h4>
+      <p>Consider an e-commerce flow: an order is created. The service must:</p>
+      <ol>
+        <li>Insert the order into the <code>orders</code> table.</li>
+        <li>Publish an <code>order.created</code> event to Kafka (or send a webhook, or both).</li>
+      </ol>
+      <p>The naive implementation:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Step</th><th>Outcome</th></tr></thead>
+          <tbody>
+            <tr><td>DB insert succeeds</td><td>OK</td></tr>
+            <tr><td>Kafka publish succeeds</td><td>Both succeed — happy path</td></tr>
+            <tr><td>DB insert succeeds, Kafka publish fails</td><td>Order exists, no event — downstream never knows</td></tr>
+            <tr><td>DB insert fails, Kafka publish succeeds</td><td>Event exists, no order — downstream sees a phantom order</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>These failure modes are common: a network glitch, a Kafka broker failover, a timeout. Each produces an
+      inconsistent state. The outbox pattern eliminates them.</p>
+
+      <h4>The outbox flow</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Step</th><th>Action</th></tr></thead>
+          <tbody>
+            <tr><td>1. Business transaction</td><td>BEGIN; INSERT order; INSERT into outbox (order.created event); COMMIT</td></tr>
+            <tr><td>2. Relay process</td><td>Polls the outbox table (or reads via CDC) for unprocessed events</td></tr>
+            <tr><td>3. Publish</td><td>For each event, publish to Kafka / send webhook / both</td></tr>
+            <tr><td>4. Mark processed</td><td>Update the outbox row's <code>processed_at</code> timestamp</td></tr>
+            <tr><td>5. Cleanup</td><td>Delete old outbox rows (or partition-drop) after a retention window</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The transaction is the key: the order and the event are inserted atomically. Either both succeed (order
+      created and event recorded for delivery) or both fail (no order, no event). The event is guaranteed to be
+      published eventually by the relay.</p>
+
+      <h4>The outbox schema</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Column</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>id</code></td><td>Event ID (for idempotency downstream)</td></tr>
+            <tr><td><code>aggregate_id</code></td><td>The entity the event is about (order_id, user_id)</td></tr>
+            <tr><td><code>event_type</code></td><td><code>order.created</code>, <code>payment.succeeded</code></td></tr>
+            <tr><td><code>payload</code></td><td>The event body (JSON)</td></tr>
+            <tr><td><code>created_at</code></td><td>When the event was created</td></tr>
+            <tr><td><code>processed_at</code></td><td>When it was published (NULL if not yet)</td></tr>
+            <tr><td><code>attempts</code></td><td>How many times delivery was attempted</td></tr>
+            <tr><td><code>last_error</code></td><td>The last failure (for debugging)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The relay: polling vs CDC</h4>
+      <p>The relay reads unprocessed events and publishes them. Two implementations:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Approach</th><th>Mechanism</th><th>Pros</th><th>Cons</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Polling</strong></td>
+              <td>A scheduled job queries the outbox every N seconds</td>
+              <td>Simple; works with any database</td>
+              <td>Latency of up to N seconds; polling load on the DB</td>
+            </tr>
+            <tr>
+              <td><strong>CDC (Change Data Capture)</strong></td>
+              <td>Debezium or equivalent reads the WAL and emits events</td>
+              <td>Near-instant; no polling load</td>
+              <td>Requires CDC infrastructure; operational complexity</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>For most systems, polling every 1–5 seconds is sufficient. CDC is worth it at high volume or when
+      latency matters more than simplicity.</p>
+
+      <h4>The duplicate delivery problem</h4>
+      <p>The relay may crash after publishing but before marking the event as processed. On restart, it republishes
+      — the event is delivered twice. This is unavoidable: the outbox pattern guarantees at-least-once delivery,
+      not exactly-once.</p>
+      <p>The fix is downstream idempotency: every consumer of the event (a service, a webhook receiver) must be
+      idempotent on the event ID. This is the same discipline as for webhooks (Question 5) and for queue
+      consumers (Volume 5, Question 1) — at-least-once delivery requires idempotent consumption.</p>
+
+      <h4>The outbox and webhooks together</h4>
+      <p>For a webhook delivery system, the outbox is the primary reliability mechanism:</p>
+      <ol>
+        <li>Business change → outbox row (in one transaction).</li>
+        <li>Relay publishes the outbox event to the webhook dispatcher.</li>
+        <li>Dispatcher sends webhooks with retries.</li>
+        <li>Webhook receiver must be idempotent (Question 5).</li>
+      </ol>
+      <p>The outbox guarantees that the event will be delivered eventually; the webhook retries handle the
+      transient failures of delivery; the receiver's idempotency handles the duplicates that arise from retries
+      or relay crashes.</p>
+
+      <h4>Cleanup and retention</h4>
+      <p>The outbox table grows forever without cleanup. The retention policy:</p>
+      <ul>
+        <li><strong>Delete processed rows</strong> after a retention window (e.g., 7 days). Long enough to debug,
+        short enough to keep the table small.</li>
+        <li><strong>Partition by date</strong> and drop old partitions — more efficient than row deletes for large
+        tables.</li>
+        <li><strong>Archive to cold storage</strong> if the events are needed for audit or replay.</li>
+      </ul>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Publishing the event after the transaction commits, with a try/catch. The pattern looks like: commit
+        the order, then publish. If the process crashes between commit and publish, the order exists with no
+        event. The outbox pattern fixes this by publishing <em>from</em> the outbox, not directly from the
+        transaction.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Write the event to an outbox table in the same transaction as the business change. A relay reads
+        the outbox and publishes. Either both succeed or neither does. Delivery is at-least-once, so consumers
+        must be idempotent." That covers the pattern, the guarantee, and the downstream requirement.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q7 -->
+  <article class="q indigo" id="q7">
+    <div class="q-head">
+      <div class="q-num">7</div>
+      <h3>When do you use SSE vs long-polling vs WebSocket for async updates?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p><strong>SSE</strong> is best for server-to-client streaming of events (feeds, notifications,
+        progress updates) over plain HTTP — unidirectional, automatic reconnection, works with HTTP/2.
+        <strong>Long-polling</strong> is a fallback when SSE is not available (corporate proxies, legacy
+        clients). <strong>WebSocket</strong> is best when the client also needs to send messages frequently
+        (chat, real-time collaboration, games) — bidirectional, persistent, low per-message overhead.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Feature</th><th>SSE</th><th>Long-polling</th><th>WebSocket</th></tr></thead>
+          <tbody>
+            <tr><td>Direction</td><td>Server → client</td><td>Server → client</td><td>Bidirectional</td></tr>
+            <tr><td>Protocol</td><td>HTTP (<code>text/event-stream</code>)</td><td>HTTP</td><td>WebSocket (TCP upgrade)</td></tr>
+            <tr><td>Reconnection</td><td>Automatic</td><td>Per-request</td><td>Manual</td></tr>
+            <tr><td>Message recovery</td><td>Yes (<code>Last-Event-ID</code>)</td><td>No (missed events lost)</td><td>Manual</td></tr>
+            <tr><td>Per-message overhead</td><td>Small (~10 bytes)</td><td>Large (full HTTP headers per message)</td><td>Tiny (~2 bytes)</td></tr>
+            <tr><td>Binary support</td><td>No (base64 only)</td><td>No</td><td>Yes</td></tr>
+            <tr><td>Proxy friendliness</td><td>Good</td><td>Universal</td><td>Sometimes problematic</td></tr>
+            <tr><td>Browser support</td><td>Excellent</td><td>Universal</td><td>Excellent</td></tr>
+            <tr><td>Best for</td><td>Notifications, feeds, progress</td><td>Fallback only</td><td>Chat, collaboration, gaming</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>SSE — the best default for server-push</h4>
+      <p>Server-Sent Events use a plain HTTP request with <code>Accept: text/event-stream</code>. The server
+      responds with a stream of events, one per line:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Format</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre>event: order.created
+id: 1699999999
+data: {"order_id": "ord_42", "amount": 100}
+
+event: order.shipped
+id: 1700000005
+data: {"order_id": "ord_42", "tracking": "1Z999"}
+
+</pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The client uses the <code>EventSource</code> API:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Client code</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre>const events = new EventSource('/api/events');
+events.addEventListener('order.created', (e) =&gt; {
+  console.log(JSON.parse(e.data));
+});</pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>SSE's key advantages:</p>
+      <ul>
+        <li><strong>Automatic reconnection</strong> — the browser reconnects when the connection drops, so the
+        client does not need to implement retry logic.</li>
+        <li><strong>Last-Event-ID recovery</strong> — on reconnect, the browser sends the last <code>id</code> it
+        saw, so the server can resume from that point. This is enormous — most SSE implementations recover
+        missed events automatically.</li>
+        <li><strong>Works over HTTP/2</strong> — one connection can multiplex many SSE streams without the
+        connection-per-stream limit of HTTP/1.1.</li>
+        <li><strong>Simple</strong> — no protocol framing, no special client library, just a streaming HTTP
+        response.</li>
+      </ul>
+      <p>SSE's limitations: it is unidirectional (the client must use regular HTTP for actions), text-only
+      (binary must be base64), and there is a per-domain connection limit in HTTP/1.1 (6 per domain — not an issue
+      with HTTP/2).</p>
+
+      <h4>Long-polling — the universal fallback</h4>
+      <p>The client sends a normal HTTP request, and the server holds it open until an event occurs (or a timeout
+      fires). When the server responds, the client immediately sends another request. It is a simulation of push
+      over pull.</p>
+      <p>Long-polling is the fallback of last resort — it works everywhere, but it is inefficient:
+      <ul>
+        <li>Full HTTP headers per message (~500 bytes overhead per event).</li>
+        <li>Server holds open connections, consuming threads and memory.</li>
+        <li>No reconnection recovery — a disconnect loses any events that occurred during the gap.</li>
+        <li>No server push — the server must wait for the client's next poll to send the next event.</li>
+      </ul>
+      <p>Use it only when SSE and WebSocket are unavailable — usually because of a corporate proxy that breaks
+      streaming.</p>
+
+      <h4>WebSocket — bidirectional, low overhead</h4>
+      <p>WebSocket opens a persistent, full-duplex connection. After a one-time HTTP upgrade handshake, the
+      connection stays open, and both sides can send frames at any time. Per-message overhead is 2–6 bytes —
+      dramatically lower than HTTP.</p>
+      <p>WebSocket's advantages:</p>
+      <ul>
+        <li><strong>Bidirectional</strong> — the client can send messages as often as the server. Necessary for
+        chat, real-time collaboration, gaming, live controls.</li>
+        <li><strong>Low per-message overhead</strong> — thousands of small messages per second are fine.</li>
+        <li><strong>Binary support</strong> — protobuf, msgpack, raw binary.</li>
+        <li><strong>Subprotocols</strong> — allows structured protocols on top (e.g., STOMP, GraphQL subscriptions
+        over WS).</li>
+      </ul>
+      <p>WebSocket's costs:</p>
+      <ul>
+        <li><strong>Stateful connections</strong> — each connection must be tracked; scaling requires a
+        connection-aware load balancer.</li>
+        <li><strong>No automatic reconnection</strong> — the client must implement reconnect logic (heartbeat,
+        reconnect, resync).</li>
+        <li><strong>No HTTP semantics</strong> — no caching, no retries, no status codes (you have to invent
+        them).</li>
+        <li><strong>Proxy issues</strong> — some proxies break WebSocket upgrades; not universal.</li>
+      </ul>
+
+      <h4>The decision framework</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Requirement</th><th>Best choice</th></tr></thead>
+          <tbody>
+            <tr><td>Server pushes events; client rarely sends</td><td>SSE</td></tr>
+            <tr><td>Client and server both send frequently</td><td>WebSocket</td></tr>
+            <tr><td>Binary data over the stream</td><td>WebSocket</td></tr>
+            <tr><td>Works through any proxy</td><td>Long-polling (or SSE with fallback)</td></tr>
+            <tr><td>Automatic recovery of missed events</td><td>SSE (with Last-Event-ID)</td></tr>
+            <tr><td>Simplest implementation</td><td>SSE (server-side) or long-polling</td></tr>
+            <tr><td>Existing HTTP infrastructure</td><td>SSE</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The hybrid in practice</h4>
+      <p>Many production systems use both SSE and WebSocket:</p>
+      <ul>
+        <li><strong>SSE for notification feeds</strong> — new messages, order updates, friend requests. The server
+        pushes; the client listens.</li>
+        <li><strong>WebSocket for active sessions</strong> — chat conversations, collaborative document editing.
+        The client sends and receives.</li>
+      </ul>
+      <p>The two can coexist: the client opens an SSE stream for the notification feed, and a WebSocket only when
+      the user opens a chat. This is more efficient than using WebSocket for everything (which would require
+      WebSocket for read-only feeds too).</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Using WebSocket for unidirectional server-push. WebSocket is bidirectional, but if the client only
+        listens, the bidirectional capability is unused overhead — the connection is stateful, requires reconnect
+        logic, and breaks through some proxies. SSE is simpler and more reliable for pure server-push.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "For server-push I'll use SSE — automatic reconnection, Last-Event-ID recovery, works over HTTP/2.
+        For bidirectional chat I'll use WebSocket. Long-polling only as a fallback for proxies that break
+        streaming." That covers the three mechanisms and their use cases.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q8 -->
+  <article class="q indigo" id="q8">
+    <div class="q-head">
+      <div class="q-num">8</div>
+      <h3>How do you prevent SSRF in a webhook delivery system?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Server-Side Request Forgery (SSRF) is the vulnerability where an attacker provides a URL that your
+        server fetches, tricking it into making requests to internal services. In a webhook system, the "URL" is
+        the webhook URL the receiver registers. If your server POSTs to <code>http://169.254.169.254/</code> (cloud
+        metadata) or <code>http://internal-admin.local/</code>, it exposes internal infrastructure. Prevention:
+        <strong>URL validation, network isolation, and egress filtering</strong>.</p>
+      </div>
+
+      <h4>The attack surface</h4>
+      <p>An attacker registers a webhook pointing to:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>URL</th><th>What the attacker gets</th></tr></thead>
+          <tbody>
+            <tr><td><code>http://169.254.169.254/latest/meta-data/iam/security-credentials/</code></td><td>AWS IAM credentials</td></tr>
+            <tr><td><code>http://metadata.google.internal/computeMetadata/v1/</code></td><td>GCP service account tokens</td></tr>
+            <tr><td><code>http://internal-admin.local/admin/users</code></td><td>Access to internal services</td></tr>
+            <tr><td><code>http://10.0.0.1/health</code></td><td>Port scanning the internal network</td></tr>
+            <tr><td><code>http://localhost:6379/</code></td><td>Redis commands (via a protocol confusion attack)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Each of these is a real attack. The webhook is a "request forwarder" — the attacker tells your server
+      where to send a request, and your server complies. Without SSRF protection, a webhook registration is a
+      privilege escalation to the internal network.</p>
+
+      <h4>The defenses</h4>
+      <ol>
+        <li><strong>HTTPS only.</strong> Reject <code>http://</code> URLs. Allowing plain HTTP exposes the payload
+        (which may contain secrets) to interception.</li>
+        <li><strong>Resolve DNS and validate the IP.</strong> Do not trust the URL's hostname — resolve it to an
+        IP first, and reject private IP ranges:
+        <ul>
+          <li><code>127.0.0.0/8</code> (loopback)</li>
+          <li><code>10.0.0.0/8</code>, <code>172.16.0.0/12</code>, <code>192.168.0.0/16</code> (private networks)</li>
+          <li><code>169.254.0.0/16</code> (link-local, includes cloud metadata)</li>
+          <li><code>::1</code>, <code>fc00::/7</code>, <code>fe80::/10</code> (IPv6 equivalents)</li>
+          <li><code>0.0.0.0/8</code> (this-host)</li>
+          <li><code>100.64.0.0/10</code> (carrier-grade NAT)</li>
+        </ul>
+        </li>
+        <li><strong>Re-check after DNS resolution.</strong> A DNS rebinding attack: the attacker's domain initially
+        resolves to a public IP (passing validation), then a second resolution (the actual webhook POST) resolves
+        to an internal IP. The defence: resolve the DNS, validate the IP, then <em>pin</em> the IP for the actual
+        request (send the request to the validated IP, not the hostname). Or use a DNS resolver that refuses to
+        return private IPs.</li>
+        <li><strong>Do not follow redirects.</strong> A legitimate webhook returns a 2xx. If it returns 3xx, the
+        server must not follow — the redirect could point to an internal URL. Treat any 3xx as a delivery failure.</li>
+        <li><strong>Network isolation.</strong> Run the webhook dispatcher in a network segment that cannot reach
+        internal services. Even if SSRF validation is bypassed, the request fails at the network layer. This is the
+        strongest defence — validation and isolation together are defence in depth.</li>
+        <li><strong>Egress filtering.</strong> At the network level, restrict outbound connections from the
+        dispatcher to the public internet, not private ranges. An egress firewall that denies RFC 1918 and
+        <code>169.254.0.0/16</code> is a backstop for any SSRF vulnerability in the application layer.</li>
+        <li><strong>Allowlist for high-value integrations.</strong> For enterprise partners, allow only URLs that
+        have been pre-approved (registered, verified, allowlisted). This eliminates the SSRF surface entirely for
+        the highest-value cases.</li>
+        <li><strong>Timeout and response size limits.</strong> Even for legitimate URLs, limit the response size
+        (an attacker's server could return a 10 GB response to exhaust memory) and the total time (a slow server
+        could hold a thread forever).</li>
+        <li><strong>Do not include the response body in logs.</strong> A legitimate-looking error from an internal
+        service could leak internal information in the logs. Log the status code, not the body.</li>
+        <li><strong>Rate limit webhook registrations.</strong> An attacker probing internal services registers
+        thousands of webhooks, each pointing to a different internal URL. The rate limit prevents the scan.</li>
+      </ol>
+
+      <h4>The URL validation code</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Step</th><th>Check</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>Parse the URL; require <code>https</code> scheme</td></tr>
+            <tr><td>2</td><td>Reject if the hostname is an IP literal in a private range</td></tr>
+            <tr><td>3</td><td>Resolve the hostname to an IP; reject if any result is in a private range</td></tr>
+            <tr><td>4</td><td>Store the validated IP with the webhook; use it for the actual request</td></tr>
+            <tr><td>5</td><td>On every delivery, re-validate (the IP may have changed since registration)</td></tr>
+            <tr><td>6</td><td>Disable redirects</td></tr>
+            <tr><td>7</td><td>Set a short timeout (5–10 seconds)</td></tr>
+            <tr><td>8</td><td>Limit response body size (e.g., 10 KB)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The DNS rebinding attack</h4>
+      <p>The attacker's domain resolves to <code>1.2.3.4</code> (a public IP) when the URL is registered (passing
+      validation), then the attacker changes the DNS record to resolve to <code>169.254.169.254</code> (the cloud
+      metadata endpoint). The actual webhook POST then reaches the internal service.</p>
+      <p>The defenses:</p>
+      <ul>
+        <li><strong>Re-validate on every delivery</strong> — resolve the DNS again, check the IP, reject if it is
+        private. This is what most systems do.</li>
+        <li><strong>Pin the IP</strong> — store the validated IP at registration and use it for every delivery.
+        If the DNS changes to a private IP, the pinned IP is still the public one; the request goes to the wrong
+        server, not to an internal one.</li>
+        <li><strong>DNS resolver restrictions</strong> — use a resolver that refuses to return private IPs (like
+        <code>1.1.1.1</code> with a filter, or a custom resolver in your application).</li>
+        <li><strong>Egress filtering</strong> — the final backstop. Even if the DNS resolves to a private IP, the
+        network blocks the connection.</li>
+      </ul>
+
+      <h4>The 3xx redirect trap</h4>
+      <p>A webhook URL returns a 302 redirect to <code>http://169.254.169.254/</code>. If the dispatcher follows
+      redirects (which most HTTP clients do by default), it reaches the internal URL. The defense: disable
+      redirects for webhook delivery. A webhook that returns a 3xx is a broken webhook (or a malicious one) —
+      treat it as a delivery failure.</p>
+
+      <h4>The complete architecture</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Layer</th><th>Defense</th></tr></thead>
+          <tbody>
+            <tr><td>Application</td><td>HTTPS only; DNS resolution + IP validation; no redirects; timeout; body size limit</td></tr>
+            <tr><td>DNS</td><td>Custom resolver that rejects private IPs; pin resolved IP</td></tr>
+            <tr><td>Network</td><td>Egress firewall denying RFC 1918 and metadata IPs</td></tr>
+            <tr><td>Isolation</td><td>Webhook dispatcher in a separate subnet with no internal access</td></tr>
+            <tr><td>Rate limit</td><td>Webhook registrations per tenant; prevent scanning</td></tr>
+            <tr><td>Monitoring</td><td>Alert on webhook registrations to suspicious IPs</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Each layer catches what the previous one missed. The application-level checks prevent the obvious
+      attacks; the network-level egress filtering prevents the ones the application-level checks did not anticipate.
+      This is defense in depth.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Trusting the URL's hostname without resolving it. The URL <code>https://attacker.com/</code> looks
+        legitimate — but the attacker's server returns a 302 redirect to <code>http://169.254.169.254/</code>.
+        If you follow redirects, you are SSRF'd. Disable redirects; validate the resolved IP.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Webhook URLs are an SSRF vector — I validate the URL, resolve the DNS, reject private IPs and
+        metadata endpoints, disable redirects, and run the dispatcher in a network segment that cannot reach
+        internal services. Defence in depth: application checks and network isolation." That covers the threat
+        and the layered defence.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q9 -->
+  <article class="q indigo" id="q9">
+    <div class="q-head">
+      <div class="q-num">9</div>
+      <h3>How do you handle idempotency across the whole async pipeline?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Every stage of the pipeline must be idempotent: the client's initial request uses an idempotency key
+        (Volume 5), the outbox ensures at-least-once publishing, the webhook retries are at-least-once, and the
+        receiver uses event IDs to deduplicate. At-least-once delivery plus idempotent processing at every stage
+        produces exactly-once <em>effects</em> without the cost of exactly-once delivery.</p>
+      </div>
+
+      <h4>The pipeline</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Stage</th><th>Delivery semantics</th><th>Idempotency mechanism</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Client → API (submission)</strong></td>
+              <td>At-least-once (retries)</td>
+              <td>Idempotency key (client-generated); server returns cached response for retries</td>
+            </tr>
+            <tr>
+              <td><strong>API → outbox</strong></td>
+              <td>Exactly-once (same transaction)</td>
+              <td>The outbox is written in the same DB transaction as the business change</td>
+            </tr>
+            <tr>
+              <td><strong>Outbox → dispatcher</strong></td>
+              <td>At-least-once (relay may crash and re-read)</td>
+              <td>Event ID is unique; dispatcher does not re-publish the same event (or downstream is idempotent if it does)</td>
+            </tr>
+            <tr>
+              <td><strong>Dispatcher → webhook receiver</strong></td>
+              <td>At-least-once (retries)</td>
+              <td>Event ID in the payload; receiver deduplicates</td>
+            </tr>
+            <tr>
+              <td><strong>Webhook receiver → business logic</strong></td>
+              <td>At-least-once (receiver may retry)</td>
+              <td>Receiver stores processed event IDs; business logic is idempotent</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Each stage has at-least-once delivery, which means duplicates. Each stage has an idempotency mechanism,
+      which means duplicates are harmless. The result is exactly-once effects — the business logic runs once,
+      even though the messages may be delivered multiple times.</p>
+
+      <h4>Client-side idempotency</h4>
+      <p>The client generates a unique key per logical operation — a UUID, sent in the <code>Idempotency-Key</code>
+      header. Every retry uses the same key, so the server can detect the retry and return the cached response
+      (Volume 5, Question 2).</p>
+      <p>The critical requirement: <strong>the client must use the same key for all retries</strong>. A client
+      that generates a new key on each retry defeats idempotency — every retry is a new operation. This means
+      the key is not generated by the HTTP library (which might generate one per request); it is generated by
+      the application logic, once per logical operation, and persisted across retries.</p>
+
+      <h4>Outbox idempotency</h4>
+      <p>The outbox is written in the same transaction as the business change, which makes it atomic. If the
+      transaction commits, the outbox row exists; if it fails, the row does not. This is the atomicity guarantee
+      that the outbox pattern provides.</p>
+      <p>The relay may crash after publishing but before marking the row as processed, which causes a re-publish
+      on restart. This is at-least-once — duplicates are possible. The downstream must be idempotent.</p>
+
+      <h4>Webhook idempotency</h4>
+      <p>The webhook sender retries on 5xx, timeout, and 429 — at-least-once delivery. The receiver must
+      deduplicate on the event ID (Question 5). The receiver's processed-events table is the mechanism.</p>
+
+      <h4>Downstream idempotency</h4>
+      <p>When the receiver's business logic is not naturally idempotent (charging a card, sending an email,
+      incrementing a counter), the receiver must wrap it:</p>
+      <ul>
+        <li><strong>Charging a card</strong> — use the payment processor's idempotency key, derived from the
+        event ID.</li>
+        <li><strong>Sending an email</strong> — store the event ID with the sent email; skip if already sent.</li>
+        <li><strong>Incrementing a counter</strong> — use the event ID as part of the counter key, or store the
+        set of counted event IDs.</li>
+      </ul>
+      <p>The pattern: derive a stable key from the event ID and use it as the idempotency key for the
+      downstream operation. The downstream system deduplicates on that key, so a duplicate event produces a
+      duplicate key that is ignored.</p>
+
+      <h4>The "double submission" scenario</h4>
+      <p>An attacker or a buggy client submits the same request twice with the same idempotency key:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Request</th><th>Server behaviour</th></tr></thead>
+          <tbody>
+            <tr><td>First request</td><td>Creates the job, returns 202</td></tr>
+            <tr><td>Second request (same key)</td><td>Returns the cached 202 (same job ID) — the second request is ignored</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The client sees the same job ID for both requests; it processes one job, not two. The idempotency key
+      is what makes this work.</p>
+
+      <h4>The "double delivery" scenario</h4>
+      <p>A webhook is delivered twice (the sender's retry or a relay crash):</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Delivery</th><th>Receiver behaviour</th></tr></thead>
+          <tbody>
+            <tr><td>First delivery</td><td>Event ID not seen; process; store ID</td></tr>
+            <tr><td>Second delivery</td><td>Event ID seen; return 200 without processing</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The receiver's processed-events table is what makes this work. The sender does not need to know whether
+      the first delivery was processed — it can retry freely.</p>
+
+      <h4>The out-of-order scenario</h4>
+      <p>Events may arrive out of order (Question 5). The receiver uses the event timestamp to decide:</p>
+      <ul>
+        <li>If the event is newer than the last applied, apply it.</li>
+        <li>If the event is older, skip it (the newer state already reflects it).</li>
+        <li>If the event is the same age, compare event IDs (stable tie-break).</li>
+      </ul>
+      <p>This works for "state" events (subscription.updated, user.profile_changed) where the latest state
+      supersedes earlier ones. For "transition" events (order.created, order.shipped), the events are additive
+      and order matters less — but the receiver should still process them idempotently (skip duplicates) and
+      reconcile if a critical predecessor is missing.</p>
+
+      <h4>Exactly-once effects</h4>
+      <p>The pipeline provides exactly-once <em>effects</em> — the business logic runs once — via at-least-once
+      delivery plus idempotent processing. This is the standard architecture for reliable async systems. The
+      alternative — exactly-once delivery — is expensive or impossible at scale, and the industry has settled on
+      at-least-once + idempotency as the pragmatic answer.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Making the submission idempotent but not the downstream. The client's retry returns the same job ID
+        (good), but the job itself processes the same event twice if it is re-delivered (bad). Every stage must
+        be idempotent, not just the entry point.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Every stage is at-least-once, and every stage is idempotent. The client uses an idempotency key;
+        the outbox is atomic with the business change; the webhook retries are deduplicated by event ID; the
+        receiver stores processed IDs. Exactly-once effects from at-least-once delivery." That covers the
+        pipeline and the principle.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q10 -->
+  <article class="q indigo" id="q10">
+    <div class="q-head">
+      <div class="q-num">10</div>
+      <h3>How do you test and debug an async pipeline?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Async pipelines are harder to debug than sync APIs because the request and the result are separated in
+        time and space. The tools: <strong>correlation IDs</strong> that flow through every stage, <strong>trace
+        propagation</strong> across the async boundary, <strong>structured logs</strong> with the same ID,
+        <strong>dead-letter queues</strong> for failures, a <strong>replay tool</strong> for re-processing events,
+        and <strong>fault injection</strong> in staging to verify recovery.</p>
+      </div>
+
+      <h4>The correlation ID</h4>
+      <p>Every submission generates a correlation ID (or uses a client-supplied one). The ID is:</p>
+      <ul>
+        <li>Returned in the 202 response (so the client can use it when filing a support ticket).</li>
+        <li>Included in every log line for the job — the initial creation, the enqueue, the processing, the result,
+        the webhook delivery.</li>
+        <li>Included in the webhook payload (so the receiver can correlate).</li>
+      </ul>
+      <p>A support engineer who gets a customer ticket with a correlation ID can grep the logs across all services
+      and see the full lifecycle of the job. Without the ID, the logs are disconnected events that cannot be
+      stitched together.</p>
+
+      <h4>Trace propagation</h4>
+      <p>Distributed tracing (OpenTelemetry, Jaeger, Datadog) captures the full request flow across services.
+      For async pipelines, the trace must propagate through the async boundaries:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Boundary</th><th>Propagation mechanism</th></tr></thead>
+          <tbody>
+            <tr><td>Client → API</td><td>HTTP header (<code>traceparent</code> per W3C Trace Context)</td></tr>
+            <tr><td>API → queue</td><td>Message header (the trace context is part of the message metadata)</td></tr>
+            <tr><td>Queue → worker</td><td>Message header read by the worker; the worker's span is linked to the parent</td></tr>
+            <tr><td>Worker → outbox</td><td>Trace context stored in the outbox row (column)</td></tr>
+            <tr><td>Outbox → webhook</td><td>Trace context in the webhook header</td></tr>
+            <tr><td>Webhook → receiver</td><td>Same header, propagated to the receiver's trace</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The trace is now continuous — the client's original request links to the job execution, the outbox
+      publish, the webhook delivery, and the receiver's processing. A developer can see the full flow in one
+      trace, with timings and failures at each stage.</p>
+
+      <h4>Structured logging</h4>
+      <p>Every log line for an async operation includes:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Field</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>correlation_id</code></td><td>Links the line to the full flow</td></tr>
+            <tr><td><code>trace_id</code></td><td>For distributed tracing</td></tr>
+            <tr><td><code>job_id</code> or <code>event_id</code></td><td>Identifies the specific operation</td></tr>
+            <tr><td><code>stage</code></td><td>Which part of the pipeline (submission, enqueue, process, deliver)</td></tr>
+            <tr><td><code>attempt</code></td><td>Retry count</td></tr>
+            <tr><td><code>duration_ms</code></td><td>How long the stage took</td></tr>
+            <tr><td><code>outcome</code></td><td>Success, transient failure, permanent failure</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The logs are queryable: "show me all log lines for correlation_id X", "show me all failures for job_id
+      Y", "show me the latency distribution for stage Z". Without structured logging, debugging is grep-and-guess.</p>
+
+      <h4>The dead-letter queue for failures</h4>
+      <p>The DLQ (Question 3) is the primary debugging tool for exhausted retries. For each DLQ entry, the
+      operator can see:</p>
+      <ul>
+        <li>The event payload (what was being delivered).</li>
+        <li>The subscriber (which webhook URL).</li>
+        <li>The last response (status code, body) — why the last attempt failed.</li>
+        <li>The number of attempts (how many times it was retried).</li>
+        <li>The timestamps of each attempt (how long it took).</li>
+      </ul>
+      <p>With this information, the operator can diagnose: was the receiver down? Was the signature rejected? Was
+      the URL wrong? Then fix the issue and replay the DLQ.</p>
+
+      <h4>The replay tool</h4>
+      <p>After fixing the underlying issue, the operator needs to re-deliver the failed events. The replay tool:</p>
+      <ul>
+        <li>Takes a filter (event type, date range, subscriber).</li>
+        <li>Re-publishes the events to the queue (or directly to the dispatcher).</li>
+        <li>Preserves the event ID, so the receiver deduplicates if any were already processed.</li>
+        <li>Logs the replay, so it is auditable.</li>
+      </ul>
+      <p>The replay is itself an async operation — it goes through the same pipeline, so the same idempotency and
+      retries apply.</p>
+
+      <h4>Fault injection in staging</h4>
+      <p>The async pipeline has failure modes that are hard to reproduce: the relay crashes mid-publish, the
+      receiver times out, the network partitions, the DLQ is full. Chaos engineering — deliberately injecting
+      these failures in staging — is how you verify the recovery works.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Failure injected</th><th>Expected behaviour</th></tr></thead>
+          <tbody>
+            <tr><td>Kill the relay during publish</td><td>On restart, it republishes; no event is lost; receiver deduplicates</td></tr>
+            <tr><td>Make the receiver return 500</td><td>Retries with backoff; after exhaustion, DLQ</td></tr>
+            <tr><td>Drop the network to the receiver</td><td>Retries; the event is not lost</td></tr>
+            <tr><td>Kill the worker mid-processing</td><td>The event is redelivered (at-least-once); the receiver deduplicates</td></tr>
+            <tr><td>Fill the DLQ</td><td>Alerting fires; the system continues to accept new events</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The observability metrics</h4>
+      <p>The async pipeline must emit metrics that reveal its health:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Metric</th><th>What it reveals</th></tr></thead>
+          <tbody>
+            <tr><td>Submission rate</td><td>How many jobs are being created</td></tr>
+            <tr><td>Queue depth</td><td>How much work is backed up</td></tr>
+            <tr><td>Processing latency (p50, p99)</td><td>How fast jobs complete</td></tr>
+            <tr><td>Webhook delivery success rate</td><td>Are webhooks reaching receivers</td></tr>
+            <tr><td>Retry rate</td><td>Are transient failures frequent</td></tr>
+            <tr><td>DLQ depth</td><td>How many events are failing permanently</td></tr>
+            <tr><td>End-to-end latency</td><td>From submission to final state</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The DLQ depth is the most critical — a growing DLQ is the earliest signal of a systemic failure.
+      Alerting on "DLQ depth > 100" catches problems before the receiver's support team notices.</p>
+
+      <h4>The reconciliation test</h4>
+      <p>A periodic test that verifies the reconciliation endpoint: query for events since a timestamp, compare
+      to the webhook events received. If the reconciliation endpoint returns events that the webhooks did not
+      deliver, the webhook pipeline is losing events. This end-to-end verification is the strongest signal that
+      the system is working.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Not propagating the trace context across the async boundary. The client's request has a trace, but the
+        worker's processing starts a new trace — the two cannot be correlated. The fix: pass the trace context in
+        the message metadata, and have the worker use it as the parent for its span.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Every async operation has a correlation ID that flows through submission, queue, processing, and
+        webhook delivery — with trace propagation across each boundary. The DLQ captures failures for inspection
+        and replay. Metrics alert on DLQ depth and end-to-end latency." That covers the observability stack in
+        one sentence.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- NEXT PART -->
+  <section class="next-part">
+    <h3>Coming in Volume 12 — GraphQL Deep Dive</h3>
+    <p>Volume 12 turns to GraphQL in depth: schema design, the N+1 problem and DataLoader, query complexity and
+    depth limits, persisted queries, caching strategies for GraphQL, subscriptions, error handling in GraphQL,
+    authorization per field, and the trade-offs of GraphQL vs REST in production.</p>
+    <ul class="next-list">
+      <li>Schema design principles</li>
+      <li>N+1 problem and DataLoader</li>
+      <li>Query complexity and depth limits</li>
+      <li>Persisted queries and CDN caching</li>
+      <li>Authorization per field</li>
+      <li>Error handling in GraphQL</li>
+      <li>Subscriptions and real-time GraphQL</li>
+      <li>Pagination in GraphQL</li>
+      <li>Schema evolution and versioning</li>
+      <li>GraphQL vs REST: when each wins</li>
+    </ul>
+  </section>
+
+</div>
+</body>
+</html>
