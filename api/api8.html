@@ -1,0 +1,1631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API Design — Volume 8: Error Handling &amp; Status Codes</title>
+<style>
+  :root{
+    --ink:#1c1404;
+    --ink-soft:#4a3a12;
+    --muted:#8a7452;
+    --line:#f0e4c4;
+    --bg:#fdf9ee;
+    --card:#ffffff;
+    --amber:#b45309;
+    --amber-soft:#fef3c7;
+    --amber-deep:#78350f;
+    --gold:#a16207;
+    --gold-soft:#fde68a;
+    --rose:#be123c;
+    --teal:#0f766e;
+    --blue:#1d4ed8;
+    --violet:#7c3aed;
+    --shadow:0 1px 2px rgba(80,50,5,.06), 0 8px 24px -8px rgba(80,50,5,.14);
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 8% -10%, #fef3c7 0%, transparent 60%),
+      radial-gradient(1000px 500px at 100% 0%, #fde68a 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:"Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    line-height:1.72;
+    font-size:16.5px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px 90px;}
+
+  header.hero{
+    background:linear-gradient(135deg,#1c1404 0%, #78350f 45%, #92400e 100%);
+    color:#fffbeb;
+    padding:64px 22px 56px;
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::after{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      radial-gradient(600px 300px at 85% 15%, rgba(245,158,11,.42), transparent 70%),
+      radial-gradient(520px 280px at 12% 92%, rgba(234,88,12,.38), transparent 70%);
+    pointer-events:none;
+  }
+  .hero-inner{max-width:1080px;margin:0 auto;position:relative;z-index:2;}
+  .eyebrow{
+    display:inline-block;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;
+    font-weight:700;padding:7px 15px;border-radius:999px;
+    background:rgba(251,191,36,.18);border:1px solid rgba(251,191,36,.5);
+    color:#fcd34d;margin-bottom:20px;
+  }
+  header.hero h1{
+    font-size:clamp(1.9rem, 4.4vw, 3rem);line-height:1.15;margin:0 0 16px;
+    font-weight:800;letter-spacing:-.02em;
+  }
+  header.hero h1 span{
+    background:linear-gradient(90deg,#fcd34d,#fdba74);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  header.hero p.lede{font-size:1.06rem;color:#fed7aa;max-width:780px;margin:0 0 26px;}
+  .meta-chips{display:flex;flex-wrap:wrap;gap:10px;}
+  .chip{
+    font-size:.78rem;font-weight:600;padding:7px 14px;border-radius:999px;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#fef3c7;
+  }
+
+  .roadmap{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:26px 28px;margin-top:-34px;position:relative;z-index:5;
+  }
+  .roadmap h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 16px;font-weight:700;
+  }
+  .roadmap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;}
+  .roadmap-item{
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:.86rem;
+    background:#fffefa;opacity:.7;
+  }
+  .roadmap-item.done{
+    border-color:#fcd34d;background:linear-gradient(180deg,#fffbeb,#ffffff);opacity:1;
+  }
+  .roadmap-item.current{
+    border-color:#f59e0b;background:linear-gradient(180deg,#fef3c7,#ffffff);opacity:1;
+    box-shadow:0 0 0 3px rgba(180,83,9,.14);
+  }
+  .roadmap-item .tag{
+    display:inline-block;font-size:.64rem;font-weight:800;letter-spacing:.08em;
+    padding:2px 8px;border-radius:999px;margin-bottom:6px;
+  }
+  .tag-done{background:var(--amber-soft);color:var(--amber-deep);}
+  .tag-now{background:#fed7aa;color:#9a3412;}
+  .tag-next{background:#e7e5e4;color:#57534e;}
+  .roadmap-item strong{display:block;color:var(--ink);font-size:.89rem;}
+
+  nav.toc{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:22px 26px;margin:26px 0 44px;
+  }
+  nav.toc h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 14px;font-weight:700;
+  }
+  nav.toc ol{
+    margin:0;padding-left:0;list-style:none;counter-reset:toc;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:8px 26px;
+  }
+  nav.toc li{
+    counter-increment:toc;font-size:.93rem;padding:6px 0 6px 34px;
+    position:relative;border-bottom:1px dashed #f7efdb;
+  }
+  nav.toc li::before{
+    content:counter(toc);position:absolute;left:0;top:7px;width:22px;height:22px;
+    border-radius:7px;background:var(--gold-soft);color:var(--gold);
+    font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center;
+  }
+  nav.toc a{color:var(--ink-soft);text-decoration:none;font-weight:500;}
+  nav.toc a:hover{color:var(--gold);}
+
+  .part-band{display:flex;align-items:center;gap:16px;margin:56px 0 26px;}
+  .part-band .bar{
+    width:5px;height:44px;border-radius:99px;
+    background:linear-gradient(180deg,var(--amber),#f59e0b);
+  }
+  .part-band.gold .bar{background:linear-gradient(180deg,var(--gold),#eab308);}
+  .part-band.teal .bar{background:linear-gradient(180deg,var(--teal),#2dd4bf);}
+  .part-band h2{margin:0;font-size:1.5rem;letter-spacing:-.01em;font-weight:800;}
+  .part-band .sub{
+    display:block;font-size:.82rem;font-weight:600;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.12em;margin-top:2px;
+  }
+
+  article.q{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:0 0 26px;margin-bottom:28px;overflow:hidden;
+    scroll-margin-top:24px;
+  }
+  .q-head{
+    display:flex;gap:16px;align-items:flex-start;padding:22px 28px 18px;
+    border-bottom:1px solid #f9f0da;background:linear-gradient(180deg,#fffdf5,#ffffff);
+  }
+  .q-num{
+    flex:none;width:42px;height:42px;border-radius:12px;display:flex;
+    align-items:center;justify-content:center;font-weight:800;font-size:.92rem;color:#fff;
+    background:linear-gradient(135deg,#b45309,#f59e0b);
+    box-shadow:0 6px 14px -6px rgba(180,83,9,.7);
+  }
+  .gold .q-num{background:linear-gradient(135deg,#a16207,#eab308);box-shadow:0 6px 14px -6px rgba(161,98,7,.7);}
+  .teal .q-num{background:linear-gradient(135deg,#0f766e,#14b8a6);box-shadow:0 6px 14px -6px rgba(15,118,110,.7);}
+  .q-head h3{margin:0;font-size:1.14rem;font-weight:700;line-height:1.4;letter-spacing:-.01em;}
+  .q-body{padding:22px 28px 0;}
+  .q-body p{margin:0 0 15px;color:var(--ink-soft);}
+  .q-body p:last-child{margin-bottom:0;}
+  .q-body h4{margin:24px 0 10px;font-size:.95rem;font-weight:800;color:var(--ink);}
+  .q-body h4::before{content:"▹";color:var(--amber);margin-right:8px;font-size:.85rem;}
+  .gold .q-body h4::before{color:var(--gold);}
+  .teal .q-body h4::before{color:var(--teal);}
+  .q-body ul,.q-body ol{margin:0 0 16px;padding-left:22px;color:var(--ink-soft);}
+  .q-body li{margin-bottom:8px;}
+  .q-body li::marker{color:var(--amber);}
+  .gold .q-body li::marker{color:var(--gold);}
+  .teal .q-body li::marker{color:var(--teal);}
+  strong{color:var(--ink);font-weight:700;}
+  code{
+    background:#fef9e7;border:1px solid #f0e4c4;border-radius:6px;padding:1px 6px;
+    font-size:.87em;font-family:"SFMono-Regular",Consolas,monospace;color:#9a3412;
+  }
+
+  .callout{border-radius:12px;padding:14px 18px;margin:18px 0 4px;font-size:.93rem;border-left:4px solid;}
+  .callout .label{
+    display:block;font-size:.68rem;font-weight:800;letter-spacing:.13em;
+    text-transform:uppercase;margin-bottom:5px;
+  }
+  .callout p{margin:0 0 8px;font-size:.93rem;}
+  .callout p:last-child{margin-bottom:0;}
+  .answer{background:linear-gradient(180deg,#fffbeb,#ffffff);border-color:var(--amber);}
+  .answer .label{color:var(--amber-deep);}
+  .tip{background:linear-gradient(180deg,#eff6ff,#ffffff);border-color:var(--blue);}
+  .tip .label{color:#1d4ed8;}
+  .tradeoff{background:linear-gradient(180deg,#f0fdfa,#ffffff);border-color:var(--teal);}
+  .tradeoff .label{color:#0f766e;}
+  .pitfall{background:linear-gradient(180deg,#fff1f2,#ffffff);border-color:var(--rose);}
+  .pitfall .label{color:#be123c;}
+
+  .table-scroll{overflow-x:auto;margin:18px 0;border-radius:12px;border:1px solid var(--line);}
+  table{width:100%;border-collapse:collapse;font-size:.87rem;background:#fff;}
+  thead th{
+    background:#fffdf5;text-align:left;padding:11px 14px;font-weight:800;
+    font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+    border-bottom:2px solid var(--line);white-space:nowrap;
+  }
+  tbody td{padding:11px 14px;border-bottom:1px solid #f9f4e6;color:var(--ink-soft);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:nth-child(even){background:#fffefa;}
+  tbody td:first-child{font-weight:700;color:var(--ink);}
+
+  .next-part{
+    background:linear-gradient(135deg,#1c1404,#92400e);color:#fef3c7;
+    border-radius:var(--radius);padding:32px 34px;margin-top:50px;box-shadow:var(--shadow);
+  }
+  .next-part h3{margin:0 0 12px;font-size:1.2rem;color:#fff;font-weight:800;}
+  .next-part p{margin:0 0 16px;color:#fed7aa;font-size:.95rem;}
+  .next-list{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:10px;list-style:none;padding:0;margin:0;
+  }
+  .next-list li{
+    background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
+    border-radius:10px;padding:10px 14px;font-size:.86rem;color:#fef3c7;
+  }
+
+  @media (max-width:640px){
+    .q-head{padding:18px 18px 15px;}
+    .q-body{padding:18px 18px 0;}
+    header.hero{padding:44px 18px 46px;}
+    .roadmap{padding:20px;}
+    nav.toc{padding:18px;}
+    nav.toc ol{grid-template-columns:1fr;}
+  }
+  @media print{
+    body{background:#fff;}
+    article.q, nav.toc, .roadmap{box-shadow:none;page-break-inside:avoid;}
+    header.hero{background:#1c1404 !important;-webkit-print-color-adjust:exact;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Volume 8 · Section 8 of 18</span>
+    <h1>API Design for System Interviews<br><span>Error Handling &amp; Status Codes</span></h1>
+    <p class="lede">
+      The failure contract every API must define precisely. What each HTTP status code actually means and when to
+      use it, how to design an error body that a machine can parse and a human can act on, how to classify errors
+      as retryable or permanent, and how to make a failure a recoverable event rather than a mystery.
+    </p>
+    <div class="meta-chips">
+      <span class="chip">10 Questions</span>
+      <span class="chip">500+ words each</span>
+      <span class="chip">Status-code precision</span>
+      <span class="chip">RFC 7807 included</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ROADMAP -->
+  <section class="roadmap">
+    <h2>Answer-Series Roadmap</h2>
+    <div class="roadmap-grid">
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 1 — Complete</span>
+        <strong>Fundamentals &amp; Style Selection</strong>
+        API vs protocol vs service, contracts, styles, paradigms
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 2 — Complete</span>
+        <strong>Resource Modeling &amp; REST Design</strong>
+        Resources, URLs, nesting, HTTP methods, representations
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 3 — Complete</span>
+        <strong>Contracts, Versioning &amp; Evolution</strong>
+        Breaking changes, versioning, deprecation, schema evolution
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 4 — Complete</span>
+        <strong>Request/Response Design</strong>
+        Pagination, filtering, sorting, field selection, envelopes
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 5 — Complete</span>
+        <strong>Idempotency &amp; Correctness</strong>
+        Idempotency keys, ETags, optimistic concurrency, retries
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 6 — Complete</span>
+        <strong>Authentication &amp; Authorization</strong>
+        API keys, OAuth, JWT, mTLS, RBAC, ABAC, BOLA, IDOR
+      </div>
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 7 — Complete</span>
+        <strong>Rate Limiting &amp; Quotas</strong>
+        Algorithms, distributed enforcement, headers, quotas
+      </div>
+      <div class="roadmap-item current">
+        <span class="tag tag-now">Volume 8 — You are here</span>
+        <strong>Error Handling &amp; Status Codes</strong>
+        Status code precision, RFC 7807, retryability, partial failures
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 9</span>
+        <strong>API Gateways &amp; Management</strong>
+        Routing, BFF, canary, gateway vs mesh
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 10</span>
+        <strong>Performance &amp; Caching</strong>
+        HTTP caching, compression, HTTP/2 and HTTP/3
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 11</span>
+        <strong>Async APIs &amp; Webhooks</strong>
+        202 Accepted, callbacks, signatures, SSE
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 12–13</span>
+        <strong>GraphQL &amp; gRPC Deep Dives</strong>
+        N+1, DataLoader, streaming RPCs, gRPC-Web
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 14</span>
+        <strong>Security &amp; Abuse Prevention</strong>
+        OWASP API Top 10, injection, SSRF, enumeration
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 15</span>
+        <strong>Observability &amp; Operations</strong>
+        Metrics, tracing, deployment, incidents
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 16–17</span>
+        <strong>Lifecycle, Governance &amp; 17 Problems</strong>
+        Design reviews, DX, classic API prompts
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 18</span>
+        <strong>Senior &amp; Staff Trade-offs</strong>
+        Choosing between every pair of options
+      </div>
+    </div>
+  </section>
+
+  <!-- TOC -->
+  <nav class="toc">
+    <h2>Questions Answered in This Volume</h2>
+    <ol>
+      <li><a href="#q1">The definitive status code guide — 2xx, 3xx, 4xx, 5xx</a></li>
+      <li><a href="#q2">400 vs 422 — which one for validation errors?</a></li>
+      <li><a href="#q3">401 vs 403, 404 vs 410, 409 vs 412</a></li>
+      <li><a href="#q4">500 vs 502 vs 503 vs 504 — the server-side distinction</a></li>
+      <li><a href="#q5">What is RFC 7807, and how do you design an error body?</a></li>
+      <li><a href="#q6">How do you design machine-readable error codes?</a></li>
+      <li><a href="#q7">How do you design validation error responses for forms?</a></li>
+      <li><a href="#q8">How do you classify errors as retryable vs non-retryable?</a></li>
+      <li><a href="#q9">How do you handle partial success in batch operations?</a></li>
+      <li><a href="#q10">How do you handle errors in async operations and webhooks?</a></li>
+    </ol>
+  </nav>
+
+  <!-- ================= PART A ================= -->
+  <div class="part-band">
+    <div class="bar"></div>
+    <h2>Part A — The Status Code Vocabulary
+      <span class="sub">What each code actually means, and the pairs everyone confuses</span>
+    </h2>
+  </div>
+
+  <!-- Q1 -->
+  <article class="q" id="q1">
+    <div class="q-head">
+      <div class="q-num">1</div>
+      <h3>Give the definitive guide to HTTP status codes — what each class means, and when to use each.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Status codes are grouped by class: <strong>2xx success</strong>, <strong>3xx redirection</strong>,
+        <strong>4xx client error</strong>, <strong>5xx server error</strong>. A 4xx means the client sent something
+        that cannot succeed on retry without changing the request; a 5xx means the server failed while the request
+        was valid. Getting the class right matters more than the specific code — monitoring, alerting, retry logic,
+        and caching all key off the class.</p>
+      </div>
+
+      <h4>The full guide</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Code</th><th>Name</th><th>When to use</th></tr></thead>
+          <tbody>
+            <tr><td>200</td><td>OK</td><td>Successful GET, PUT, PATCH, or DELETE that returns a body</td></tr>
+            <tr><td>201</td><td>Created</td><td>Successful POST that creates a resource; include <code>Location</code> header</td></tr>
+            <tr><td>202</td><td>Accepted</td><td>Request accepted for async processing; return a status URL</td></tr>
+            <tr><td>204</td><td>No Content</td><td>Successful operation with no response body (DELETE, PATCH with no return)</td></tr>
+            <tr><td>207</td><td>Multi-Status</td><td>Batch operation with mixed per-item results (WebDAV legacy; use 200 with per-item body for modern APIs)</td></tr>
+            <tr><td>301</td><td>Moved Permanently</td><td>Resource has moved; browsers and clients should update bookmarks</td></tr>
+            <tr><td>302</td><td>Found</td><td>Temporary redirect; rarely used in APIs</td></tr>
+            <tr><td>304</td><td>Not Modified</td><td>Conditional request with <code>If-None-Match</code>; body has not changed</td></tr>
+            <tr><td>307</td><td>Temporary Redirect</td><td>Like 302 but preserves the method (POST stays POST)</td></tr>
+            <tr><td>308</td><td>Permanent Redirect</td><td>Like 301 but preserves the method</td></tr>
+            <tr><td>400</td><td>Bad Request</td><td>Malformed syntax, invalid JSON, missing required field</td></tr>
+            <tr><td>401</td><td>Unauthorized</td><td>Not authenticated, or token invalid/expired; include <code>WWW-Authenticate</code></td></tr>
+            <tr><td>403</td><td>Forbidden</td><td>Authenticated but not allowed to perform this action</td></tr>
+            <tr><td>404</td><td>Not Found</td><td>Resource does not exist — or exists but the caller cannot know</td></tr>
+            <tr><td>405</td><td>Method Not Allowed</td><td>The HTTP method is not supported on this endpoint; include <code>Allow</code> header</td></tr>
+            <tr><td>406</td><td>Not Acceptable</td><td>The server cannot produce a response matching the <code>Accept</code> header</td></tr>
+            <tr><td>408</td><td>Request Timeout</td><td>The client did not send a complete request in the time allowed</td></tr>
+            <tr><td>409</td><td>Conflict</td><td>State conflict (concurrent update, duplicate resource, idempotency key contention)</td></tr>
+            <tr><td>410</td><td>Gone</td><td>Resource existed and is permanently removed (deprecated endpoint, deleted resource)</td></tr>
+            <tr><td>412</td><td>Precondition Failed</td><td>An <code>If-Match</code> or <code>If-None-Match</code> precondition failed</td></tr>
+            <tr><td>415</td><td>Unsupported Media Type</td><td>The <code>Content-Type</code> is not supported by the endpoint</td></tr>
+            <tr><td>422</td><td>Unprocessable Entity</td><td>Well-formed request but semantically invalid (validation errors, business rules)</td></tr>
+            <tr><td>429</td><td>Too Many Requests</td><td>Rate limit exceeded; include <code>Retry-After</code></td></tr>
+            <tr><td>500</td><td>Internal Server Error</td><td>Unhandled exception; the server cannot say what went wrong</td></tr>
+            <tr><td>501</td><td>Not Implemented</td><td>The server does not support the requested functionality</td></tr>
+            <tr><td>502</td><td>Bad Gateway</td><td>An upstream service returned an invalid response</td></tr>
+            <tr><td>503</td><td>Service Unavailable</td><td>The server is temporarily overloaded or under maintenance</td></tr>
+            <tr><td>504</td><td>Gateway Timeout</td><td>An upstream service did not respond in time</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The 2xx family in detail</h4>
+      <ul>
+        <li><strong>200 OK</strong> is the default success. Use it when the response body contains the result
+        (a fetched resource, an updated resource).</li>
+        <li><strong>201 Created</strong> follows a POST that creates a resource. It must include a
+        <code>Location</code> header pointing at the new resource, so the client can fetch it without a lookup.</li>
+        <li><strong>202 Accepted</strong> means the request was received and queued, but processing has not
+        completed. It must include a way to check the status (a <code>Location</code> header to a status endpoint,
+        or a job ID in the body). This is the correct code for any long-running operation (Volume 11 covers the
+        full pattern).</li>
+        <li><strong>204 No Content</strong> is for a successful operation with no useful response body — typically
+        a DELETE or a PATCH that does not return the updated resource. It must not include a body.</li>
+        <li><strong>207 Multi-Status</strong> is used by WebDAV for per-item results in a batch. Most modern APIs
+        prefer <code>200</code> with a per-item body (see Question 9), because 207 is not widely understood and
+        couples the response to WebDAV conventions.</li>
+      </ul>
+
+      <h4>The 3xx family — why APIs rarely use them</h4>
+      <p>Redirects are a browser mechanism. Most APIs do not use them, with three exceptions:</p>
+      <ul>
+        <li><strong>301/308 for deprecated endpoints</strong> — redirect old URLs to new ones so clients get
+        the new location without updating. The difference: 301/302 allow the client to change the method to GET
+        (historically), while 307/308 preserve the original method. For APIs, always use 307/308 to preserve POST
+        semantics.</li>
+        <li><strong>304 Not Modified</strong> for conditional GETs — the client has a cached copy, and the server
+        confirms it is still fresh. Covered in Volume 10.</li>
+        <li><strong>3xx for authentication flows</strong> in OAuth — the redirect from the client to the
+        authorisation server (Volume 6, Question 3).</li>
+      </ul>
+      <p>For an API endpoint that simply no longer exists, <code>410 Gone</code> is the right code — not a
+      redirect.</p>
+
+      <h4>The 4xx family — client errors</h4>
+      <p>A 4xx means the client sent a request that cannot succeed without modification. The three critical
+      distinctions, covered in Questions 2 and 3, are:</p>
+      <ul>
+        <li><strong>400 vs 422</strong> — malformed vs semantically invalid.</li>
+        <li><strong>401 vs 403</strong> — not authenticated vs authenticated but not authorized.</li>
+        <li><strong>404 vs 410</strong> — does not exist (or you cannot know) vs existed and was permanently
+        removed.</li>
+      </ul>
+      <p>The class rule matters: a monitoring system that pages on any 4xx is broken, because legitimate clients
+      produce 400s and 401s routinely. A monitoring system that pages only on 5xx is right — 5xx means the server
+      failed at something the client did correctly.</p>
+
+      <h4>The 5xx family — server errors</h4>
+      <p>A 5xx means the client's request was valid but the server failed to fulfil it. The distinction between
+      the codes (500, 502, 503, 504) is covered in Question 4. The general rule: a 5xx should always be retryable
+      (with backoff), while a 4xx should not be.</p>
+
+      <h4>The codes you should not use</h4>
+      <ul>
+        <li><strong>200 with an error in the body</strong> — the RPC-over-REST anti-pattern (Volume 2,
+        Question 10). It breaks every monitoring system and forces the client to inspect every response body.</li>
+        <li><strong>418 I'm a teapot</strong> — fun, but not a real error code. Do not use it in production.</li>
+        <li><strong>999</strong> or other non-standard codes — no tooling understands them, and clients will
+        misclassify them.</li>
+        <li><strong>500 for validation errors</strong> — validation failures are the client's fault; 400 or 422
+        is correct.</li>
+        <li><strong>400 for internal errors</strong> — the client cannot fix what it did not cause; 500 is
+        correct.</li>
+      </ul>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "The class matters more than the specific code — 4xx means the client is wrong and should not retry,
+        5xx means the server is wrong and retry may help. Then I pick the specific code for precision: 401 for
+        authentication, 403 for authorization, 422 for validation, 409 for conflict." That covers the taxonomy and
+        the practical guidance in two sentences.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q2 -->
+  <article class="q" id="q2">
+    <div class="q-head">
+      <div class="q-num">2</div>
+      <h3>What is the difference between 400 and 422, and which should you use for validation errors?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p><strong>400 Bad Request</strong> means the request is malformed — invalid JSON, missing required field,
+        wrong type. <strong>422 Unprocessable Entity</strong> means the request is well-formed but semantically
+        invalid — a valid date format in the past when future was required, a string that is the right type but not
+        a valid email, a business-rule violation. In practice most APIs use 400 for everything; the precise design
+        uses 400 for syntax and 422 for semantics.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Problem</th><th>400 or 422?</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr><td>Invalid JSON syntax</td><td>400</td><td>The request cannot be parsed</td></tr>
+            <tr><td>Missing required field</td><td>400</td><td>The request is structurally incomplete</td></tr>
+            <tr><td>Field has wrong type (string where int expected)</td><td>400</td><td>Structural error</td></tr>
+            <tr><td>Invalid <code>Content-Type</code></td><td>415</td><td>Specific code for the media type</td></tr>
+            <tr><td>Email does not contain @</td><td>422</td><td>Well-formed string, invalid as a value</td></tr>
+            <tr><td>Birth date is in the future</td><td>422</td><td>Well-formed date, invalid semantically</td></tr>
+            <tr><td>Quantity exceeds the maximum allowed</td><td>422</td><td>Business rule violation</td></tr>
+            <tr><td>Field value not in the allowed enum</td><td>422</td><td>Structural or semantic, depends on the framing</td></tr>
+            <tr><td>Cross-field constraint (start_date &gt; end_date)</td><td>422</td><td>Semantic</td></tr>
+            <tr><td>Business rule (cannot cancel a shipped order)</td><td>422 or 409</td><td>422 for validation; 409 if it is a state conflict</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The historical context</h4>
+      <p>422 was introduced in WebDAV (RFC 4918) and made its way into general use through Rails and Laravel.
+      The distinction it encodes — "I understood what you sent, but I cannot process it" — is real and useful, but
+      the industry has never agreed on exactly where the line falls. Some APIs use 422 for all semantic validation
+      errors, some use 400 for both syntax and simple validation, and some (most) use 400 for everything.</p>
+      <p>This ambiguity is not a reason to avoid 422 — it is a reason to <strong>document the convention clearly</strong>.
+      A client that expects 400 and gets 422 will misclassify the error. The documentation must state: "this API
+      uses 400 for malformed requests and 422 for semantic validation errors" or "this API uses 400 for all client
+      errors." Pick one and be consistent.</p>
+
+      <h4>The argument for 400 for everything</h4>
+      <ul>
+        <li><strong>Simpler.</strong> One code to know; clients handle one code path.</li>
+        <li><strong>Widely understood.</strong> Every HTTP client, every library, every tool knows what 400
+        means.</li>
+        <li><strong>What most APIs do.</strong> Stripe, GitHub, Twilio all use 400 for validation errors. The
+        industry consensus has drifted toward simplicity.</li>
+      </ul>
+
+      <h4>The argument for 422</h4>
+      <ul>
+        <li><strong>Precision.</strong> A client can distinguish "your JSON is broken" (fix the serializer) from
+        "your value is invalid" (fix the input).</li>
+        <li><strong>Richer monitoring.</strong> A spike in 400 means a client is sending malformed requests
+        (probably a code bug); a spike in 422 means users are entering invalid values (probably a UX issue).</li>
+        <li><strong>Semantic clarity.</strong> The code's name — Unprocessable Entity — says exactly what happened.</li>
+      </ul>
+
+      <h4>The pragmatic recommendation</h4>
+      <p>For a new API, either is defensible. The recommendation:</p>
+      <ul>
+        <li><strong>Use 400 for syntax errors</strong> — invalid JSON, wrong types, missing required fields. These
+        are mechanical; the client cannot fix them without changing the request.</li>
+        <li><strong>Use 422 for semantic errors</strong> — the JSON is valid, the types are right, but the values
+        do not make sense. This gives the client the precise signal.</li>
+        <li><strong>Document the choice</strong> clearly in the API reference, with examples of each.</li>
+        <li><strong>If simplicity wins</strong> (a small API, a client team that will not benefit from the
+        distinction), use 400 for everything and move on. The distinction is only valuable if it is used.</li>
+      </ul>
+
+      <h4>The error body is what matters</h4>
+      <p>The status code tells the client what class of error occurred. The error body tells it what specifically
+      went wrong. A 400 with a body <code>{"error": "Bad request"}</code> is worse than a 422 with a body that
+      says <code>{"errors": [{"field": "email", "message": "must be a valid email address"}]}</code>, because the
+      client cannot act on the vague error. The error body does more work than the code — invest in it
+      (Questions 5, 6, 7).</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Using 500 for validation errors because the validation logic threw an exception. The validation failure
+        is the client's fault (400/422), not the server's (500). This misclassification breaks every monitoring
+        system — a spike in 500 should mean "the server is broken", not "users typed bad data".</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "I'll use 400 for malformed requests — invalid JSON, wrong types. 422 for semantically invalid —
+        valid format, invalid value. And the error body names the field and the rule, so the client can fix it." That
+        demonstrates the distinction and the practical answer in one sentence.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q3 -->
+  <article class="q" id="q3">
+    <div class="q-head">
+      <div class="q-num">3</div>
+      <h3>Explain 401 vs 403, 404 vs 410, and 409 vs 412.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p><strong>401 vs 403</strong>: not authenticated vs authenticated but not allowed.
+        <strong>404 vs 410</strong>: does not exist (or you cannot know it exists) vs existed and was permanently
+        removed. <strong>409 vs 412</strong>: state conflict (concurrent write, duplicate resource) vs a specific
+        HTTP precondition failure (<code>If-Match</code> did not match). These three pairs are the source of more
+        design debates than any others in the API world.</p>
+      </div>
+
+      <h4>401 vs 403</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Aspect</th><th>401 Unauthorized</th><th>403 Forbidden</th></tr></thead>
+          <tbody>
+            <tr><td>Meaning</td><td>You are not authenticated, or your credentials are invalid</td><td>You are authenticated, but you do not have permission</td></tr>
+            <tr><td>Client action</td><td>Log in, refresh token, present credentials</td><td>Do not retry — the action is not permitted</td></tr>
+            <tr><td>Required header</td><td><code>WWW-Authenticate</code> describing the auth scheme</td><td>None required</td></tr>
+            <tr><td>Body content</td><td>Minimal; do not leak whether the user exists</td><td>Should not reveal the policy — could help an attacker map permissions</td></tr>
+            <tr><td>Example</td><td>No token, expired token, invalid signature</td><td>Valid token, but the user is not an admin</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The 401 code's name is misleading: "Unauthorized" really means "Unauthenticated". The distinction from 403
+      is that 401 invites the client to authenticate; 403 says the authenticated identity is not permitted. A client
+      receiving 401 should prompt for login; a client receiving 403 should show an error.</p>
+      <p>The <code>WWW-Authenticate</code> header in a 401 response tells the client what kind of authentication is
+      expected: <code>WWW-Authenticate: Bearer realm="api"</code> or <code>WWW-Authenticate: Basic realm="api"</code>.
+      A 401 without this header is technically malformed.</p>
+
+      <h4>404 vs 410</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Aspect</th><th>404 Not Found</th><th>410 Gone</th></tr></thead>
+          <tbody>
+            <tr><td>Meaning</td><td>The resource does not exist — or you cannot know whether it exists</td><td>The resource existed and was permanently removed</td></tr>
+            <tr><td>Permanence</td><td>Ambiguous — may exist later, may never have existed</td><td>Permanent — do not request it again</td></tr>
+            <tr><td>Client action</td><td>Check the URL; do not retry immediately</td><td>Stop requesting; update bookmarks/code</td></tr>
+            <tr><td>Caching</td><td>Usually not cached (unless explicitly)</td><td>May be cached aggressively — the removal is permanent</td></tr>
+            <tr><td>Example</td><td>GET /users/999 (no such user)</td><td>GET /v1/users (v1 deprecated and removed)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The 410 code is underused. When an endpoint is deliberately removed, 410 tells the client "stop trying" —
+      which is more informative than 404, which could mean "temporary glitch" or "wrong URL". Google's search
+      crawler treats 410 as a signal to remove a page from the index faster than 404, for exactly this reason.</p>
+      <p>The security pattern (Volume 6, Question 1) uses 404 instead of 403 to hide existence: if a caller asks
+      for another tenant's resource, returning 403 confirms it exists; returning 404 pretends it does not. This is
+      the right trade-off for sensitive resources, but it must be documented — a 404 that might mean "forbidden" is
+      confusing for legitimate clients debugging a problem.</p>
+
+      <h4>409 vs 412</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Aspect</th><th>409 Conflict</th><th>412 Precondition Failed</th></tr></thead>
+          <tbody>
+            <tr><td>Meaning</td><td>The request conflicts with the current state of the resource</td><td>An HTTP precondition (<code>If-Match</code>, <code>If-None-Match</code>) failed</td></tr>
+            <tr><td>Cause</td><td>Concurrent write, duplicate resource, state transition not allowed</td><td>ETag or version did not match the current resource</td></tr>
+            <tr><td>Client action</td><td>Re-read the resource, merge, retry — or surface the conflict</td><td>Re-fetch the resource to get the current ETag, then retry</td></tr>
+            <tr><td>When</td><td>Business-level conflict</td><td>Optimistic concurrency conflict (HTTP-specific)</td></tr>
+            <tr><td>Example</td><td>Creating a user with an existing email</td><td>PUT with <code>If-Match: "v1"</code> when the resource is at "v2"</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The distinction is subtle: 409 is the general "state conflict" code, 412 is specifically about the HTTP
+      precondition mechanism. A PUT with <code>If-Match</code> that fails gets 412; a PUT without <code>If-Match</code>
+      that conflicts with another write (e.g., a unique constraint violation) gets 409.</p>
+      <p>Both are retryable with a re-read, so a well-written client can treat them similarly. But the semantics
+      are different: 412 says "the specific version I was checking did not match"; 409 says "there is a conflict
+      with the current state". If the API uses <code>If-Match</code> for optimistic concurrency, 412 is the correct
+      response — it gives the client a precise signal that the precondition failed (Volume 5, Question 8).</p>
+
+      <h4>Why these pairs matter</h4>
+      <p>Each pair represents a design decision that a client will build logic around. A client that treats 401 as
+      "show a login prompt" and 403 as "show an error" behaves correctly; a client that treats both the same way
+      behaves badly. Getting the codes right is not pedantry — it is what lets the client's error-handling code be
+      correct without inspecting the error body.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Using 403 when the client forgot to send a token. That is 401. The distinction matters because a client
+        receiving 403 will not try to log in — it will assume the user genuinely cannot do this. The result is that
+        a client whose token has expired sees a confusing "forbidden" error instead of a clear "please log in".</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q4 -->
+  <article class="q" id="q4">
+    <div class="q-head">
+      <div class="q-num">4</div>
+      <h3>What is the difference between 500, 502, 503, and 504?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p><strong>500</strong>: the application threw an unhandled exception — the server itself broke.
+        <strong>502</strong>: a reverse proxy or gateway received an invalid response from an upstream service.
+        <strong>503</strong>: the server is temporarily unable to handle the request — overloaded, in maintenance,
+        or starting up. <strong>504</strong>: a proxy or gateway waited for an upstream that did not respond in
+        time. The last three are gateway-adjacent — they describe the proxy's view of the request, not the
+        application's.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Code</th><th>Who generates</th><th>What happened</th><th>Client action</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>500</strong></td>
+              <td>The application</td>
+              <td>Unhandled exception; a bug</td>
+              <td>Retry with backoff; if persistent, report a bug</td>
+            </tr>
+            <tr>
+              <td><strong>502</strong></td>
+              <td>The proxy / gateway</td>
+              <td>Upstream service sent an invalid response (malformed HTTP, connection reset, TLS failure)</td>
+              <td>Retry with backoff; the upstream may be temporarily broken</td>
+            </tr>
+            <tr>
+              <td><strong>503</strong></td>
+              <td>The application or proxy</td>
+              <td>Server overloaded, in maintenance, or starting up</td>
+              <td>Retry after the <code>Retry-After</code> header; if persistent, check the status page</td>
+            </tr>
+            <tr>
+              <td><strong>504</strong></td>
+              <td>The proxy / gateway</td>
+              <td>Upstream did not respond within the proxy's timeout</td>
+              <td>Retry with backoff; if persistent, the upstream is slow or the operation is too heavy</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>500 Internal Server Error</h4>
+      <p>The application's catch-all. The server received a valid request, attempted to process it, and an
+      exception was thrown that the application did not catch. This is always a bug — either a genuine code defect,
+      or a transient dependency failure (a database connection dropped), or a data issue (a null that should not be
+      null).</p>
+      <p>A 500 response should not leak the exception details to the client — that is an information disclosure
+      (Volume 14). Return a generic body with a correlation ID that the client can use to file a bug, and log the
+      full exception server-side with the same correlation ID.</p>
+
+      <h4>502 Bad Gateway</h4>
+      <p>The proxy received an invalid response from the upstream. Common causes:</p>
+      <ul>
+        <li>The application crashed and returned nothing.</li>
+        <li>The application returned malformed HTTP (a bug in a custom server, rarely).</li>
+        <li>The connection was reset (TLS handshake failure, protocol error).</li>
+        <li>The upstream is behind a load balancer that cannot reach any healthy instance.</li>
+      </ul>
+      <p>502 is a signal that the request reached the proxy but could not reach (or got a bad response from) the
+      backend. The client cannot fix this; it must retry. The operations team must investigate why the upstream
+      is unreachable or misbehaving.</p>
+
+      <h4>503 Service Unavailable</h4>
+      <p>The server explicitly says "I cannot handle this right now". The most useful 5xx code because it carries
+      a <code>Retry-After</code> header (or should):</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Cause</th><th>Signal</th></tr></thead>
+          <tbody>
+            <tr><td>Overload (concurrency limit reached, thread pool exhausted)</td><td>503 with <code>Retry-After: 1</code></td></tr>
+            <tr><td>Planned maintenance</td><td>503 with <code>Retry-After: 3600</code> and a maintenance page</td></tr>
+            <tr><td>Deployment in progress</td><td>503 with <code>Retry-After: 10</code></td></tr>
+            <tr><td>Circuit breaker open</td><td>503 (or a fallback response if one exists)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The <code>Retry-After</code> header converts 503 from "something is broken" to "try again in N seconds".
+      A well-written client reads it and waits; a client that does not retries blindly and makes the overload worse.</p>
+
+      <h4>504 Gateway Timeout</h4>
+      <p>The proxy waited for the upstream for the configured timeout and gave up. Common causes:</p>
+      <ul>
+        <li>The upstream is slow (a database query without an index, a slow downstream dependency).</li>
+        <li>The upstream is hung (deadlock, infinite loop).</li>
+        <li>The operation is genuinely too heavy for the proxy's timeout (e.g., a report query that takes
+        minutes).</li>
+      </ul>
+      <p>504 is the signal that the proxy's timeout is shorter than the upstream's actual latency. This is a design
+      mismatch: either the timeout should be increased (if the operation is legitimately slow) or the operation
+      should be made faster, or it should be async (Volume 11). For the client, 504 is retryable — the operation
+      may succeed on the next attempt if the slowness was transient.</p>
+
+      <h4>The layered timeout model</h4>
+      <p>The reason 504 exists is that real systems have timeouts at every layer, and they must be ordered:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Layer</th><th>Timeout</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td>Client</td><td>30s</td><td>The client's patience</td></tr>
+            <tr><td>CDN / edge</td><td>25s</td><td>Fail before the client does</td></tr>
+            <tr><td>Load balancer / proxy</td><td>20s</td><td>Fail before the CDN does; return 504</td></tr>
+            <tr><td>Application</td><td>15s</td><td>Fail before the proxy does; return 503 or 500</td></tr>
+            <tr><td>Database query</td><td>10s</td><td>Fail before the application does</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Each layer's timeout must be shorter than the layer above. If the application's timeout is longer than
+      the proxy's, the proxy will time out first (returning 504), and the application will continue processing a
+      request nobody is waiting for — wasted resources. The ordering ensures that the fastest-failing layer is the
+      one closest to the resource, and the client's 504 or 503 comes with useful timing information.</p>
+
+      <h4>Choosing the right 5xx</h4>
+      <ul>
+        <li><strong>Application exception → 500.</strong> The default; the app cannot say more.</li>
+        <li><strong>Upstream unreachable or malformed → 502.</strong> The proxy reports it.</li>
+        <li><strong>Overloaded or in maintenance → 503, with Retry-After.</strong> The app or proxy signals recovery
+        time.</li>
+        <li><strong>Upstream slow → 504.</strong> The proxy timed out waiting.</li>
+      </ul>
+      <p>The mistake to avoid: returning 500 for all upstream failures. A 500 tells the client "the server has
+      a bug"; a 502/503/504 tells the client "the infrastructure is having a moment". The distinction changes the
+      client's response (retry with backoff, check status page, file a bug) and the operations team's
+      investigation path.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Returning 500 for rate limiting, authentication failures, or validation errors. A 500 pages the
+        on-call engineer; a 429/401/422 does not. Using the wrong class for the error means every incident looks
+        like a server bug, and the real bugs are lost in the noise.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART B ================= -->
+  <div class="part-band gold">
+    <div class="bar"></div>
+    <h2>Part B — Error Body Design
+      <span class="sub">RFC 7807, machine-readable codes, validation errors</span>
+    </h2>
+  </div>
+
+  <!-- Q5 -->
+  <article class="q gold" id="q5">
+    <div class="q-head">
+      <div class="q-num">5</div>
+      <h3>What is RFC 7807, and how do you design an error body that a machine and a human can both understand?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>RFC 7807 (now updated by RFC 9457) defines <strong>Problem Details for HTTP APIs</strong> — a standard
+        JSON structure for error responses with fields <code>type</code>, <code>title</code>, <code>status</code>,
+        <code>detail</code>, and <code>instance</code>. It gives every API a consistent error shape, so clients can
+        parse any error without guessing the format, and extensions can be added without breaking the base contract.</p>
+      </div>
+
+      <h4>The standard fields</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Purpose</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr><td><code>type</code></td><td>URI</td><td>Identifies the error category — a stable, documentation-linked identifier</td><td><code>https://api.example.com/errors/insufficient-funds</code></td></tr>
+            <tr><td><code>title</code></td><td>string</td><td>Short, human-readable summary of the error type (same for all instances of this type)</td><td><code>Insufficient Funds</code></td></tr>
+            <tr><td><code>status</code></td><td>integer</td><td>The HTTP status code (redundant with the response but useful when the body is parsed independently)</td><td><code>422</code></td></tr>
+            <tr><td><code>detail</code></td><td>string</td><td>Human-readable explanation specific to this occurrence</td><td><code>Account balance is $30, but the transfer requires $50.</code></td></tr>
+            <tr><td><code>instance</code></td><td>URI</td><td>Identifies this specific occurrence — usually a correlation ID or a link to the log entry</td><td><code>/errors/instances/abc-123</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The key insight: <code>type</code> and <code>title</code> are stable across occurrences — they say "what
+      kind of error is this". <code>detail</code> is specific — it says "what happened this time". A client
+      switches on <code>type</code> to decide what to do; a human reads <code>detail</code> to understand why.</p>
+
+      <h4>A complete example</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Response</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre style="margin:0;white-space:pre-wrap;font-family:monospace;font-size:.83rem;line-height:1.5;">HTTP/1.1 422 Unprocessable Entity
+Content-Type: application/problem+json
+
+{
+  "type": "https://api.example.com/errors/insufficient-funds",
+  "title": "Insufficient Funds",
+  "status": 422,
+  "detail": "Account balance is $30, but the transfer requires $50.",
+  "instance": "/errors/instances/abc-123",
+  "balance": 3000,
+  "required": 5000,
+  "currency": "USD"
+}</pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The extension fields (<code>balance</code>, <code>required</code>, <code>currency</code>) are the
+      RFC's greatest strength: the standard fields are the floor, and each error type can add structured data
+      specific to its needs. A client parsing the response can rely on <code>type</code>, <code>title</code>,
+      <code>detail</code> being present; the extensions are optional and specific.</p>
+
+      <h4>The media type</h4>
+      <p>RFC 7807 responses use <code>Content-Type: application/problem+json</code>, not
+      <code>application/json</code>. This is a signal to the client: "this is a problem detail, not a normal
+      response body". A client that checks the content type can route the response to the error handler; a client
+      that does not still sees JSON, which is fine.</p>
+      <p>The media type also allows the API to distinguish a successful response with an error in the body
+      (never correct, but possible in legacy APIs) from a genuine error response.</p>
+
+      <h4>Designing your own error taxonomy</h4>
+      <p>The <code>type</code> URI is the key design decision. Three conventions:</p>
+      <ul>
+        <li><strong>Documentation URL</strong> — <code>https://api.example.com/errors/insufficient-funds</code>.
+        The URI points to a documentation page describing the error and what the client should do. This is the
+        best practice: the client gets structured data, and a developer debugging can click the URL for the guide.</li>
+        <li><strong>URN</strong> — <code>urn:problem-type:insufficient-funds</code>. Stable, but not resolvable.
+        Use when you cannot guarantee a documentation URL.</li>
+        <li><strong>About:blank</strong> — the RFC's default, meaning "no additional information beyond the status
+        code". This is a placeholder, not a real choice.</li>
+      </ul>
+      <p>The documentation URL convention is worth the effort. It turns every error into a self-documenting
+      event: the client's error log contains a URL, the developer clicks it, and sees exactly what happened and
+      what to do. This is one of the highest-leverage things an API can do for its developer experience.</p>
+
+      <h4>The extension namespace</h4>
+      <p>RFC 7807 recommends namespacing extension fields to avoid collisions across different error types. A
+      simple prefix or a nested object works: <code>retry_after_seconds</code> is fine; if the API has many
+      extensions, <code>"meta": {"retry_after_seconds": 30}</code> is cleaner. The standard fields are
+      reserved and should not be overridden.</p>
+
+      <h4>What to include in the body</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Field</th><th>Include?</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr><td>Error type / code</td><td>Always</td><td>Machine-readable classification</td></tr>
+            <tr><td>Human-readable message</td><td>Always</td><td>For debugging and user-facing display</td></tr>
+            <tr><td>Field-level errors</td><td>For validation</td><td>So the client can highlight the offending field</td></tr>
+            <tr><td>Correlation / request ID</td><td>Always</td><td>For support to find the log entry</td></tr>
+            <tr><td>Documentation URL</td><td>Always</td><td>Self-documenting errors</td></tr>
+            <tr><td>Retry guidance</td><td>For transient errors</td><td>Retry-After header, or a field</td></tr>
+            <tr><td>Stack trace</td><td>Never (in production)</td><td>Information disclosure (Volume 14)</td></tr>
+            <tr><td>Internal IDs, SQL, file paths</td><td>Never</td><td>Information disclosure</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Every error uses RFC 7807 — type, title, status, detail, instance — with a documentation URL as
+        the type so clients can look up what happened and what to do. Extension fields carry field-level details
+        for validation errors." That demonstrates the standard and its value in one sentence.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q6 -->
+  <article class="q gold" id="q6">
+    <div class="q-head">
+      <div class="q-num">6</div>
+      <h3>How do you design machine-readable error codes that clients can switch on?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A machine-readable error code is a stable, lowercase, underscore-separated string that identifies a
+        specific failure mode — <code>insufficient_funds</code>, <code>card_declined</code>,
+        <code>rate_limit_exceeded</code>. It is the field that client code switches on; the human-readable message
+        is for logs and UI. The code must be stable (part of the contract), specific (one failure mode per code),
+        and documented.</p>
+      </div>
+
+      <h4>Why a code, not just a message</h4>
+      <p>A human-readable message is for humans. A program cannot reliably switch on
+      <code>"Your card was declined"</code> — the wording might change, the language might be localised, the
+      punctuation might differ. A machine-readable code is the stable identifier that the client matches against.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Client wants to…</th><th>Matches on</th></tr></thead>
+          <tbody>
+            <tr><td>Show a specific UI for "card declined"</td><td><code>error.code === "card_declined"</code></td></tr>
+            <tr><td>Retry on rate limit</td><td><code>error.code === "rate_limit_exceeded"</code></td></tr>
+            <tr><td>Prompt the user to re-enter email</td><td><code>error.code === "invalid_email"</code></td></tr>
+            <tr><td>Treat all "transient" errors the same</td><td><code>error.category === "transient"</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Without a code, the client has to string-match the message — which breaks the first time the message is
+      reworded. The error code is the contract; the message is a convenience.</p>
+
+      <h4>The naming conventions</h4>
+      <ul>
+        <li><strong>Lowercase with underscores</strong> — <code>insufficient_funds</code>, not
+        <code>INSUFFICIENT_FUNDS</code> or <code>insufficientFunds</code>. Case and separator should be uniform
+        across the API.</li>
+        <li><strong>Specific</strong> — one code per failure mode. <code>invalid_request</code> is too vague; a
+        client cannot distinguish a missing field from a wrong type. <code>invalid_email_format</code> is specific.</li>
+        <li><strong>Stable</strong> — the code is part of the contract. Renaming it is a breaking change (Volume 3,
+        Question 1). Document it like any other public field.</li>
+        <li><strong>Not overloaded</strong> — a code should not mean different things in different contexts. If
+        <code>not_found</code> means "user not found" in one endpoint and "order not found" in another, the client
+        cannot tell them apart. Better: <code>user_not_found</code> and <code>order_not_found</code>.</li>
+        <li><strong>Extensible</strong> — clients must handle unknown codes gracefully (treat as a generic error
+        in that category), so new codes can be added without breaking old clients.</li>
+      </ul>
+
+      <h4>The hierarchy: category, code, message</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Level</th><th>Purpose</th><th>Stability</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr><td>HTTP status</td><td>Class of failure</td><td>Very stable</td><td>422</td></tr>
+            <tr><td>Category</td><td>Broad classification</td><td>Stable</td><td><code>validation</code>, <code>transient</code>, <code>auth</code></td></tr>
+            <tr><td>Code</td><td>Specific failure mode</td><td>Stable</td><td><code>invalid_email_format</code></td></tr>
+            <tr><td>Message</td><td>Human-readable explanation</td><td>Can change</td><td>"The email address 'foo' is not valid."</td></tr>
+            <tr><td>Details</td><td>Structured data for this occurrence</td><td>Varies</td><td><code>{"field": "email", "value": "foo"}</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The category is useful when the client does not care about the specific code — "any transient error
+      should be retried with backoff". The code is useful when the client does care — "show the card-declined UI
+      specifically". The message is for humans. This three-level hierarchy gives clients the granularity they need
+      at each level.</p>
+
+      <h4>The mapping to HTTP status</h4>
+      <p>Each code must correspond to a status code. The mapping is many-to-one: multiple codes can share a 422
+      (<code>invalid_email_format</code>, <code>invalid_phone_format</code>, <code>invalid_date</code>), but each
+      code maps to exactly one status. This lets a client handle errors at the status level (does this need a retry?)
+      and at the code level (what specifically went wrong?).</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Code</th><th>Status</th><th>Category</th></tr></thead>
+          <tbody>
+            <tr><td><code>invalid_email_format</code></td><td>422</td><td>validation</td></tr>
+            <tr><td><code>insufficient_funds</code></td><td>422</td><td>business</td></tr>
+            <tr><td><code>card_declined</code></td><td>402</td><td>business</td></tr>
+            <tr><td><code>rate_limit_exceeded</code></td><td>429</td><td>transient</td></tr>
+            <tr><td><code>token_expired</code></td><td>401</td><td>auth</td></tr>
+            <tr><td><code>permission_denied</code></td><td>403</td><td>auth</td></tr>
+            <tr><td><code>resource_not_found</code></td><td>404</td><td>client</td></tr>
+            <tr><td><code>duplicate_email</code></td><td>409</td><td>conflict</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The documentation obligation</h4>
+      <p>Every error code must be documented with:</p>
+      <ul>
+        <li><strong>Description</strong> — what it means.</li>
+        <li><strong>Causes</strong> — the conditions that produce it.</li>
+        <li><strong>Resolution</strong> — what the client should do.</li>
+        <li><strong>Example</strong> — a request that produces it and the response.</li>
+        <li><strong>Retryable</strong> — yes or no, and if yes, after how long.</li>
+      </ul>
+      <p>This documentation is what makes the codes useful. A code without documentation is a code the client
+      cannot act on — the client either ignores it or guesses, and either is worse than a clear error.</p>
+
+      <h4>The evolutionary contract</h4>
+      <p>Adding a new error code is a non-breaking change — clients that do not know it should treat it as a
+      generic error in its category. Removing a code is breaking — clients that switch on it will break. Renaming
+      a code is breaking for the same reason. The API version must reflect these changes (Volume 3).</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Putting the same information in the message that should be in the code. <code>"error": "Email is
+        invalid"</code> cannot be switched on; <code>{"code": "invalid_email_format", "message": "Email is
+        invalid"}</code> can. The message should add context ("'foo' is not a valid email"), not replace the code.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q7 -->
+  <article class="q gold" id="q7">
+    <div class="q-head">
+      <div class="q-num">7</div>
+      <h3>How do you design validation error responses that a form can display?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A validation error response must identify <strong>every failing field</strong> in a single response
+        (not just the first), with a machine-readable code per field, a human-readable message, and optionally the
+        rejected value. The response shape should be an array under a dedicated field, so a form can highlight each
+        error next to the corresponding input without re-parsing a string.</p>
+      </div>
+
+      <h4>The naive response (and why it fails)</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Response</th><th>Problem</th></tr></thead>
+          <tbody>
+            <tr><td><code>{"error": "Invalid input"}</code></td><td>Which field? What is wrong?</td></tr>
+            <tr><td><code>{"error": "Email is invalid"}</code></td><td>Which field is "email"? What is the value?</td></tr>
+            <tr><td>400 with only the first error</td><td>The user fixes one field and discovers another</td></tr>
+            <tr><td>Errors as a single string</td><td>The form cannot map them to fields</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The structured response</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Response</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre style="margin:0;white-space:pre-wrap;font-family:monospace;font-size:.83rem;line-height:1.5;">HTTP/1.1 422 Unprocessable Entity
+Content-Type: application/problem+json
+
+{
+  "type": "https://api.example.com/errors/validation",
+  "title": "Validation Failed",
+  "status": 422,
+  "detail": "One or more fields are invalid.",
+  "instance": "/errors/instances/abc-123",
+  "errors": [
+    {
+      "field": "email",
+      "code": "invalid_email_format",
+      "message": "The email address is not valid.",
+      "value": "foo"
+    },
+    {
+      "field": "birth_date",
+      "code": "date_in_future",
+      "message": "Birth date must be in the past.",
+      "value": "2099-01-15"
+    },
+    {
+      "field": "address.postal_code",
+      "code": "invalid_postal_code",
+      "message": "Postal code must be 5 digits for US addresses.",
+      "value": "123"
+    }
+  ]
+}</pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Field naming and nesting</h4>
+      <p>The <code>field</code> value should match the JSON path of the field in the request body, so a form can
+      map it to the input:</p>
+      <ul>
+        <li>Simple field — <code>"email"</code>.</li>
+        <li>Nested object — <code>"address.postal_code"</code> or <code>"address[postal_code]"</code>.</li>
+        <li>Array element — <code>"items[0].quantity"</code> or <code>"items.0.quantity"</code>.</li>
+      </ul>
+      <p>The dotted path is the most common; it matches JSON Pointer (RFC 6901) if the API uses JSON Patch
+      (Volume 2, Question 4). Document the convention clearly — a form implementation must know how to map it.</p>
+
+      <h4>Every error, not just the first</h4>
+      <p>The most common mistake: returning only the first validation error. The user fixes it, submits, and gets
+      the next error — a terrible experience. A good API validates the whole request and returns all errors at
+      once. The trade-off is complexity (the validation must run all rules, not fail-fast) — but the UX payoff
+      is enormous.</p>
+      <p>The exception is when a later error depends on an earlier one — if <code>password</code> is missing,
+      there is no point validating <code>password_confirmation</code>. For these, return only the first error in
+      the dependency chain, and the independent errors from other fields.</p>
+
+      <h4>Field-level codes</h4>
+      <p>The <code>code</code> per field is essential for i18n and for UI. The form can show a localised message
+      based on the code (<code>invalid_email_format</code> → "Please enter a valid email address") without relying
+      on the server's English message. This is the same principle as the top-level error code
+      (Question 6), applied per field.</p>
+      <p>The server's <code>message</code> is a fallback for the developer and a debugging aid. The client's
+      translation is what the user sees.</p>
+
+      <h4>Including the rejected value</h4>
+      <p>Including the rejected value (<code>"value": "foo"</code>) helps the form display "this is what you
+      entered" and helps the developer debug. The exception is sensitive fields — never include the value of a
+      <code>password</code>, a <code>token</code>, or a <code>credit_card</code> in a validation error. The
+      response may end up in a log, a browser console, or an error tracker.</p>
+
+      <h4>The status code</h4>
+      <p>Validation errors are 400 or 422 (Question 2). The RFC 7807 body's <code>type</code> field identifies it
+      as a validation failure (<code>.../errors/validation</code>), and the <code>errors</code> array is the
+      structured data. This makes a validation error self-describing: the client sees
+      <code>type: ".../errors/validation"</code> and knows to read the <code>errors</code> array.</p>
+
+      <h4>What not to include</h4>
+      <ul>
+        <li><strong>Stack traces</strong> — information disclosure.</li>
+        <li><strong>The rule's internal name</strong> — <code>"@Size(min=5,max=10)"</code> is meaningless to the
+        client. Use a semantic code instead.</li>
+        <li><strong>All the possible values</strong> — if the field must be one of 10,000 enum values, do not list
+        them all in the error. Give the client a link to a lookup endpoint.</li>
+        <li><strong>The value for sensitive fields</strong> — passwords, tokens, credit cards.</li>
+      </ul>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>Returning every error at once is better UX but requires more validation work (running all rules, not
+        failing fast) and produces a larger response. For a small form, the difference is negligible; for a
+        large batch import, validating everything can be expensive. The pragmatic answer: validate all fields in a
+        single request, but for batch operations return the first N errors (with a "more" indicator) rather than
+        a million.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Validation errors use 422 with an RFC 7807 body and an <code>errors</code> array — every failing
+        field, with a code, a message, and the rejected value. The field name is the JSON path so the form can map
+        it to the input." That demonstrates the structured response and its purpose in one sentence.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART C ================= -->
+  <div class="part-band teal">
+    <div class="bar"></div>
+    <h2>Part C — Recovery &amp; Edge Cases
+      <span class="sub">Retryability, partial success, and async errors</span>
+    </h2>
+  </div>
+
+  <!-- Q8 -->
+  <article class="q teal" id="q8">
+    <div class="q-head">
+      <div class="q-num">8</div>
+      <h3>How do you classify errors as retryable vs non-retryable, and how does the client know?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>The HTTP status code class is the first signal: <strong>4xx is non-retryable</strong> (the client must
+        fix the request), <strong>5xx is retryable</strong> (the server may recover), with exceptions for 408, 429,
+        409, and 412. Beyond the code, the response should include an explicit <strong>retryable</strong> flag or
+        a <strong>Retry-After</strong> header so the client does not have to guess. The final arbiter is the error
+        code, not the status — a 422 might be retryable if the validation failed for a transient reason.</p>
+      </div>
+
+      <h4>The status-code signal</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Status</th><th>Retryable?</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>400 Bad Request</td><td>No</td><td>The request is malformed; retry will fail identically</td></tr>
+            <tr><td>401 Unauthorized</td><td>Yes — after refreshing the token</td><td>Not a blind retry; fix the credentials first</td></tr>
+            <tr><td>403 Forbidden</td><td>No</td><td>Permission is fixed; retry will fail</td></tr>
+            <tr><td>404 Not Found</td><td>No</td><td>The resource does not exist; retry will fail</td></tr>
+            <tr><td>408 Request Timeout</td><td>Yes</td><td>The request took too long; retry with a shorter timeout or async</td></tr>
+            <tr><td>409 Conflict</td><td>Yes — after re-reading</td><td>Retry after reconciling state</td></tr>
+            <tr><td>410 Gone</td><td>No</td><td>Permanently removed</td></tr>
+            <tr><td>412 Precondition Failed</td><td>Yes — after re-fetching the ETag</td><td>Retry with the current version</td></tr>
+            <tr><td>415 Unsupported Media Type</td><td>No</td><td>Change the Content-Type</td></tr>
+            <tr><td>422 Unprocessable Entity</td><td>Usually no</td><td>Fix the input; exception for transient business rules</td></tr>
+            <tr><td>429 Too Many Requests</td><td>Yes — after Retry-After</td><td>Wait and retry</td></tr>
+            <tr><td>500 Internal Server Error</td><td>Yes — with backoff</td><td>The server may recover</td></tr>
+            <tr><td>502 Bad Gateway</td><td>Yes — with backoff</td><td>Upstream may recover</td></tr>
+            <tr><td>503 Service Unavailable</td><td>Yes — after Retry-After</td><td>The server is temporarily unavailable</td></tr>
+            <tr><td>504 Gateway Timeout</td><td>Yes — with backoff</td><td>The upstream may be faster next time</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The Retry-After header</h4>
+      <p>For 429 and 503, the <code>Retry-After</code> header tells the client exactly how long to wait:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Value</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>Retry-After: 30</code></td><td>Wait 30 seconds</td></tr>
+            <tr><td><code>Retry-After: Wed, 21 Oct 2026 07:28:00 GMT</code></td><td>Wait until this date/time (HTTP-date)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The seconds form is simpler and immune to clock skew. Use it. The header converts "something is wrong"
+      into "come back in N seconds", which is what a well-behaved client needs.</p>
+
+      <h4>The explicit retryable flag</h4>
+      <p>For cases where the status code is ambiguous — a 500 that is actually permanent (a bug), a 422 that
+      happens to be transient (a temporary business rule) — the error body can include an explicit flag:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Field</th><th>Value</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>retryable</code></td><td><code>true</code></td><td>The client may retry, with backoff</td></tr>
+            <tr><td><code>retryable</code></td><td><code>false</code></td><td>Retrying will not help</td></tr>
+            <tr><td><code>retry_after_seconds</code></td><td><code>30</code></td><td>Specific wait time (equivalent to Retry-After)</td></tr>
+            <tr><td><code>category</code></td><td><code>"transient"</code>, <code>"permanent"</code>, <code>"validation"</code>, <code>"auth"</code></td><td>Classification the client can act on</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The category is more useful than a binary flag because it lets the client differentiate: an
+      <code>auth</code> error means "log in and retry"; a <code>validation</code> error means "fix the input";
+      a <code>transient</code> error means "wait and retry". A single "retryable" boolean cannot express these
+      different recovery actions.</p>
+
+      <h4>The idempotency requirement</h4>
+      <p>A retry is only safe if the operation is idempotent or carries an idempotency key (Volume 5, Question 1).
+      This is why the error response should be accompanied by idempotency design: a client that receives a 504 on a
+      non-idempotent POST cannot retry without the risk of duplicate execution. The retryable flag should not be
+      set to <code>true</code> for a non-idempotent operation that was not designed for retry — the client will
+      duplicate.</p>
+      <p>The design rule: <strong>if the endpoint is non-idempotent, the response should say so</strong> — either
+      by requiring an idempotency key (and returning 400 if it is missing) or by documenting that the client must
+      not retry.</p>
+
+      <h4>Retry with backoff and jitter</h4>
+      <p>The retryable flag tells the client that retry is allowed. It does not tell it how to retry. The client
+      must use exponential backoff with jitter (Volume 5, Question 10): wait 1s, 2s, 4s, 8s, and cap at ~30s. Without
+      backoff, a retry storm amplifies the server's problem.</p>
+      <p>The <code>Retry-After</code> header overrides the backoff — if the server says "wait 30 seconds", the client
+      should wait 30 seconds, not 1 second. This is particularly important for 429 and 503, where the server knows
+      when it will be ready.</p>
+
+      <h4>The "retry budget" perspective</h4>
+      <p>A client should have a retry budget — a cap on total retries as a fraction of requests (Volume 5,
+      Question 10). The error response can help: if the API consistently returns retryable errors for a specific
+      client, the client's budget will exhaust and it will stop retrying. The API should also enforce a
+      server-side retry budget (reject retries that arrive too quickly), so a misbehaving client cannot retry
+      forever.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Marking a 500 as non-retryable because "it is a bug". A 500 is often transient (a connection dropped,
+        a timeout, a temporary resource exhaustion) and a retry with backoff succeeds. Marking it non-retryable
+        means legitimate transient failures become permanent client errors. The retryable flag should reflect
+        the operation's retry-safety, not the error's apparent cause.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "The status class is the primary signal — 4xx is not retryable, 5xx is. Then the error body can add
+        a category and a retry-after for precision. And retry is only safe if the operation is idempotent or has
+        an idempotency key." That covers the signal, the nuance, and the safety requirement in one sentence.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q9 -->
+  <article class="q teal" id="q9">
+    <div class="q-head">
+      <div class="q-num">9</div>
+      <h3>How do you handle partial success in batch operations without lying to the client?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Return <strong>per-item results</strong> in a structured array, with each item carrying its own status,
+        code, and (on success) the created or updated resource ID. The top-level status is <code>200</code> (the
+        batch was processed) or <code>207</code> (WebDAV multi-status); the individual outcomes are in the array.
+        Never return a single status for a batch with mixed results — it lies to the client about what happened.</p>
+      </div>
+
+      <h4>The response shape</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Response</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>
+                <pre style="margin:0;white-space:pre-wrap;font-family:monospace;font-size:.83rem;line-height:1.5;">HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "results": [
+    { "index": 0, "status": 201, "id": "user_1" },
+    { "index": 1, "status": 409, "code": "duplicate_email",
+      "message": "Email already exists" },
+    { "index": 2, "status": 201, "id": "user_3" },
+    { "index": 3, "status": 422, "code": "invalid_email_format",
+      "message": "Email is not valid" }
+  ],
+  "summary": { "succeeded": 2, "failed": 2, "total": 4 }
+}</pre>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The three design decisions</h4>
+      <ol>
+        <li><strong>Top-level status.</strong> The batch was "processed successfully" — even if some items failed.
+        This is <code>200 OK</code> (or <code>207 Multi-Status</code> for the WebDAV-inclined). The top-level status
+        does <em>not</em> signal whether the items succeeded; that is in the body.</li>
+        <li><strong>Per-item result.</strong> Each item carries its own status, code, message, and (on success)
+        the resulting resource. The <code>index</code> field lets the client correlate the result to the request,
+        even if the order is not preserved.</li>
+        <li><strong>Summary.</strong> A top-level <code>summary</code> object gives counts, so the client can
+        quickly see "2 succeeded, 2 failed" without iterating the array.</li>
+      </ol>
+
+      <h4>The client's obligation</h4>
+      <p>A client that receives a batch response must inspect every item — not just the top-level status. This is
+      the whole point of the per-item structure. The client should:</p>
+      <ul>
+        <li>Iterate the results and build a list of failures.</li>
+        <li>Decide what to do with failures (retry, report, skip).</li>
+        <li>Not assume "200 = success" at the batch level.</li>
+      </ul>
+      <p>The API's documentation should state this explicitly. A client that treats 200 as "everything worked"
+      will silently drop the failed items — which is a data integrity bug that might not surface for days.</p>
+
+      <h4>Correlation by index or client ID</h4>
+      <p>The <code>index</code> field matches the position in the request array. Alternatively, the client can
+      supply a client-generated ID per item, which is echoed back:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Approach</th><th>Pros</th><th>Cons</th></tr></thead>
+          <tbody>
+            <tr><td>Index</td><td>Simple; no client changes</td><td>Fails if the server reorders the results</td></tr>
+            <tr><td>Client ID</td><td>Robust to reordering; supports retry-by-ID</td><td>Client must supply an ID per item</td></tr>
+            <tr><td>Both</td><td>Belt and suspenders</td><td>Slightly redundant</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>For most APIs, index is sufficient. For batch operations where the client may retry individual items,
+      client IDs are worth the extra field — the client can retry by ID without knowing the array position.</p>
+
+      <h4>When to use 207 vs 200</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Code</th><th>When</th><th>Trade-off</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>200 OK</code></td>
+              <td>Batch processed; per-item results in the body</td>
+              <td>Standard; clients see "success" and must read the body</td>
+            </tr>
+            <tr>
+              <td><code>207 Multi-Status</code></td>
+              <td>WebDAV-style; signals mixed results at the status level</td>
+              <td>Widely understood only in WebDAV; most tools treat it as 2xx anyway</td>
+            </tr>
+            <tr>
+              <td><code>400 / 422</code></td>
+              <td>The batch itself is malformed (not the items)</td>
+              <td>Useful when the request is structurally wrong; per-item validation is separate</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The pragmatic recommendation: use <code>200 OK</code> with a per-item body. It is the standard, every
+      client library understands it, and the body carries the important information. 207 adds complexity for
+      minimal benefit outside WebDAV.</p>
+
+      <h4>All-or-nothing vs best-effort</h4>
+      <p>The batch can be designed as:</p>
+      <ul>
+        <li><strong>All-or-nothing</strong> — any failure rolls back the entire batch. The response is a single
+        400 with the failing item; the other items were not processed. Simpler for the client, but one bad item
+        blocks the whole batch.</li>
+        <li><strong>Best-effort</strong> — each item succeeds or fails independently. The response has per-item
+        results. More useful for bulk imports, but the client must handle mixed outcomes.</li>
+        <li><strong>Configurable</strong> — the client specifies <code>atomic: true</code> or <code>false</code>.
+        Most flexible, but requires the server to support both.</li>
+      </ul>
+      <p>For a batch of independent items (creating 100 users, updating 50 records), best-effort is the right
+      default. For a transaction (moving money between accounts), all-or-nothing. The choice should match the
+      domain, not the convenience of the implementation.</p>
+
+      <h4>Idempotency in batch</h4>
+      <p>A batch that partially succeeded must be safe to retry. The client retries the whole batch — the
+      succeeded items fail with "already exists" or duplicate. The fix is per-item idempotency keys (Volume 5,
+      Question 2) — each item carries a key, so retries are no-ops for the succeeded items. This is the only way
+      to make partial batches safe to retry.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Returning a single 200 with no per-item information — "batch accepted". The client has no way to know
+        which items succeeded, which failed, and why. The result is silent data loss: the client assumes everything
+        worked, and the user discovers the missing records later. Every batch must return per-item results.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "A batch returns 200 with a per-item results array — status, code, and ID for each. The summary gives
+        counts. The client must inspect every item; treating 200 as 'all succeeded' is a bug." That demonstrates the
+        response shape and the client obligation in one sentence.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q10 -->
+  <article class="q teal" id="q10">
+    <div class="q-head">
+      <div class="q-num">10</div>
+      <h3>How do you handle errors in async operations and webhooks?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Async operations (202 Accepted, job IDs) report errors through a status endpoint or a webhook, not the
+        original HTTP response. The status endpoint returns the job's state (<code>pending</code>,
+        <code>running</code>, <code>completed</code>, <code>failed</code>) with the error detail on failure. The
+        webhook delivers the result as an event, with retries and a dead-letter queue for persistent failures.
+        Both require the same error structure as a synchronous API — the RFC 7807 body, the retryable flag, the
+        documentation URL.</p>
+      </div>
+
+      <h4>The async lifecycle</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Step</th><th>Client action</th><th>Server response</th></tr></thead>
+          <tbody>
+            <tr><td>1. Submit</td><td><code>POST /jobs</code></td><td><code>202 Accepted</code> with job ID and status URL</td></tr>
+            <tr><td>2. Poll (or wait for webhook)</td><td><code>GET /jobs/{id}</code></td><td><code>200</code> with <code>{"status": "running"}</code></td></tr>
+            <tr><td>3. Complete</td><td><code>GET /jobs/{id}</code></td><td><code>200</code> with <code>{"status": "completed", "result": ...}</code></td></tr>
+            <tr><td>4. Fail</td><td><code>GET /jobs/{id}</code></td><td><code>200</code> with <code>{"status": "failed", "error": {RFC 7807}}</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The status endpoint</h4>
+      <p>The status endpoint always returns 200 (the job exists and is queryable), and the body carries the
+      state. This is deliberate: a 404 for "job not found" is distinct from a failed job, and a 500 would imply
+      the status endpoint is broken, not that the job failed.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>State</th><th>Body</th></tr></thead>
+          <tbody>
+            <tr><td><code>pending</code></td><td><code>{"status": "pending", "created_at": "..."}</code></td></tr>
+            <tr><td><code>running</code></td><td><code>{"status": "running", "progress": 0.45, "started_at": "..."}</code></td></tr>
+            <tr><td><code>completed</code></td><td><code>{"status": "completed", "result": {...}, "completed_at": "..."}</code></td></tr>
+            <tr><td><code>failed</code></td><td><code>{"status": "failed", "error": {RFC 7807}}</code></td></tr>
+            <tr><td><code>cancelled</code></td><td><code>{"status": "cancelled", "cancelled_at": "..."}</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The error object inside a failed job uses the same RFC 7807 structure as a synchronous error. This
+      means the client's error-handling code is the same: read the type, the code, the retryable flag, and
+      display the message.</p>
+
+      <h4>The webhook delivery</h4>
+      <p>For long-running operations, polling is wasteful. The webhook delivers the result as an event:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Event</th><th>When</th><th>Body</th></tr></thead>
+          <tbody>
+            <tr><td><code>job.completed</code></td><td>The job finished successfully</td><td><code>{"type": "job.completed", "job_id": "...", "result": {...}}</code></td></tr>
+            <tr><td><code>job.failed</code></td><td>The job failed</td><td><code>{"type": "job.failed", "job_id": "...", "error": {RFC 7807}}</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Webhook error handling — the receiver's perspective</h4>
+      <p>A webhook can fail in three ways:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Failure</th><th>Who</th><th>Handling</th></tr></thead>
+          <tbody>
+            <tr><td>The receiver is down</td><td>The receiver's infrastructure</td><td>Retry with backoff; eventually DLQ</td></tr>
+            <tr><td>The receiver returns 5xx</td><td>The receiver's application</td><td>Retry with backoff; 5xx means "try again"</td></tr>
+            <tr><td>The receiver returns 4xx</td><td>The receiver's application</td><td>Do not retry; the payload is rejected. Move to DLQ.</td></tr>
+            <tr><td>The receiver times out</td><td>Network or receiver</td><td>Retry with backoff</td></tr>
+            <tr><td>The signature is invalid</td><td>An attacker or a bug</td><td>Log and alert; do not retry</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The receiver must respond within a few seconds. If the work takes longer, the receiver should
+      acknowledge quickly (200) and process asynchronously (in a queue). A slow receiver that holds the
+      connection forces the sender to time out and retry — doubling the load.</p>
+
+      <h4>The webhook sender's retry policy</h4>
+      <p>The sender must implement:</p>
+      <ul>
+        <li><strong>Exponential backoff</strong> — 1s, 5s, 30s, 5m, 30m, 2h, 6h, 24h. Retry across a 24-hour window
+        by default.</li>
+        <li><strong>A signature</strong> — HMAC of the body with a shared secret, so the receiver can verify the
+        source. Without it, the receiver cannot distinguish a legitimate webhook from an attacker's POST.</li>
+        <li><strong>A dead-letter queue</strong> — after retries exhaust, the event goes to a DLQ. The receiver can
+        query the DLQ to find missed events and process them manually.</li>
+        <li><strong>A reconciliation endpoint</strong> — "list events since timestamp T" — so a receiver that was
+        down for days can catch up without relying on the webhook.</li>
+        <li><strong>Idempotency</strong> — each event has a unique ID; the receiver must deduplicate. A webhook is
+        at-least-once delivery; duplicates are expected.</li>
+      </ul>
+
+      <h4>The error propagation chain</h4>
+      <p>When an async job fails, the error must propagate through the chain:</p>
+      <ol>
+        <li>The worker that ran the job records the error.</li>
+        <li>The job's status is updated to <code>failed</code> with the error detail.</li>
+        <li>The webhook fires a <code>job.failed</code> event.</li>
+        <li>The client's webhook handler logs it and (if applicable) surfaces it to the user.</li>
+      </ol>
+      <p>Each step preserves the RFC 7807 structure — the error body is the same whether the client sees it via
+      polling or via webhook. This consistency is what makes async errors debuggable.</p>
+
+      <h4>The information-disclosure boundary</h4>
+      <p>Async errors have a subtle risk: the error detail may include information that was not meant for the
+      client. A worker failure might include a stack trace, a database error, or an internal identifier. The job
+      status endpoint and webhook must sanitise the error to the client-facing form (RFC 7807, no stack traces),
+      while logging the full error internally. This is the same rule as the synchronous 500 — the client sees
+      the sanitised error, the log sees the full error, and the correlation ID links them.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Returning the job's error in the initial <code>202 Accepted</code> response. A 202 means "accepted,
+        not yet processed" — it cannot carry an error, because there has not been processing yet. If the submission
+        itself is invalid, return 400/422 immediately. If the job fails later, the error is in the status endpoint
+        or webhook, not in the 202.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Async errors are reported through the status endpoint or a webhook, with the same RFC 7807 body as
+        sync errors. The webhook has retries with backoff, a dead-letter queue, and a reconciliation endpoint, so a
+        receiver never loses an event permanently." That covers the reporting, the retry, and the safety net in one
+        sentence.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- NEXT PART -->
+  <section class="next-part">
+    <h3>Coming in Volume 9 — API Gateways &amp; Management</h3>
+    <p>Volume 9 turns to the infrastructure that sits between clients and services: what an API gateway does
+    (routing, auth, rate limiting, transformation), how it differs from a load balancer and a service mesh, how to
+    design routing for canary and blue-green deploys, how the BFF pattern shapes responses for different clients,
+    and how to operate a gateway without making it a single point of failure.</p>
+    <ul class="next-list">
+      <li>Gateway vs load balancer vs service mesh</li>
+      <li>North-south vs east-west traffic</li>
+      <li>Routing: path, host, header, weight</li>
+      <li>Request and response transformation</li>
+      <li>The BFF (Backend for Frontend) pattern</li>
+      <li>Canary and blue-green routing</li>
+      <li>Gateway authentication and authorization</li>
+      <li>Rate limiting at the gateway</li>
+      <li>Gateway observability</li>
+      <li>Scaling and failure modes of the gateway</li>
+    </ul>
+  </section>
+
+</div>
+</body>
+</html>
