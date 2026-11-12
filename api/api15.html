@@ -1,0 +1,2252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API Design — Volume 15: Observability &amp; Operations</title>
+<style>
+  :root{
+    --ink:#0f1117;
+    --ink-soft:#2a3040;
+    --muted:#647089;
+    --line:#dde3ee;
+    --bg:#f5f7fc;
+    --card:#ffffff;
+    --indigo:#4338ca;
+    --indigo-soft:#e0e7ff;
+    --indigo-deep:#1e1b4b;
+    --blue:#2563eb;
+    --sky:#0284c7;
+    --cyan:#0891b2;
+    --teal:#0f766e;
+    --amber:#b45309;
+    --rose:#be123c;
+    --emerald:#047857;
+    --shadow:0 1px 2px rgba(20,30,60,.06), 0 8px 24px -8px rgba(20,30,60,.14);
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 8% -10%, #e0e7ff 0%, transparent 60%),
+      radial-gradient(1000px 500px at 100% 0%, #e0f2fe 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink);
+    font-family:"Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    line-height:1.72;
+    font-size:16.5px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px;margin:0 auto;padding:0 22px 90px;}
+
+  header.hero{
+    background:linear-gradient(135deg,#0f1117 0%, #1e1b4b 45%, #4338ca 100%);
+    color:#eef2ff;
+    padding:64px 22px 56px;
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::after{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      radial-gradient(600px 300px at 85% 15%, rgba(99,102,241,.42), transparent 70%),
+      radial-gradient(520px 280px at 12% 92%, rgba(2,132,199,.4), transparent 70%);
+    pointer-events:none;
+  }
+  .hero-inner{max-width:1080px;margin:0 auto;position:relative;z-index:2;}
+  .eyebrow{
+    display:inline-block;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;
+    font-weight:700;padding:7px 15px;border-radius:999px;
+    background:rgba(165,180,252,.18);border:1px solid rgba(165,180,252,.5);
+    color:#a5b4fc;margin-bottom:20px;
+  }
+  header.hero h1{
+    font-size:clamp(1.9rem, 4.4vw, 3rem);line-height:1.15;margin:0 0 16px;
+    font-weight:800;letter-spacing:-.02em;
+  }
+  header.hero h1 span{
+    background:linear-gradient(90deg,#a5b4fc,#7dd3fc);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  header.hero p.lede{font-size:1.06rem;color:#c7d2fe;max-width:780px;margin:0 0 26px;}
+  .meta-chips{display:flex;flex-wrap:wrap;gap:10px;}
+  .chip{
+    font-size:.78rem;font-weight:600;padding:7px 14px;border-radius:999px;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#e0e7ff;
+  }
+
+  .roadmap{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:26px 28px;margin-top:-34px;position:relative;z-index:5;
+  }
+  .roadmap h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 16px;font-weight:700;
+  }
+  .roadmap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;}
+  .roadmap-item{
+    border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:.86rem;
+    background:#fbfcff;opacity:.7;
+  }
+  .roadmap-item.done{
+    border-color:#a5b4fc;background:linear-gradient(180deg,#eef2ff,#ffffff);opacity:1;
+  }
+  .roadmap-item.current{
+    border-color:#818cf8;background:linear-gradient(180deg,#e0e7ff,#ffffff);opacity:1;
+    box-shadow:0 0 0 3px rgba(67,56,202,.14);
+  }
+  .roadmap-item .tag{
+    display:inline-block;font-size:.64rem;font-weight:800;letter-spacing:.08em;
+    padding:2px 8px;border-radius:999px;margin-bottom:6px;
+  }
+  .tag-done{background:var(--indigo-soft);color:var(--indigo-deep);}
+  .tag-now{background:#c7d2fe;color:#3730a3;}
+  .tag-next{background:#e2e8f0;color:#475569;}
+  .roadmap-item strong{display:block;color:var(--ink);font-size:.89rem;}
+
+  nav.toc{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:22px 26px;margin:26px 0 44px;
+  }
+  nav.toc h2{
+    font-size:.78rem;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);
+    margin:0 0 14px;font-weight:700;
+  }
+  nav.toc ol{
+    margin:0;padding-left:0;list-style:none;counter-reset:toc;
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:8px 26px;
+  }
+  nav.toc li{
+    counter-increment:toc;font-size:.93rem;padding:6px 0 6px 34px;
+    position:relative;border-bottom:1px dashed #e8ecf7;
+  }
+  nav.toc li::before{
+    content:counter(toc);position:absolute;left:0;top:7px;width:22px;height:22px;
+    border-radius:7px;background:var(--indigo-soft);color:var(--indigo);
+    font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center;
+  }
+  nav.toc a{color:var(--ink-soft);text-decoration:none;font-weight:500;}
+  nav.toc a:hover{color:var(--indigo);}
+
+  .part-band{display:flex;align-items:center;gap:16px;margin:56px 0 26px;}
+  .part-band .bar{
+    width:5px;height:44px;border-radius:99px;
+    background:linear-gradient(180deg,var(--indigo),#818cf8);
+  }
+  .part-band.cyan .bar{background:linear-gradient(180deg,var(--cyan),#22d3ee);}
+  .part-band.emerald .bar{background:linear-gradient(180deg,var(--emerald),#34d399);}
+  .part-band h2{margin:0;font-size:1.5rem;letter-spacing:-.01em;font-weight:800;}
+  .part-band .sub{
+    display:block;font-size:.82rem;font-weight:600;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.12em;margin-top:2px;
+  }
+
+  article.q{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:0 0 26px;margin-bottom:28px;overflow:hidden;
+    scroll-margin-top:24px;
+  }
+  .q-head{
+    display:flex;gap:16px;align-items:flex-start;padding:22px 28px 18px;
+    border-bottom:1px solid #eef1fa;background:linear-gradient(180deg,#fafbff,#ffffff);
+  }
+  .q-num{
+    flex:none;width:42px;height:42px;border-radius:12px;display:flex;
+    align-items:center;justify-content:center;font-weight:800;font-size:.92rem;color:#fff;
+    background:linear-gradient(135deg,#4338ca,#6366f1);
+    box-shadow:0 6px 14px -6px rgba(67,56,202,.7);
+  }
+  .cyan .q-num{background:linear-gradient(135deg,#0891b2,#22d3ee);box-shadow:0 6px 14px -6px rgba(8,145,178,.7);}
+  .emerald .q-num{background:linear-gradient(135deg,#047857,#34d399);box-shadow:0 6px 14px -6px rgba(4,120,87,.7);}
+  .q-head h3{margin:0;font-size:1.14rem;font-weight:700;line-height:1.4;letter-spacing:-.01em;}
+  .q-body{padding:22px 28px 0;}
+  .q-body p{margin:0 0 15px;color:var(--ink-soft);}
+  .q-body p:last-child{margin-bottom:0;}
+  .q-body h4{margin:24px 0 10px;font-size:.95rem;font-weight:800;color:var(--ink);}
+  .q-body h4::before{content:"▹";color:var(--indigo);margin-right:8px;font-size:.85rem;}
+  .cyan .q-body h4::before{color:var(--cyan);}
+  .emerald .q-body h4::before{color:var(--emerald);}
+  .q-body ul,.q-body ol{margin:0 0 16px;padding-left:22px;color:var(--ink-soft);}
+  .q-body li{margin-bottom:8px;}
+  .q-body li::marker{color:var(--indigo);}
+  .cyan .q-body li::marker{color:var(--cyan);}
+  .emerald .q-body li::marker{color:var(--emerald);}
+  strong{color:var(--ink);font-weight:700;}
+  code{
+    background:#f3f5fb;border:1px solid #dde3ee;border-radius:6px;padding:1px 6px;
+    font-size:.87em;font-family:"SFMono-Regular",Consolas,monospace;color:#4338ca;
+  }
+
+  .callout{border-radius:12px;padding:14px 18px;margin:18px 0 4px;font-size:.93rem;border-left:4px solid;}
+  .callout .label{
+    display:block;font-size:.68rem;font-weight:800;letter-spacing:.13em;
+    text-transform:uppercase;margin-bottom:5px;
+  }
+  .callout p{margin:0 0 8px;font-size:.93rem;}
+  .callout p:last-child{margin-bottom:0;}
+  .answer{background:linear-gradient(180deg,#eef2ff,#ffffff);border-color:var(--indigo);}
+  .answer .label{color:var(--indigo-deep);}
+  .tip{background:linear-gradient(180deg,#eff6ff,#ffffff);border-color:var(--blue);}
+  .tip .label{color:#1d4ed8;}
+  .tradeoff{background:linear-gradient(180deg,#fffbeb,#ffffff);border-color:var(--amber);}
+  .tradeoff .label{color:#b45309;}
+  .pitfall{background:linear-gradient(180deg,#fff1f2,#ffffff);border-color:var(--rose);}
+  .pitfall .label{color:#be123c;}
+
+  .table-scroll{overflow-x:auto;margin:18px 0;border-radius:12px;border:1px solid var(--line);}
+  table{width:100%;border-collapse:collapse;font-size:.87rem;background:#fff;}
+  thead th{
+    background:#f8f9ff;text-align:left;padding:11px 14px;font-weight:800;
+    font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+    border-bottom:2px solid var(--line);white-space:nowrap;
+  }
+  tbody td{padding:11px 14px;border-bottom:1px solid #f2f4fb;color:var(--ink-soft);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:nth-child(even){background:#fcfcff;}
+  tbody td:first-child{font-weight:700;color:var(--ink);}
+
+  pre{
+    margin:0;
+    white-space:pre-wrap;
+    font-family:"SFMono-Regular",Consolas,monospace;
+    font-size:.83rem;
+    line-height:1.55;
+  }
+
+  .next-part{
+    background:linear-gradient(135deg,#0f1117,#4338ca);color:#e0e7ff;
+    border-radius:var(--radius);padding:32px 34px;margin-top:50px;box-shadow:var(--shadow);
+  }
+  .next-part h3{margin:0 0 12px;font-size:1.2rem;color:#fff;font-weight:800;}
+  .next-part p{margin:0 0 16px;color:#c7d2fe;font-size:.95rem;}
+  .next-list{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:10px;list-style:none;padding:0;margin:0;
+  }
+  .next-list li{
+    background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
+    border-radius:10px;padding:10px 14px;font-size:.86rem;color:#e0e7ff;
+  }
+
+  @media (max-width:640px){
+    .q-head{padding:18px 18px 15px;}
+    .q-body{padding:18px 18px 0;}
+    header.hero{padding:44px 18px 46px;}
+    .roadmap{padding:20px;}
+    nav.toc{padding:18px;}
+    nav.toc ol{grid-template-columns:1fr;}
+  }
+  @media print{
+    body{background:#fff;}
+    article.q, nav.toc, .roadmap{box-shadow:none;page-break-inside:avoid;}
+    header.hero{background:#0f1117 !important;-webkit-print-color-adjust:exact;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <span class="eyebrow">Volume 15 · Section 15 of 18</span>
+    <h1>API Design for System Interviews<br><span>Observability &amp; Operations</span></h1>
+    <p class="lede">
+      Operating an API in production. The three pillars — metrics, logs, traces — and what each answers. SLIs,
+      SLOs, SLAs, and error budgets as the language of reliability. Alert design that pages on symptoms rather
+      than causes. Incident response, blameless postmortems, deployment strategies, and chaos engineering.
+    </p>
+    <div class="meta-chips">
+      <span class="chip">10 Questions</span>
+      <span class="chip">500+ words each</span>
+      <span class="chip">Reliability-focused</span>
+      <span class="chip">SLO + incidents</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ROADMAP -->
+  <section class="roadmap">
+    <h2>Answer-Series Roadmap</h2>
+    <div class="roadmap-grid">
+      <div class="roadmap-item done">
+        <span class="tag tag-done">Volume 1–14 — Complete</span>
+        <strong>Foundations through Security</strong>
+        All prior volumes
+      </div>
+      <div class="roadmap-item current">
+        <span class="tag tag-now">Volume 15 — You are here</span>
+        <strong>Observability &amp; Operations</strong>
+        Metrics, logs, traces, SLOs, alerts, incidents, deploys
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 16</span>
+        <strong>API Lifecycle &amp; Governance</strong>
+        Design reviews, style guides, docs, developer experience
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 17</span>
+        <strong>17 Classic API Design Problems</strong>
+        End-to-end prompts solved
+      </div>
+      <div class="roadmap-item">
+        <span class="tag tag-next">Volume 18</span>
+        <strong>Senior &amp; Staff Trade-offs</strong>
+        Choosing between every pair of options
+      </div>
+    </div>
+  </section>
+
+  <!-- TOC -->
+  <nav class="toc">
+    <h2>Questions Answered in This Volume</h2>
+    <ol>
+      <li><a href="#q1">What are the three pillars of observability, and what does each answer?</a></li>
+      <li><a href="#q2">RED and USE — the two metric frameworks</a></li>
+      <li><a href="#q3">SLIs, SLOs, SLAs, and error budgets</a></li>
+      <li><a href="#q4">How do you design alerts that page on symptoms, not causes?</a></li>
+      <li><a href="#q5">How do you design dashboards that answer real questions?</a></li>
+      <li><a href="#q6">Distributed tracing and correlation across services</a></li>
+      <li><a href="#q7">How do you run an incident — response, roles, communication?</a></li>
+      <li><a href="#q8">Blameless postmortems — the template and the culture</a></li>
+      <li><a href="#q9">Deployment strategies — rolling, blue-green, canary, feature flags</a></li>
+      <li><a href="#q10">Chaos engineering and game days</a></li>
+    </ol>
+  </nav>
+
+  <!-- ================= PART A ================= -->
+  <div class="part-band">
+    <div class="bar"></div>
+    <h2>Part A — The Three Pillars
+      <span class="sub">Metrics, logs, and traces — what each answers, and how they combine</span>
+    </h2>
+  </div>
+
+  <!-- Q1 -->
+  <article class="q" id="q1">
+    <div class="q-head">
+      <div class="q-num">1</div>
+      <h3>What are the three pillars of observability, and what does each answer?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>The three pillars are <strong>metrics</strong> (aggregated numeric measurements over time),
+        <strong>logs</strong> (discrete timestamped events), and <strong>traces</strong> (the causal flow of a
+        single request across services). Each answers a different question: metrics answer "is something wrong
+        right now?", logs answer "what exactly happened?", traces answer "where in the flow did it happen?".
+        All three are necessary; none is a substitute for the others.</p>
+      </div>
+
+      <h4>What each pillar is good at</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Pillar</th><th>Shape</th><th>Cost</th><th>Answers</th><th>Bad at</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Metrics</strong></td>
+              <td>Numeric time series, tagged</td>
+              <td>Cheap — aggregate by tags</td>
+              <td>"What is the error rate right now?" "Is latency above the SLO?"</td>
+              <td>High cardinality; details of individual events</td>
+            </tr>
+            <tr>
+              <td><strong>Logs</strong></td>
+              <td>Text/JSON events, timestamped</td>
+              <td>Expensive — storage scales with volume</td>
+              <td>"What error message?" "What request ID?" "What was the input?"</td>
+              <td>Aggregation across many events; slow at high volume</td>
+            </tr>
+            <tr>
+              <td><strong>Traces</strong></td>
+              <td>Spans with parent-child links</td>
+              <td>Moderate — one trace per sampled request</td>
+              <td>"Which service in the flow is slow?" "What did this request call?"</td>
+              <td>Full-population aggregation (traces are sampled)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Metrics — the pulse</h4>
+      <p>A metric is a number over time: request count, error count, latency histogram, CPU usage, queue depth.
+      Tags (labels) split the series by dimension: <code>method</code>, <code>status</code>,
+      <code>endpoint</code>, <code>region</code>. The tags are what makes metrics queryable: "error rate for
+      <code>POST /orders</code> in <code>us-east</code>" is a query over the tagged series.</p>
+      <p>Metrics are the cheapest pillar — the data is aggregated at collection time, so storing a thousand
+      series is cheap. The trade-off: high cardinality (unique values per tag) explodes the cost. A metric
+      tagged with <code>user_id</code> (millions of values) is a cardinality disaster — the metric system stores
+      millions of series and the query engine slows. The discipline: never tag with unbounded dimensions (user
+      ID, request ID, email); use bounded dimensions (endpoint, status, region).</p>
+      <p>The standard metric types:</p>
+      <ul>
+        <li><strong>Counter</strong> — monotonically increasing (requests, errors). The rate over a window is the
+        useful signal.</li>
+        <li><strong>Gauge</strong> — a value that goes up and down (in-flight requests, queue depth, memory).</li>
+        <li><strong>Histogram</strong> — a distribution (latency buckets). The percentile (p50, p95, p99) is the
+        useful signal.</li>
+        <li><strong>Summary</strong> — pre-computed percentiles (limited — cannot be aggregated across
+        instances).</li>
+      </ul>
+
+      <h4>Logs — the detail</h4>
+      <p>A log line is a timestamped event: <code>{"timestamp": "...", "level": "ERROR", "service": "orders",
+      "trace_id": "...", "message": "payment declined", "user_id": "u_42"}</code>. Logs are the record of
+      exactly what happened, with the input, the output, and the exception.</p>
+      <p>The modern best practice is <strong>structured logging</strong> — every log line is JSON with a
+      consistent schema. This makes logs queryable ("show me all logs for trace_id X") and parseable by
+      downstream systems. The alternative (plain text with printf) is cheap to write and expensive to query.</p>
+      <p>Logs are expensive at volume. A high-traffic API generates terabytes per day. The strategies:</p>
+      <ul>
+        <li><strong>Sampling</strong> — log 1% of successful requests, 100% of errors.</li>
+        <li><strong>Retention tiers</strong> — hot (7 days, searchable), warm (30 days, queryable), cold (1 year,
+        archive).</li>
+        <li><strong>Truncation</strong> — cap the log line size; large payloads are separate.</li>
+        <li><strong>Redaction</strong> — never log secrets, tokens, or full PII (Volume 14).</li>
+      </ul>
+
+      <h4>Traces — the story</h4>
+      <p>A trace is the full picture of one request across services: the entry point, each downstream call, each
+      database query, each external API call, with the time spent in each. Each segment is a <strong>span</strong>
+      with a parent; the trace is a tree. The <code>trace_id</code> ties the whole tree together; the
+      <code>span_id</code> identifies each piece; the parent <code>span_id</code> gives the structure.</p>
+      <p>Traces answer the question metrics and logs cannot: "where in the flow is the latency?" A p99 of 2
+      seconds on <code>GET /orders</code> is a metric; the trace shows that 1.8 seconds is spent in the
+      database query, or in a specific downstream service, or in an external call. Without the trace, the
+      engineer guesses; with it, the engineer knows.</p>
+      <p>Traces are sampled — storing every trace is too expensive. The typical sampling: 1–10% of successful
+      requests, 100% of errors or slow requests. Head-based sampling (decided at the entry point) is simple;
+      tail-based sampling (decided after the trace is complete) keeps the interesting traces.</p>
+
+      <h4>How they combine</h4>
+      <p>The three pillars are complementary, not alternatives. The workflow:</p>
+      <ol>
+        <li><strong>Alert fires on a metric</strong> — error rate on <code>POST /orders</code> is above the SLO.</li>
+        <li><strong>A trace shows where</strong> — the trace for a failing request reveals that the
+        <code>payment-service</code> is slow.</li>
+        <li><strong>Logs show why</strong> — the logs from <code>payment-service</code> for that trace ID
+        show the specific error (a timeout from the payment provider).</li>
+        <li><strong>Fix, verify</strong> — the metric returns to normal; the trace is fast again; the logs show
+        no errors.</li>
+      </ol>
+      <p>Without all three, the workflow has a gap. Without metrics, no one knows there is a problem. Without
+      traces, no one knows where. Without logs, no one knows why.</p>
+
+      <h4>The correlation key</h4>
+      <p>All three pillars are linked by the <strong>correlation ID</strong> (also called the request ID or
+      trace ID). Every log line includes it; every span has it; the metric system can tag it (sparingly — high
+      cardinality risk). The correlation ID is what lets an engineer start from a metric, drill into a trace,
+      and find the logs — all for the same request.</p>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Metrics answer 'is something wrong?', logs answer 'what happened?', traces answer 'where in the
+        flow?'. All three are linked by the correlation ID. Metrics are cheap and aggregate; logs are detailed
+        and expensive; traces are sampled and causal." That covers the roles and the trade-offs.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q2 -->
+  <article class="q" id="q2">
+    <div class="q-head">
+      <div class="q-num">2</div>
+      <h3>What are the RED and USE metric frameworks, and when do you use each?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p><strong>RED</strong> (Rate, Errors, Duration) is the framework for <em>services</em> — what the caller
+        experiences. <strong>USE</strong> (Utilization, Saturation, Errors) is the framework for
+        <em>resources</em> — the servers, databases, queues, and disks that back the service. Use RED for the
+        API's user-facing endpoints; use USE for the infrastructure that serves them. Together they cover both
+        the symptom (RED) and the cause (USE).</p>
+      </div>
+
+      <h4>RED — the service framework</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Metric</th><th>What it measures</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Rate</strong></td>
+              <td>Requests per second</td>
+              <td><code>rate(http_requests_total[1m])</code> — how many requests per second</td>
+            </tr>
+            <tr>
+              <td><strong>Errors</strong></td>
+              <td>The rate of failed requests</td>
+              <td><code>rate(http_requests_total{status=~"5.."}[1m])</code> — the error rate</td>
+            </tr>
+            <tr>
+              <td><strong>Duration</strong></td>
+              <td>The latency distribution</td>
+              <td><code>histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m]))</code> — the p99</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>RED is what the <em>caller</em> cares about — the service is receiving traffic, it is succeeding, and
+      it is fast. Every API endpoint should have RED metrics. When the p99 latency is above the SLO, the alert
+      fires; when the error rate is above the SLO, the alert fires. The metric is the symptom, not the cause —
+      a slow service could be slow because the database is slow, but RED does not say that.</p>
+
+      <h4>USE — the resource framework</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Metric</th><th>What it measures</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Utilization</strong></td>
+              <td>How busy the resource is</td>
+              <td>CPU at 75%, memory at 60%, database connection pool at 90%</td>
+            </tr>
+            <tr>
+              <td><strong>Saturation</strong></td>
+              <td>How much work is queued waiting for the resource</td>
+              <td>Run queue length, thread pool backlog, database lock waits, disk queue depth</td>
+            </tr>
+            <tr>
+              <td><strong>Errors</strong></td>
+              <td>The rate of resource-level errors</td>
+              <td>Disk errors, network errors, connection failures, allocation failures</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>USE is what the <em>operator</em> cares about — is the resource healthy, or is it about to be the
+      bottleneck? High utilization is not a problem by itself; high utilization combined with growing
+      saturation is. A database at 90% CPU with zero lock waits is fine; a database at 50% CPU with rising lock
+      waits is the problem.</p>
+
+      <h4>How they connect</h4>
+      <p>The workflow:</p>
+      <ol>
+        <li><strong>RED alerts</strong> — the error rate on <code>POST /orders</code> is above the SLO.</li>
+        <li><strong>USE investigates</strong> — the database CPU is at 95%, the connection pool is exhausted,
+        the lock waits are rising.</li>
+        <li><strong>Fix the resource</strong> — add a read replica, optimize the slow query, increase the pool.</li>
+        <li><strong>RED recovers</strong> — the error rate returns to normal.</li>
+      </ol>
+      <p>RED tells you something is wrong; USE tells you where. The two together are the standard observability
+      framework for any service backed by infrastructure.</p>
+
+      <h4>What each framework misses</h4>
+      <ul>
+        <li><strong>RED misses the cause</strong> — it does not show the database load, the GC pauses, the
+        thread pool state, the queue backlog. The operator sees the symptom but not the cause.</li>
+        <li><strong>USE misses the impact</strong> — it does not show the user experience. A database at 100% CPU
+        might be fine if the queries are fast; a database at 30% CPU might be a problem if the lock waits are
+        high. USE needs to be interpreted in the context of RED.</li>
+        <li><strong>Both miss the business metrics</strong> — signups, conversions, revenue. The API might be
+        healthy on RED and USE but the business might be failing (a checkout bug that the technical metrics do
+        not catch). Business metrics are a third framework, layered on top.</li>
+      </ul>
+
+      <h4>The four golden signals</h4>
+      <p>Google's SRE book defines a related framework: <strong>latency, traffic, errors, saturation</strong>.
+      It is RED plus saturation — the service's signals with the resource's most important signal. The four
+      golden signals are a superset of RED with the saturation dimension. In practice, use RED for the service
+      metrics and USE for the resources; the four golden signals are a useful mental model that combines both.</p>
+
+      <h4>The business metrics</h4>
+      <p>The technical metrics answer "is the API working?" The business metrics answer "is the product
+      working?" — signups per minute, orders per minute, revenue per hour, checkout conversion. A drop in orders
+      with a healthy RED metric is a product bug, not an infrastructure bug. The business metrics catch:</p>
+      <ul>
+        <li><strong>Feature bugs</strong> — a checkout button that returns 200 but does not create the order.</li>
+        <li><strong>Third-party outages</strong> — the payment provider's API is down; the orders fail but the
+        API returns 200 (async failure).</li>
+        <li><strong>Data quality</strong> — the orders are created but the analytics pipeline is broken.</li>
+      </ul>
+      <p>The dashboard should include both the technical metrics and the business metrics; the alert should fire
+      on either. A business metric drop is often the earliest signal of a real problem.</p>
+
+      <div class="callout tradeoff">
+        <span class="label">Trade-off</span>
+        <p>RED is cheap and universal; USE is per-resource and requires specific instrumentation. The pragmatic
+        answer: implement RED on every endpoint (mandatory), implement USE on every critical resource
+        (databases, queues, caches, load balancers), and add business metrics for the flows that matter. Each
+        layer catches a class the others miss.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "RED for the service — rate, errors, duration — is what the caller experiences. USE for the
+        resources — utilization, saturation, errors — is where the cause lives. Layer business metrics on top
+        for the flows that matter. The workflow is: RED alerts, USE investigates." That covers the frameworks
+        and how they connect.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q3 -->
+  <article class="q" id="q3">
+    <div class="q-head">
+      <div class="q-num">3</div>
+      <h3>What are SLIs, SLOs, and SLAs, and how does an error budget work?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>An <strong>SLI</strong> is the measurement — the actual latency, error rate, availability. An
+        <strong>SLO</strong> is the target for that measurement — 99.9% of requests succeed in under 300 ms. An
+        <strong>SLA</strong> is the legal commitment — the consequences (credits, penalties) if the SLO is
+        missed. The <strong>error budget</strong> is the allowed failure — 0.1% of requests in a 30-day window,
+        which is the margin the SLO permits. The budget funds the risk; when it is exhausted, the team stops
+        shipping features and focuses on reliability.</p>
+      </div>
+
+      <h4>The three terms, defined precisely</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Term</th><th>Definition</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>SLI</strong> (Indicator)</td>
+              <td>A quantifiable measure of the service's behaviour, from the caller's perspective</td>
+              <td>Proportion of HTTP requests that return 2xx/3xx, or the p99 latency, measured at the load balancer</td>
+            </tr>
+            <tr>
+              <td><strong>SLO</strong> (Objective)</td>
+              <td>A target value or range for the SLI over a period</td>
+              <td>99.9% of requests succeed; 95% of requests return in under 300 ms; measured over 30 days</td>
+            </tr>
+            <tr>
+              <td><strong>SLA</strong> (Agreement)</td>
+              <td>A legal or contractual commitment with consequences if missed</td>
+              <td>If the API is below 99.9% for a month, the customer receives a 10% credit</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The relationship: the SLI is the measurement, the SLO is the internal target, the SLA is the external
+      commitment. The SLO is almost always <em>stricter</em> than the SLA — the team targets 99.95% so that the
+      99.9% SLA is never breached.</p>
+
+      <h4>Choosing an SLI</h4>
+      <p>The SLI must reflect what the user experiences, not what the system measures internally. The dimensions:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Dimension</th><th>What it measures</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Availability</strong></td>
+              <td>Is the service responding?</td>
+              <td>% of requests that succeed (non-5xx, or explicit success response)</td>
+            </tr>
+            <tr>
+              <td><strong>Latency</strong></td>
+              <td>Is the service fast enough?</td>
+              <td>% of requests returning in under 300 ms; or p99 latency</td>
+            </tr>
+            <tr>
+              <td><strong>Throughput</strong></td>
+              <td>Is the service handling the load?</td>
+              <td>Requests per second; or % of requests that do not hit the rate limit</td>
+            </tr>
+            <tr>
+              <td><strong>Durability</strong></td>
+              <td>Is the data safe?</td>
+              <td>% of writes that survive a read-back</td>
+            </tr>
+            <tr>
+              <td><strong>Freshness</strong></td>
+              <td>Is the data up to date?</td>
+              <td>Age of the replica data at read time</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The critical choice: the SLI is measured <em>from the caller's side</em> — the load balancer, the
+      client, the edge — not from the server's internal metrics. A server that reports "all requests served
+      successfully" might be lying (the request errored after the metric was recorded); the caller's SLI is
+      the truth.</p>
+
+      <h4>The SLO specification</h4>
+      <p>A well-specified SLO includes:</p>
+      <ul>
+        <li><strong>The SLI</strong> — what is measured, from where.</li>
+        <li><strong>The target</strong> — the percentage, the latency threshold.</li>
+        <li><strong>The window</strong> — over what period (30 days, 90 days, rolling).</li>
+        <li><strong>The scope</strong> — which endpoints, which customers, which regions.</li>
+        <li><strong>The consequences</strong> — what happens if missed (page on-call, inform the customer,
+        initiate the error-budget policy).</li>
+      </ul>
+      <p>Example: "<code>POST /orders</code> and <code>GET /orders/{id}</code> succeed with a 200 response within
+      500 ms for 99.9% of requests, measured at the load balancer, over a rolling 30-day window."</p>
+
+      <h4>The error budget</h4>
+      <p>The error budget is the SLO's complement — the allowed failure. For 99.9% over 30 days:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>SLO</th><th>Error budget (30 days)</th><th>Downtime equivalent</th></tr></thead>
+          <tbody>
+            <tr><td>99%</td><td>1%</td><td>~7.2 hours</td></tr>
+            <tr><td>99.9%</td><td>0.1%</td><td>~43 minutes</td></tr>
+            <tr><td>99.95%</td><td>0.05%</td><td>~21 minutes</td></tr>
+            <tr><td>99.99%</td><td>0.01%</td><td>~4.3 minutes</td></tr>
+            <tr><td>99.999%</td><td>0.001%</td><td>~26 seconds</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The budget is a <em>spendable resource</em>. The team spends it on:
+      <ul>
+        <li><strong>Risky deploys</strong> — a new feature might have bugs; the budget absorbs them.</li>
+        <li><strong>Experiments</strong> — a new database engine, a new region, a new configuration.</li>
+        <li><strong>Planned maintenance</strong> — a brief outage during a migration.</li>
+      </ul>
+      </p>
+      <p>When the budget is healthy, the team ships fast. When the budget is depleted, the team stops shipping
+      features and focuses on reliability. This is the fundamental tension the budget resolves — it converts
+      the vague "we should be more reliable" into a concrete, measurable policy.</p>
+
+      <h4>The budget policy</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Budget remaining</th><th>Policy</th></tr></thead>
+          <tbody>
+            <tr><td>&gt;50%</td><td>Ship features freely; the risk is covered</td></tr>
+            <tr><td>25–50%</td><td>Ship with caution; review risky changes</td></tr>
+            <tr><td>10–25%</td><td>Prioritise reliability work; ship only critical features</td></tr>
+            <tr><td>&lt;10%</td><td>Feature freeze; the team focuses entirely on reliability</td></tr>
+            <tr><td>0%</td><td>The SLO is breached; postmortem, action items, and a plan to recover the budget</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The policy must be agreed upon <em>before</em> the budget is depleted — the team cannot negotiate the
+      policy while the service is on fire. The policy is a pre-commitment, and it is enforced by the team's
+      leadership.</p>
+
+      <h4>The SLA and its consequences</h4>
+      <p>The SLA is the external commitment. It is typically 99.9% for a paid service, with credits for the
+      customer if the target is missed. The SLA is what the customer's contract specifies, and its breach is a
+      business event, not just an engineering one.</p>
+      <p>The SLA should be:</p>
+      <ul>
+        <li><strong>Wider than the SLO</strong> — the SLO is 99.95%, the SLA is 99.9%.</li>
+        <li><strong>Measured consistently</strong> — the same SLI, the same window, the same scope.</li>
+        <li><strong>Communicated clearly</strong> — the customer knows what is measured and what the
+        consequences are.</li>
+        <li><strong>Reviewed periodically</strong> — as the service improves, the SLA can be tightened.</li>
+      </ul>
+
+      <h4>The "five nines" myth</h4>
+      <p>Five nines (99.999%) allows 26 seconds of downtime per month. This is not achievable with standard
+      deployment practices — a single rolling deploy takes longer than 26 seconds. Achieving five nines
+      requires either perfect deployments (impossible) or a multi-region active-active architecture with
+      sub-second failover (very expensive). Most services are 99.9% or 99.95% — the cost of each additional
+      nine grows exponentially, and the benefit is measured in minutes of avoided downtime per year.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Setting the SLO from the server's internal metrics, not the caller's experience. The server reports
+        99.99% success, but the load balancer sees 99.5% — the difference is the requests that failed before
+        reaching the server (connection errors, timeouts, DNS failures). The server's metrics lie; the caller's
+        are the truth.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "SLI is the measurement, SLO is the internal target, SLA is the external commitment. The error
+        budget is the complement — 0.1% for 99.9% — and it funds the risky work. When the budget is depleted,
+        the team stops shipping features and fixes reliability. The SLA is always wider than the SLO." That
+        covers the framework in one paragraph.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART B ================= -->
+  <div class="part-band cyan">
+    <div class="bar"></div>
+    <h2>Part B — Alerting &amp; Investigation
+      <span class="sub">Symptoms vs causes, dashboards, and traces</span>
+    </h2>
+  </div>
+
+  <!-- Q4 -->
+  <article class="q cyan" id="q4">
+    <div class="q-head">
+      <div class="q-num">4</div>
+      <h3>How do you design alerts that page on symptoms rather than causes?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>An alert should fire when the user is being affected — when the SLO is at risk — not when a specific
+        component is showing a particular value. The symptom is "the error rate is above the SLO", "the p99 is
+        above 500 ms", "the checkout success rate dropped". The cause is "the database CPU is 90%", "the
+        connection pool is full", "the queue is backing up" — these are <em>diagnostics</em>, not alerts. Alerts
+        page the on-call; diagnostics inform the investigation.</p>
+      </div>
+
+      <h4>Why symptom-based alerts are better</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Cause-based alert</th><th>Symptom-based alert</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Database CPU &gt; 80%</td>
+              <td>Error rate &gt; 0.1% or p99 &gt; SLO</td>
+            </tr>
+            <tr>
+              <td>Memory usage &gt; 90%</td>
+              <td>OOMKilled pods &gt; 0 in the last 5 min</td>
+            </tr>
+            <tr>
+              <td>Disk usage &gt; 85%</td>
+              <td>Writes failing / logs dropping</td>
+            </tr>
+            <tr>
+              <td>Thread pool queue &gt; 100</td>
+              <td>Request latency &gt; SLO</td>
+            </tr>
+            <tr>
+              <td>Kafka consumer lag &gt; 1000</td>
+              <td>Event processing time &gt; SLO; users see stale data</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The cause-based alert fires at 3 AM because the CPU is 81% — the service is fine, the CPU is just high.
+      The on-call wakes up, investigates, finds nothing wrong, goes back to bed. This is <strong>alert
+      fatigue</strong>, and it is the reason most on-call rotations are miserable. The symptom-based alert does
+      not fire until the users are affected — when the p99 is above the SLO, the users are experiencing the
+      problem, and the page is justified.</p>
+
+      <h4>What to alert on</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Category</th><th>Example</th><th>Page or ticket?</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>SLO burn rate</strong></td>
+              <td>Error rate is burning the error budget 10× faster than the SLO allows</td>
+              <td>Page</td>
+            </tr>
+            <tr>
+              <td><strong>Availability</strong></td>
+              <td>Health check is failing for more than 1 minute</td>
+              <td>Page</td>
+            </tr>
+            <tr>
+              <td><strong>Saturation with impact</strong></td>
+              <td>Database connection pool at 100%, and requests are queuing</td>
+              <td>Page (the impact is the symptom)</td>
+            </tr>
+            <tr>
+              <td><strong>Business metric drop</strong></td>
+              <td>Orders per minute dropped 50% versus the same time last week</td>
+              <td>Page</td>
+            </tr>
+            <tr>
+              <td><strong>Saturation without impact</strong></td>
+              <td>CPU at 70%, memory at 60%, connection pool at 40%</td>
+              <td>Ticket — investigate during business hours</td>
+            </tr>
+            <tr>
+              <td><strong>Capacity trending</strong></td>
+              <td>Disk growth predicts full in 14 days</td>
+              <td>Ticket — capacity planning</td>
+            </tr>
+            <tr>
+              <td><strong>Non-urgent</strong></td>
+              <td>A deprecated endpoint is still being called by 0.1% of traffic</td>
+              <td>Slack notification</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The burn rate alert</h4>
+      <p>The best symptom-based alert is the <strong>error budget burn rate</strong>. The SLO allows 0.1% errors
+      over 30 days — that is a rate of 0.1% / (30 × 24 × 60) = ~2.3 × 10⁻⁶ per minute. If the actual error rate
+      is 10× that, the budget is being consumed 10× faster; at that rate, the budget is exhausted in 3 days.
+      The alert is: "the burn rate is above 10× for the last hour" — the error budget is at risk.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Burn rate</th><th>Time to exhaust the 30-day budget</th><th>Alert</th></tr></thead>
+          <tbody>
+            <tr><td>1×</td><td>30 days</td><td>Normal</td></tr>
+            <tr><td>2×</td><td>15 days</td><td>Ticket</td></tr>
+            <tr><td>10×</td><td>3 days</td><td>Ticket (or page if sustained)</td></tr>
+            <tr><td>100×</td><td>~7 hours</td><td>Page</td></tr>
+            <tr><td>1000×</td><td>~43 minutes</td><td>Page immediately</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The burn rate alert is the highest-signal alert: it fires when the user is genuinely being affected,
+      and it escalates with severity. It does not fire on a healthy system that happens to have high CPU; it
+      fires on a system that is losing the reliability the team committed to.</p>
+
+      <h4>The multi-window approach</h4>
+      <p>A single window (the last 5 minutes) has two failure modes: it fires on a brief spike (the alert is
+      noisy), or it misses a slow degradation (the alert is blind). The multi-window approach:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Window</th><th>Threshold</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td>1 minute</td><td>Burn rate &gt; 1000×</td><td>Catastrophic — page immediately</td></tr>
+            <tr><td>5 minutes</td><td>Burn rate &gt; 100×</td><td>Severe — page</td></tr>
+            <tr><td>1 hour</td><td>Burn rate &gt; 10×</td><td>Warning — ticket</td></tr>
+            <tr><td>6 hours</td><td>Burn rate &gt; 2×</td><td>Trending — ticket</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The shorter windows catch the acute incidents; the longer windows catch the slow burns. The alerts are
+      tiered: the 1-minute alert pages; the 6-hour alert creates a ticket.</p>
+
+      <h4>What not to alert on</h4>
+      <ul>
+        <li><strong>Individual host metrics</strong> — a single host's CPU is high; the load balancer
+        should route around it. Alert on the service, not the host.</li>
+        <li><strong>Thresholds without impact</strong> — "memory above 80%" is a ticket, not a page. Memory
+        above 80% is normal; it is only a problem if the process is OOMKilled or the response time is
+        affected.</li>
+        <li><strong>Metrics that fluctuate naturally</strong> — request rate, traffic patterns. These are
+        expected; alerting on them creates noise.</li>
+        <li><strong>Everything that has a dashboard</strong> — a metric is not an alert. The dashboard is for
+        investigation; the alert is for the user impact.</li>
+      </ul>
+
+      <h4>The alert quality checklist</h4>
+      <p>Every alert should pass:</p>
+      <ol>
+        <li><strong>Is it actionable?</strong> If the on-call cannot do anything, it is not an alert.</li>
+        <li><strong>Is it urgent?</strong> If it can wait until morning, it is a ticket, not a page.</li>
+        <li><strong>Is it accurate?</strong> If it fires when nothing is wrong, it is noisy.</li>
+        <li><strong>Is it specific?</strong> The alert should name the service, the symptom, and the runbook.</li>
+        <li><strong>Does it have a runbook?</strong> The on-call should have a documented first step.</li>
+        <li><strong>Does it have a clear owner?</strong> Who fixes it if it fires?</li>
+      </ol>
+
+      <h4>The alert quality metrics</h4>
+      <p>Measure the alert quality — the discipline is data-driven:</p>
+      <ul>
+        <li><strong>Signal-to-noise ratio</strong> — how many alerts are actionable vs noise.</li>
+        <li><strong>Pages per shift</strong> — how many times is the on-call paged.</li>
+        <li><strong>Time to acknowledge</strong> — how quickly the on-call responds.</li>
+        <li><strong>Time to resolve</strong> — how long the incident takes.</li>
+        <li><strong>Actionability</strong> — what percentage of pages lead to a fix.</li>
+      </ul>
+      <p>The target: fewer than 2 pages per 12-hour shift; >80% of pages actionable; time to acknowledge under
+      5 minutes. When these are missed, the alerting is broken and the team is burning out.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Alerting on every metric the dashboard shows. The result: dozens of alerts per day, most of them noise,
+        and the on-call ignores them. The real alert is lost in the noise, and the incident is discovered by the
+        customer instead of the team. Alert on the symptoms that users experience; leave the rest to
+        dashboards.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Alerts fire on symptoms — SLO burn rate, user-facing errors, business metrics. Causes are for
+        dashboards and investigation. Multi-window burn rates catch both the acute and the slow. Every alert is
+        actionable, urgent, and has a runbook." That covers the principle and the implementation.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q5 -->
+  <article class="q cyan" id="q5">
+    <div class="q-head">
+      <div class="q-num">5</div>
+      <h3>How do you design dashboards that actually help during an incident?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A dashboard is not a wall of charts — it is a diagnostic tool that answers a sequence of questions in
+        order: <em>is something wrong? where? how bad? what changed?</em> The design follows the investigation:
+        top-level health (SLO burn, error rate), then the breakdown (by endpoint, by region, by dependency), then
+        the resource (USE metrics), then the recent changes (deploys, config changes). Each panel answers a
+        question the on-call will ask.</p>
+      </div>
+
+      <h4>The questions the dashboard answers</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Order</th><th>Question</th><th>Panel</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td>Is there a problem right now?</td>
+              <td>SLO burn rate; error rate; p99 latency; availability</td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td>How bad is it?</td>
+              <td>Absolute error rate (%); traffic volume; affected users</td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td>Where is it?</td>
+              <td>Error rate by endpoint; by region; by downstream dependency</td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td>Why?</td>
+              <td>Latency breakdown; database query time; downstream call time</td>
+            </tr>
+            <tr>
+              <td>5</td>
+              <td>What changed?</td>
+              <td>Recent deploys; config changes; feature flags; infra events</td>
+            </tr>
+            <tr>
+              <td>6</td>
+              <td>Is it getting better?</td>
+              <td>Trend of the above; the timeline of the incident</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The top row — the health snapshot</h4>
+      <p>The top of the dashboard is the "is there a problem?" row. It shows the SLI for each SLO, with a visual
+      indicator of the target. The on-call glances at it and knows immediately whether the service is healthy.
+      Panels:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Panel</th><th>What it shows</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>SLO status</strong></td>
+              <td>A big number per SLO: 99.97% (green) or 99.82% (red) — against the target</td>
+            </tr>
+            <tr>
+              <td><strong>Error budget remaining</strong></td>
+              <td>0–100% — the fuel gauge; the number that drives the ship/fix decision</td>
+            </tr>
+            <tr>
+              <td><strong>Traffic</strong></td>
+              <td>Requests per second — the denominator for all the rates</td>
+            </tr>
+            <tr>
+              <td><strong>Error rate</strong></td>
+              <td>% of requests failing — the numerator</td>
+            </tr>
+            <tr>
+              <td><strong>p99 latency</strong></td>
+              <td>The tail — what the users feel</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The breakdown row — where is it?</h4>
+      <p>The second row splits the top-level metric by dimension. The on-call uses this to narrow the
+      investigation:</p>
+      <ul>
+        <li><strong>By endpoint</strong> — is <code>GET /orders</code> slow, or just <code>POST /checkout</code>?</li>
+        <li><strong>By region</strong> — is <code>us-east</code> the problem, or all regions?</li>
+        <li><strong>By version</strong> — did the new deploy introduce it?</li>
+        <li><strong>By downstream</strong> — is <code>payment-service</code> slow, or <code>inventory</code>?</li>
+        <li><strong>By client</strong> — is the mobile app, or the web, or a specific partner?</li>
+      </ul>
+      <p>The split is the fastest way to narrow the problem. A 50% error rate that is 100% on one endpoint is a
+      very different problem from a 50% error rate across all endpoints — the first is a bug in that endpoint,
+      the second is infrastructure.</p>
+
+      <h4>The resource row — USE metrics</h4>
+      <p>The third row shows the infrastructure:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Resource</th><th>Panels</th></tr></thead>
+          <tbody>
+            <tr><td>Database</td><td>CPU, connections, slow query count, lock waits, replication lag</td></tr>
+            <tr><td>Cache</td><td>Hit rate, memory, evictions, connections</td></tr>
+            <tr><td>Queue</td><td>Depth, consumer lag, producer rate, consumer rate</td></tr>
+            <tr><td>Hosts</td><td>CPU, memory, disk, network</td></tr>
+            <tr><td>Load balancer</td><td>Request rate, error rate, 5xx, 4xx, latency</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The change row — what changed?</h4>
+      <p>Most incidents are caused by a change — a deploy, a config change, a feature flag, a scaling event,
+      a dependency upgrade. The dashboard shows the changes:</p>
+      <ul>
+        <li><strong>Deploy markers</strong> — a vertical line on the timeline when a deploy happened.</li>
+        <li><strong>Config changes</strong> — a marker when a config was updated.</li>
+        <li><strong>Feature flags</strong> — a marker when a flag was toggled.</li>
+        <li><strong>Infra events</strong> — a marker when an instance was added, removed, or restarted.</li>
+      </ul>
+      <p>The "what changed?" question is often the fastest path to the cause. A latency spike at 14:32 with a
+      deploy marker at 14:31 is probably the deploy; a deploy marker at 12:00 and a spike at 14:32 is
+      probably not. Without the markers, the on-call has to remember or look up the deploy history — which is
+      the kind of thing that fails during an incident.</p>
+
+      <h4>The investigation flow</h4>
+      <p>The dashboard supports the flow:</p>
+      <ol>
+        <li><strong>Glance at the top</strong> — the SLO is at risk; the error rate is 5%.</li>
+        <li><strong>Look at the breakdown</strong> — the errors are on <code>POST /checkout</code> in
+        <code>us-east</code>.</li>
+        <li><strong>Look at the resource</strong> — the database in us-east is at 95% CPU, the connection pool is
+        exhausted.</li>
+        <li><strong>Look at the changes</strong> — a deploy at 14:31, five minutes before the error rate spiked.</li>
+        <li><strong>Correlate</strong> — the deploy introduced a query that is not indexed; the database is
+        overloaded; the checkouts fail.</li>
+        <li><strong>Roll back</strong> — the deploy is reverted; the dashboard returns to normal.</li>
+      </ol>
+      <p>The dashboard is designed for this flow — each row is a step, and the rows together tell the story.
+      Without the design, the on-call stares at 50 charts and does not know which one to look at first.</p>
+
+      <h4>The "wall of charts" anti-pattern</h4>
+      <p>A common bad dashboard: every metric the team could think of, arranged in a grid, with no hierarchy.
+      The on-call looks at it and sees 50 lines; the relevant one is somewhere; the correlation is invisible.
+      The fix is design: each dashboard has a purpose (health, investigation, capacity), and each panel
+      answers a specific question. A dashboard that tries to show everything shows nothing.</p>
+
+      <h4>The layered dashboards</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Layer</th><th>Audience</th><th>Content</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Executive</strong></td>
+              <td>Leadership</td>
+              <td>SLO status across services; error budget burn; customer impact</td>
+            </tr>
+            <tr>
+              <td><strong>Service health</strong></td>
+              <td>On-call, service owner</td>
+              <td>The top-level dashboard: SLO, errors, latency, traffic, breakdown</td>
+            </tr>
+            <tr>
+              <td><strong>Investigation</strong></td>
+              <td>On-call during an incident</td>
+              <td>Detailed panels: per-endpoint, per-instance, per-dependency, resource USE</td>
+            </tr>
+            <tr>
+              <td><strong>Capacity</strong></td>
+              <td>SRE, capacity planner</td>
+              <td>Trends: growth rate, projected limits, resource headroom</td>
+            </tr>
+            <tr>
+              <td><strong>Business</strong></td>
+              <td>Product, leadership</td>
+              <td>Orders, signups, revenue, conversion</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Each layer has its audience. The executive dashboard is not the investigation dashboard; the
+      investigation dashboard is not the capacity dashboard. The right dashboard for the question.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Building dashboards from the data that is easy to collect, not the questions the on-call will ask. The
+        result is charts that are technically accurate but useless during an incident. The fix: design the
+        dashboard from the questions, then collect the data to answer them — not the other way around.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "The dashboard answers a sequence — is there a problem, where, how bad, what changed. Top row is
+        the health snapshot, then the breakdown, then the resources, then the change markers. Each panel
+        answers a question the on-call asks." That covers the design and the purpose.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q6 -->
+  <article class="q cyan" id="q6">
+    <div class="q-head">
+      <div class="q-num">6</div>
+      <h3>How does distributed tracing work, and how do you correlate a request across services?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A distributed trace is a tree of <strong>spans</strong> — each span represents one unit of work (an
+        HTTP request, a database query, an RPC call) with a start time, duration, and metadata. The
+        <code>trace_id</code> is shared across all spans in the request; each span has a <code>span_id</code>
+        and a <code>parent_span_id</code> that links it to its caller. The tree shows the full flow: the entry
+        point, each downstream call, the time spent in each. The correlation is the trace context propagated
+        in headers.</p>
+      </div>
+
+      <h4>The anatomy of a trace</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Concept</th><th>Meaning</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Trace</strong></td>
+              <td>The full request, from entry to exit</td>
+              <td>The whole <code>GET /checkout</code> request, 200 ms</td>
+            </tr>
+            <tr>
+              <td><strong>Span</strong></td>
+              <td>One unit of work in the trace</td>
+              <td>"Call <code>payment-service</code>: 120 ms"</td>
+            </tr>
+            <tr>
+              <td><strong>trace_id</strong></td>
+              <td>The identifier shared by all spans in the trace</td>
+              <td><code>4bf92f3577b34da6a3ce929d0e0e4736</code></td>
+            </tr>
+            <tr>
+              <td><strong>span_id</strong></td>
+              <td>The identifier for this span</td>
+              <td><code>00f067aa0ba902b7</code></td>
+            </tr>
+            <tr>
+              <td><strong>parent_span_id</strong></td>
+              <td>The span that called this one</td>
+              <td>The span for "handle checkout" is the parent of "call payment-service"</td>
+            </tr>
+            <tr>
+              <td><strong>tags/attributes</strong></td>
+              <td>Metadata: service, method, status, peer</td>
+              <td><code>http.method=POST</code>, <code>http.status_code=200</code>, <code>peer.service=payment</code></td>
+            </tr>
+            <tr>
+              <td><strong>events/logs</strong></td>
+              <td>Discrete events within a span</td>
+              <td>"cache miss", "retry #1", "exception"</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The propagation</h4>
+      <p>For the trace to span services, the context must propagate. When service A calls service B, A injects
+      the trace context into the outbound request (headers); B extracts it and starts a child span. The
+      standard headers:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Standard</th><th>Headers</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>W3C Trace Context</strong></td>
+              <td><code>traceparent: 00-{trace_id}-{parent_span_id}-{flags}</code>; <code>tracestate</code> for vendor data</td>
+            </tr>
+            <tr>
+              <td><strong>B3 (Zipkin)</strong></td>
+              <td><code>X-B3-TraceId</code>, <code>X-B3-SpanId</code>, <code>X-B3-ParentSpanId</code>, <code>X-B3-Sampled</code></td>
+            </tr>
+            <tr>
+              <td><strong>Jaeger</strong></td>
+              <td><code>uber-trace-id: {trace_id}:{span_id}:{parent}:{flags}</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>W3C Trace Context is the modern standard; OpenTelemetry uses it by default. The propagation is the
+      key — without it, each service's trace is isolated, and the "distributed" trace is actually N separate
+      traces.</p>
+
+      <h4>The instrumentation layers</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Layer</th><th>What it instruments</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Auto-instrumentation</strong></td>
+              <td>HTTP servers/clients, database drivers, RPC frameworks — spans created automatically by the
+              OpenTelemetry SDK</td>
+            </tr>
+            <tr>
+              <td><strong>Framework instrumentation</strong></td>
+              <td>Express, Django, Spring — middleware that creates the root span and propagates the context</td>
+            </tr>
+            <tr>
+              <td><strong>Manual instrumentation</strong></td>
+              <td>Custom spans for business logic — a span for "process order", for "validate payment"</td>
+            </tr>
+            <tr>
+              <td><strong>Async instrumentation</strong></td>
+              <td>Message queues, scheduled jobs — the trace context is stored with the message and restored
+              when consumed</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Auto-instrumentation covers the infrastructure spans; manual instrumentation covers the business logic.
+      A trace with only auto-instrumentation shows the HTTP calls but not "what was being done"; a trace with
+      both shows the full picture.</p>
+
+      <h4>The sampling</h4>
+      <p>Storing every trace is too expensive — a high-traffic API generates billions. The sampling:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Strategy</th><th>How</th><th>Pros</th><th>Cons</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Head-based (probabilistic)</strong></td>
+              <td>Decide at the root span: 1% of traces are sampled</td>
+              <td>Simple; consistent across services</td>
+              <td>Misses rare events (the slow request you wanted to see)</td>
+            </tr>
+            <tr>
+              <td><strong>Tail-based</strong></td>
+              <td>Decide after the trace is complete: 100% of errors and slow traces, 1% of the rest</td>
+              <td>Catches the interesting traces; drops the boring ones</td>
+              <td>Requires a buffering layer; more complex</td>
+            </tr>
+            <tr>
+              <td><strong>Rate limiting</strong></td>
+              <td>Cap the number of traces per second per service</td>
+              <td>Bounded cost</td>
+              <td>May miss the incident if the rate limit is exceeded</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The pragmatic mix: tail-based sampling for errors and slow requests (100%), head-based for the rest
+      (1%). The trace storage cost is bounded, and the interesting traces are always kept.</p>
+
+      <h4>The trace in the investigation</h4>
+      <p>A trace is the fastest way to find "where in the flow is the latency?" The trace viewer shows a
+      waterfall — each span as a horizontal bar, with the parent-child structure. The on-call looks at the
+      waterfall:</p>
+      <ul>
+        <li><strong>The total is 2 seconds</strong> — the SLI for the endpoint.</li>
+        <li><strong>The first span (handle checkout) is 2 seconds</strong> — the whole request.</li>
+        <li><strong>The child span (call payment-service) is 1.8 seconds</strong> — the bulk of the time.</li>
+        <li><strong>The grandchild span (call stripe API) is 1.7 seconds</strong> — the specific downstream
+        call.</li>
+        <li><strong>The grandchild span (database query) is 50 ms</strong> — not the bottleneck.</li>
+      </ul>
+      <p>The trace answered "where" in seconds — the on-call knows to investigate the Stripe API, not the
+      database. Without the trace, the on-call might look at the database first (it is often the culprit) and
+      waste time.</p>
+
+      <h4>The trace in the incident</h4>
+      <p>During an incident, the trace is the tool for the "how" question: how does the request flow, how does
+      the failure propagate, how is the downstream affecting the upstream? The trace viewer lets the on-call
+      click into a slow span, see its tags (method, status, peer), and correlate with the logs for that
+      trace_id.</p>
+      <p>The workflow:</p>
+      <ol>
+        <li><strong>Dashboard</strong> — the p99 is high on <code>GET /checkout</code>.</li>
+        <li><strong>Trace list</strong> — filter to slow traces; pick one.</li>
+        <li><strong>Trace waterfall</strong> — the <code>payment-service</code> call is 1.8 seconds.</li>
+        <li><strong>Click into the span</strong> — the tags show <code>http.status_code=200</code>,
+        <code>peer.service=stripe</code>.</li>
+        <li><strong>Logs for trace_id</strong> — the logs from <code>payment-service</code> show "stripe API
+        timeout after 1500 ms".</li>
+        <li><strong>Fix</strong> — increase the Stripe timeout, or add a retry, or degrade gracefully.</li>
+      </ol>
+
+      <h4>The trace in production — the sampling problem</h4>
+      <p>A trace is only useful if it was sampled. In an incident, the on-call needs to see the trace of a
+      <em>specific</em> failing request — but if the tracing is sampled at 1%, that specific request is probably
+      not recorded. The mitigations:</p>
+      <ul>
+        <li><strong>Tail-based sampling</strong> — keep 100% of errors and slow traces; the failing request is
+        always recorded.</li>
+        <li><strong>On-demand tracing</strong> — a header or query parameter that forces the trace to be
+        recorded; the on-call adds it to a failing request.</li>
+        <li><strong>Correlation with logs</strong> — even if the trace is not recorded, the logs for the
+        trace_id are; the log line has the trace context.</li>
+      </ul>
+
+      <h4>The trace in async flows</h4>
+      <p>Async flows (webhooks, message queues, scheduled jobs) break the trace — the request is not a single
+      call chain. The mitigation: the trace context is stored with the message and restored when the message
+      is consumed. The trace then spans the producer, the queue, and the consumer — a single trace for the
+      whole async flow.</p>
+      <p>For webhooks (Volume 11), the trace context is injected into the outbound header; the receiver extracts
+      it and starts a child span. The trace spans the sender and the receiver, and the trace viewer shows the
+      full flow.</p>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Instrumenting the HTTP layer but not the async boundary. The trace shows the API request but stops at
+        the message queue — the consumer's processing is a separate trace with no link. The fix: propagate the
+        trace context in the message metadata; the consumer starts a child span.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "A trace is a tree of spans — each span is one unit of work, linked by trace_id and parent_span_id.
+        The context propagates via W3C traceparent headers, and the trace shows where the latency is. Sampling
+        keeps 100% of errors and slow traces, 1% of the rest." That covers the mechanism and the sampling
+        strategy.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- ================= PART C ================= -->
+  <div class="part-band emerald">
+    <div class="bar"></div>
+    <h2>Part C — Incidents, Postmortems &amp; Deployment
+      <span class="sub">Responding, learning, and shipping safely</span>
+    </h2>
+  </div>
+
+  <!-- Q7 -->
+  <article class="q emerald" id="q7">
+    <div class="q-head">
+      <div class="q-num">7</div>
+      <h3>How do you run an incident — roles, communication, and the timeline?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>An incident is a structured response to an unplanned event. The roles:
+        <strong>Incident Commander</strong> (IC) — coordinates, makes decisions, does not fix;
+        <strong>Operations Lead</strong> — does the technical work;
+        <strong>Communications Lead</strong> — updates stakeholders;
+        <strong>Scribe</strong> — logs the timeline. The phases: <strong>detect</strong>,
+        <strong>triage</strong>, <strong>mitigate</strong>, <strong>resolve</strong>,
+        <strong>learn</strong>. The discipline is communication: what happened, who is affected, what is being
+        done, when the next update is.</p>
+      </div>
+
+      <h4>The roles</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Role</th><th>Responsibility</th><th>What they do NOT do</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Incident Commander (IC)</strong></td>
+              <td>Coordinate; make decisions; manage the timeline; keep the team focused</td>
+              <td>Debug or fix — they are the coordinator, not a firefighter</td>
+            </tr>
+            <tr>
+              <td><strong>Operations Lead</strong></td>
+              <td>Do the technical work; investigate; fix; coordinate the technical team</td>
+              <td>Communicate with stakeholders; make policy decisions</td>
+            </tr>
+            <tr>
+              <td><strong>Communications Lead</strong></td>
+              <td>Update stakeholders; write status updates; coordinate with support and PR</td>
+              <td>Debug; make technical decisions</td>
+            </tr>
+            <tr>
+              <td><strong>Scribe</strong></td>
+              <td>Log the timeline; capture decisions; document the investigation</td>
+              <td>Debug; participate in the technical work</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The key insight: the IC <em>does not fix</em>. In a small team, the senior engineer often jumps into
+      the fix and loses the coordination view — the team becomes fragmented, the communication lapses, and the
+      fix takes longer. The IC's job is to keep the whole picture and the whole team, not to write the code.
+      In a small incident, one person can be IC and Ops Lead, but the roles are distinct.</p>
+
+      <h4>The phases</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Phase</th><th>Goal</th><th>Actions</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Detect</strong></td>
+              <td>Know there is an incident</td>
+              <td>Alert fires; customer report; metric crosses SLO</td>
+            </tr>
+            <tr>
+              <td><strong>Triage</strong></td>
+              <td>Assess severity and scope</td>
+              <td>What is affected? How many users? What is the impact? Declare severity</td>
+            </tr>
+            <tr>
+              <td><strong>Mitigate</strong></td>
+              <td>Stop the bleeding</td>
+              <td>Roll back, route around, disable feature, scale up — the fastest path to reducing impact</td>
+            </tr>
+            <tr>
+              <td><strong>Resolve</strong></td>
+              <td>Return to normal</td>
+              <td>Confirm the fix; verify the SLO is recovering; close the incident</td>
+            </tr>
+            <tr>
+              <td><strong>Learn</strong></td>
+              <td>Prevent recurrence</td>
+              <td>Postmortem; action items; the fix that makes the class of incident impossible</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Severity levels</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Severity</th><th>Impact</th><th>Response</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>SEV1</strong></td>
+              <td>Full outage or critical data loss; all users affected</td>
+              <td>All hands; page IC and Ops immediately; exec notification; war room</td>
+            </tr>
+            <tr>
+              <td><strong>SEV2</strong></td>
+              <td>Major feature broken; significant user impact</td>
+              <td>Page on-call; Ops investigates; IC if extended</td>
+            </tr>
+            <tr>
+              <td><strong>SEV3</strong></td>
+              <td>Minor feature broken; workaround available</td>
+              <td>Ticket; next business day</td>
+            </tr>
+            <tr>
+              <td><strong>SEV4</strong></td>
+              <td>Cosmetic; no user impact</td>
+              <td>Backlog</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The severity drives the response — a SEV1 is all hands, a SEV3 is a ticket. The IC declares the
+      severity in triage, and it can escalate if the scope expands.</p>
+
+      <h4>The communication discipline</h4>
+      <p>During an incident, communication is as important as the technical work. The stakeholders need:</p>
+      <ul>
+        <li><strong>What happened</strong> — the symptom, the scope, the impact.</li>
+        <li><strong>Who is affected</strong> — all users, a subset, a specific region.</li>
+        <li><strong>What is being done</strong> — investigating, mitigating, rolling back.</li>
+        <li><strong>When the next update</strong> — a specific time (every 30 minutes, hourly).</li>
+      </ul>
+      <p>The updates are on a schedule — even if nothing has changed, the update is "still investigating, next
+      update at 14:30". This prevents the stakeholders from chasing the IC for status, which is exactly what the
+      IC does not need.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Stakeholder</th><th>Update frequency</th><th>Channel</th></tr></thead>
+          <tbody>
+            <tr><td>Support / customer-facing</td><td>Every 15–30 minutes</td><td>Slack channel; customer-facing status page</td></tr>
+            <tr><td>Engineering leadership</td><td>Every 30 minutes</td><td>Slack; email for SEV1</td></tr>
+            <tr><td>Executive</td><td>At declaration and resolution</td><td>Direct message / phone</td></tr>
+            <tr><td>Customers</td><td>Status page updates</td><td>Public status page</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The status page</h4>
+      <p>The public status page is the customer's source of truth. It shows:</p>
+      <ul>
+        <li><strong>Current status</strong> — operational, degraded, partial outage, major outage.</li>
+        <li><strong>Affected services</strong> — which parts of the product are impacted.</li>
+        <li><strong>The incident timeline</strong> — when it started, what is being done, the next update.</li>
+        <li><strong>Postmortems</strong> — the public postmortem after resolution (for significant incidents).</li>
+      </ul>
+      <p>The status page must be updated during the incident, not after. Customers see the same outage the team
+      does; a silent status page implies the team has not noticed, which erodes trust.</p>
+
+      <h4>The war room</h4>
+      <p>For a SEV1, the war room is a single channel (or call) where all the participants are. The benefits:</p>
+      <ul>
+        <li><strong>Shared context</strong> — everyone sees the same investigation, the same metrics, the same
+        decisions.</li>
+        <li><strong>Fast decisions</strong> — the IC asks "do we roll back?", the Ops says "yes", it happens.</li>
+        <li><strong>No miscommunication</strong> — the chat channel is the record; everyone knows what was
+        decided.</li>
+        <li><strong>The scribe documents</strong> — the timeline is captured in real time; the postmortem is
+        easier.</li>
+      </ul>
+
+      <h4>The post-incident</h4>
+      <p>The incident is over when the SLO is recovering and the customer impact has stopped. The post-incident
+      work:</p>
+      <ol>
+        <li><strong>Confirm resolution</strong> — the metrics are healthy; the customer has confirmed.</li>
+        <li><strong>Communicate resolution</strong> — to stakeholders and to the status page.</li>
+        <li><strong>Schedule the postmortem</strong> — within a week, before the memory fades.</li>
+        <li><strong>Preserve the evidence</strong> — the logs, the traces, the dashboards, the chat transcript.</li>
+        <li><strong>Draft the postmortem</strong> — the timeline, the root cause, the action items.</li>
+        <li><strong>Track the action items</strong> — the fixes are the point; without them, the incident will
+        recur.</li>
+      </ol>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>The IC jumps into the debugging. The team loses the coordinator; the communication stops; the fix takes
+        longer. The IC's job is to ask "what is the state?", "what are we doing?", "when is the next update?" —
+        not to read the logs. In a small incident, the IC can also be Ops Lead, but when the incident expands,
+        the roles must separate.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "The IC coordinates and does not fix; Ops Lead does the technical work; Comms Lead updates
+        stakeholders; Scribe logs the timeline. The phases are detect, triage, mitigate, resolve, learn. The
+        communication is on a schedule, even if nothing has changed." That covers the roles and the discipline.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q8 -->
+  <article class="q emerald" id="q8">
+    <div class="q-head">
+      <div class="q-num">8</div>
+      <h3>What is a blameless postmortem, and what should it contain?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>A blameless postmortem is a written analysis of an incident that focuses on <strong>systems and
+        processes</strong>, not individuals. The premise: people do not act maliciously; they act reasonably
+        given the information, tools, and pressures they had. Blaming people shuts down the honest reporting
+        that the postmortem depends on. The postmortem contains: the timeline, the root cause (and contributing
+        causes), the impact, what went well, what went poorly, and the action items with owners and deadlines.</p>
+      </div>
+
+      <h4>Why "blameless"</h4>
+      <p>The temptation after an incident is to find the person who "caused" it — the engineer who deployed the
+      bad code, the operator who ran the wrong command. But:</p>
+      <ul>
+        <li><strong>The engineer did not act alone.</strong> The deploy was approved, the test passed, the
+        monitor did not catch it. The "cause" is a chain, not a person.</li>
+        <li><strong>Blaming destroys the signal.</strong> If people fear blame, they hide mistakes, and the
+        team loses the data it needs to prevent recurrence.</li>
+        <li><strong>Blaming does not fix the system.</strong> Firing one engineer does not change the process
+        that allowed the mistake. The next engineer will make the same mistake.</li>
+        <li><strong>Blaming is factually wrong.</strong> The incident is a property of the system — the tools,
+        the process, the culture — not of the individual. The individual is the messenger, not the cause.</li>
+      </ul>
+
+      <h4>The structure</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Section</th><th>Content</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Header</strong></td>
+              <td>Incident number, date, severity, duration, affected services, IC</td>
+            </tr>
+            <tr>
+              <td><strong>Summary</strong></td>
+              <td>2–3 sentences: what happened, for how long, what was the impact</td>
+            </tr>
+            <tr>
+              <td><strong>Impact</strong></td>
+              <td>Users affected, requests failed, revenue lost, SLO burned</td>
+            </tr>
+            <tr>
+              <td><strong>Timeline</strong></td>
+              <td>The minute-by-minute sequence: detection, triage, decisions, mitigations, resolution</td>
+            </tr>
+            <tr>
+              <td><strong>Root cause</strong></td>
+              <td>The primary cause — the change or condition that triggered the incident</td>
+            </tr>
+            <tr>
+              <td><strong>Contributing factors</strong></td>
+              <td>What made it worse or prevented the fix — the missing test, the misleading monitor, the slow
+              rollback</td>
+            </tr>
+            <tr>
+              <td><strong>What went well</strong></td>
+              <td>The detection, the rollback, the communication — the things to preserve</td>
+            </tr>
+            <tr>
+              <td><strong>What went poorly</strong></td>
+              <td>The missing alert, the slow triage, the confusing runbook — the things to fix</td>
+            </tr>
+            <tr>
+              <td><strong>Action items</strong></td>
+              <td>Specific, owned, dated; the prevention — not "be more careful"</td>
+            </tr>
+            <tr>
+              <td><strong>Lessons learned</strong></td>
+              <td>The generalizable insight — the class of problem to watch for</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The timeline</h4>
+      <p>The timeline is the most valuable section — it forces the team to reconstruct the sequence and identify
+      the delays. The format:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Time</th><th>Event</th></tr></thead>
+          <tbody>
+            <tr><td>14:32</td><td>Deploy of v2.4.1 completes</td></tr>
+            <tr><td>14:35</td><td>Error rate on <code>POST /checkout</code> begins to rise</td></tr>
+            <tr><td>14:38</td><td>Alert fires — error rate &gt; SLO</td></tr>
+            <tr><td>14:42</td><td>On-call acknowledges, opens incident channel</td></tr>
+            <tr><td>14:45</td><td>IC assigned; severity declared SEV2</td></tr>
+            <tr><td>14:50</td><td>Ops Lead identifies database CPU at 95%</td></tr>
+            <tr><td>14:55</td><td>Rollback to v2.4.0 begins</td></tr>
+            <tr><td>15:02</td><td>Rollback complete; error rate begins to fall</td></tr>
+            <tr><td>15:10</td><td>Error rate back to baseline; incident resolved</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The timeline reveals the delays: 3 minutes from deploy to error, 3 minutes from error to alert, 4 minutes
+      from alert to acknowledge, 17 minutes from detection to mitigation. Each delay is an action item — the
+      alert threshold, the acknowledge SLA, the rollback procedure.</p>
+
+      <h4>The root cause</h4>
+      <p>The root cause is the <em>change or condition</em> that triggered the incident — not the person who made
+      the change. "The deploy introduced an unindexed query" is a root cause; "the engineer who wrote the query"
+      is not. The contributing factors are the conditions that made it worse or prevented the fix: "the staging
+      environment did not have production-scale data, so the missing index did not show up in tests."</p>
+      <p>The 5-whys technique is often used: "why?" five times, until the answer is a systemic condition rather
+      than a surface symptom. But it is used carefully — the goal is to understand, not to assign blame. The
+      chain often ends at "the process did not catch it", which is where the action item belongs.</p>
+
+      <h4>The action items</h4>
+      <p>The action items are the point. Each should be:</p>
+      <ul>
+        <li><strong>Specific</strong> — "add the index on <code>orders.created_at</code>", not "improve
+        database performance".</li>
+        <li><strong>Owned</strong> — a named person, not "the team".</li>
+        <li><strong>Dated</strong> — a deadline, not "soon".</li>
+        <li><strong>Verifiable</strong> — the fix can be checked; the test can be run.</li>
+        <li><strong>Systemic</strong> — the fix prevents the class, not just the instance. The missing index is
+        fixed, and the staging data is scaled to production, so the next missing index is caught.</li>
+      </ul>
+      <p>The categories of action item:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Category</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Prevent</strong></td>
+              <td>Fix the bug; add the test; correct the configuration</td>
+            </tr>
+            <tr>
+              <td><strong>Detect</strong></td>
+              <td>Add the alert; improve the monitor; shorten the detection window</td>
+            </tr>
+            <tr>
+              <td><strong>Mitigate</strong></td>
+              <td>Improve the rollback; add the feature flag; enable the circuit breaker</td>
+            </tr>
+            <tr>
+              <td><strong>Respond</strong></td>
+              <td>Update the runbook; add the dashboard; clarify the escalation</td>
+            </tr>
+            <tr>
+              <td><strong>Learn</strong></td>
+              <td>Share the analysis; update the training; revise the architecture</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>A postmortem with only "prevent" items will not catch the next incident. The detection, mitigation, and
+      response items are the infrastructure that makes the next incident smaller.</p>
+
+      <h4>The distribution</h4>
+      <p>The postmortem is written for:</p>
+      <ul>
+        <li><strong>The team</strong> — the detailed analysis; the technical depth.</li>
+        <li><strong>The broader org</strong> — the summary and the lessons learned; the pattern to watch for.</li>
+        <li><strong>The customer</strong> (for significant incidents) — a redacted version with the timeline, the
+        impact, and the fixes; no internal details or blame.</li>
+        <li><strong>The public</strong> (for major incidents) — a blog post or status page entry; the trust
+        rebuild.</li>
+      </ul>
+
+      <h4>The "no root cause" trap</h4>
+      <p>Some incidents do not have a single root cause — they are complex, with multiple contributing factors.
+      The postmortem should resist the pressure to name one thing. The analysis can say "several factors
+      combined", and the action items address each. Forcing a single root cause often produces a wrong fix.</p>
+
+      <h4>The action item follow-through</h4>
+      <p>The most common failure of the postmortem process: the postmortem is written, and the action items are
+      never done. The next incident has the same cause, and the postmortem is now a ritual, not a learning.
+      The fix:</p>
+      <ul>
+        <li><strong>Track the items in the same system as the regular work</strong> — the backlog; the Jira
+        project; the sprint.</li>
+        <li><strong>Review at the weekly meeting</strong> — the action items are part of the team's regular
+        review.</li>
+        <li><strong>Assign a deadline</strong> — the item is due; if it slips, it is re-discussed, not
+        forgotten.</li>
+        <li><strong>Publicise the completion</strong> — the team sees that the items are done, which reinforces
+        the culture.</li>
+      </ul>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Writing "the engineer should have tested more carefully" as an action item. It is not actionable (the
+        engineer is not going to "test more carefully" without a change to the process), it is not systemic (the
+        next engineer will make the same mistake), and it is not blameless (it blames the engineer). The fix is
+        to change the process — the missing test, the staging environment, the code review checklist.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Blameless means we focus on systems, not people. The postmortem has a timeline, root cause,
+        contributing factors, what went well, what went poorly, and owned action items. The action items are
+        tracked like any other work — the postmortem is only valuable if the fixes actually happen." That covers
+        the culture and the discipline.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q9 -->
+  <article class="q emerald" id="q9">
+    <div class="q-head">
+      <div class="q-num">9</div>
+      <h3>Compare deployment strategies — rolling, blue-green, canary, and feature flags.</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p><strong>Rolling</strong> replaces instances one at a time — the default, simple, but mixed versions run
+        during the rollout. <strong>Blue-green</strong> deploys to a parallel environment, switches all traffic
+        atomically, and rolls back by switching back — fast rollback, double the infrastructure.
+        <strong>Canary</strong> routes a small percentage of traffic to the new version, monitors, and ramps up
+        — gradual risk, requires good observability. <strong>Feature flags</strong> deploy the code to production
+        but keep it disabled, enabling per-user or per-tenant — decouples deploy from release, the fastest
+        rollback.</p>
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Strategy</th><th>Rollback</th><th>Cost</th><th>Risk</th><th>Best for</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Rolling</strong></td>
+              <td>Slow — the previous version is gone; must re-deploy</td>
+              <td>Normal</td>
+              <td>Medium — mixed versions during the rollout</td>
+              <td>Stateless services; the default</td>
+            </tr>
+            <tr>
+              <td><strong>Blue-green</strong></td>
+              <td>Fast — flip the switch back</td>
+              <td>Double (two environments)</td>
+              <td>Low — the switch is atomic</td>
+              <td>Major changes; database migrations; anything where the old version must be available</td>
+            </tr>
+            <tr>
+              <td><strong>Canary</strong></td>
+              <td>Fast — reduce the canary weight to 0</td>
+              <td>Small (a few extra instances)</td>
+              <td>Very low — limited blast radius</td>
+              <td>Most production deploys; the standard for high-traffic</td>
+            </tr>
+            <tr>
+              <td><strong>Feature flags</strong></td>
+              <td>Instant — flip the flag off</td>
+              <td>Minimal</td>
+              <td>Very low — the code is present but disabled</td>
+              <td>User-facing features; A/B tests; gradual releases</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Rolling deployment</h4>
+      <p>The default in Kubernetes and most orchestrators. The new version is deployed alongside the old; as new
+      instances become healthy, old instances are terminated. The process continues until all instances are on
+      the new version.</p>
+      <p>The advantages: simple, no extra infrastructure, works with any stateless service. The disadvantage: for
+      a period (minutes), both versions are running and serving traffic. If the new version has a bug, the
+      traffic is partially affected; if the bug is severe, some users see errors until the rollout completes.</p>
+      <p>The rollback is a new rolling deployment to the previous version — the old version is no longer running,
+      so it must be re-deployed. This takes as long as the rollout, which is the reason rolling is the weakest
+      for rollback.</p>
+      <p>The prerequisites: backward-compatible schema (the old and new versions share the database); health
+      checks that reflect readiness (not just liveness); zero-downtime connection draining (the old instance
+      finishes in-flight requests before terminating).</p>
+
+      <h4>Blue-green deployment</h4>
+      <p>Two full environments — blue (current) and green (new). The new version is deployed to green; it is
+      tested; the load balancer switches all traffic to green atomically. If there is a problem, the switch is
+      reversed — blue is still running.</p>
+      <p>The advantage: rollback is instant — a single load balancer change. The disadvantage: double the
+      infrastructure (two full environments), and the two environments must be kept in sync (same config,
+      same schema).</p>
+      <p>The database problem: if the new version has a schema change, both versions must be compatible with the
+      same database. Blue uses the old schema; green uses the new — they cannot both use the same database if
+      the schema is incompatible. The solution is expand-contract (Volume 3, Question 4): add the new field,
+      backfill, deploy the new code, remove the old field. The blue-green deploy happens at the deploy step, not
+      the schema step.</p>
+
+      <h4>Canary deployment</h4>
+      <p>The standard for high-traffic services. The new version is deployed alongside the old; a small
+      percentage of traffic (1%, 5%, 10%) is routed to the new version; the metrics are compared to the
+      baseline; if healthy, the percentage is increased; if not, it is reduced to 0.</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Step</th><th>Weight</th><th>Duration</th></tr></thead>
+          <tbody>
+            <tr><td>Deploy canary</td><td>0%</td><td>Smoke tests</td></tr>
+            <tr><td>Initial canary</td><td>1%</td><td>15 minutes</td></tr>
+            <tr><td>Ramp</td><td>5%</td><td>30 minutes</td></tr>
+            <tr><td>Ramp</td><td>10%</td><td>1 hour</td></tr>
+            <tr><td>Ramp</td><td>50%</td><td>1 hour</td></tr>
+            <tr><td>Full rollout</td><td>100%</td><td>Complete</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The prerequisites:</p>
+      <ul>
+        <li><strong>Per-version metrics</strong> — the canary's error rate, latency, and business metrics must
+        be tagged and visible.</li>
+        <li><strong>Automated comparison</strong> — the system compares the canary to the baseline and alerts or
+        auto-reverts if the canary is worse.</li>
+        <li><strong>Backward-compatible schema</strong> — both versions run against the same database.</li>
+        <li><strong>Sticky routing</strong> — a user is consistently in the canary or the baseline (not flipping
+        between them).</li>
+      </ul>
+      <p>The advantage: the blast radius is limited — a bad canary affects 1% of traffic, not 100%. The canary
+      is the safest deploy strategy for most services.</p>
+
+      <h4>Feature flags</h4>
+      <p>The code is deployed to production but the feature is disabled; a flag controls whether the feature is
+      active. The flag can be per-user, per-tenant, per-region, per-percentage.</p>
+      <p>The advantages:</p>
+      <ul>
+        <li><strong>Decouple deploy from release</strong> — the code is in production; the release is a flag
+        toggle.</li>
+        <li><strong>Instant rollback</strong> — flip the flag off; the code is still deployed but inert.</li>
+        <li><strong>Gradual rollout</strong> — enable for 1% of users, then 10%, then 100%.</li>
+        <li><strong>A/B testing</strong> — enable for group A, not group B; compare the metrics.</li>
+        <li><strong>Kill switch</strong> — if the feature causes problems, disable it without a deploy.</li>
+      </ul>
+      <p>The costs:</p>
+      <ul>
+        <li><strong>Flag debt</strong> — flags accumulate; old flags are never removed; the code becomes a maze
+        of conditional branches.</li>
+        <li><strong>Testing complexity</strong> — every combination of flags is a test case; the combinatorics
+        explode.</li>
+        <li><strong>Configuration as code</strong> — the flags are configuration; misconfiguration is a bug.</li>
+      </ul>
+      <p>The discipline: every flag has an owner, a purpose, and a removal date. When the feature is fully
+      rolled out, the flag is removed from the code (not just disabled). The flag debt is the cost; the
+      management is the discipline.</p>
+
+      <h4>The combination</h4>
+      <p>In practice, the strategies are layered:</p>
+      <ol>
+        <li><strong>Deploy</strong> — canary or blue-green (the infrastructure change).</li>
+        <li><strong>Release</strong> — feature flag (the user-facing change).</li>
+        <li><strong>Experiments</strong> — flag with an A/B test (the measurement).</li>
+      </ol>
+      <p>The deploy is safe (the canary catches the infrastructure bugs); the release is reversible (the flag
+      catches the feature bugs); the experiment is measurable (the A/B test tells you whether the feature is
+      worth keeping). Each layer catches what the previous one misses.</p>
+
+      <h4>The zero-downtime requirements</h4>
+      <p>All the strategies require the same prerequisites for zero downtime:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Requirement</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Backward-compatible schema</strong></td>
+              <td>The old and new versions run against the same database</td>
+            </tr>
+            <tr>
+              <td><strong>Health checks</strong></td>
+              <td>The load balancer knows when an instance is ready</td>
+            </tr>
+            <tr>
+              <td><strong>Connection draining</strong></td>
+              <td>In-flight requests complete before the instance is terminated</td>
+            </tr>
+            <tr>
+              <td><strong>Graceful shutdown</strong></td>
+              <td>The application stops accepting new requests, finishes existing ones, then exits</td>
+            </tr>
+            <tr>
+              <td><strong>Readiness vs liveness</strong></td>
+              <td>The readiness probe reflects the ability to serve; the liveness probe reflects the process
+              alive</td>
+            </tr>
+            <tr>
+              <td><strong>Rollback plan</strong></td>
+              <td>The previous version is available (blue-green) or the rollback is fast (canary)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Using canary without per-version metrics. The canary is deployed, but the metrics are aggregated across
+        versions — the canary's error rate is invisible. The canary becomes a placebo: it "looks" safe but the
+        team cannot tell if it is failing. The fix: tag every metric with the version; compare the canary to the
+        baseline explicitly.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Rolling is the default, simple, but slow to rollback. Blue-green is fast rollback at double the
+        infrastructure. Canary is the standard for high-traffic — 1% to 100% with per-version metrics. Feature
+        flags decouple deploy from release — the code is in production, the feature is off. The full stack is
+        canary deploy + feature flag release." That covers the four strategies and their combination.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- Q10 -->
+  <article class="q emerald" id="q10">
+    <div class="q-head">
+      <div class="q-num">10</div>
+      <h3>What is chaos engineering, and how do you run a game day?</h3>
+    </div>
+    <div class="q-body">
+      <div class="callout answer">
+        <span class="label">Short Answer</span>
+        <p>Chaos engineering is the discipline of <strong>deliberately injecting failures</strong> into a system
+        to verify that it recovers. The premise: distributed systems have failure modes that testing does not
+        exercise; the only way to know how they behave is to break them. A <strong>game day</strong> is a
+        planned exercise where the team injects a specific failure (kills a database, drops a network, corrupts
+        a config) and verifies the system's response. The goal is not to break things — it is to learn what
+        breaks and to fix it before it happens in production.</p>
+      </div>
+
+      <h4>The principles</h4>
+      <ol>
+        <li><strong>Build a hypothesis</strong> — "if we kill the primary database, the failover completes in
+        under 30 seconds and the error rate returns to baseline within 1 minute."</li>
+        <li><strong>Define the steady state</strong> — the metrics that characterize the healthy system (error
+        rate, latency, throughput, SLO).</li>
+        <li><strong>Introduce the failure</strong> — kill the database, drop the network, corrupt the config.</li>
+        <li><strong>Verify the hypothesis</strong> — does the system recover as predicted? If not, the
+        hypothesis is wrong (or the system has a bug).</li>
+        <li><strong>Fix the gap</strong> — the system did not recover as expected; the gap is the learning; the
+        fix is the action item.</li>
+      </ol>
+
+      <h4>What to inject</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Failure</th><th>What it tests</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Instance kill</strong></td>
+              <td>Does the load balancer route around it? Does the service auto-recover?</td>
+            </tr>
+            <tr>
+              <td><strong>AZ failure</strong></td>
+              <td>Does the multi-AZ deployment survive? Does the failover complete?</td>
+            </tr>
+            <tr>
+              <td><strong>Region failure</strong></td>
+              <td>Does the multi-region deployment failover? What is the recovery time?</td>
+            </tr>
+            <tr>
+              <td><strong>Network latency</strong></td>
+              <td>Does the timeout work? Does the retry succeed? Does the circuit breaker open?</td>
+            </tr>
+            <tr>
+              <td><strong>Network partition</strong></td>
+              <td>Does the system split-brain? Does the consensus protocol recover?</td>
+            </tr>
+            <tr>
+              <td><strong>Packet loss</strong></td>
+              <td>Does the application handle lost messages? Does the retry storm?</td>
+            </tr>
+            <tr>
+              <td><strong>Database slow</strong></td>
+              <td>Does the read replica take over? Do the slow queries back up?</td>
+            </tr>
+            <tr>
+              <td><strong>Database down</strong></td>
+              <td>Does the failover work? Does the cache absorb the reads?</td>
+            </tr>
+            <tr>
+              <td><strong>DNS failure</strong></td>
+              <td>Does the client cache resolve? Does the fallback work?</td>
+            </tr>
+            <tr>
+              <td><strong>Disk full</strong></td>
+              <td>Does the log rotation work? Does the process fail gracefully?</td>
+            </tr>
+            <tr>
+              <td><strong>Memory exhaustion</strong></td>
+              <td>Does the OOM killer terminate the right process? Does the replacement start?</td>
+            </tr>
+            <tr>
+              <td><strong>Clock skew</strong></td>
+              <td>Does the timestamp-based logic break? Does the JWT validation fail?</td>
+            </tr>
+            <tr>
+              <td><strong>Dependency failure</strong></td>
+              <td>Does the circuit breaker open? Does the fallback work? Does the error propagate
+              gracefully?</td>
+            </tr>
+            <tr>
+              <td><strong>Certificate expiry</strong></td>
+              <td>Does the renewal work? Does the client reject the connection?</td>
+            </tr>
+            <tr>
+              <td><strong>Traffic spike</strong></td>
+              <td>Does the auto-scaling work? Does the load shedding prevent the cascade?</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The tools</h4>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Tool</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Chaos Monkey</strong> (Netflix)</td>
+              <td>Randomly terminates instances in production — the original chaos engineering tool</td>
+            </tr>
+            <tr>
+              <td><strong>Chaos Toolkit</strong></td>
+              <td>A framework for chaos experiments across cloud providers</td>
+            </tr>
+            <tr>
+              <td><strong>LitmusChaos</strong></td>
+              <td>Kubernetes-native chaos; runs experiments as CRDs</td>
+            </tr>
+            <tr>
+              <td><strong>Gremlin</strong></td>
+              <td>Commercial; failure injection across infrastructure</td>
+            </tr>
+            <tr>
+              <td><strong>AWS Fault Injection Simulator</strong></td>
+              <td>AWS-native failure injection</td>
+            </tr>
+            <tr>
+              <td><strong>tc (traffic control)</strong></td>
+              <td>Linux network manipulation — latency, loss, corruption</td>
+            </tr>
+            <tr>
+              <td><strong>Toxiproxy</strong></td>
+              <td>A proxy for injecting network failures in development</td>
+            </tr>
+            <tr>
+              <td><strong>Pumba</strong></td>
+              <td>Docker chaos — kill, pause, network manipulation</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The game day</h4>
+      <p>A game day is a planned exercise — a specific failure, a specific hypothesis, a specific set of
+      observers. The structure:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Phase</th><th>Activity</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Plan</strong></td>
+              <td>Choose the failure; write the hypothesis; identify the metrics; notify the participants</td>
+            </tr>
+            <tr>
+              <td><strong>Pre-flight</strong></td>
+              <td>Verify the baseline; confirm the hypothesis; the rollback is ready</td>
+            </tr>
+            <tr>
+              <td><strong>Execute</strong></td>
+              <td>Inject the failure; monitor; note the timeline</td>
+            </tr>
+            <tr>
+              <td><strong>Observe</strong></td>
+              <td>Does the system respond as predicted? What was the detection time? The mitigation time?</td>
+            </tr>
+            <tr>
+              <td><strong>Recover</strong></td>
+              <td>Remove the failure; verify the system returns to normal; the baseline is restored</td>
+            </tr>
+            <tr>
+              <td><strong>Debrief</strong></td>
+              <td>What happened? What surprised us? What are the action items?</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>The game day example</h4>
+      <p><strong>Hypothesis:</strong> "If the primary database is killed, the failover to the replica completes
+      in under 30 seconds, and the error rate returns to baseline within 2 minutes."</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Time</th><th>Event</th><th>Metric</th></tr></thead>
+          <tbody>
+            <tr><td>10:00</td><td>Baseline confirmed</td><td>Error rate 0.02%, p99 150 ms</td></tr>
+            <tr><td>10:01</td><td>Primary database killed</td><td>—</td></tr>
+            <tr><td>10:01:15</td><td>Error rate spikes</td><td>Error rate 15%</td></tr>
+            <tr><td>10:01:25</td><td>Failover begins</td><td>Alert fires</td></tr>
+            <tr><td>10:01:45</td><td>Replica promoted</td><td>Error rate 5%</td></tr>
+            <tr><td>10:02:00</td><td>Traffic routed to new primary</td><td>Error rate 1%</td></tr>
+            <tr><td>10:03:00</td><td>Error rate back to baseline</td><td>Error rate 0.02%</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The hypothesis was partially correct — the failover completed in ~45 seconds (not 30), and the error
+      rate recovered in 2 minutes. The finding: the failover is slower than expected. The action item:
+      investigate the failover delay; possibly reduce the health check interval.</p>
+
+      <h4>The "we cannot test in production" objection</h4>
+      <p>Chaos engineering is often objected to as "too risky for production". The response:</p>
+      <ul>
+        <li><strong>Production is where the failures happen.</strong> Testing in staging tests the staging
+        environment; the production environment has different traffic, different data, different
+        configuration.</li>
+        <li><strong>The failures will happen anyway.</strong> The only question is whether the team has practiced
+        the response, or discovers it during the real incident.</li>
+        <li><strong>Start small.</strong> The first experiments are low-blast-radius — kill one non-critical
+        instance; inject a brief network delay; verify the recovery. Gradually increase the scope as the
+        confidence grows.</li>
+        <li><strong>Use a game day, not continuous chaos.</strong> Netflix runs Chaos Monkey continuously;
+        most teams start with planned game days and gradually automate the safe experiments.</li>
+      </ul>
+
+      <h4>The continuous chaos</h4>
+      <p>The mature practice is continuous chaos — the failure injection runs continuously, at a low rate, so
+      the system is always being tested. Netflix's Chaos Monkey kills instances in production every day; the
+      system is designed to tolerate it. The benefit: the failures are caught and fixed continuously, not
+      batched into a quarterly game day.</p>
+      <p>The prerequisites: the system is genuinely designed for failure (auto-scaling, retries, circuit
+      breakers); the observability is good enough to detect the problem (metrics, traces); the team is
+      practiced (the game days came first).</p>
+
+      <h4>The learning loop</h4>
+      <p>Chaos engineering is a learning loop:</p>
+      <ol>
+        <li><strong>Hypothesize</strong> — the system should recover from this failure.</li>
+        <li><strong>Test</strong> — inject the failure; observe.</li>
+        <li><strong>Learn</strong> — the system did not recover as expected; the gap is the learning.</li>
+        <li><strong>Fix</strong> — the code, the configuration, the runbook.</li>
+        <li><strong>Repeat</strong> — the next game day; the system is more resilient.</li>
+      </ol>
+
+      <div class="callout pitfall">
+        <span class="label">Common Pitfall</span>
+        <p>Running a game day without a hypothesis. The failure is injected, the team watches the dashboards, and
+        afterwards no one can say what was learned. The fix: the hypothesis is the point — "the system should
+        recover in X seconds" — and the verification is whether the hypothesis holds. Without a hypothesis, the
+        game day is a demo, not an experiment.</p>
+      </div>
+
+      <div class="callout tip">
+        <span class="label">Interview Framing</span>
+        <p>Say: "Chaos engineering is deliberate failure injection to verify recovery. The hypothesis is the point
+        — the system should recover in X seconds — and the game day tests it. Start small, in production, with
+        a clear hypothesis and a rollback. The learning is the gap between the hypothesis and the actual
+        behavior." That covers the discipline and the practice.</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- NEXT PART -->
+  <section class="next-part">
+    <h3>Coming in Volume 16 — API Lifecycle &amp; Governance</h3>
+    <p>Volume 16 turns to the organisational side of API design: the API lifecycle (design, review, publish,
+    deprecate, retire), design reviews and style guides, documentation and developer experience, the API catalog
+    and portal, and the governance that keeps a growing API surface coherent across teams.</p>
+    <ul class="next-list">
+      <li>The API lifecycle — from idea to retirement</li>
+      <li>Design-first workflow and mock servers</li>
+      <li>API style guides and linting (Spectral)</li>
+      <li>Design reviews — who, what, and when</li>
+      <li>Documentation and API reference (OpenAPI, Redoc)</li>
+      <li>Developer experience — onboarding, SDKs, sandboxes</li>
+      <li>The API catalog and developer portal</li>
+      <li>Versioning and deprecation governance</li>
+      <li>API ownership and the platform team</li>
+      <li>Measuring API adoption and health</li>
+    </ul>
+  </section>
+
+</div>
+</body>
+</html>
